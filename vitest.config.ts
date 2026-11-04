@@ -12,10 +12,12 @@ export default defineConfig({
       include: ['lib/**/*.ts', 'app/**/*.ts', 'app/**/*.tsx'],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts', '**/*.config.*', '**/types/**'],
       thresholds: {
-        lines: 2,
-        functions: 2,
-        branches: 2,
-        statements: 2,
+        // Global minimums — CI fails if coverage drops below these
+        lines: 20,
+        functions: 20,
+        branches: 15,
+        statements: 20,
+        perFile: false,
       },
     },
     globals: true,

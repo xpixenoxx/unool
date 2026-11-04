@@ -1,12 +1,12 @@
-import { Metadata } from 'next';
+﻿import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import BrandMaterialsPageView, { BrandMaterialsPageData, CreatorProfile } from './BrandMaterialsPageView';
 import Link from 'next/link';
 import { ArrowLeft, Layers } from 'lucide-react';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 interface PageProps {
   params: Promise<{ subdomain: string; slug: string }>;
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { subdomain, slug } = await params;
 
   try {
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('id, workspace_id, name, subdomain, headline, avatar_url')
       .eq('subdomain', subdomain)
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     }
 
-    const { data: page } = await supabase
+    const { data: page } = await supabaseAdmin
       .from('brand_materials_pages')
       .select('title, tagline, description')
       .eq('workspace_id', profile.workspace_id)
@@ -67,7 +67,7 @@ export default async function BrandMaterialsSlugPage({ params, searchParams }: P
   }
 
   // Fetch creator profile including active template theme
-  const { data: profile } = await supabase
+  const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('id, workspace_id, name, subdomain, headline, role, company, bio, avatar_url, theme')
     .eq('subdomain', subdomain)
@@ -94,7 +94,7 @@ export default async function BrandMaterialsSlugPage({ params, searchParams }: P
   }
 
   // Fetch brand materials page for this workspace and slug
-  const { data: pageData } = await supabase
+  const { data: pageData } = await supabaseAdmin
     .from('brand_materials_pages')
     .select('*')
     .eq('workspace_id', profile.workspace_id)

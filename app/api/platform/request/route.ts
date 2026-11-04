@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 

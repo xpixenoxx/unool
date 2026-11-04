@@ -1,8 +1,8 @@
-import { cache } from 'react';
+﻿import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
 import { config } from '@/lib/config/schema';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export interface AuthContext {
   userId: string;
@@ -13,7 +13,7 @@ export interface AuthContext {
 const workspaceMemoryCache = new Map<string, { workspaceId: string; expiresAt: number }>();
 
 function createServiceClient() {
-  return createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  return supabaseAdmin;
 }
 
 /**
@@ -84,21 +84,6 @@ function extractUserFromCookieStore(cookieStore: Awaited<ReturnType<typeof cooki
  * Returns null if not authenticated
  */
 export const getAuthContext = cache(async function getAuthContext(): Promise<AuthContext | null> {
-  // Development bypass: use dev user without requiring real auth
-  // Only activate in actual dev runtime, never during production builds.
-  if (config.DEV_AUTH_BYPASS === true) {
-    try {
-      const { getDevAuthContextAsync, isDevAuthEnabled } = await import('@/lib/auth/dev/bypass');
-      if (isDevAuthEnabled()) {
-        const devContext = await getDevAuthContextAsync();
-        if (devContext) {
-          return devContext;
-        }
-      }
-    } catch (err) {
-      console.warn('[Auth] Dev bypass import failed (expected in production):', err instanceof Error ? err.message : err);
-    }
-  }
 
   // Fast-path 1: Check request headers (injected by middleware or upstream)
   try {

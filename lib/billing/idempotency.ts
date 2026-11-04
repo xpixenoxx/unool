@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 /**
  * Generate an idempotency key for payment orders.
- * Same user + plan + billing cycle within a 60-second window → same key.
+ * Same user + plan + billing cycle within a 5-minute window → same key.
  * Prevents duplicate orders from double-clicks or network retries.
  */
 export function generateIdempotencyKey(
@@ -10,8 +10,8 @@ export function generateIdempotencyKey(
   planId: string,
   billingCycle: string
 ): string {
-  // Floor timestamp to the nearest 60 seconds
-  const timeWindow = Math.floor(Date.now() / 60000);
+  // Floor timestamp to the nearest 5 minutes (was: 60 seconds)
+  const timeWindow = Math.floor(Date.now() / 300_000);
   const payload = `${userId}:${planId}:${billingCycle}:${timeWindow}`;
   return crypto.createHash('sha256').update(payload).digest('hex');
 }

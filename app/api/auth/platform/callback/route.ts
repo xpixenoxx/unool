@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { verifyAndConsumeOAuthState, parseOAuthCookie, parseAndConsumePKCECookie } from '@/lib/auth/oauth-state';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -146,12 +147,12 @@ export async function GET(request: NextRequest) {
     let finalWorkspaceId = workspaceId;
     const { createClient } = await import('@supabase/supabase-js');
     const { config } = await import('@/lib/config/schema');
-    const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
 
     // Run workspace existence check + member lookup in PARALLEL (saves one DB round-trip)
     const [workspaceResult, memberResult] = await Promise.all([
-      adminSupabase.from('workspaces').select('id').eq('id', workspaceId).single(),
-      adminSupabase.from('workspace_members').select('workspace_id').eq('user_id', workspaceId).single(),
+      supabaseAdmin.from('workspaces').select('id').eq('id', workspaceId).single(),
+      supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', workspaceId).single(),
     ]);
 
     if (workspaceResult.data) {
@@ -166,7 +167,7 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Last resort: check if there's a workspace owned by this user
-      const { data: ownedWorkspace } = await adminSupabase
+      const { data: ownedWorkspace } = await supabaseAdmin
         .from('workspaces')
         .select('id')
         .eq('owner_id', workspaceId)
@@ -236,27 +237,29 @@ export async function GET(request: NextRequest) {
     });
 
     // For Instagram: subscribe the user's account to our webhook fields
-    // so that comments and messages from their account are sent to our endpoint.
-    // Non-blocking: runs in background so the user is redirected immediately.
+    // Make webhook subscription synchronous — automation won't work without it
     if (platform === 'instagram') {
-      void (async () => {
-        try {
-          const { InstagramCommentAutomation } = await import('@/lib/services/InstagramCommentAutomation');
-          const subscribed = await InstagramCommentAutomation.subscribeAccountToWebhook(
-            tokenResponse.accessToken,
-            profile.platformUserId
-          );
-          logger.info('Instagram webhook subscription', {
-            platformUserId: profile.platformUserId,
-            subscribed,
-          });
-        } catch (webhookError) {
-          logger.warn('Failed to subscribe Instagram account to webhook', {
-            error: webhookError instanceof Error ? webhookError : new Error(String(webhookError)),
+      try {
+        const { InstagramCommentAutomation } = await import('@/lib/services/InstagramCommentAutomation');
+        const subscribed = await InstagramCommentAutomation.subscribeAccountToWebhook(
+          tokenResponse.accessToken,
+          profile.platformUserId
+        );
+        if (!subscribed) {
+          logger.warn('Instagram webhook subscription returned false — automation may not work', {
             platformUserId: profile.platformUserId,
           });
+        } else {
+          logger.info('Instagram webhook subscription successful', { platformUserId: profile.platformUserId });
         }
-      })();
+      } catch (webhookError) {
+        // Non-fatal: account is connected, but automation features need manual re-enable
+        logger.error('Failed to subscribe Instagram account to webhook — user should reconnect to enable automation', {
+          error: webhookError instanceof Error ? webhookError : new Error(String(webhookError)),
+          platformUserId: profile.platformUserId,
+        });
+        // Continue — don't block the OAuth callback for a non-critical feature
+      }
     }
 
     // Build success redirect URL

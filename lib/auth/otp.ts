@@ -1,9 +1,9 @@
-/**
+﻿/**
  * lib/auth/otp.ts
  *
  * Cryptographically-secure OTP generation and verification.
  *
- * For SIGNUP, no Supabase user is created yet — OTP is stored with email + metadata only.
+ * For SIGNUP, no Supabase user is created yet â€” OTP is stored with email + metadata only.
  * For SIGNIN, user_id is used for lookup.
  *
  * RULES:
@@ -17,14 +17,20 @@
  */
 
 import crypto from 'crypto';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const OTP_PEPPER = process.env.OTP_PEPPER || process.env.ENCRYPTION_KEY || 'dev-otp-pepper-change-in-prod';
+const OTP_PEPPER = process.env.OTP_PEPPER || process.env.ENCRYPTION_KEY;
+if (!OTP_PEPPER) {
+  throw new Error(
+    '[FATAL] OTP_PEPPER (or ENCRYPTION_KEY) environment variable is not set. ' +
+    'Set it to a random 32+ character string. This is required for secure OTP hashing.'
+  );
+}
 
 export type OtpPurpose = 'signup' | 'signin' | 'reset';
 
-// ── Generation ────────────────────────────────────────────────────────────────
+// â”€â”€ Generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function generateOtp(): string {
   const n = crypto.randomInt(0, 1_000_000);
@@ -32,7 +38,7 @@ export function generateOtp(): string {
 }
 
 function hashOtp(otp: string): string {
-  return crypto.createHmac('sha256', OTP_PEPPER).update(otp).digest('hex');
+  return crypto.createHmac('sha256', OTP_PEPPER!).update(otp).digest('hex');
 }
 
 function safeEqual(a: string, b: string): boolean {
@@ -43,10 +49,10 @@ function safeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
-// ── Issue (Signup — no user yet) ──────────────────────────────────────────────
+// â”€â”€ Issue (Signup â€” no user yet) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface IssueOtpResult {
-  otp:          string;   // plaintext — send via email; never log or store
+  otp:          string;   // plaintext â€” send via email; never log or store
   expiresAt:    Date;
   nextResendAt: Date;
 }
@@ -142,7 +148,7 @@ export async function issueOtp(userId: string, purpose: OtpPurpose, email?: stri
   return { otp, expiresAt, nextResendAt };
 }
 
-// ── Verification ──────────────────────────────────────────────────────────────
+// â”€â”€ Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type OtpVerifyResult =
   | { success: true;  metadata?: Record<string, string> }
@@ -239,7 +245,7 @@ async function _checkAndMarkOtp(challenge: Record<string, unknown>, plainOtp: st
   return { success: true, metadata: challenge.metadata as Record<string, string> };
 }
 
-// ── Resend Check ─────────────────────────────────────────────────────────────
+// â”€â”€ Resend Check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function isSignupResendCoolingDown(email: string): Promise<boolean> {
   const { data } = await supabaseAdmin

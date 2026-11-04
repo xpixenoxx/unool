@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutomation';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // POST /api/instagram/flagged/[id]/action
 // Body: { action: 'approve' | 'reject' | 'reply', ownerReply?: string, workspaceId: string }
@@ -41,7 +41,7 @@ export async function POST(
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Fetch from flagged comments first
-    const { data: flaggedComment } = await supabase
+    const { data: flaggedComment } = await supabaseAdmin
       .from('instagram_flagged_comments')
       .select('*')
       .eq('id', id)
@@ -52,7 +52,7 @@ export async function POST(
     if (!flaggedComment) {
       // Check flagged DMs table
       try {
-        const { data: dmRow } = await supabase
+        const { data: dmRow } = await supabaseAdmin
           .from('instagram_flagged_dms')
           .select('*')
           .eq('id', id)
@@ -77,12 +77,12 @@ export async function POST(
 
     if (action === 'reject') {
       if (isDm) {
-        await supabase
+        await supabaseAdmin
           .from('instagram_flagged_dms')
           .update({ status: 'dismissed', resolved_at: new Date().toISOString() })
           .eq('id', id);
       } else {
-        await supabase
+        await supabaseAdmin
           .from('instagram_flagged_comments')
           .update({ status: 'rejected', resolved_at: new Date().toISOString() })
           .eq('id', id);
@@ -98,7 +98,7 @@ export async function POST(
     }
 
     // Get platform connection
-    const { data: connections } = await supabase
+    const { data: connections } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -134,7 +134,7 @@ export async function POST(
         return NextResponse.json({ error: 'Failed to send DM reply to Instagram' }, { status: 500 });
       }
 
-      await supabase
+      await supabaseAdmin
         .from('instagram_flagged_dms')
         .update({
           status: 'replied',
@@ -159,7 +159,7 @@ export async function POST(
       }
 
       // Update the flagged comment status
-      await supabase
+      await supabaseAdmin
         .from('instagram_flagged_comments')
         .update({
           status: 'replied',

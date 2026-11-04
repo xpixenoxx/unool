@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 const LI_HEADERS = (token: string) => ({
   Authorization: `Bearer ${token}`,
@@ -280,7 +280,7 @@ export async function GET(request: NextRequest) {
     const classification = params.get('classification') || 'all';
     const search = (params.get('search') || '').toLowerCase().trim();
 
-    const { data: ws } = await adminSupabase
+    const { data: ws } = await supabaseAdmin
       .from('workspaces')
       .select('settings')
       .eq('id', workspaceId)
@@ -343,14 +343,14 @@ export async function POST(request: NextRequest) {
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // ── Find LinkedIn connection ──────────────────────────
-    let { data: connRows } = await adminSupabase
+    let { data: connRows } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
       .eq('platform', 'linkedin');
 
     if ((!connRows || connRows.length === 0) && user.id !== workspaceId) {
-      const s2 = await adminSupabase
+      const s2 = await supabaseAdmin
         .from('platform_connections')
         .select('*')
         .eq('workspace_id', user.id)
@@ -359,13 +359,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (!connRows || connRows.length === 0) {
-      const { data: memberships } = await adminSupabase
+      const { data: memberships } = await supabaseAdmin
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id);
       if (memberships) {
         for (const m of memberships) {
-          const s3 = await adminSupabase
+          const s3 = await supabaseAdmin
             .from('platform_connections')
             .select('*')
             .eq('workspace_id', m.workspace_id)
@@ -400,7 +400,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Load workspace settings for automation config & existing logs
-    const { data: ws } = await adminSupabase
+    const { data: ws } = await supabaseAdmin
       .from('workspaces')
       .select('settings')
       .eq('id', workspaceId)
@@ -432,7 +432,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // 2. Fetch posts from Unool database
-      const { data: platformPosts } = await adminSupabase
+      const { data: platformPosts } = await supabaseAdmin
         .from('platform_posts')
         .select('id, platform_post_id, platform_url')
         .eq('platform_connection_id', connection.id)
@@ -458,7 +458,7 @@ export async function POST(request: NextRequest) {
 
       // 3. Fallback: check workspace posts published to LinkedIn
       if (postUrnsToAudit.length === 0) {
-        const { data: wsPosts } = await adminSupabase
+        const { data: wsPosts } = await supabaseAdmin
           .from('posts')
           .select('id')
           .eq('workspace_id', workspaceId)
@@ -467,7 +467,7 @@ export async function POST(request: NextRequest) {
 
         if (wsPosts && wsPosts.length > 0) {
           const postIds = wsPosts.map((p: any) => p.id);
-          const { data: variants } = await adminSupabase
+          const { data: variants } = await supabaseAdmin
             .from('post_variants')
             .select('platform_post_id')
             .in('post_id', postIds)
@@ -612,7 +612,7 @@ export async function POST(request: NextRequest) {
       linkedin_comment_logs: mergedLogs.slice(0, 500),
     };
 
-    const { error: updateErr } = await adminSupabase
+    const { error: updateErr } = await supabaseAdmin
       .from('workspaces')
       .update({ settings: updatedSettings })
       .eq('id', workspaceId);

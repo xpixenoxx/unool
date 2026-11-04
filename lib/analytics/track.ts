@@ -1,9 +1,8 @@
-/**
+﻿/**
  * Server-side Analytics Tracking
  * Use in API routes and server components
  */
 
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import {
   AnalyticsEventInput,
@@ -13,6 +12,7 @@ import {
   getClientIp,
   isValidEventType,
 } from './events';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // Re-export types for consumers
 export type {
@@ -23,7 +23,7 @@ export type {
 
 export { isValidEventType, hashIp, getClientIp };
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 /**
  * Track an analytics event (server-side)
@@ -37,7 +37,7 @@ export async function trackEvent(input: AnalyticsEventInput): Promise<void> {
   }
 
   try {
-    const { error } = await adminClient.from('analytics_events').insert({
+    const { error } = await supabaseAdmin.from('analytics_events').insert({
       workspace_id: input.workspaceId,
       user_id: input.userId || null,
       profile_id: input.profileId || null,
@@ -70,7 +70,7 @@ export async function trackEvents(inputs: AnalyticsEventInput[]): Promise<void> 
   }
 
   try {
-    const { error } = await adminClient.from('analytics_events').insert(
+    const { error } = await supabaseAdmin.from('analytics_events').insert(
       validInputs.map(input => ({
         workspace_id: input.workspaceId,
         user_id: input.userId || null,

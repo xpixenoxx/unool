@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { buildDailySeries, calcPercentageChange } from '@/lib/analytics/timeSeries';
 
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 const profileRepo = new SupabaseProfileRepository();
 
 /**
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   const [viewsRaw, clicksRaw, postsRaw] = await Promise.all([
     // 1. Profile views in the last 30 days (for series, peak hour, referrers, and week-over-week)
     applyScope(
-      admin
+      supabaseAdmin
         .from('analytics_events')
         .select('created_at, referrer')
         .eq('event_type', 'profile_view')
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // 2. Link clicks in the last 30 days (for series, top links, and week-over-week)
     applyScope(
-      admin
+      supabaseAdmin
         .from('analytics_events')
         .select('created_at, event_data')
         .eq('event_type', 'link_click')
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     ),
 
     // 3. Published posts (for 30-day series, pace this week, and count this month)
-    admin
+    supabaseAdmin
       .from('posts')
       .select('id, created_at, published_at')
       .eq('workspace_id', workspaceId)

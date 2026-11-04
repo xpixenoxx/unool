@@ -1,7 +1,8 @@
-import sharp from 'sharp';
+﻿import sharp from 'sharp';
 import type { Platform, PostMedia } from '@/lib/repositories/interfaces/IPostRepository';
 import { logger } from '@/lib/logger';
 import { uploadToR2 } from '@/lib/storage/r2';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // ---------------------------------------------------------------------------
 // Platform Image Specification Registry
@@ -407,7 +408,7 @@ export async function optimizeMediaForPlatform(
         outputBuffer = await encode(quality);
       }
 
-      // 7. Upload to R2 / Supabase Storage with Data URI fallback ---------------
+      // 7. Upload to R2 / supabaseAdmin Storage with Data URI fallback ---------------
       const mimeType =
         spec.format === 'png'
           ? 'image/png'
@@ -429,23 +430,23 @@ export async function optimizeMediaForPlatform(
         });
         publicUrl = res.url;
       } catch (r2Err) {
-        logger.warn('ImageOptimizer: R2 upload failed, attempting Supabase fallback', { error: r2Err });
+        logger.warn('ImageOptimizer: R2 upload failed, attempting supabaseAdmin fallback', { error: r2Err });
         try {
           const { createClient } = await import('@supabase/supabase-js');
           const { config } = await import('@/lib/config/schema');
           if (config.SUPABASE_URL && config.SUPABASE_SERVICE_ROLE_KEY && !config.SUPABASE_URL.includes('your-project')) {
-            const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-            const { error: supaErr } = await supabase.storage.from('post-media').upload(key, outputBuffer, {
+            
+            const { error: supaErr } = await supabaseAdmin.storage.from('post-media').upload(key, outputBuffer, {
               contentType: mimeType,
               upsert: true,
             });
             if (!supaErr) {
-              const { data: pubData } = supabase.storage.from('post-media').getPublicUrl(key);
+              const { data: pubData } = supabaseAdmin.storage.from('post-media').getPublicUrl(key);
               publicUrl = pubData.publicUrl;
             }
           }
         } catch (supaErr) {
-          logger.warn('ImageOptimizer: Supabase fallback upload failed', { error: supaErr });
+          logger.warn('ImageOptimizer: supabaseAdmin fallback upload failed', { error: supaErr });
         }
 
         // If remote storage is unconfigured or failed, use self-contained Data URI

@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 /**
  * POST /api/composer/schedule/hold
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const now = new Date();
 
   // Find posts scheduled within the hold window
-  const { data: posts, error } = await supabase
+  const { data: posts, error } = await supabaseAdmin
     .from('posts')
     .select('id')
     .eq('workspace_id', workspaceId)
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Fetch existing settings to preserve other keys
-  const { data: wsData } = await supabase
+  const { data: wsData } = await supabaseAdmin
     .from('workspaces')
     .select('settings')
     .eq('id', workspaceId)
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
   const currentSettings = (wsData?.settings as Record<string, unknown>) || {};
 
-  const { error: wsError } = await supabase
+  const { error: wsError } = await supabaseAdmin
     .from('workspaces')
     .update({
       settings: { ...currentSettings, queue_held_until: holdUntil.toISOString() },
@@ -82,7 +82,7 @@ export async function DELETE(request: NextRequest) {
   }
   const { workspaceId } = auth;
 
-  const { data: wsData } = await supabase
+  const { data: wsData } = await supabaseAdmin
     .from('workspaces')
     .select('settings')
     .eq('id', workspaceId)
@@ -90,7 +90,7 @@ export async function DELETE(request: NextRequest) {
 
   const currentSettings = (wsData?.settings as Record<string, unknown>) || {};
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('workspaces')
     .update({ settings: { ...currentSettings, queue_held_until: null } })
     .eq('id', workspaceId);

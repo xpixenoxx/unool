@@ -1,709 +1,172 @@
 'use client';
 
-import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { TemplateProps } from '../types';
-import { Flex, Stack, Box, Grid } from '@/components/ui/layout';
-import { Text, Overline } from '@/components/ui/typography';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { MagneticCard, OrbitalBackground, MorphingBlob, ParallaxLayers, TiltCard } from '@/components/ui/3d';
-import { spring, slideUp, staggerContainer, staggerItem } from '@/components/ui/motion';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Play, Image, MessageSquare, Heart, Share2, ExternalLink } from 'lucide-react';
-import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import type { TemplateProps } from '@/components/profile/templates/types';
+import { getTemplateById } from '@/components/profile/templates/registry';
+import { motion } from 'framer-motion';
+import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Quote, Github, Linkedin, Instagram, ExternalLink, Users, Link as LinkIcon, Eye } from 'lucide-react';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { ClubTemplate } from './ClubTemplate';
+import { ClubTemplateV2 } from './ClubTemplateV2';
+import { StudioTemplate } from './StudioTemplate';
+import { SocialIcon, getSocialSvgPath, renderSocialOrIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
+import { getAestheteSocialIcon } from './templateUtils';
 
-interface MediaItem {
-  id: string;
-  type: 'image' | 'video';
-  thumbnail: string;
-  url: string;
-  caption?: string;
-  likes?: number;
-  comments?: number;
-}
-
-export function CreatorTemplate({
-  profile,
-  accentColor,
-  isPreview,
-  onLinkClick,
-}: TemplateProps) {
-  const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--color-primary)';
-  const secondaryAccent = 'oklch(0.65 0.22 340)'; // Creative magenta-pink
-  const springConfig = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.gentle;
-
-  const visibleLinks = profile.links.filter((l) => l.isVisible).slice(0, 15);
-  const visibleProofs = profile.proofs.slice(0, 10);
-
-  // Extract media from proofs (type badge with thumbnail)
-  const mediaItems: MediaItem[] = profile.proofs
-    .filter((p) => p.type === 'badge' && p.icon)
-    .slice(0, 6)
-    .map((p) => ({
-      id: p.id,
-      type: 'image' as const,
-      thumbnail: p.icon || `https://via.placeholder.com/400x400?text=${encodeURIComponent(p.title || 'Media')}`,
-      url: p.value || '#',
-      caption: p.title,
-      likes: parseInt(p.value?.replace(/[^\d]/g, '') || '0'),
-      comments: Math.floor(Math.random() * 50),
-    }));
-
-  // Follower count from proofs
-  const followerProof = profile.proofs.find((p) => p.type === 'metric' && p.title.toLowerCase().includes('follow'));
-  const followerCount = followerProof?.value || '12.5K';
+export function CreatorTemplate({ profile, accentColor }: any) {
+  const accent = accentColor || '#7C3AED';
+  const proofs = profile?.proofPoints || profile?.proofs || [];
+  
+  // Custom chamfered shape string
+  const chamferedShape = 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)';
+  const avatarShape = 'polygon(30% 0%, 100% 0, 100% 70%, 70% 100%, 0 100%, 0 30%)';
 
   return (
-    <div
-      className="relative min-h-screen w-full bg-[#050505] text-white"
-      style={{
-        '--profile-accent': accent,
-        '--profile-radius': '16px',
-        fontFamily: 'var(--font-syne)',
-        colorScheme: 'dark',
-      } as React.CSSProperties}
-    >
-      {/* Creative Gradient Background + Pattern */}
-      <div className="absolute inset-0 -z-20" aria-hidden="true">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#050505] via-[#0A0A0A] to-[#111111]" />
-        <div
-          className="absolute top-0 left-1/3 -translate-x-1/2 w-[700px] h-[700px] rounded-full blur-[250px] opacity-40"
-          style={{ background: `radial-gradient(ellipse at center, ${accent}35 0%, transparent 60%)` }}
-        />
-        <div
-          className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full blur-[250px] opacity-35"
-          style={{ background: `radial-gradient(ellipse at center, ${secondaryAccent}30 0%, transparent 60%)` }}
-        />
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[200px] opacity-25"
-          style={{ background: `radial-gradient(circle at center, oklch(0.7 0.25 80)20 0%, transparent 60%)` }}
-        />
-        {/* Top creative accent bar */}
-        <div
-          className="absolute top-0 left-0 right-0 h-2"
-          style={{ background: `linear-gradient(90deg, transparent, ${accent}, ${secondaryAccent}, oklch(0.7 0.25 80), transparent)` }}
-        />
-        {/* Subtle creative pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23000' fillOpacity='0.1'%3E%3Cpath d='M0 0h60v60H0V0zm1 1h58v58H1V1z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-        />
-      </div>
+    <div className="min-h-screen w-full bg-[#EBE4DB] text-[#1E293B] p-6 md:p-12 font-sans flex justify-center selection:bg-purple-200" style={{ background: 'linear-gradient(145deg, #FFF6E5 0%, #F5E6FE 100%)' }}>
+      <div className="max-w-4xl w-full pt-16 pb-24 px-8 md:px-16 flex flex-col items-center space-y-10 bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] rounded-[3rem] my-8">
+        
+        {/* Avatar with unique shape */}
+        <div className="relative group">
+          <div 
+            className="absolute -inset-2 blur-md opacity-40 group-hover:opacity-80 transition duration-1000 group-hover:duration-200 animate-pulse" 
+            style={{ 
+              backgroundImage: `linear-gradient(135deg, ${accent}, #FF0080)`,
+              clipPath: avatarShape 
+            }} 
+          />
+          <img 
+            src={profile.avatarUrl} 
+            alt={profile.name} 
+            className="relative w-48 h-48 md:w-64 md:h-64 object-cover transition-transform duration-700 group-hover:scale-105 bg-white shadow-sm"
+            style={{ clipPath: avatarShape }}
+          />
+          {/* Decorative Corner Borders */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-zinc-300 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-zinc-300 pointer-events-none" />
+        </div>
+        
+        <div className="text-center space-y-3">
+           <h1 className="text-4xl md:text-6xl font-black tracking-tight uppercase" style={{ textShadow: `2px 2px 0 ${accent}20` }}>
+             {profile.name}
+           </h1>
+           <p className="text-slate-600 font-bold text-xl tracking-widest uppercase">{profile.headline}</p>
+           <p className="max-w-xl text-sm md:text-base text-slate-700 mt-6 leading-relaxed mx-auto font-medium border-l-4 pl-6 text-left" style={{ borderColor: accent }}>{profile.bio}</p>
+        </div>
 
-      {/* Orbital Background - Creative Energy - ALWAYS VISIBLE but subtle */}
-      {!reducedMotion && (
-        <OrbitalBackground
-          orbCount={6}
-          orbSizes={[180, 120, 220, 90, 160, 70]}
-          colors={[
-            `oklch(0.7 0.25 340 / 0.12)`,
-            `oklch(0.65 0.22 15 / 0.1)`,
-            `oklch(0.75 0.2 280 / 0.09)`,
-            `oklch(0.8 0.18 80 / 0.08)`,
-            `oklch(0.6 0.28 350 / 0.1)`,
-            `oklch(0.72 0.15 30 / 0.08)`,
-          ]}
-          speed={0.2}
-          className="pointer-events-none"
-        />
-      )}
-
-      {/* Dual Morphing Blob System - Creative Expression - ALWAYS VISIBLE */}
-      <MorphingBlob size={420} color={accent} opacity={0.22} speed={0.12} complexity={5} className="absolute top-1/5 left-1/3 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-      <MorphingBlob size={300} color={secondaryAccent} opacity={0.18} speed={0.1} complexity={4} className="absolute bottom-1/5 right-1/4 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-
-      <Stack space={10} className="relative max-w-[520px] mx-auto px-4 py-12 sm:py-16" style={{ fontFamily: 'var(--font-syne)' }}>
-        {/* Hero: Avatar + Name - Creative */}
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.standard, delay: 0.2 }}
-          className="text-center"
-        >
-          <div className="relative inline-block mb-6">
-            <Avatar className="h-28 w-28 sm:h-32 sm:w-32 ring-4 relative z-10" ringColor={accent}>
-              <AvatarImage src={profile.avatarUrl} alt={profile.name} className="object-cover" />
-              <AvatarFallback className="text-4xl sm:text-5xl font-black" style={{ fontFamily: 'var(--font-syne)' }}>
-                {profile.name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-
-            {/* Creative status ring - animated gradient */}
-            <motion.div
-              initial={{ scale: 0, rotate: -90 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ ...spring.bouncy, delay: 0.4 }}
-              className="absolute -bottom-3 -right-3 h-10 w-10 rounded-full border-3 flex items-center justify-center"
-              style={{
-                background: `conic-gradient(from 0deg, ${accent}, ${secondaryAccent}, oklch(0.7 0.25 80), ${accent})`,
-                borderColor: 'var(--background)',
-                boxShadow: `0 8px 32px -8px ${accent}`,
-              }}
-              aria-label="Creative Active"
-            >
-              <motion.div
-                className="h-3.5 w-3.5 rounded-full"
-                style={{ background: 'var(--primary-foreground)' }}
-                animate={{ scale: [1, 0.5, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-              />
-            </motion.div>
-
-            {/* Creative orbit ring - ALWAYS VISIBLE, animates subtly */}
-            <motion.div
-              className="absolute -top-5 -left-5 -right-5 -bottom-5 rounded-full pointer-events-none"
-              style={{ border: `2px solid ${accent}30` }}
-              animate={{ rotate: reducedMotion ? 0 : 360, scale: [1, 1.05, 1] }}
-              transition={{ duration: 25, repeat: Infinity, ease: 'linear', delay: 1 }}
-            />
+        {/* METRICS SECTION WITH CHAMFERED CARDS */}
+        {profile.metrics && profile.metrics.length > 0 && (
+          <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            {profile.metrics.map((metric: any, i: number) => (
+              <div 
+                key={i} 
+                className="bg-white/60 backdrop-blur-md p-6 flex flex-col items-center text-center hover:bg-white/90 transition-all relative group border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.04)]"
+                style={{ clipPath: 'polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px)' }}
+              >
+                {/* Accent bar */}
+                <div className="absolute top-0 left-0 w-full h-1 opacity-50 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
+                <span className="text-3xl font-black mb-1 text-slate-900">{metric.value}</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{metric.label || metric.title || metric.type || metric.name}</span>
+                {metric.description && metric.description !== (metric.label || metric.title || metric.type || metric.name) && (
+                  <span className="text-[9px] text-slate-400 mt-2 uppercase">{metric.description}</span>
+                )}
+              </div>
+            ))}
           </div>
+        )}
 
-          <Stack space={2} align="center" className="w-full">
-            <motion.h1
-              initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...spring.standard, delay: 0.3 }}
-              className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight"
-              style={{ fontFamily: 'var(--font-syne)', letterSpacing: '-0.03em' }}
-            >
-              <span
-                style={{
-                  background: `linear-gradient(135deg, var(--foreground) 0%, ${accent} 40%, ${secondaryAccent} 70%, oklch(0.7 0.25 80) 100%)`,
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  color: 'transparent',
-                  backgroundSize: '300% 300%',
-                }}
-              >
-                {profile.name}
-              </span>
-            </motion.h1>
-
-            {profile.headline && (
-              <motion.p
-                initial={reducedMotion ? {} : { opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ ...spring.standard, delay: 0.4 }}
-                className="text-lg text-muted-foreground font-medium max-w-xs"
-                style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, letterSpacing: '-0.01em' }}
-              >
-                {profile.headline}
-              </motion.p>
-            )}
-
-            {/* Follower count badge */}
-            <motion.div
-              initial={reducedMotion ? {} : { opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ ...spring.bouncy, delay: 0.5 }}
-            >
-              <Badge
-                variant="outline"
-                className="gap-2 py-2 px-4"
-                style={{
-                  fontFamily: 'var(--font-syne)',
-                  fontSize: '0.9rem',
-                  borderColor: `${accent}40`,
-                  background: `linear-gradient(135deg, ${accent}05, ${secondaryAccent}03)`,
-                }}
-              >
-                <span style={{ fontSize: '1.3rem' }}>✦</span>
-                {followerCount} Followers
-              </Badge>
-            </motion.div>
-          </Stack>
-        </motion.div>
-
-        {/* Bio - ALWAYS VISIBLE when bio exists, parallax enhanced */}
-        {profile.bio && (
-          <motion.div
-            initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring.standard, delay: 0.4 }}
-          >
-            <ParallaxLayers strength={15} className="w-full">
-              <div className="relative w-full">
-                <div
-                  className="absolute inset-0 rounded-2xl"
-                  style={{ background: `linear-gradient(135deg, ${accent}20 0%, ${secondaryAccent}15 50%, oklch(0.7 0.25 80)10 100%)` }}
-                />
-                <div
-                  className="relative rounded-2xl border p-[1.5px] overflow-hidden"
-                  style={{
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    background: '#111',
-                    boxShadow: `0 0 0 1px ${accent}20, 0 4px 24px -4px ${accent}20`,
-                  }}
+        {/* PROOF POINTS SECTION */}
+        {proofs.length > 0 && (
+          <div className="w-full mt-12 flex flex-col gap-4">
+             <div className="flex items-center gap-4 mb-4">
+                <span className="text-[10px] tracking-widest uppercase font-bold text-slate-500">Credentials & Milestones</span>
+                <div className="flex-1 h-px bg-slate-300/50" />
+             </div>
+             {proofs.filter((p: any) => p.type || p.title || p.label).map((proof: any, i: number) => (
+                <div 
+                  key={i} 
+                  className="bg-white/50 backdrop-blur-sm hover:bg-white/80 p-6 flex flex-col md:flex-row justify-between items-start md:items-center transition-all group relative border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.03)]"
+                  style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
                 >
-                  <div className="relative p-6 rounded-xl" style={{ background: '#0A0A0A' }}>
-                    <Text size="base" style={{ lineHeight: 1.9, fontFamily: 'var(--font-syne)', fontSize: '1.0625rem', fontWeight: 400, color: 'rgba(255,255,255,0.9)' }}>
-                      {profile.bio}
-                    </Text>
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
+                  <div className="flex flex-col gap-1 pr-6 pl-2">
+                     <div className="flex items-baseline gap-3">
+                        <span className="text-xl md:text-2xl font-black text-slate-800">{proof.type || proof.title || proof.label}</span>
+                        {proof.value && (
+                           <span className="text-lg md:text-xl font-bold" style={{ color: accent }}>{proof.value}</span>
+                        )}
+                     </div>
+                     {proof.description && (
+                        <span className="text-sm text-slate-500 font-medium">{proof.description}</span>
+                     )}
                   </div>
+                  {proof.url && (
+                     <a href={proof.url} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 text-[10px] uppercase tracking-widest font-bold text-slate-500 hover:text-slate-900 transition-colors border-b border-slate-300 hover:border-slate-900 pb-1 shrink-0">
+                        View Proof ↗
+                     </a>
+                  )}
+                </div>
+             ))}
+          </div>
+        )}
+
+        <RecentActivitySection
+          activity={profile.recentActivity}
+          variant="creator"
+          accentColor={accent}
+          autoScroll={profile.autoScroll}
+        />
+
+        {/* LINKS WITH UNIQUE GEOMETRY */}
+        <div className="w-full grid gap-4 mt-8 pb-12">
+          {profile.links?.map((link: any, i: number) => (
+            <a 
+              key={i} 
+              href={link.url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="relative w-full h-20 md:h-24 bg-gradient-to-r from-white/60 to-white/90 backdrop-blur-md p-[2px] group shadow-sm"
+              style={{ clipPath: chamferedShape }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+              <div 
+                className="w-full h-full bg-white/80 relative z-10 flex items-center px-6"
+                style={{ clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)' }}
+              >
+                <div className="absolute right-0 top-0 bottom-0 w-48 bg-gradient-to-l from-slate-50/80 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}15, transparent)` }} />
+                
+                {/* SVG Icon Container with geometric shape */}
+                <div 
+                  className="bg-white p-3 mr-6 flex items-center justify-center w-12 h-12 group-hover:bg-slate-50 transition-colors border border-slate-100 shadow-sm"
+                  style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                >
+                  <svg className="w-5 h-5 text-slate-700 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                     {getAestheteSocialIcon(link.label, link.url, link.icon)}
+                  </svg>
+                </div>
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wide group-hover:text-slate-900 text-slate-700 transition-colors">{link.label}</span>
+                
+                {/* Right decorative elements */}
+                <div className="absolute right-6 flex items-center opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
+                   <span className="text-[10px] tracking-widest uppercase mr-4" style={{ color: accent }}>Execute</span>
+                   <div className="w-4 h-px bg-current" style={{ color: accent }}></div>
                 </div>
               </div>
-            </ParallaxLayers>
-          </motion.div>
-        )}
+            </a>
+          ))}
+        </div>
 
-        {/* Links - Creative Feed Cards - ALWAYS VISIBLE */}
-        {visibleLinks.length > 0 && (
-          <motion.div
-            initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring.standard, delay: 0.5 }}
+        {/* Get in Touch CTA */}
+        <div className="w-full my-4">
+          <a 
+            href={profile.email ? `mailto:${profile.email}` : '#'} 
+            className="inline-flex items-center justify-between w-full p-4 px-6 text-white font-bold tracking-wider uppercase text-base transition-all hover:brightness-110 shadow-lg"
+            style={{ background: `linear-gradient(135deg, ${accent}, #111)`, clipPath: chamferedShape }}
           >
-            <Stack space={4}>
-              <AnimatePresence>
-                {visibleLinks.map((link, index) => (
-                  <motion.div
-                    key={link.id}
-                    initial={reducedMotion ? {} : { opacity: 0, y: 30, scale: 0.95, rotate: -2 }}
-                    animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                    transition={{ ...spring.magnetic, delay: 0.5 + index * 0.06 }}
-                  >
-                    {/* Alternate TiltCard and MagneticCard for visual variety - ALWAYS VISIBLE */}
-                    {index % 2 === 0 ? (
-                      <CreativeFeedCard
-                        link={link}
-                        accent={accent}
-                        secondaryAccent={secondaryAccent}
-                        index={index}
-                        isPreview={isPreview}
-                        variant="tilt"
-                        reducedMotion={reducedMotion}
-                        onLinkClick={onLinkClick}
-                      />
-                    ) : (
-                      <CreativeFeedCard
-                        link={link}
-                        accent={accent}
-                        secondaryAccent={secondaryAccent}
-                        index={index}
-                        isPreview={isPreview}
-                        variant="magnetic"
-                        reducedMotion={reducedMotion}
-                        onLinkClick={onLinkClick}
-                      />
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </Stack>
-          </motion.div>
-        )}
-
-        {/* Media Grid - Instagram/TikTok style - ALWAYS VISIBLE */}
-        {mediaItems.length > 0 && (
-          <motion.div
-            initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring.standard, delay: 0.6 }}
-          >
-            <Stack space={3} className="w-full">
-              <Flex between align="center">
-                <Overline color="muted" style={{ fontFamily: 'var(--font-syne)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  Latest Content
-                </Overline>
-              </Flex>
-              <Grid cols={{ base: 2, sm: 3 }} gap={3}>
-                <AnimatePresence>
-                  {mediaItems.map((item, index) => (
-                    <motion.div
-                      key={item.id}
-                      initial={reducedMotion ? {} : { opacity: 0, scale: 0.9, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ ...spring.standard, delay: 0.6 + index * 0.05 }}
-                    >
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="relative group block aspect-square rounded-xl overflow-hidden"
-                        style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
-                        onMouseEnter={() => isPreview && onLinkClick?.({ id: item.id, label: item.caption || 'Media', url: item.url, icon: null, clicks: 0, order: 0, isVisible: true })}
-                      >
-                        {/* Thumbnail placeholder */}
-                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${accent}20, ${secondaryAccent}15)` }}>
-                          <img src={item.thumbnail} alt={item.caption} className="w-full h-full object-cover" loading="lazy" />
-                        </div>
-
-                        {/* Overlay on hover - ALWAYS VISIBLE on hover/focus */}
-                        <motion.div
-                          className="absolute inset-0 flex items-center justify-center gap-3 opacity-0"
-                          style={{ background: 'linear-gradient(180deg, transparent 40%, oklch(0 0 0 / 0.8))' }}
-                          whileHover={{ opacity: 1 }}
-                          whileFocus={{ opacity: 1 }}
-                          transition={{ duration: 0.3, ease: 'easeOut' }}
-                        >
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="w-12 h-12 rounded-full flex items-center justify-center"
-                            style={{ background: 'var(--background/90)', color: 'var(--foreground)', backdropFilter: 'blur(8px)', border: '1px solid var(--border)' }}
-                            aria-label="Play"
-                          >
-                            <Play className="h-6 w-6 ml-1" />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="w-12 h-12 rounded-full flex items-center justify-center"
-                            style={{ background: 'var(--background/90)', color: 'var(--foreground)', backdropFilter: 'blur(8px)', border: '1px solid var(--border)' }}
-                            aria-label="View"
-                          >
-                            <ExternalLink className="h-6 w-6" />
-                          </motion.button>
-                        </motion.div>
-
-                        {/* Stats on bottom - ALWAYS VISIBLE */}
-                        <div className="absolute bottom-0 left-0 right-0 px-3 py-2 flex items-center justify-between gap-2" style={{ background: 'linear-gradient(180deg, transparent, oklch(0 0 0 / 0.7))' }}>
-                          <Flex gap={1.5} align="center">
-                            <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--foreground)' }}>
-                              <Heart className="h-3.5 w-3.5 text-red-400" />
-                              {item.likes?.toLocaleString() || '1.2K'}
-                            </span>
-                            <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--foreground)' }}>
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              {item.comments?.toLocaleString() || '89'}
-                            </span>
-                          </Flex>
-                        </div>
-                      </a>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </Grid>
-            </Stack>
-          </motion.div>
-        )}
-
-        {/* Proof Points Section - ENHANCED & ALWAYS VISIBLE */}
-        {visibleProofs.length > 0 && (
-          <motion.div
-            initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring.standard, delay: 0.7 }}
-            className="w-full mt-4"
-          >
-            <Stack space={4}>
-              <Flex between align="center">
-                <Overline style={{ fontFamily: 'var(--font-syne)', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.6)' }}>
-                  Proof Points & Milestones
-                </Overline>
-              </Flex>
-              <div className="grid grid-cols-1 gap-4">
-                {visibleProofs.map((proof, index) => (
-                  <motion.div
-                    key={proof.id}
-                    initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ ...spring.gentle, delay: 0.7 + index * 0.1 }}
-                    className="relative p-5 rounded-2xl border flex flex-col sm:flex-row gap-4 sm:items-center overflow-hidden group"
-                    style={{
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      background: 'rgba(20,20,20,0.6)',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                    
-                    {proof.icon && (
-                      <div className="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-2xl" style={{ background: `linear-gradient(135deg, ${accent}20, ${secondaryAccent}20)`, border: `1px solid ${accent}40` }}>
-                        {proof.icon}
-                      </div>
-                    )}
-                    
-                    <div className="flex-1 flex flex-col min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-lg text-white" style={{ fontFamily: 'var(--font-syne)' }}>{proof.title}</span>
-                        {proof.value && (
-                          <Badge variant="secondary" className="ml-2 font-mono text-xs" style={{ background: `${accent}30`, color: '#fff' }}>
-                            {proof.value}
-                          </Badge>
-                        )}
-                      </div>
-                      {proof.description && (
-                        <p className="text-sm text-white/60 leading-relaxed font-medium">
-                          {proof.description}
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </Stack>
-          </motion.div>
-        )}
-
-        {/* Subdomain - Creative Sidebar - Mobile only */}
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 1 }}
-          className="text-center pt-4 lg:hidden"
-        >
-          <Flex center gap={2} className="mx-auto">
-            <Box
-              className="px-4 py-2 rounded-full"
-              style={{
-                background: `linear-gradient(135deg, ${accent}15, ${secondaryAccent}10, oklch(0.7 0.25 80)08)`,
-                border: `1px solid ${accent}30`,
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.875rem',
-                color: accent,
-                fontWeight: 600,
-              }}
-            >
-              {profile.subdomain}.unool.co
-            </Box>
-          </Flex>
-        </motion.div>
-      </Stack>
-
-      {/* Desktop Only: Creative Subdomain Sidebar - ALWAYS VISIBLE */}
-      <div className="hidden lg:block absolute bottom-8 left-8 right-auto" style={{ maxWidth: 200 }}>
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ ...spring.gentle, delay: 1.2 }}
-        >
-          <Box
-            className="px-4 py-2 rounded-full text-center"
-            style={{
-              background: `linear-gradient(135deg, ${accent}15, ${secondaryAccent}10, oklch(0.7 0.25 80)08)`,
-              border: `1px solid ${accent}30`,
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.85rem',
-              color: accent,
-              fontWeight: 600,
-            }}
-          >
-            {profile.subdomain}.unool.co
-          </Box>
-        </motion.div>
+            <span className="flex items-center gap-2"><span>✉</span> Get in Touch</span>
+            <span>→</span>
+          </a>
+        </div>
       </div>
     </div>
   );
 }
-
-function CreativeFeedCard({
-  link,
-  accent,
-  secondaryAccent,
-  index,
-  isPreview = false,
-  variant,
-  reducedMotion,
-  onLinkClick,
-}: {
-  link: TemplateProps['profile']['links'][0];
-  accent: string;
-  secondaryAccent: string;
-  index: number;
-  isPreview?: boolean;
-  variant: 'magnetic' | 'tilt';
-  reducedMotion: boolean;
-  onLinkClick?: (link: any) => void;
-}) {
-  const isVideo = link.label.toLowerCase().includes('youtube') || link.label.toLowerCase().includes('tiktok') || link.label.toLowerCase().includes('reels');
-
-  return (
-    <>
-      {variant === 'tilt' ? (
-        <TiltCard
-          maxTilt={reducedMotion ? 0 : 8}
-          scale={1.02}
-          className={cn('h-auto w-full', isPreview && 'opacity-80')}
-          style={{
-            borderRadius: '16px',
-            border: `1px solid ${accent}25`,
-            background: `linear-gradient(145deg, var(--card) 0%, ${accent}08 100%)`,
-            boxShadow: `0 0 0 1px ${accent}10, 0 8px 32px -8px ${accent}20`,
-          }}
-        >
-          <CreativeLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} isPreview={isPreview} variant="tilt" reducedMotion={reducedMotion} isVideo={isVideo} onLinkClick={onLinkClick} />
-        </TiltCard>
-      ) : (
-        <MagneticCard
-          radius={120}
-          strength={reducedMotion ? 0 : 0.18}
-          className={cn('h-auto w-full', isPreview && 'opacity-80')}
-          style={{
-            borderRadius: '16px',
-            border: `1px solid ${accent}20`,
-            background: `linear-gradient(135deg, var(--card) 0%, ${secondaryAccent}06 100%)`,
-            boxShadow: `0 4px 20px -4px ${accent}10`,
-          }}
-        >
-          <CreativeLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} isVideo={isVideo} onLinkClick={onLinkClick} />
-        </MagneticCard>
-      )}
-    </>
-  );
-}
-
-function CreativeLinkButton({
-  link,
-  accent,
-  secondaryAccent,
-  index,
-  isPreview = false,
-  variant,
-  reducedMotion,
-  isVideo = false,
-  onLinkClick,
-}: {
-  link: TemplateProps['profile']['links'][0];
-  accent: string;
-  secondaryAccent: string;
-  index: number;
-  isPreview?: boolean;
-  variant: 'magnetic' | 'tilt';
-  reducedMotion: boolean;
-  isVideo?: boolean;
-  onLinkClick?: (link: any) => void;
-}) {
-  return (
-    <a
-      href={link.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="relative w-full px-5 py-4 text-left group overflow-hidden no-underline"
-      style={{ borderRadius: '14px', fontFamily: 'var(--font-syne)', display: 'flex' }}
-      onMouseEnter={() => isPreview && onLinkClick?.(link)}
-    >
-      {/* Animated left accent bar - creative gradient - ALWAYS VISIBLE */}
-      <motion.div
-        className="absolute left-0 top-0 bottom-0 w-1.5"
-        style={{ background: `linear-gradient(180deg, ${accent}, ${secondaryAccent}, oklch(0.7 0.25 80))`, borderRadius: '14px 0 0 14px', transformOrigin: 'bottom' }}
-        initial={reducedMotion ? {} : { scaleY: 0 }}
-        animate={{ scaleY: 1 }}
-        transition={{ ...spring.gentle, delay: 0.4 + index * 0.06 }}
-      />
-
-      {/* Creative hover shimmer - multi-color */}
-      <motion.div
-        className="absolute inset-0 -translate-x-full"
-        style={{ background: `linear-gradient(90deg, transparent, ${accent}12, ${secondaryAccent}08, oklch(0.7 0.25 80)10, transparent)` }}
-        whileHover={{ x: '200%' }}
-        transition={{ duration: 1, ease: 'easeOut' }}
-      />
-
-      {/* Hover glow - variant specific - visible on hover/focus */}
-      {variant === 'magnetic' && (
-        <motion.div
-          className="absolute inset-0 opacity-0 pointer-events-none"
-          style={{
-            boxShadow: `0 0 0 2px ${accent}30, 0 12px 40px -8px ${accent}20`,
-            borderRadius: '14px',
-          }}
-          whileHover={{ opacity: 1 }}
-          whileFocus={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        />
-      )}
-
-      {variant === 'tilt' && (
-        <motion.div
-          className="absolute inset-0 opacity-0 pointer-events-none"
-          style={{
-            boxShadow: `0 0 0 1px ${secondaryAccent}30, 0 8px 32px -8px ${secondaryAccent}15`,
-            borderRadius: '14px',
-          }}
-          whileHover={{ opacity: 1 }}
-          whileFocus={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        />
-      )}
-
-      {/* Video play indicator - ALWAYS VISIBLE when isVideo */}
-      {isVideo && (
-        <motion.div
-          className="absolute top-3 right-3 z-10"
-          initial={reducedMotion ? {} : { opacity: 0, scale: 0.8, rotate: -15 }}
-          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{ ...spring.bouncy, delay: 0.5 + index * 0.05 }}
-        >
-          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <Play className="h-4 w-4 text-white ml-1" />
-          </div>
-        </motion.div>
-      )}
-
-      <Flex align="center" gap={3.5} className="relative z-10">
-        <motion.div
-          initial={reducedMotion ? {} : { scale: 0, rotate: -15 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ ...spring.bouncy, delay: index * 0.05 }}
-          className="flex-shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-400"
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: '14px',
-            background: `linear-gradient(135deg, ${accent}, ${secondaryAccent})`,
-            color: 'var(--primary-foreground)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: '1.25rem',
-            boxShadow: `0 8px 24px -6px ${accent}`,
-            fontFamily: 'var(--font-syne)',
-          }}
-        >
-          {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
-        </motion.div>
-
-        <Flex column gap={1.5} flex={1} className="min-w-0">
-          <motion.span
-            initial={reducedMotion ? {} : { x: -10, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ ...spring.gentle, delay: index * 0.04 }}
-            className="font-semibold truncate group-hover:text-primary transition-colors"
-            style={{ fontFamily: 'var(--font-syne)', fontSize: '1.05rem' }}
-          >
-            {link.label}
-          </motion.span>
-          <Text size="xs" color="muted" className="truncate font-mono" style={{ fontFamily: 'var(--font-mono)' }}>
-            {link.url}
-          </Text>
-        </Flex>
-
-        <Flex align="center" gap={2.5}>
-          <motion.span
-            initial={reducedMotion ? {} : { opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ ...spring.gentle, delay: 0.6 + index * 0.04 }}
-            style={{
-              fontSize: '0.8rem',
-              color: accent,
-              fontFamily: 'var(--font-mono)',
-              fontVariantNumeric: 'tabular-nums',
-              fontWeight: 500,
-            }}
-          >
-            {link.clicks.toLocaleString()}
-          </motion.span>
-          <Badge
-            variant="ghost"
-            size="sm"
-            className="group-hover:bg-primary/10 group-hover:text-primary transition-all"
-            style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-syne)', fontWeight: 700 }}
-          >
-            #{index + 1}
-          </Badge>
-        </Flex>
-      </Flex>
-    </a>
-  );
-}
-
-CreatorTemplate.displayName = 'CreatorTemplate';

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET /api/debug/cors
  *
  * Diagnostic endpoint for Cloudflare R2 storage connectivity.
@@ -12,10 +12,15 @@
  *  2. Verifies bucket names are configured
  *  3. Returns the exact CORS JSON you should paste into the Dashboard
  */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getBucketName } from '@/lib/storage/r2';
+import { getCurrentAuth } from '@/lib/auth/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await getCurrentAuth(request);
+  if (!auth?.userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const accountId = process.env.CF_R2_ACCOUNT_ID;
   const accessKeyId = process.env.CF_R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.CF_R2_SECRET_ACCESS_KEY;

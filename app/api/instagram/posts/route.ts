@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export interface PublishedInstagramPost {
   id: string;
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 1. Fetch connected Instagram account
-    const { data: connections } = await supabase
+    const { data: connections } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     // 2. Fetch platform_posts published from UNOOL to Instagram
     let unoolPosts: PublishedInstagramPost[] = [];
     try {
-      const { data: dbPosts } = await supabase
+      const { data: dbPosts } = await supabaseAdmin
         .from('platform_posts')
         .select(`
           id,

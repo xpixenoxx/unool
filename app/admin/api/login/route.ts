@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { signAdminJwt } from '@/lib/auth/admin-jwt';
 import { getAdminLoginRateLimit } from '@/lib/middleware/admin-rate-limit';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const emailClean = email.toLowerCase().trim();
 
     // ── Look up admin user ────────────────────────────────────
-    const { data: adminUser, error: dbError } = await adminClient
+    const { data: adminUser, error: dbError } = await supabaseAdmin
       .from('admin_users')
       .select('*')
       .eq('email', emailClean)
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       if (valid) {
         try {
           const hash = await hashPassword(password);
-          await adminClient
+          await supabaseAdmin
             .from('admin_users')
             .update({ password_hash: hash, updated_at: new Date().toISOString() })
             .eq('id', adminUser.id);
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Update last login timestamp ───────────────────────────
-    await adminClient
+    await supabaseAdmin
       .from('admin_users')
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', adminUser.id);

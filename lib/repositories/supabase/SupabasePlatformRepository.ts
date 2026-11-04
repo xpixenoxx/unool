@@ -1,5 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import type { IPlatformRepository } from '../interfaces/IPlatformRepository';
 import type {
   PlatformConnection,
@@ -8,9 +7,10 @@ import type {
   CreatePlatformPostInput,
   Platform,
 } from '../interfaces/IPlatformRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabasePlatformRepository implements IPlatformRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private mapConnectionRow(row: Record<string, unknown>): PlatformConnection {
     return {

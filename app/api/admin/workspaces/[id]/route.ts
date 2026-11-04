@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
 import { clearPlanCache } from '@/lib/plan-enforcement';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/admin/workspaces/[id] - Get workspace with full details
 export async function GET(
@@ -24,12 +24,12 @@ export async function GET(
 
     // Parallel fetch related details
     const [membersRes, subscriptionRes, paymentsRes, platformsRes, postsCountRes, profilesRes] = await Promise.all([
-      adminClient.from('workspace_members').select('*').eq('workspace_id', id),
-      adminClient.from('subscriptions').select('*').eq('workspace_id', id).maybeSingle(),
-      adminClient.from('payment_orders').select('*').eq('workspace_id', id).order('created_at', { ascending: false }).limit(20),
-      adminClient.from('platform_connections').select('*').eq('workspace_id', id),
-      adminClient.from('posts').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
-      adminClient.from('profiles').select('id, subdomain, name, created_at').eq('workspace_id', id).is('deleted_at', null),
+      supabaseAdmin.from('workspace_members').select('*').eq('workspace_id', id),
+      supabaseAdmin.from('subscriptions').select('*').eq('workspace_id', id).maybeSingle(),
+      supabaseAdmin.from('payment_orders').select('*').eq('workspace_id', id).order('created_at', { ascending: false }).limit(20),
+      supabaseAdmin.from('platform_connections').select('*').eq('workspace_id', id),
+      supabaseAdmin.from('posts').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+      supabaseAdmin.from('profiles').select('id, subdomain, name, created_at').eq('workspace_id', id).is('deleted_at', null),
     ]);
 
     interface WorkspaceMemberRow {
@@ -44,7 +44,7 @@ export async function GET(
       ((membersRes.data || []) as unknown as WorkspaceMemberRow[]).map(async (m) => {
         let email = 'Unknown';
         try {
-          const { data } = await adminClient.auth.admin.getUserById(m.user_id);
+          const { data } = await supabaseAdmin.auth.admin.getUserById(m.user_id);
           email = data?.user?.email || 'Unknown';
         } catch { }
         return {
@@ -125,7 +125,7 @@ export async function PATCH(
     }
 
     if (planExpiresAt !== undefined) {
-      const { data, error } = await adminClient
+      const { data, error } = await supabaseAdmin
         .from('workspaces')
         .update({ plan_expires_at: planExpiresAt, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -162,7 +162,7 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    const { error } = await adminClient
+    const { error } = await supabaseAdmin
       .from('workspaces')
       .delete()
       .eq('id', id);

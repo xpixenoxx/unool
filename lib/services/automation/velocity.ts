@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * VelocityThrottle — enforces per-workspace hourly reply limits.
@@ -13,7 +13,7 @@ import { logger } from '@/lib/logger';
  * lost between Vercel cold starts).
  */
 export class VelocityThrottle {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private parseKey(key: string, explicitChannel?: 'comment' | 'dm'): { workspaceId: string; channel: 'comment' | 'dm' } {
     if (key.startsWith('dm:')) {

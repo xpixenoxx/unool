@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { PostAdapter, PlatformType, AdaptedPost, AdaptationContext, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
 import { buildStudioContext } from '@/lib/ai/studioContext';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { trackAiUsage } from '@/lib/limits/enforcer';
@@ -11,8 +10,9 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
 
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
           status: 'draft',
         });
         // Clear previous variants for this post so duplicate variants are never created
-        await supabase.from('post_variants').delete().eq('post_id', activePostId);
+        await supabaseAdmin.from('post_variants').delete().eq('post_id', activePostId);
       } else {
         const post = await postRepository.create({
           profileId: resolvedProfileId || '',

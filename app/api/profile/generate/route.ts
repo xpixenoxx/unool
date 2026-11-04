@@ -1,14 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { ProfileExtractor, ExtractedProfile } from '@/lib/ai/ProfileExtractor';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
 import { trackAiUsage } from '@/lib/limits/enforcer';
-import { cookies } from 'next/headers';
 import { withPlanEnforcement } from '@/lib/middleware/plan-enforcement';
 
-const isDevAuthEnabled = config.NODE_ENV === 'development' || config.DEV_AUTH_BYPASS === true;
-const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
-const DEV_WORKSPACE_ID = '00000000-0000-0000-0000-000000000001';
 
 async function handleGenerate(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -17,14 +13,6 @@ async function handleGenerate(request: NextRequest) {
     let userId = request.headers.get('x-user-id');
     let workspaceId = request.headers.get('x-workspace-id');
 
-    if ((!userId || !workspaceId) && isDevAuthEnabled) {
-      const cookieStore = await cookies();
-      const devBypassCookie = cookieStore.get('dev-auth-bypass') || cookieStore.get(`sb-${config.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
-      if (devBypassCookie) {
-        userId = DEV_USER_ID;
-        workspaceId = DEV_WORKSPACE_ID;
-      }
-    }
 
     if (!userId || !workspaceId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

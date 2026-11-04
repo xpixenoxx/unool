@@ -1,8 +1,7 @@
-// ============================================================
+﻿// ============================================================
 // Follow-Gate Service — lib/follow-gate/service.ts
 // All DB + business logic. No HTTP here.
 // ============================================================
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import type {
@@ -11,8 +10,9 @@ import type {
   CreateGateInput,
   CheckFollowResult,
 } from './types';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ function generateSessionToken(): string {
 // ── Gate CRUD ──────────────────────────────────────────────────────────────────
 
 export async function createGate(input: CreateGateInput): Promise<FollowGate> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('follow_gates')
     .insert({
       workspace_id: input.workspaceId,
@@ -80,7 +80,7 @@ export async function createGate(input: CreateGateInput): Promise<FollowGate> {
 }
 
 export async function getGate(gateId: string): Promise<FollowGate | null> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('follow_gates')
     .select('*')
     .eq('id', gateId)
@@ -94,7 +94,7 @@ export async function getGate(gateId: string): Promise<FollowGate | null> {
 }
 
 export async function listGates(workspaceId: string): Promise<FollowGate[]> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('follow_gates')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -118,7 +118,7 @@ export async function updateGate(
   if (updates.ctaText !== undefined) patch.cta_text = updates.ctaText;
   if (updates.thumbnailUrl !== undefined) patch.thumbnail_url = updates.thumbnailUrl;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('follow_gates')
     .update(patch)
     .eq('id', gateId)
@@ -131,7 +131,7 @@ export async function updateGate(
 }
 
 export async function toggleGate(gateId: string, workspaceId: string, isActive: boolean): Promise<void> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('follow_gates')
     .update({ is_active: isActive, updated_at: new Date().toISOString() })
     .eq('id', gateId)
@@ -141,7 +141,7 @@ export async function toggleGate(gateId: string, workspaceId: string, isActive: 
 }
 
 export async function deleteGate(gateId: string, workspaceId: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('follow_gates')
     .delete()
     .eq('id', gateId)
@@ -158,7 +158,7 @@ export async function createSession(
 ): Promise<FollowGateSession> {
   const sessionToken = generateSessionToken();
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('follow_gate_sessions')
     .insert({
       gate_id: gateId,
@@ -175,13 +175,13 @@ export async function createSession(
   // Read current value then write incremented value
   void (async () => {
     try {
-      const { data: gateRow } = await supabase
+      const { data: gateRow } = await supabaseAdmin
         .from('follow_gates')
         .select('view_count')
         .eq('id', gateId)
         .single();
       if (gateRow) {
-        await supabase
+        await supabaseAdmin
           .from('follow_gates')
           .update({ view_count: ((gateRow as Record<string, unknown>).view_count as number ?? 0) + 1 })
           .eq('id', gateId);
@@ -195,7 +195,7 @@ export async function createSession(
 }
 
 export async function getSession(sessionToken: string): Promise<FollowGateSession | null> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('follow_gate_sessions')
     .select('*')
     .eq('session_token', sessionToken)
@@ -217,7 +217,7 @@ export async function markSessionVerified(
 ): Promise<void> {
   const now = new Date().toISOString();
 
-  const { data: sessionRow, error: fetchErr } = await supabase
+  const { data: sessionRow, error: fetchErr } = await supabaseAdmin
     .from('follow_gate_sessions')
     .select('gate_id')
     .eq('session_token', sessionToken)
@@ -225,7 +225,7 @@ export async function markSessionVerified(
 
   if (fetchErr) throw new Error(`markSessionVerified fetch: ${fetchErr.message}`);
 
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await supabaseAdmin
     .from('follow_gate_sessions')
     .update({
       follow_verified: true,
@@ -242,13 +242,13 @@ export async function markSessionVerified(
   const gateId = (sessionRow as Record<string, unknown>).gate_id as string;
   void (async () => {
     try {
-      const { data: gateRow } = await supabase
+      const { data: gateRow } = await supabaseAdmin
         .from('follow_gates')
         .select('unlock_count')
         .eq('id', gateId)
         .single();
       if (gateRow) {
-        await supabase
+        await supabaseAdmin
           .from('follow_gates')
           .update({ unlock_count: ((gateRow as Record<string, unknown>).unlock_count as number ?? 0) + 1 })
           .eq('id', gateId);
@@ -334,7 +334,7 @@ export async function getCreatorAccessToken(
 ): Promise<string | null> {
   const { decryptToken } = await import('@/lib/crypto/encryption');
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('platform_connections')
     .select('access_token_encrypted')
     .eq('workspace_id', workspaceId)
@@ -364,7 +364,7 @@ export async function handleFollowWebhookEvent(
   followerIgUsername: string
 ): Promise<void> {
   // Find all active (unverified, unexpired) sessions for gates owned by this creator
-  const { data: gates, error: gatesErr } = await supabase
+  const { data: gates, error: gatesErr } = await supabaseAdmin
     .from('follow_gates')
     .select('id, workspace_id')
     .eq('ig_user_id', creatorIgUserId)
@@ -373,7 +373,7 @@ export async function handleFollowWebhookEvent(
   if (gatesErr || !gates || gates.length === 0) return;
 
   for (const gate of gates as Array<{ id: string; workspace_id: string }>) {
-    const { data: sessions } = await supabase
+    const { data: sessions } = await supabaseAdmin
       .from('follow_gate_sessions')
       .select('session_token')
       .eq('gate_id', gate.id)

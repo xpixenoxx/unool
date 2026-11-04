@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ users: [] });
     }
 
-    const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
     
     // Search users by email or full_name
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users')
       .select('id, email, full_name')
       .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)

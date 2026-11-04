@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/admin/content - List posts across all workspaces
 export async function GET(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = adminClient
+    let query = supabaseAdmin
       .from('posts')
       .select('*, workspaces(name)', { count: 'exact' });
 
@@ -91,7 +91,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
     }
 
-    const { error } = await adminClient.from('posts').delete().eq('id', id);
+    const { error } = await supabaseAdmin.from('posts').delete().eq('id', id);
     if (error) throw error;
 
     await adminRepository.logAdminAction(

@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 function maskCloudflareUrl(url: string): string {
   if (!url) return url;
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   try {
     const subdomainParam = request.nextUrl.searchParams.get('subdomain');
     if (subdomainParam) {
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('id, workspace_id, name, subdomain, avatar_url, role, company, bio, theme')
         .eq('subdomain', subdomainParam)
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
       const liveTemplate = (profile?.theme as any)?.template || (profile?.theme as any)?.preset || 'the-voice';
 
-      const { data: pageResults } = await supabase
+      const { data: pageResults } = await supabaseAdmin
         .from('brand_materials_pages')
         .select('*')
         .eq('workspace_id', profile.workspace_id)
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Fetch user profile to get subdomain & live page template theme
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('subdomain, name, avatar_url, role, company, theme')
       .eq('workspace_id', workspaceId)
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     const liveTemplate = (profile?.theme as any)?.template || (profile?.theme as any)?.preset || 'the-voice';
 
     // Fetch all existing brand materials pages for workspace
-    const { data: allPages } = await supabase
+    const { data: allPages } = await supabaseAdmin
       .from('brand_materials_pages')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -235,7 +235,7 @@ export async function PUT(request: NextRequest) {
     const sanitizedSlug = (slug || 'page').toLowerCase().replace(/[^a-z0-9-_]/g, '').trim() || 'page';
 
     // Fetch user profile subdomain and live template theme
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('subdomain, name, theme')
       .eq('workspace_id', workspaceId)
@@ -268,7 +268,7 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('brand_materials_pages')
       .upsert(upsertPayload, { onConflict: 'workspace_id,slug' })
       .select()
@@ -305,7 +305,7 @@ export async function PUT(request: NextRequest) {
     // so any audience asking for links in DMs or comments receives this newly created page!
     if (updateAutomationLink) {
       try {
-        await supabase
+        await supabaseAdmin
           .from('instagram_automation_config')
           .update({
             link_url: pageUrl,
@@ -319,7 +319,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch updated list of all pages for workspace
-    const { data: updatedPages } = await supabase
+    const { data: updatedPages } = await supabaseAdmin
       .from('brand_materials_pages')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -363,7 +363,7 @@ export async function DELETE(request: NextRequest) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    let deleteQuery = supabase
+    let deleteQuery = supabaseAdmin
       .from('brand_materials_pages')
       .delete()
       .eq('workspace_id', workspaceId);
@@ -382,7 +382,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Return remaining pages
-    const { data: remainingPages } = await supabase
+    const { data: remainingPages } = await supabaseAdmin
       .from('brand_materials_pages')
       .select('*')
       .eq('workspace_id', workspaceId)

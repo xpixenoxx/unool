@@ -151,6 +151,18 @@ export class LinkedInAdapter implements PlatformAdapter {
             logger.info('LinkedIn: downloading media from storage', { url: imageUrl.substring(0, 80) });
             const imageRes = await fetchWithRetry(imageUrl, {}, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 10000, retryableStatuses: [408, 429, 500, 502, 503, 504], isRetryableError: (e) => e instanceof TypeError });
             if (!imageRes.ok) throw new Error(`Failed to fetch media: ${imageRes.status} ${imageRes.statusText}`);
+
+            // Guard: refuse to load files >200MB into memory (prevents OOM on large video uploads)
+            const contentLength = imageRes.headers.get('content-length');
+            const fileSizeBytes = contentLength ? parseInt(contentLength, 10) : 0;
+            const MAX_IN_MEMORY_BYTES = 200 * 1024 * 1024; // 200MB
+            if (fileSizeBytes > MAX_IN_MEMORY_BYTES) {
+              throw new Error(
+                `Media file too large for serverless upload (${Math.round(fileSizeBytes / 1024 / 1024)}MB). ` +
+                `Maximum supported size is 200MB. Please compress the video before uploading.`
+              );
+            }
+
             const imageBuffer = await imageRes.arrayBuffer();
             const contentType = imageRes.headers.get('content-type') || 'application/octet-stream';
             const isVideo = contentType.startsWith('video/');
@@ -240,7 +252,13 @@ export class LinkedInAdapter implements PlatformAdapter {
               const batch = imageUrls.slice(i, i + batchSize);
               const batchPromises = batch.map(async (imageUrl) => {
                 try {
-                  const imageRes = await fetch(imageUrl);
+                  const imageRes = await fetchWithRetry(imageUrl, {}, {
+                    maxRetries: 2,
+                    baseDelayMs: 1000,
+                    maxDelayMs: 5000,
+                    retryableStatuses: [408, 429, 500, 502, 503, 504],
+                    isRetryableError: (e) => e instanceof TypeError,
+                  });
                   if (!imageRes.ok) return null;
                   const imageBuffer = await imageRes.arrayBuffer();
                   const contentType = imageRes.headers.get('content-type') || 'image/jpeg';

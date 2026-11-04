@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { generateWeekArc, detectStoryType, synthesizeFactGroundedArc, getUpcomingDaysForArc } from '@/lib/ai/WeekArcGenerator';
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── DEV_MOCK_ARC: Return deterministic synthesized arc for visual testing ───
-    if (config.DEV_AUTH_BYPASS === true && config.DEV_MOCK_ARC === true) {
+    if (config.NODE_ENV === 'development' && config.DEV_MOCK_ARC === true) {
       logger.info('DEV_MOCK_ARC enabled — returning synthesized week arc for visual testing', {
         workspaceId,
         storyLength: coreStory.length,

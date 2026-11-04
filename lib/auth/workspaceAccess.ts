@@ -1,21 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
-
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+﻿import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * Validates that a user has access to a given workspaceId.
  * Grants access if:
- * 1. workspaceId === userId (single-user personal workspace fallback)
- * 2. user has a record in workspace_members for workspaceId
- * 3. user is the owner_id of the workspace in the workspaces table
+ * 1. user has a record in workspace_members for workspaceId
+ * 2. user is the owner_id of the workspace in the workspaces table
  */
 export async function verifyWorkspaceAccess(userId: string, workspaceId: string): Promise<boolean> {
   if (!userId || !workspaceId) return false;
-  if (workspaceId === userId) return true;
 
   try {
-    const { data: member } = await supabase
+    // Check 1: User is a member of the workspace
+    const { data: member } = await supabaseAdmin
       .from('workspace_members')
       .select('workspace_id')
       .eq('workspace_id', workspaceId)
@@ -24,7 +20,8 @@ export async function verifyWorkspaceAccess(userId: string, workspaceId: string)
 
     if (member) return true;
 
-    const { data: ws } = await supabase
+    // Check 2: User owns the workspace
+    const { data: ws } = await supabaseAdmin
       .from('workspaces')
       .select('id')
       .eq('id', workspaceId)

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/auth/signin/verify-otp
  *
  * Step 2 of sign-in: verify the sign-in OTP.
@@ -8,12 +8,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServerClient } from '@supabase/ssr';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { verifyOtp } from '@/lib/auth/otp';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { cookies } from 'next/headers';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const bodySchema = z.object({
   email: z.string().email(),

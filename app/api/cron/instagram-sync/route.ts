@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 /**
  * GET /api/cron/instagram-sync
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Find all workspaces that have Instagram automation enabled
-    const { data: configs, error } = await supabase
+    const { data: configs, error } = await supabaseAdmin
       .from('instagram_automation_config')
       .select('workspace_id')
       .eq('enabled', true);

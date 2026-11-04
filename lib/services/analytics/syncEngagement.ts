@@ -1,11 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { extractNormalizedEngagement, UniversalEngagement } from './normalize';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 interface SyncResult {
   syncedCount: number;
@@ -35,7 +35,7 @@ export async function syncWorkspaceEngagement(
 
   try {
     // 1. Fetch all connected platforms for this workspace
-    const { data: connections, error: connError } = await admin
+    const { data: connections, error: connError } = await supabaseAdmin
       .from('platform_connections')
       .select('id, platform, access_token_encrypted, status')
       .eq('workspace_id', workspaceId)
@@ -61,7 +61,7 @@ export async function syncWorkspaceEngagement(
     }
 
     // 2. Fetch platform_posts for published posts in this workspace
-    let query = admin
+    let query = supabaseAdmin
       .from('platform_posts')
       .select(`
         id,
@@ -143,7 +143,7 @@ export async function syncWorkspaceEngagement(
             _normalized: normalized,
           };
 
-          await admin
+          await supabaseAdmin
             .from('platform_posts')
             .update({ engagement: updatedPayload })
             .eq('id', pp.id);

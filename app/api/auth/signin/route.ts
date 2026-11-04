@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/auth/signin
  *
  * Step 1 of sign-in: validate email + password, then issue an OTP.
@@ -15,7 +15,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { issueOtp, isResendCoolingDown } from '@/lib/auth/otp';
 import { verifyPassword } from '@/lib/auth/password';
 import { sendOtpEmail } from '@/lib/auth/email';
@@ -25,6 +24,7 @@ import { createServerClient } from '@supabase/ssr';
 import { config } from '@/lib/config/schema';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const bodySchema = z.object({
   email:    z.string().email('Invalid email'),

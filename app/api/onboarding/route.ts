@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { OnboardingChecklist, createInitialChecklist, markStepComplete } from '@/lib/onboarding/types';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 async function getChecklist(workspaceId: string, userId: string): Promise<OnboardingChecklist | null> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('onboarding_checklists')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -31,7 +31,7 @@ async function getChecklist(workspaceId: string, userId: string): Promise<Onboar
 }
 
 async function upsertChecklist(checklist: OnboardingChecklist): Promise<OnboardingChecklist> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('onboarding_checklists')
     .upsert({
       workspace_id: checklist.workspaceId,
@@ -238,7 +238,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing userId or workspaceId' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('onboarding_checklists')
       .delete()
       .eq('workspace_id', workspaceId)

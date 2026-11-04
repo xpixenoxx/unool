@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';

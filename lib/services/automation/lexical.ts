@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * LexicalEntropyGuard — prevents the AI from generating
@@ -13,7 +13,7 @@ import { logger } from '@/lib/logger';
  * Falls back to an in-memory cache for performance during burst processing.
  */
 export class LexicalEntropyGuard {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   // In-memory cache (populated from DB, survives within a single invocation)
   private cache: Map<string, string[]> = new Map();

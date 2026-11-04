@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import type { IAIRepository } from '../interfaces/IAIRepository';
 import type { PromptVersion, AIGeneration, CreatePromptVersionInput, CreateAIGenerationInput } from '../interfaces/IAIRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabaseAIRepository implements IAIRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private mapPromptRow(row: Record<string, unknown>): PromptVersion {
     return {

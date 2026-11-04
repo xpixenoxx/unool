@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /admin/api/setup
  *
  * One-time admin account setup / password reset endpoint.
@@ -14,11 +14,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { hashPassword } from '@/lib/auth/password';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
     const emailLower = email.toLowerCase().trim();
 
     // ── Step 1: Get or create Supabase auth user ───────────────
-    const { data: userList } = await adminClient.auth.admin.listUsers();
+    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
     let authUser = userList?.users?.find((u) => u.email === emailLower);
 
     if (!authUser) {
-      const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email: emailLower,
         email_confirm: true,
         user_metadata: { role },
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     const passwordHash = await hashPassword(password);
 
     // ── Step 3: Upsert admin_users row ────────────────────────
-    const { error: upsertErr } = await adminClient
+    const { error: upsertErr } = await supabaseAdmin
       .from('admin_users')
       .upsert(
         {

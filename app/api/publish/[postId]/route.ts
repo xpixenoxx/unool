@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { logger } from '@/lib/logger';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const postRepository = new SupabasePostRepository();
 
@@ -121,7 +121,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
 
     // 1. Find all variants for this post
     const variants = await postRepository.findVariantsByPostId(postId);
@@ -129,13 +129,13 @@ export async function DELETE(
 
     if (variantIds.length > 0) {
       // 2. Delete platform_posts if any exist
-      await admin.from('platform_posts').delete().in('post_variant_id', variantIds);
+      await supabaseAdmin.from('platform_posts').delete().in('post_variant_id', variantIds);
       // 3. Delete post_variants
-      await admin.from('post_variants').delete().in('id', variantIds);
+      await supabaseAdmin.from('post_variants').delete().in('id', variantIds);
     }
 
     // 4. Delete the post record
-    const { error: deleteError } = await admin
+    const { error: deleteError } = await supabaseAdmin
       .from('posts')
       .delete()
       .eq('id', postId)
@@ -152,4 +152,4 @@ export async function DELETE(
     logger.error('Failed to delete post', { traceId, postId, error: err });
     return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
   }
-}
+}

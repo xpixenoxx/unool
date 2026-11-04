@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import type { IApiKeyRepository } from '../interfaces/IApiKeyRepository';
 import type { ApiKey, CreateApiKeyInput, CreateApiKeyResult, ApiKeyScope } from '../interfaces/IApiKeyRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabaseApiKeyRepository implements IApiKeyRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private mapRow(row: Record<string, unknown>): ApiKey {
     return {

@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { removeOverride } from '@/lib/billing/overrides';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * DELETE /api/admin/plan-overrides/[id]
@@ -25,8 +25,8 @@ export async function DELETE(
 
     let overrideInfo: { user_email?: string; user_name?: string | null; plan_id?: string; custom_monthly_inr?: number } | null = null;
     try {
-      const client = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-      const { data } = await client
+      
+      const { data } = await supabaseAdmin
         .from('user_plan_overrides')
         .select('user_email, user_name, plan_id, custom_monthly_inr')
         .eq('id', id)

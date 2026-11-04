@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { publishService } from '@/lib/services/PublishService';
 import { logger } from '@/lib/logger';
 import { Receiver } from '@upstash/qstash';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { postFirstComment } from '@/lib/platforms/firstComment';
 import { decryptToken } from '@/lib/crypto/encryption';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export const maxDuration = 300; // 5 minutes max for background publishing
 
@@ -103,7 +103,7 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
   }
 
   // ── Check if queue is held for this workspace ──────────────────────────
-  const { data: workspace } = await supabase
+  const { data: workspace } = await supabaseAdmin
     .from('workspaces')
     .select('settings')
     .eq('id', workspaceId)
@@ -146,7 +146,7 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
     }
 
     // Find the platform connection for this variant's workspace
-    const { data: connections } = await supabase
+    const { data: connections } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)

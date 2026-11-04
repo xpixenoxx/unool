@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { trackEvent, extractTrackingFromRequest, isValidEventType, AnalyticsEventType } from '@/lib/analytics/track';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-import { createClient } from '@supabase/supabase-js';
 
-const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 const ClientEventSchema = z.object({
   eventType: z.string().refine(isValidEventType, 'Invalid event type'),
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         let wsId = event.workspaceId;
         if (!wsId && event.profileId) {
           if (!profileWorkspaceMap[event.profileId]) {
-            const { data: prof } = await admin
+            const { data: prof } = await supabaseAdmin
               .from('profiles')
               .select('workspace_id')
               .eq('id', event.profileId)

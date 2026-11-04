@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import type { CreateAdminUserInput, ListUsersParams } from '@/lib/repositories/interfaces/IAdminRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // GET /api/admin/users - List users
 // By default returns platform users (for /admin/users page).
@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
     }
 
-    const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
 
     // Platform user creation
     if (type === 'platform' || (!role && password)) {
-      const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: email.toLowerCase().trim(),
         password: password || undefined,
         email_confirm: true,
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     const adminUser = await adminRepository.createAdminUser(
       { email, role, permissions },
-      adminClient
+      supabaseAdmin
     );
 
     await adminRepository.logAdminAction(

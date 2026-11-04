@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
 
     // Check if subdomain is taken - use direct query for reliability
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('subdomain', subdomain)

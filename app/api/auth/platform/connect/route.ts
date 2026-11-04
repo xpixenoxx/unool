@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { generateOAuthState, storeOAuthState, createOAuthCookie } from '@/lib/auth/oauth-state';
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,8 +66,8 @@ async function resolveAuth(request: NextRequest): Promise<{ userId: string | nul
     // If middleware gave us just the userId, use it and look up workspace
     const uid = headerUserId || user.id;
 
-    const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-    const { data: member } = await adminClient
+    
+    const { data: member } = await supabaseAdmin
       .from('workspace_members')
       .select('workspace_id')
       .eq('user_id', uid)

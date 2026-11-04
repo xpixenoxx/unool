@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/auth/resend-otp
  *
  * Resends an OTP for signup or signin, subject to the 60-second cooldown.
@@ -6,12 +6,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { issueOtp, issueSignupOtp, isResendCoolingDown } from '@/lib/auth/otp';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const bodySchema = z.object({
   email:   z.string().email(),
@@ -20,7 +20,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const isDev = config.NODE_ENV !== 'production' || config.DEV_AUTH_BYPASS === true;
+  const isDev = config.NODE_ENV !== 'production';
 
   try {
     const body = await request.json().catch(() => ({}));

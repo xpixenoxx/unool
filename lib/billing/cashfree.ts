@@ -1,5 +1,5 @@
-// ============================================================
-// CASHFREE API CLIENT — Server-side only
+﻿// ============================================================
+// CASHFREE API CLIENT â€” Server-side only
 // This file MUST NEVER be imported in client components.
 // All API keys stay server-side (no NEXT_PUBLIC_ prefix).
 // ============================================================
@@ -9,11 +9,11 @@ import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 export type { PlanId, BillingCycle, Currency } from '@/lib/billing/plans';
 
-// ── Types ───────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface CashfreeOrderRequest {
   order_id: string;
-  order_amount: number;        // In rupees (not paise) — Cashfree expects decimal
+  order_amount: number;        // In rupees (not paise) â€” Cashfree expects decimal
   order_currency: string;      // 'INR' or 'USD'
   customer_details: {
     customer_id: string;
@@ -82,7 +82,7 @@ export interface CashfreeWebhookPayload {
   };
 }
 
-// ── API Client ──────────────────────────────────────────────────
+// â”€â”€ API Client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getHeaders(): Record<string, string> {
   const appId = config.CASHFREE_APP_ID || process.env.CASHFREE_APP_ID;
@@ -437,7 +437,7 @@ export async function payOrderWithNetbanking(
   return data;
 }
 
-// ── Webhook Signature Verification ──────────────────────────────
+// â”€â”€ Webhook Signature Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Verify Cashfree webhook signature using HMAC-SHA256.
@@ -476,10 +476,14 @@ export function verifyWebhookSignature(
     .update(payload)
     .digest('base64');
 
-  const isValid = crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  const expectedBuf = Buffer.from(expectedSignature);
+  const receivedBuf = Buffer.from(signature);
+  // timingSafeEqual throws RangeError if buffer lengths differ -- guard explicitly
+  if (expectedBuf.length !== receivedBuf.length) {
+    logger.warn('Webhook signature length mismatch -- rejecting');
+    return false;
+  }
+  const isValid = crypto.timingSafeEqual(expectedBuf, receivedBuf);
 
   if (!isValid) {
     logger.warn('Webhook signature mismatch');

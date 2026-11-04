@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
@@ -11,8 +10,9 @@ import {
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // POST /api/instagram/simulate
 // Body: { workspaceId, commentText, postCaption?, isDmSimulation?, dmText? }
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Load actual automation config for this workspace
     let automationConfig: AutomationConfig = DEFAULT_AUTOMATION_CONFIG;
     try {
-      const { data } = await supabase
+      const { data } = await supabaseAdmin
         .from('instagram_automation_config')
         .select('*')
         .eq('workspace_id', workspaceId)

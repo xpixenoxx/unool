@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+﻿import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -11,6 +11,7 @@ import {
 import type { Platform } from '@/lib/repositories/interfaces/IPostRepository';
 import { TokenExpiredError } from '@/lib/utils/retry';
 import { getPlatformLimit } from '@/lib/config/platformLimits';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const platformRepository = new SupabasePlatformRepository();
 const postRepository = new SupabasePostRepository();
@@ -68,8 +69,8 @@ export class PublishService {
     if (input.platform === 'kick' && isKickStreamReady && connection.status !== 'connected') {
       try {
         const { createClient } = await import('@supabase/supabase-js');
-        const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-        await adminSupabase
+        
+        await supabaseAdmin
           .from('platform_connections')
           .update({ status: 'connected', updated_at: new Date().toISOString() })
           .eq('id', connection.id);

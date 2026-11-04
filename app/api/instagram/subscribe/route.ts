@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutomation';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // POST /api/instagram/subscribe
 // Body: { workspaceId: string }
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Fetch active Instagram connection
-    const { data: connections } = await supabase
+    const { data: connections } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)

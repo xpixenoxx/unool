@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 const DEFAULT_LINKEDIN_CONFIG = {
   enabled: false,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     // Try fetching from platform_automations or workspace metadata
     let defaultLinkUrl: string | null = null;
     try {
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('subdomain')
         .eq('user_id', user.id)
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       }
     } catch {}
 
-    const { data: ws } = await supabase
+    const { data: ws } = await supabaseAdmin
       .from('workspaces')
       .select('settings')
       .eq('id', workspaceId)
@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest) {
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Fetch existing workspace settings to preserve other properties
-    const { data: ws } = await supabase
+    const { data: ws } = await supabaseAdmin
       .from('workspaces')
       .select('settings')
       .eq('id', workspaceId)
@@ -119,7 +119,7 @@ export async function PUT(request: NextRequest) {
       },
     };
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('workspaces')
       .update({ settings: updatedSettings })
       .eq('id', workspaceId);

@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { verifyOtp } from '@/lib/auth/otp';
 import { hashPassword } from '@/lib/auth/password';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const bodySchema = z.object({
   email: z.string().email(),

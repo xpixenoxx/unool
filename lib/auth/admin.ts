@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { verifyAdminJwt } from '@/lib/auth/admin-jwt';
 import { getAdminApiRateLimit } from '@/lib/middleware/admin-rate-limit';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export interface AdminAuthContext {
   admin: {
@@ -52,7 +52,7 @@ export async function getCurrentAdmin(request: NextRequest): Promise<AdminAuthCo
   if (!payload) return null;
 
   // ── Verify admin still exists and is active in the DB ──────
-  const { data: adminUser } = await adminClient
+  const { data: adminUser } = await supabaseAdmin
     .from('admin_users')
     .select('id, email, role, permissions, is_active')
     .eq('id', payload.adminId)

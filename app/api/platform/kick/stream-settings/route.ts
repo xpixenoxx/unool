@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { logger } from '@/lib/logger';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { encryptToken, decryptToken } from '@/lib/crypto/encryption';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stream URL must start with rtmp:// or rtmps://' }, { status: 400 });
     }
 
-    const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
 
     // Fetch existing Kick connection
-    const { data: connection, error: fetchErr } = await adminSupabase
+    const { data: connection, error: fetchErr } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     const encryptedToken = await encryptToken(tokenPayload);
 
-    const { error: updateErr } = await adminSupabase
+    const { error: updateErr } = await supabaseAdmin
       .from('platform_connections')
       .update({
         access_token_encrypted: encryptedToken,
@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Workspace ID required' }, { status: 400 });
     }
 
-    const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-    const { data: connection } = await adminSupabase
+    
+    const { data: connection } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)

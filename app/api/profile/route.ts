@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { logger } from '@/lib/logger';
-
 import { supabaseAdmin } from '@/lib/supabase/admin';
+
 
 const profileRepository = new SupabaseProfileRepository();
 

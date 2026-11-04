@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 interface AnalyticsEvent {
   event_type: string;

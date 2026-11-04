@@ -12,10 +12,18 @@ export const maxDuration = 60;
  * Triggered automatically by Vercel Cron or on-demand by client self-healing.
  */
 async function handlePublishScheduled(request: NextRequest) {
-  // Check CRON_SECRET if configured
-  const authHeader = request.headers.get('authorization');
+  // CRON_SECRET must always be set — fail hard if missing
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    logger.error('CRON_SECRET environment variable is not set — rejecting cron request');
+    return NextResponse.json(
+      { error: 'Server misconfigured: CRON_SECRET not set' },
+      { status: 500 }
+    );
+  }
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    logger.warn('Cron request rejected: invalid or missing authorization header');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

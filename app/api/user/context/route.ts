@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const profileRepository = new SupabaseProfileRepository();
-const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export const dynamic = 'force-dynamic';
 

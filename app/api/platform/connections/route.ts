@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * Proactively refresh an expired access token using the stored refresh token.
  * Returns true if refresh succeeded (row updated in DB), false otherwise.
  */
-async function tryRefreshToken(row: Record<string, any>, adminSupabase: any): Promise<boolean> {
+async function tryRefreshToken(row: Record<string, any>, supabaseAdmin: any): Promise<boolean> {
   try {
     const { getPlatformAdapter } = await import('@/lib/platforms');
     const { decryptToken, encryptToken } = await import('@/lib/crypto/encryption');
@@ -53,7 +53,7 @@ async function tryRefreshToken(row: Record<string, any>, adminSupabase: any): Pr
       : null;
 
     // Update the DB row with fresh tokens
-    await adminSupabase
+    await supabaseAdmin
       .from('platform_connections')
       .update({
         access_token_encrypted: newAccessTokenEncrypted,
@@ -93,12 +93,12 @@ async function tryRefreshToken(row: Record<string, any>, adminSupabase: any): Pr
     }
 
     if (!hasKickStream) {
-      await adminSupabase
+      await supabaseAdmin
         .from('platform_connections')
         .update({ status: 'expired', updated_at: new Date().toISOString() })
         .eq('id', row.id);
     } else {
-      await adminSupabase
+      await supabaseAdmin
         .from('platform_connections')
         .update({ status: 'connected', updated_at: new Date().toISOString() })
         .eq('id', row.id);
@@ -122,14 +122,14 @@ export async function GET(request: NextRequest) {
 
     debug.push(`auth:uid=${auth.userId.slice(0, 8)}:wid=${auth.workspaceId.slice(0, 8)}`);
 
-    const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
 
     // Strategies 1 & 2: run in parallel — query by workspace_id and by userId-as-workspace_id simultaneously
     const needsBothQueries = auth.userId !== auth.workspaceId;
     const [s1Result, s2Result] = await Promise.all([
-      adminSupabase.from('platform_connections').select('*').eq('workspace_id', auth.workspaceId),
+      supabaseAdmin.from('platform_connections').select('*').eq('workspace_id', auth.workspaceId),
       needsBothQueries
-        ? adminSupabase.from('platform_connections').select('*').eq('workspace_id', auth.userId)
+        ? supabaseAdmin.from('platform_connections').select('*').eq('workspace_id', auth.userId)
         : Promise.resolve({ data: null, error: null }),
     ]);
 
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
 
     // Strategy 3: Check all workspaces the user belongs to (only if still empty)
     if (!rows || rows.length === 0) {
-      const { data: memberships } = await adminSupabase
+      const { data: memberships } = await supabaseAdmin
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', auth.userId);
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
           memberships
             .filter((m) => m.workspace_id !== auth.workspaceId && m.workspace_id !== auth.userId)
             .map((m) =>
-              adminSupabase
+              supabaseAdmin
                 .from('platform_connections')
                 .select('*')
                 .eq('workspace_id', m.workspace_id)
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
           // Show as connected optimistically; the refresh runs in the background
           status = 'connected';
           refreshPromises.push(
-            tryRefreshToken(row, adminSupabase).then((refreshed) => ({
+            tryRefreshToken(row, supabaseAdmin).then((refreshed) => ({
               platform: row.platform,
               refreshed,
             }))
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
         if (row.platform === 'kick' && streamConfigured) {
           status = 'connected';
           if (row.status !== 'connected') {
-            adminSupabase
+            supabaseAdmin
               .from('platform_connections')
               .update({ status: 'connected', updated_at: new Date().toISOString() })
               .eq('id', row.id)

@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { cookies } from 'next/headers';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -58,15 +58,15 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       // Ensure user profile exists
-      const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-      await adminClient.from('users').upsert({
+      
+      await supabaseAdmin.from('users').upsert({
         id: user.id,
         email: user.email,
         full_name: user.user_metadata?.full_name,
       }, { onConflict: 'id' });
 
       // Ensure workspace exists for this user
-      const { data: existingMember } = await adminClient
+      const { data: existingMember } = await supabaseAdmin
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id)
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
       if (!existingMember) {
         // Create a new workspace for the user
-        const { data: newWorkspace } = await adminClient
+        const { data: newWorkspace } = await supabaseAdmin
           .from('workspaces')
           .insert({
             owner_id: user.id,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (newWorkspace) {
-          await adminClient.from('workspace_members').insert({
+          await supabaseAdmin.from('workspace_members').insert({
             workspace_id: newWorkspace.id,
             user_id: user.id,
             role: 'owner',

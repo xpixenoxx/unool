@@ -4,60 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import type { CashfreeInstance } from '@cashfreepayments/cashfree-js';
 import { sanitizePaymentError } from '@/lib/billing/sanitizeError';
 
-// ── Types ───────────────────────────────────────────────────────
-
-interface PlanPricing {
-  currency: string;
-  monthly: number;
-  annual: number;
-  annualMonthly: number;
-  monthlyDisplay: string;
-  annualDisplay: string;
-  annualMonthlyDisplay: string;
-}
-
-interface PlanData {
-  id: string;
-  name: string;
-  tagline: string;
-  isFreeTier: boolean;
-  sortOrder: number;
-  templateCount: number;
-  pricing: PlanPricing;
-  limits: Record<string, number>;
-  features: Record<string, boolean>;
-}
-
-interface CurrentPlan {
-  plan: { id: string; name: string; tagline: string };
-  subscription: {
-    id: string;
-    status: string;
-    billingCycle: string;
-    amount: string;
-    amountPaise: number;
-    currency: string;
-    currentPeriodStart: string;
-    currentPeriodEnd: string;
-    trialEnd: string | null;
-    cancelAtPeriodEnd: boolean;
-    cancelledAt: string | null;
-    paymentMethod: string | null;
-  } | null;
-  isFreeTier: boolean;
-}
-
-type BillingCycle = 'monthly' | 'annual';
-
-interface ActiveCheckout {
-  planId: string;
-  planName: string;
-  priceDisplay: string;
-  billingCycle: BillingCycle;
-  paymentSessionId: string;
-  cfOrderId: string;
-  mode?: 'sandbox' | 'production';
-}
+import type { PlanPricing, PlanData, CurrentPlan, BillingCycle, ActiveCheckout, PlanOverrideDisplay } from './types';
+import { formatCardNumber, formatExpiry, getCardBrand, formatSubscriptionDate } from '@/lib/billing/cardUtils';
+import { POPULAR_BANKS, ALL_OTHER_BANKS } from '@/lib/config/banks';
 
 if (typeof window !== 'undefined' && !(window as any).__unool_open_hooked) {
   (window as any).__unool_open_hooked = true;
@@ -71,81 +20,9 @@ if (typeof window !== 'undefined' && !(window as any).__unool_open_hooked) {
   };
 }
 
-function formatSubscriptionDate(dateStr?: string | null): string {
-  if (!dateStr) return '—';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  } catch {
-    return '—';
-  }
-}
-
-function formatCardNumber(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 16);
-  return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
-}
-
-function formatExpiry(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 4);
-  if (digits.length >= 3) {
-    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}`;
-  }
-  return digits;
-}
-
-function getCardBrand(num: string): { name: string; brand: 'visa' | 'mastercard' | 'rupay' | 'amex' | 'generic'; color: string } {
-  const clean = num.replace(/\s+/g, '');
-  if (/^4/.test(clean)) return { name: 'Visa', brand: 'visa', color: '#1A1F71' };
-  if (/^(5[1-5]|2[2-7])/.test(clean)) return { name: 'Mastercard', brand: 'mastercard', color: '#EB001B' };
-  if (/^(60|65|81|82)/.test(clean)) return { name: 'RuPay', brand: 'rupay', color: '#097939' };
-  if (/^3[47]/.test(clean)) return { name: 'Amex', brand: 'amex', color: '#006FCF' };
-  return { name: 'Card', brand: 'generic', color: '#7A7265' };
-}
-
-const POPULAR_BANKS = [
-  { code: '3021', name: 'HDFC Bank', short: 'HDFC', badgeColor: '#004C8F' },
-  { code: '3022', name: 'ICICI Bank', short: 'ICICI', badgeColor: '#B02A30' },
-  { code: '3044', name: 'State Bank of India', short: 'SBI', badgeColor: '#225894' },
-  { code: '3003', name: 'Axis Bank', short: 'Axis', badgeColor: '#97144D' },
-  { code: '3032', name: 'Kotak Mahindra Bank', short: 'Kotak', badgeColor: '#ED1C24' },
-  { code: '3038', name: 'Punjab National Bank', short: 'PNB', badgeColor: '#A21D22' },
-];
-
-const ALL_OTHER_BANKS = [
-  { code: '3005', name: 'Bank of Baroda' },
-  { code: '3009', name: 'Canara Bank' },
-  { code: '3028', name: 'IndusInd Bank' },
-  { code: '3055', name: 'Union Bank of India' },
-  { code: '3058', name: 'Yes Bank' },
-  { code: '3023', name: 'IDBI Bank' },
-  { code: '3006', name: 'Bank of India' },
-  { code: '3011', name: 'Central Bank of India' },
-  { code: '3026', name: 'Indian Bank' },
-  { code: '3018', name: 'Federal Bank' },
-  { code: '3039', name: 'RBL Bank' },
-  { code: '3087', name: 'AU Small Finance Bank' },
-  { code: '3043', name: 'Standard Chartered Bank' },
-  { code: '3024', name: 'IDFC FIRST Bank' },
-  { code: '3042', name: 'South Indian Bank' },
-  { code: '3054', name: 'UCO Bank' },
-];
-
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 let memoryBillingPlans: PlanData[] | null = null;
 let memoryBillingCurrent: CurrentPlan | null = null;
-interface PlanOverrideDisplay {
-  monthlyInr: number | null;
-  yearlyInr: number | null;
-  annualMonthlyInr: number | null;
-  note: string | null;
-}
-
 // ── Skeleton Loader ─────────────────────────────────────────────
 function BillingSkeleton() {
   return (

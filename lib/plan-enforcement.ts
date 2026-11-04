@@ -2,8 +2,10 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import type { Plan } from '@/lib/repositories/interfaces/IAdminRepository';
 import { getPlan, type PlanId } from '@/lib/billing/plans';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { logger } from '@/lib/logger';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // ============================================================
 // TYPES
@@ -41,12 +43,12 @@ export interface WorkspacePlanInfo {
 }
 
 export interface UsageSnapshot {
-  postsThisMonth: number;
-  profiles: number;
-  teamMembers: number;
-  aiAdaptationsThisMonth: number;
-  mediaUploadsThisMonth: number;
-  apiCallsToday: number;
+  postsThisMonth: number | null;
+  profiles: number | null;
+  teamMembers: number | null;
+  aiAdaptationsThisMonth: number | null;
+  mediaUploadsThisMonth: number | null;
+  apiCallsToday: number | null;
 }
 
 export interface LimitCheckResult {
@@ -87,19 +89,55 @@ export type PlanAction =
 
 interface CachedPlan {
   plan: Plan;
-  cachedAt: number;
+  expiresAt: number;
 }
 
-const planCache = new Map<string, CachedPlan>();
-const PLAN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Redis-backed plan cache — works across all serverless instances (unlike in-memory Map)
+const PLAN_CACHE_TTL = 60; // seconds
+let _redisPlanCache: import('@upstash/redis').Redis | null = null;
+
+function getRedisForCache(): import('@upstash/redis').Redis | null {
+  if (_redisPlanCache) return _redisPlanCache;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  // Lazy import to avoid module-level side effects
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Redis } = require('@upstash/redis') as typeof import('@upstash/redis');
+    _redisPlanCache = new Redis({ url, token });
+  } catch {
+    return null;
+  }
+  return _redisPlanCache;
+}
+
+async function getCachedPlanFromRedis(planId: string): Promise<CachedPlan | null> {
+  const redis = getRedisForCache();
+  if (!redis) return null;
+  try {
+    return await redis.get<CachedPlan>(`plan:`);
+  } catch { return null; }
+}
+
+async function setCachedPlanInRedis(planId: string, plan: Plan): Promise<void> {
+  const redis = getRedisForCache();
+  if (!redis) return;
+  try {
+    const cached: CachedPlan = { plan, expiresAt: Date.now() + PLAN_CACHE_TTL * 1000 };
+    await redis.set(`plan:`, cached, { ex: PLAN_CACHE_TTL });
+  } catch { /* non-fatal */ }
+}
 
 async function getPlanFromCache(planId: string): Promise<Plan | null> {
-  const cached = planCache.get(planId);
-  if (cached && Date.now() - cached.cachedAt < PLAN_CACHE_TTL) {
+  // Check Redis cache first
+  const cached = await getCachedPlanFromRedis(planId);
+  if (cached && Date.now() < cached.expiresAt) {
     return cached.plan;
   }
 
-  const { data, error } = await adminClient
+  // Cache miss — fetch from DB
+  const { data, error } = await supabaseAdmin
     .from('plans')
     .select('*')
     .eq('id', planId)
@@ -121,7 +159,7 @@ async function getPlanFromCache(planId: string): Promise<Plan | null> {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    planCache.set(planId, { plan: fallbackPlan, cachedAt: Date.now() });
+    await setCachedPlanInRedis(planId, fallbackPlan);
     return fallbackPlan;
   }
 
@@ -139,16 +177,13 @@ async function getPlanFromCache(planId: string): Promise<Plan | null> {
     updatedAt: data.updated_at,
   };
 
-  planCache.set(planId, { plan, cachedAt: Date.now() });
+  await setCachedPlanInRedis(planId, plan);
   return plan;
 }
 
-function clearPlanCache(planId?: string): void {
-  if (planId) {
-    planCache.delete(planId);
-  } else {
-    planCache.clear();
-  }
+export function clearPlanCache(workspaceId: string): void {
+  const redis = getRedisForCache();
+  if (redis) redis.del(`plan:`).catch(() => {});
 }
 
 // ============================================================
@@ -157,7 +192,7 @@ function clearPlanCache(planId?: string): void {
 
 export async function getWorkspacePlanInfo(workspaceId: string): Promise<WorkspacePlanInfo | null> {
   // Use the admin view which has all the computed fields
-  const { data, error } = await adminClient
+  const { data, error } = await supabaseAdmin
     .from('workspace_admin_view')
     .select('plan, plan_status, plan_expires_at, plan_limits, plan_features')
     .eq('id', workspaceId)
@@ -165,7 +200,7 @@ export async function getWorkspacePlanInfo(workspaceId: string): Promise<Workspa
 
   if (error || !data) {
     // Fallback: get basic workspace info and look up plan
-    const { data: ws } = await adminClient
+    const { data: ws } = await supabaseAdmin
       .from('workspaces')
       .select('plan, plan_status, plan_expires_at')
       .eq('id', workspaceId)
@@ -211,55 +246,62 @@ export async function getUsageSnapshot(workspaceId: string): Promise<UsageSnapsh
 
   // Track which queries succeed/fail for graceful degradation
   const results = await Promise.allSettled([
-    adminClient
+    supabaseAdmin
       .from('posts')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .eq('status', 'published')
       .gte('created_at', monthStart.toISOString()),
 
-    adminClient
+    supabaseAdmin
       .from('profiles')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId),
 
-    adminClient
+    supabaseAdmin
       .from('workspace_members')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId),
 
-    adminClient
+    supabaseAdmin
       .from('ai_usage')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .gte('created_at', monthStart.toISOString()),
 
-    adminClient
+    supabaseAdmin
       .from('media_uploads')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .gte('created_at', monthStart.toISOString()),
 
-    adminClient
+    supabaseAdmin
       .from('api_calls')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .gte('created_at', dayStart.toISOString()),
   ]);
 
-  // Extract counts with fallback to 0 for failed queries (tables may not exist yet)
-  const getCount = (result: PromiseSettledResult<{ count: number | null }>): number => {
-    if (result.status === 'fulfilled') return result.value.count || 0;
-    return 0;
+  // Extract counts — null means query failed (unknown usage), not zero
+  const safeCount = (result: PromiseSettledResult<{ count: number | null; error: { message: string } | null }>): number | null => {
+    if (result.status === 'rejected') {
+      logger.warn('Usage query threw unexpectedly', { error: String(result.reason) });
+      return null;
+    }
+    if (result.value.error) {
+      logger.warn('Usage query failed', { error: result.value.error.message });
+      return null;
+    }
+    return result.value.count ?? 0;
   };
 
   return {
-    postsThisMonth: getCount(results[0]),
-    profiles: getCount(results[1]),
-    teamMembers: getCount(results[2]),
-    aiAdaptationsThisMonth: getCount(results[3]),
-    mediaUploadsThisMonth: getCount(results[4]),
-    apiCallsToday: getCount(results[5]),
+    postsThisMonth: safeCount(results[0]),
+    profiles: safeCount(results[1]),
+    teamMembers: safeCount(results[2]),
+    aiAdaptationsThisMonth: safeCount(results[3]),
+    mediaUploadsThisMonth: safeCount(results[4]),
+    apiCallsToday: safeCount(results[5]),
   };
 }
 
@@ -359,6 +401,9 @@ export async function enforcePlanLimits(
   switch (action) {
     case 'create_post': {
       const limit = planInfo.limits.posts_per_month;
+      if (usage.postsThisMonth === null) {
+        return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
+      }
       checks.posts_per_month = checkLimit(
         'Posts per month',
         usage.postsThisMonth,
@@ -369,16 +414,25 @@ export async function enforcePlanLimits(
     }
     case 'create_profile': {
       const limit = planInfo.limits.profiles;
+      if (usage.profiles === null) {
+        return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
+      }
       checks.profiles = checkLimit('Profiles', usage.profiles, limit);
       break;
     }
     case 'invite_member': {
       const limit = planInfo.limits.team_seats;
+      if (usage.teamMembers === null) {
+        return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
+      }
       checks.team_seats = checkLimit('Team seats', usage.teamMembers, limit);
       break;
     }
     case 'use_ai': {
       const limit = planInfo.limits.ai_adaptations_per_month;
+      if (usage.aiAdaptationsThisMonth === null) {
+        return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
+      }
       checks.ai_adaptations_per_month = checkLimit(
         'AI adaptations per month',
         usage.aiAdaptationsThisMonth,
@@ -389,6 +443,9 @@ export async function enforcePlanLimits(
     }
     case 'upload_media': {
       const limit = planInfo.limits.media_uploads_per_month;
+      if (usage.mediaUploadsThisMonth === null) {
+        return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
+      }
       checks.media_uploads_per_month = checkLimit(
         'Media uploads per month',
         usage.mediaUploadsThisMonth,
@@ -402,7 +459,7 @@ export async function enforcePlanLimits(
       checks.api_access = {
         allowed: hasAccess,
         limit: hasAccess ? -1 : 0,
-        current: usage.apiCallsToday,
+        current: usage.apiCallsToday ?? 0,
         remaining: hasAccess ? -1 : 0,
         message: hasAccess ? undefined : 'API access not included in your plan',
       };
@@ -510,5 +567,4 @@ export function getPlanDisplayInfo(plan: Plan) {
   };
 }
 
-// Clear cache when plans are updated (call from admin mutations)
-export { clearPlanCache };
+// clearPlanCache is exported directly from its definition above

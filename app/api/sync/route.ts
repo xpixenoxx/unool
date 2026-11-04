@@ -1,16 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
 const ALLOWED_EVENT_TYPES = ['posts', 'profile', 'variants', 'engagement'] as const;
 type AllowedEventType = typeof ALLOWED_EVENT_TYPES[number];
 
-// Dev auth bypass constants (must match lib/auth/dev/bypass.ts)
-const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
-const DEV_TOKEN_PREFIX = 'dev-token-dev@unool.local';
 
 function isValidUUID(id: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -33,10 +31,6 @@ async function verifyAuthToken(request: NextRequest): Promise<string | null> {
     if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
       const token = parts[1];
 
-      // Handle dev auth bypass token
-      if (config.NODE_ENV === 'development' && token.startsWith(DEV_TOKEN_PREFIX)) {
-        return DEV_USER_ID;
-      }
 
       // Normal Supabase JWT verification
       try {
@@ -54,15 +48,6 @@ async function verifyAuthToken(request: NextRequest): Promise<string | null> {
     }
   }
 
-  // 2. Check dev auth cookie (for SSE connections from browser)
-  if (config.NODE_ENV === 'development') {
-    const projectRef = config.SUPABASE_PROJECT_ID || 'local';
-    const cookieName = `sb-${projectRef}-auth-token`;
-    const devCookie = request.cookies.get(cookieName);
-    if (devCookie?.value?.startsWith(DEV_TOKEN_PREFIX)) {
-      return DEV_USER_ID;
-    }
-  }
 
   return null;
 }

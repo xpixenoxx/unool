@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/instagram/comments?workspaceId=xxx&page=1&limit=20&classification=positive
 export async function GET(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Build query - exclude simulation test artifacts so feed displays real Instagram comments
-    let query = supabase
+    let query = supabaseAdmin
       .from('instagram_comment_logs')
       .select('*', { count: 'exact' })
       .eq('workspace_id', workspaceId)
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Aggregate stats - exclude simulation test artifacts
-    const { data: statsData } = await supabase
+    const { data: statsData } = await supabaseAdmin
       .from('instagram_comment_logs')
       .select('classification, auto_replied, dm_sent, flagged_for_review')
       .eq('workspace_id', workspaceId)

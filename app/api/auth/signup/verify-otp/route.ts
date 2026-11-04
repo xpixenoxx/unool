@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/auth/signup/verify-otp
  *
  * Step 2 of 2 for signup.
@@ -17,11 +17,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { verifySignupOtp } from '@/lib/auth/otp';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const bodySchema = z.object({
   email: z.string().email(),

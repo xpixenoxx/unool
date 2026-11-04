@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -16,11 +15,12 @@ import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 /**
  * POST /api/instagram/sync
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       const { data: { user } } = await userClient.auth.getUser();
       if (user) {
         if (!workspaceId) {
-          const { data: m } = await supabase
+          const { data: m } = await supabaseAdmin
             .from('workspace_memberships')
             .select('workspace_id')
             .eq('user_id', user.id)
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Fetch platform connection
-    const { data: connections, error: connErr } = await supabase
+    const { data: connections, error: connErr } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         const newExpiresAt = refreshed.expiresIn
           ? new Date(Date.now() + refreshed.expiresIn * 1000)
           : null;
-        await supabase
+        await supabaseAdmin
           .from('platform_connections')
           .update({
             access_token_encrypted: await encryptToken(refreshed.accessToken),
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         const refreshErrMsg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
         logger.warn('Token refresh failed during sync — using existing token', { connectionId: connection.id, error: refreshErrMsg });
         if (connExpiresAt && connExpiresAt.getTime() < Date.now()) {
-          await supabase
+          await supabaseAdmin
             .from('platform_connections')
             .update({ status: 'expired', updated_at: new Date().toISOString() })
             .eq('id', connection.id);
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Fetch automation config
-    const { data: rawConfig } = await supabase
+    const { data: rawConfig } = await supabaseAdmin
       .from('instagram_automation_config')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -531,7 +531,7 @@ export async function POST(request: NextRequest) {
         if (item.parent_id && !automationConfig.threadChainingEnabled) continue;
 
         // Check deduplication guard in database
-        const { data: existing } = await supabase
+        const { data: existing } = await supabaseAdmin
           .from('instagram_comment_logs')
           .select('id')
           .eq('comment_id', commentId)
@@ -544,7 +544,7 @@ export async function POST(request: NextRequest) {
         // Validate with ContentGuard
         const guardResult = ContentGuard.validateComment(commentText);
         if (!guardResult.safe && guardResult.violation.level === 'blocked') {
-          await supabase.from('instagram_comment_logs').upsert({
+          await supabaseAdmin.from('instagram_comment_logs').upsert({
             workspace_id: workspaceId,
             comment_id: commentId,
             media_id: media.id,
@@ -605,7 +605,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Log comment into database
-        await supabase.from('instagram_comment_logs').upsert({
+        await supabaseAdmin.from('instagram_comment_logs').upsert({
           workspace_id: workspaceId,
           comment_id: commentId,
           media_id: media.id,
@@ -627,7 +627,7 @@ export async function POST(request: NextRequest) {
         let activeLinkUrl = automationConfig.linkUrl;
         if (media.id && connection.workspace_id) {
           try {
-            const { data: matchedPages } = await supabase
+            const { data: matchedPages } = await supabaseAdmin
               .from('brand_materials_pages')
               .select('slug, title, theme, materials')
               .eq('workspace_id', connection.workspace_id)
@@ -674,7 +674,7 @@ export async function POST(request: NextRequest) {
             dmText
           );
           if (dmRes) {
-            await supabase
+            await supabaseAdmin
               .from('instagram_comment_logs')
               .update({ dm_sent: true })
               .eq('comment_id', commentId);

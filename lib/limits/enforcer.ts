@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { getCurrentUsage, checkLimit, getLimitsForTier, Tier } from '@/lib/limits/freeTier';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export type LimitType = 'postsPerMonth' | 'aiTokensPerMonth' | 'connectedAccounts' | 'scheduledPosts' | 'teamMembers' | 'apiCallsPerDay';
 
@@ -20,7 +20,7 @@ export async function enforceLimit(
   }
 
   // Get workspace tier
-  const { data: workspace } = await supabase
+  const { data: workspace } = await supabaseAdmin
     .from('workspaces')
     .select('plan_tier')
     .eq('id', workspaceId)
@@ -30,7 +30,7 @@ export async function enforceLimit(
   const limits = getLimitsForTier(tier);
 
   // Get current usage
-  const usage = await getCurrentUsage(supabase, workspaceId, userId);
+  const usage = await getCurrentUsage(supabaseAdmin, workspaceId, userId);
 
   // Check limit
   const result = checkLimit(limitType, usage, limits);
@@ -55,7 +55,7 @@ export async function enforceLimit(
 }
 
 export async function trackApiCall(workspaceId: string, endpoint: string): Promise<void> {
-  await supabase.from('api_calls').insert({
+  await supabaseAdmin.from('api_calls').insert({
     workspace_id: workspaceId,
     endpoint,
   });
@@ -71,7 +71,7 @@ export async function trackAiUsage(
 ): Promise<void> {
   const costUsd = (tokensIn + tokensOut) * 0.0000015; // Rough estimate
 
-  await supabase.from('ai_usage').insert({
+  await supabaseAdmin.from('ai_usage').insert({
     workspace_id: workspaceId,
     user_id: userId,
     tokens_in: tokensIn,

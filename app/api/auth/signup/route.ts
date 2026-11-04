@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/auth/signup
  *
  * Step 1 of 2 for signup.
@@ -16,13 +16,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { issueSignupOtp } from '@/lib/auth/otp';
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const bodySchema = z.object({
   name:     z.string().min(1, 'Name is required').max(100),
@@ -39,7 +39,7 @@ const SUCCESS_RESPONSE = {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const isDev = config.NODE_ENV !== 'production' || config.DEV_AUTH_BYPASS === true;
+  const isDev = config.NODE_ENV !== 'production';
 
   try {
     const body   = await request.json().catch(() => ({}));

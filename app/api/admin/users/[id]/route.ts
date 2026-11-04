@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/admin/users/[id] - Get single platform user with full details (or admin user if requested)
 export async function GET(
@@ -28,7 +28,7 @@ export async function GET(
     }
 
     // Try fetching platform user from Auth
-    const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(id);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(id);
 
     if (userError || !userData?.user) {
       // Fallback: check if it's an admin user
@@ -41,17 +41,17 @@ export async function GET(
 
     // Parallel fetch related details: workspaces, payment orders, referral code
     const [workspacesRes, paymentsRes, referralCodeRes] = await Promise.all([
-      adminClient
+      supabaseAdmin
         .from('workspace_members')
         .select('role, created_at, workspaces(*)')
         .eq('user_id', id),
-      adminClient
+      supabaseAdmin
         .from('payment_orders')
         .select('*')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(20),
-      adminClient
+      supabaseAdmin
         .from('referral_codes')
         .select('*')
         .eq('user_id', id)
@@ -103,7 +103,7 @@ export async function GET(
     let referralsList: any[] = [];
 
     try {
-      let refQuery = adminClient.from('referrals').select('*');
+      let refQuery = supabaseAdmin.from('referrals').select('*');
       if (userReferralCode) {
         refQuery = refQuery.or(`referrer_user_id.eq.${id},referral_code.eq.${userReferralCode}`);
       } else {
@@ -120,7 +120,7 @@ export async function GET(
     // Check for any referred users registered via user_metadata who might have missed the referrals table
     if (userReferralCode) {
       try {
-        const { data: allAuthUsers } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+        const { data: allAuthUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
         if (allAuthUsers?.users && Array.isArray(allAuthUsers.users)) {
           const existingReferredIds = new Set(referralsList.map((r) => r.referred_user_id));
           for (const u of allAuthUsers.users) {
@@ -128,7 +128,7 @@ export async function GET(
             const metaCode = ((u.user_metadata?.referral_code || u.user_metadata?.ref || '') as string).trim().toUpperCase();
             if (metaCode && metaCode === userReferralCode && !existingReferredIds.has(u.id)) {
               try {
-                const { data: insertedRef } = await adminClient
+                const { data: insertedRef } = await supabaseAdmin
                   .from('referrals')
                   .insert({
                     referrer_user_id: id,
@@ -161,7 +161,7 @@ export async function GET(
 
     if (referredUserIds.length > 0) {
       try {
-        const { data: usersData } = await adminClient
+        const { data: usersData } = await supabaseAdmin
           .from('users')
           .select('id, email, full_name')
           .in('id', referredUserIds);
@@ -181,7 +181,7 @@ export async function GET(
         await Promise.allSettled(
           missingUserIds.map(async (uid) => {
             try {
-              const { data: authData } = await adminClient.auth.admin.getUserById(uid);
+              const { data: authData } = await supabaseAdmin.auth.admin.getUserById(uid);
               if (authData?.user) {
                 const meta = (authData.user.user_metadata || {}) as Record<string, any>;
                 const existing = referredUserMap.get(uid);
@@ -199,7 +199,7 @@ export async function GET(
 
       // Check current workspace plans for paid conversions (creator, pro, studio)
       try {
-        const { data: memberRows } = await adminClient
+        const { data: memberRows } = await supabaseAdmin
           .from('workspace_members')
           .select('user_id, workspaces(plan, plan_status)')
           .in('user_id', referredUserIds);
@@ -233,7 +233,7 @@ export async function GET(
       // If they converted to paid in reality, update referral record if still signed_up
       if (isPaid && ref.status === 'signed_up') {
         Promise.resolve(
-          adminClient
+          supabaseAdmin
             .from('referrals')
             .update({
               status: 'converted',
@@ -268,7 +268,7 @@ export async function GET(
     // Sync referral_codes row if counts are higher
     if (codeRow && (liveClickCount > (codeRow.click_count || 0) || liveSignupCount > (codeRow.signup_count || 0) || liveConversionCount > (codeRow.conversion_count || 0))) {
       Promise.resolve(
-        adminClient
+        supabaseAdmin
           .from('referral_codes')
           .update({
             click_count: liveClickCount,
@@ -348,7 +348,7 @@ export async function PATCH(
     if (email) updatePayload.email = email;
     if (userMetadata) updatePayload.user_metadata = userMetadata;
 
-    const { data: updated, error } = await adminClient.auth.admin.updateUserById(id, updatePayload);
+    const { data: updated, error } = await supabaseAdmin.auth.admin.updateUserById(id, updatePayload);
     if (error) throw error;
 
     await adminRepository.logAdminAction(
@@ -386,7 +386,7 @@ export async function DELETE(
     const reason = (body?.reason as string) || 'Deleted by admin';
 
     // 1. Fetch user data before archiving
-    const { data: userData } = await adminClient.auth.admin.getUserById(id);
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(id);
     if (!userData?.user) {
       // Try admin_users
       const success = await adminRepository.deleteAdminUser(id);
@@ -397,13 +397,13 @@ export async function DELETE(
       return NextResponse.json({ success: true });
     }
 
-    const { data: userProfiles } = await adminClient.from('profiles').select('*').eq('user_id', id);
-    const { data: userMemberships } = await adminClient.from('workspace_members').select('*').eq('user_id', id);
-    const { data: userWorkspaces } = await adminClient.from('workspaces').select('*').eq('owner_id', id);
+    const { data: userProfiles } = await supabaseAdmin.from('profiles').select('*').eq('user_id', id);
+    const { data: userMemberships } = await supabaseAdmin.from('workspace_members').select('*').eq('user_id', id);
+    const { data: userWorkspaces } = await supabaseAdmin.from('workspaces').select('*').eq('owner_id', id);
 
     // 2. Insert into deleted_accounts table
     try {
-      await adminClient.from('deleted_accounts').insert({
+      await supabaseAdmin.from('deleted_accounts').insert({
         user_id: id,
         email: userData.user.email || 'unknown',
         reason,
@@ -420,7 +420,7 @@ export async function DELETE(
 
     // 3. Soft-delete profiles by setting deleted_at
     try {
-      await adminClient
+      await supabaseAdmin
         .from('profiles')
         .update({ deleted_at: new Date().toISOString() })
         .eq('user_id', id);
@@ -430,7 +430,7 @@ export async function DELETE(
 
     // 4. Ban the user and flag in metadata so active queries exclude them
     const existingMeta = userData.user.user_metadata || {};
-    await adminClient.auth.admin.updateUserById(id, {
+    await supabaseAdmin.auth.admin.updateUserById(id, {
       ban_duration: '876000h',
       user_metadata: {
         ...existingMeta,
@@ -441,7 +441,7 @@ export async function DELETE(
     });
 
     // 5. Sign out active sessions
-    await adminClient.auth.admin.signOut(id).catch(() => {});
+    await supabaseAdmin.auth.admin.signOut(id).catch(() => {});
 
     await adminRepository.logAdminAction(
       auth.admin.userId,

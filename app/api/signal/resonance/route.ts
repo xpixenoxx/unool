@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { extractNormalizedEngagement, UniversalEngagement } from '@/lib/services/analytics/normalize';
 import { syncWorkspaceEngagement } from '@/lib/services/analytics/syncEngagement';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // Detect hook type from the first sentence of the post content
 function detectHookType(content: string): 'question' | 'statement' | 'statistic' | 'story' | 'contrarian' | 'framework' | 'unknown' {
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const { data: posts, error } = await admin
+  const { data: posts, error } = await supabaseAdmin
     .from('posts')
     .select('id, content, hook_type, word_count, has_media, created_at, status')
     .eq('workspace_id', workspaceId)
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
   // 1. Fetch all variants for these posts
   const postIds = posts.map((p: any) => p.id);
-  const { data: variants } = await admin
+  const { data: variants } = await supabaseAdmin
     .from('post_variants')
     .select('id, post_id, platform, status, character_count')
     .in('post_id', postIds);
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
   // 2. Fetch real platform posts containing engagement data
   let platformPostsByVariant: Record<string, any[]> = {};
   if (variantIds.length > 0) {
-    const { data: pPosts } = await admin
+    const { data: pPosts } = await supabaseAdmin
       .from('platform_posts')
       .select('id, post_variant_id, platform_connection_id, platform_post_id, platform_url, engagement')
       .in('post_variant_id', variantIds);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 import { logger } from '@/lib/logger';
 import { verifyMetaSignature } from '@/lib/webhooks/verify';
 import { config } from '@/lib/config/schema';
@@ -21,43 +22,33 @@ import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { humanizedSleep } from '@/lib/services/automation/jitter';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
-import { createClient } from '@supabase/supabase-js';
 import { handleFollowWebhookEvent } from '@/lib/follow-gate/service';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 
-// ─── GET: Meta Webhook Verification ─────────────────────────────────────────
+
+// â”€â”€â”€ GET: Meta Webhook Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get('hub.mode');
   const token = request.nextUrl.searchParams.get('hub.verify_token');
   const challenge = request.nextUrl.searchParams.get('hub.challenge');
 
-  const validTokens = [
-    config.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,
-    config.META_WEBHOOK_VERIFY_TOKEN,
-    process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,
-    process.env.META_WEBHOOK_VERIFY_TOKEN,
-    config.INSTAGRAM_WEBHOOK_SECRET,
-    config.INSTAGRAM_CLIENT_SECRET,
-    config.META_WEBHOOK_SECRET,
-    process.env.INSTAGRAM_WEBHOOK_SECRET,
-    process.env.INSTAGRAM_CLIENT_SECRET,
-    process.env.META_WEBHOOK_SECRET,
-    'unool_instagram_verify_token',
-  ].filter(Boolean) as string[];
-
-  if (mode === 'subscribe' && token && validTokens.includes(token)) {
+  const verifyToken = config.INSTAGRAM_WEBHOOK_VERIFY_TOKEN || process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN;
+  if (!verifyToken) {
+    logger.error('INSTAGRAM_WEBHOOK_VERIFY_TOKEN not configured');
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+  if (mode === 'subscribe' && token === verifyToken) {
     logger.info('Instagram webhook verified successfully');
     return new NextResponse(challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
   }
-
   logger.warn('Instagram webhook verification failed', { mode, tokenProvided: !!token });
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
 }
 
-// ─── POST: Receive Instagram Webhook Events ──────────────────────────────────
+// â”€â”€â”€ POST: Receive Instagram Webhook Events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function POST(request: NextRequest) {
   try {
@@ -97,30 +88,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    // Fail-safe check: If signature failed, verify if payload is from a known connected account
     if (!isValid) {
-      const entries = payload?.entry as Array<Record<string, unknown>> | undefined;
-      const firstId = entries?.[0]?.id as string;
-      if (firstId) {
-        const { data: matched } = await supabase
-          .from('platform_connections')
-          .select('id')
-          .eq('platform', 'instagram')
-          .eq('platform_user_id', firstId)
-          .eq('status', 'connected')
-          .limit(1);
-
-        if (matched && matched.length > 0) {
-          logger.warn('Signature verification unconfirmed but payload belongs to verified active Instagram account; proceeding with processing', {
-            igUserId: firstId,
-          });
-          isValid = true;
-        }
-      }
-    }
-
-    if (!isValid) {
-      logger.warn('Instagram webhook: signature verification failed — rejecting request');
+      logger.warn('Instagram webhook: HMAC signature verification failed — rejecting', {
+        hasSignature: !!signature,
+        secretsTriedCount: secretsToTry.length,
+      });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
@@ -177,7 +149,7 @@ export async function POST(request: NextRequest) {
               );
             }
           } else if (change.field === 'follow' || change.field === 'follows') {
-            // ── Follow-Gate: real-time follow detection ───────────────────────
+            // â”€â”€ Follow-Gate: real-time follow detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // Meta sends this when someone follows the creator's IG account.
             // field: "follow", value: { follower_id, follower_username }
             const value = change.value as Record<string, unknown>;
@@ -229,10 +201,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── Connection & Token Helpers ──────────────────────────────────────────────
+// â”€â”€â”€ Connection & Token Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function resolveInstagramConnection(igUserId: string): Promise<any> {
-  const { data: directConnections } = await supabase
+  const { data: directConnections } = await supabaseAdmin
     .from('platform_connections')
     .select('*')
     .eq('platform', 'instagram')
@@ -244,7 +216,7 @@ async function resolveInstagramConnection(igUserId: string): Promise<any> {
   }
 
   // Fallback: find a connection whose workspace has automation ENABLED
-  const { data: allActive } = await supabase
+  const { data: allActive } = await supabaseAdmin
     .from('platform_connections')
     .select('*')
     .eq('platform', 'instagram')
@@ -252,7 +224,7 @@ async function resolveInstagramConnection(igUserId: string): Promise<any> {
 
   if (allActive && allActive.length > 0) {
     for (const conn of allActive) {
-      const { data: cfg } = await supabase
+      const { data: cfg } = await supabaseAdmin
         .from('instagram_automation_config')
         .select('enabled')
         .eq('workspace_id', conn.workspace_id)
@@ -295,7 +267,7 @@ async function getOrRefreshAccessToken(connection: any): Promise<string | null> 
       const newExpiresAt = refreshed.expiresIn
         ? new Date(Date.now() + refreshed.expiresIn * 1000)
         : null;
-      await supabase
+      await supabaseAdmin
         .from('platform_connections')
         .update({
           access_token_encrypted: await encryptToken(refreshed.accessToken),
@@ -308,13 +280,13 @@ async function getOrRefreshAccessToken(connection: any): Promise<string | null> 
       logger.info('Instagram token refreshed proactively', { connectionId: connection.id });
     } catch (refreshErr) {
       const err = refreshErr instanceof Error ? refreshErr : new Error(String(refreshErr));
-      logger.warn('Instagram token refresh failed — continuing with existing token', { connectionId: connection.id, error: err.message });
+      logger.warn('Instagram token refresh failed â€” continuing with existing token', { connectionId: connection.id, error: err.message });
       if (expiresAt && expiresAt.getTime() < Date.now()) {
-        await supabase
+        await supabaseAdmin
           .from('platform_connections')
           .update({ status: 'expired', updated_at: new Date().toISOString() })
           .eq('id', connection.id);
-        logger.error('Instagram token expired and refresh failed — connection marked expired', { connectionId: connection.id });
+        logger.error('Instagram token expired and refresh failed â€” connection marked expired', { connectionId: connection.id });
         return null;
       }
     }
@@ -323,7 +295,7 @@ async function getOrRefreshAccessToken(connection: any): Promise<string | null> 
   return accessToken;
 }
 
-// ─── Comment Processing Logic ─────────────────────────────────────────────────
+// â”€â”€â”€ Comment Processing Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function processCommentEvent(igUserId: string, value: Record<string, unknown>): Promise<void> {
   const commentEvent: CommentEvent = {
@@ -343,8 +315,8 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // ── Deduplication guard: skip if this comment_id was already processed ──
-  const { data: existing } = await supabase
+  // â”€â”€ Deduplication guard: skip if this comment_id was already processed â”€â”€
+  const { data: existing } = await supabaseAdmin
     .from('instagram_comment_logs')
     .select('id')
     .eq('comment_id', commentEvent.commentId)
@@ -354,7 +326,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // ── ContentGuard: pre-filter harmful incoming content ──────────────────
+  // â”€â”€ ContentGuard: pre-filter harmful incoming content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const guardResult = ContentGuard.validateComment(commentEvent.text);
   if (!guardResult.safe && guardResult.violation.level === 'blocked') {
     logger.info('ContentGuard blocked incoming comment', {
@@ -376,7 +348,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
   if (!connection) {
     logger.warn('No active Instagram connection found for webhook', { igUserId });
-    const { data: ws } = await supabase.from('workspaces').select('id').limit(1).single();
+    const { data: ws } = await supabaseAdmin.from('workspaces').select('id').limit(1).single();
     if (ws?.id) {
       await logCommentEvent(ws.id, commentEvent, {
         classification: 'unrelated',
@@ -459,13 +431,13 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // ── Velocity check: enforce hourly rate limits ──────────────────────────
+  // â”€â”€ Velocity check: enforce hourly rate limits â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const canReply = await velocityThrottle.canReply(
     connection.workspace_id,
     automationConfig.maxRepliesPerHour || 30
   );
   if (!canReply) {
-    logger.info('Velocity limit reached — queuing comment for later', {
+    logger.info('Velocity limit reached â€” queuing comment for later', {
       workspaceId: connection.workspace_id,
       commentId: commentEvent.commentId,
     });
@@ -473,7 +445,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     await flagCommentForReview(connection.workspace_id, commentEvent, {
       classification: 'unrelated',
       suggestedReply: '',
-      reasoning: 'Rate limit reached — deferred for human review',
+      reasoning: 'Rate limit reached â€” deferred for human review',
     }, 0);
     return;
   }
@@ -483,7 +455,8 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   if (commentEvent.mediaId) {
     try {
       const mediaRes = await fetch(
-        `https://graph.instagram.com/v20.0/${commentEvent.mediaId}?fields=caption&access_token=${accessToken}`
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/${commentEvent.mediaId}?fields=caption`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       if (mediaRes.ok) {
         const mediaData = await mediaRes.json();
@@ -494,10 +467,10 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     }
   }
 
-  // ── Fetch recent replies for anti-duplication ───────────────────────────
+  // â”€â”€ Fetch recent replies for anti-duplication â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const recentReplies = await lexicalEntropyGuard.getRecentReplies(connection.workspace_id, 15);
 
-  // ── Classify and generate reply ─────────────────────────────────────────
+  // â”€â”€ Classify and generate reply â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const automation = new InstagramCommentAutomation(groqApiKey);
   let result: ClassifiedComment;
   try {
@@ -524,23 +497,23 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
   // Act on the classification
   if (result.shouldAutoReply && result.suggestedReply && result.suggestedReply !== 'SKIP') {
-    // ── Humanize the reply through ContentHumanizer ─────────────────────
+    // â”€â”€ Humanize the reply through ContentHumanizer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let finalReply = result.suggestedReply;
     try {
       const humanized = ContentHumanizer.humanize(finalReply, 'instagram');
       finalReply = humanized.humanized || finalReply;
     } catch {
-      logger.debug('ContentHumanizer failed — using raw reply');
+      logger.debug('ContentHumanizer failed â€” using raw reply');
     }
 
-    // ── Anti-duplication check ─────────────────────────────────────────
+    // â”€â”€ Anti-duplication check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (lexicalEntropyGuard.isTooSimilar(finalReply, recentReplies)) {
-      logger.info('Reply too similar to recent replies — flagging for review', {
+      logger.info('Reply too similar to recent replies â€” flagging for review', {
         commentId: commentEvent.commentId,
       });
       result.shouldFlagForReview = true;
     } else {
-      // ── Fast jitter delay (1-2s) so response feels natural but runs well within serverless limits
+      // â”€â”€ Fast jitter delay (1-2s) so response feels natural but runs well within serverless limits
       await humanizedSleep(1, 2);
 
       // Post the public reply
@@ -553,7 +526,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
       if (replyResult) {
         // Mark the log row as actually replied
-        await supabase
+        await supabaseAdmin
           .from('instagram_comment_logs')
           .update({ auto_replied: true })
           .eq('comment_id', commentEvent.commentId);
@@ -563,7 +536,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
         logger.info('Auto-reply posted and logged', { commentId: commentEvent.commentId });
       } else {
         logger.error('Failed to post public reply via Instagram Graph API', { commentId: commentEvent.commentId });
-        await supabase
+        await supabaseAdmin
           .from('instagram_comment_logs')
           .update({
             auto_replied: false,
@@ -574,11 +547,11 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       }
     }
 
-    // ── Resolve specific brand materials page linked to this Instagram post ──
+    // â”€â”€ Resolve specific brand materials page linked to this Instagram post â”€â”€
     let activeLinkUrl = automationConfig.linkUrl;
     if (commentEvent.mediaId && connection.workspace_id) {
       try {
-        const { data: matchedPages } = await supabase
+        const { data: matchedPages } = await supabaseAdmin
           .from('brand_materials_pages')
           .select('slug, title, theme, materials')
           .eq('workspace_id', connection.workspace_id)
@@ -610,7 +583,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       }
     }
 
-    // ── Send DM for link_request / purchase_intent ──────────────────────
+    // â”€â”€ Send DM for link_request / purchase_intent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (result.shouldSendDM && activeLinkUrl) {
       const commenterIgScopedId = (value.from as any)?.id as string | undefined;
       const dmText = result.suggestedDM 
@@ -626,7 +599,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
         dmText
       );
       if (dmRes) {
-        await supabase
+        await supabaseAdmin
           .from('instagram_comment_logs')
           .update({ dm_sent: true })
           .eq('comment_id', commentEvent.commentId);
@@ -638,7 +611,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     await flagCommentForReview(connection.workspace_id, commentEvent, result, result.leadScore);
   }
 
-  // ── autoHideSpam: hide spam comments via Graph API if enabled ──────────────
+  // â”€â”€ autoHideSpam: hide spam comments via Graph API if enabled â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (
     result.classification === 'spam' &&
     automationConfig.autoHideSpam &&
@@ -648,7 +621,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     try {
       const hideParams = new URLSearchParams({ hide: 'true', access_token: accessToken });
       const hideRes = await fetch(
-        `https://graph.facebook.com/v20.0/${commentEvent.commentId}`,
+        `https://graph.facebook.com/${API_VERSIONS.facebook}/${commentEvent.commentId}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -667,7 +640,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   }
 }
 
-// ─── Inbound DM Processing Logic ─────────────────────────────────────────────
+// â”€â”€â”€ Inbound DM Processing Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function processDmEvent(igUserId: string, messaging: Record<string, unknown>): Promise<void> {
   const message = messaging.message as Record<string, unknown> | undefined;
@@ -739,9 +712,9 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
 
   const automation = new InstagramCommentAutomation(groqApiKey);
 
-  // ── Multi-Turn Conversation Memory Engine (10 to 15 turns) ──────────
+  // â”€â”€ Multi-Turn Conversation Memory Engine (10 to 15 turns) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Fetch chronological conversation history for this sender in this workspace
-  const { data: previousLogs } = await supabase
+  const { data: previousLogs } = await supabaseAdmin
     .from('instagram_dm_logs')
     .select('message_text, ai_reply, created_at')
     .eq('workspace_id', connection.workspace_id)
@@ -804,16 +777,16 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
       const humanized = ContentHumanizer.humanize(finalReply, 'instagram');
       finalReply = humanized.humanized || finalReply;
     } catch {
-      logger.debug('ContentHumanizer failed for DM — using raw reply');
+      logger.debug('ContentHumanizer failed for DM â€” using raw reply');
     }
 
-    // Jitter delay for DMs (2–4s for natural and fast response)
+    // Jitter delay for DMs (2â€“4s for natural and fast response)
     await humanizedSleep(2, 4);
 
     // Send the DM reply
     const sendRes = await automation.sendPrivateMessage(accessToken, igUserId, dmEvent.senderId, finalReply);
     if (sendRes) {
-      await supabase
+      await supabaseAdmin
         .from('instagram_dm_logs')
         .update({ auto_replied: true })
         .eq('workspace_id', connection.workspace_id)
@@ -833,7 +806,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     });
     // Insert into flagged DMs inbox for human review
     try {
-      await supabase.from('instagram_flagged_dms').insert({
+      await supabaseAdmin.from('instagram_flagged_dms').insert({
         workspace_id: connection.workspace_id,
         message_id: dmEvent.messageId,
         sender_id: dmEvent.senderId,
@@ -851,11 +824,11 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   }
 }
 
-// ─── Helper: Load automation config ──────────────────────────────────────────
+// â”€â”€â”€ Helper: Load automation config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function loadAutomationConfig(workspaceId: string): Promise<AutomationConfig> {
   try {
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from('instagram_automation_config')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -886,14 +859,14 @@ async function loadAutomationConfig(workspaceId: string): Promise<AutomationConf
       };
     }
   } catch {
-    // Table may not exist yet — fall back to defaults
+    // Table may not exist yet â€” fall back to defaults
   }
 
   return DEFAULT_AUTOMATION_CONFIG;
 }
 
 async function getWorkspaceIdForIgUser(igUserId: string): Promise<string> {
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from('platform_connections')
     .select('workspace_id')
     .eq('platform', 'instagram')
@@ -903,7 +876,7 @@ async function getWorkspaceIdForIgUser(igUserId: string): Promise<string> {
   return data?.workspace_id || '';
 }
 
-// ─── Helper: Log comment event ────────────────────────────────────────────────
+// â”€â”€â”€ Helper: Log comment event â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function logCommentEvent(
   workspaceId: string,
@@ -911,7 +884,7 @@ async function logCommentEvent(
   classification: ClassifiedComment
 ): Promise<void> {
   try {
-    await supabase.from('instagram_comment_logs').upsert(
+    await supabaseAdmin.from('instagram_comment_logs').upsert(
       {
         workspace_id: workspaceId,
         comment_id: comment.commentId,
@@ -921,7 +894,7 @@ async function logCommentEvent(
         classification: classification.classification,
         confidence: classification.confidence,
         suggested_reply: classification.suggestedReply,
-        // Always insert false — updated to true only after confirmed API success
+        // Always insert false â€” updated to true only after confirmed API success
         auto_replied: false,
         flagged_for_review: classification.shouldFlagForReview,
         reasoning: classification.reasoning,
@@ -937,7 +910,7 @@ async function logCommentEvent(
   }
 }
 
-// ─── Helper: Log DM event ─────────────────────────────────────────────────────
+// â”€â”€â”€ Helper: Log DM event â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function logDmEvent(
   workspaceId: string,
@@ -945,7 +918,7 @@ async function logDmEvent(
   classification: { classification: string; confidence: number; suggestedReply: string; leadScore: number; shouldAutoReply: boolean; shouldEscalate: boolean; reasoning: string }
 ): Promise<void> {
   try {
-    await supabase.from('instagram_dm_logs').insert({
+    await supabaseAdmin.from('instagram_dm_logs').insert({
       workspace_id: workspaceId,
       message_id: dm.messageId,
       sender_id: dm.senderId,
@@ -964,7 +937,7 @@ async function logDmEvent(
   }
 }
 
-// ─── Helper: Flag comment for review ─────────────────────────────────────────
+// â”€â”€â”€ Helper: Flag comment for review â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function flagCommentForReview(
   workspaceId: string,
@@ -974,7 +947,7 @@ async function flagCommentForReview(
 ): Promise<void> {
   if (!workspaceId) return;
   try {
-    await supabase.from('instagram_flagged_comments').insert({
+    await supabaseAdmin.from('instagram_flagged_comments').insert({
       workspace_id: workspaceId,
       comment_id: comment.commentId,
       media_id: comment.mediaId,

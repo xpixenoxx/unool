@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,17 +31,17 @@ export async function GET(request: NextRequest) {
     }
     debug.push(`auth:uid=${auth.userId.slice(0, 8)},wid=${auth.workspaceId.slice(0, 8)}`);
 
-    const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
 
     // ── Find LinkedIn connection ──────────────────────────
-    let { data: connRows } = await adminSupabase
+    let { data: connRows } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', auth.workspaceId)
       .eq('platform', 'linkedin');
 
     if ((!connRows || connRows.length === 0) && auth.userId !== auth.workspaceId) {
-      const s2 = await adminSupabase
+      const s2 = await supabaseAdmin
         .from('platform_connections')
         .select('*')
         .eq('workspace_id', auth.userId)
@@ -51,13 +51,13 @@ export async function GET(request: NextRequest) {
 
     // Strategy 3: check all workspaces
     if (!connRows || connRows.length === 0) {
-      const { data: memberships } = await adminSupabase
+      const { data: memberships } = await supabaseAdmin
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', auth.userId);
       if (memberships) {
         for (const m of memberships) {
-          const s3 = await adminSupabase
+          const s3 = await supabaseAdmin
             .from('platform_connections')
             .select('*')
             .eq('workspace_id', m.workspace_id)
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     // ── Fetch posts published through Unool from our DB ───
     // Get all LinkedIn platform_posts for this connection
-    const { data: platformPosts, error: ppErr } = await adminSupabase
+    const { data: platformPosts, error: ppErr } = await supabaseAdmin
       .from('platform_posts')
       .select('*, post_variant:post_variant_id(*, post:post_id(*))')
       .eq('platform_connection_id', connection.id)
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
 
     if (allPosts.length === 0) {
       // Broader search: find all posts for this workspace that have linkedin variants
-      const { data: wsPosts } = await adminSupabase
+      const { data: wsPosts } = await supabaseAdmin
         .from('posts')
         .select('id, content, created_at')
         .eq('workspace_id', auth.workspaceId)
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
 
       if (wsPosts && wsPosts.length > 0) {
         const postIds = wsPosts.map((p: any) => p.id);
-        const { data: variants } = await adminSupabase
+        const { data: variants } = await supabaseAdmin
           .from('post_variants')
           .select('id, post_id, adapted_content, platform, status, platform_post_id, created_at')
           .in('post_id', postIds)
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
 
         if (variants && variants.length > 0) {
           const variantIds = variants.map((v: any) => v.id);
-          const { data: pPosts } = await adminSupabase
+          const { data: pPosts } = await supabaseAdmin
             .from('platform_posts')
             .select('*')
             .in('post_variant_id', variantIds)

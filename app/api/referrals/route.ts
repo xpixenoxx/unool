@@ -1,15 +1,15 @@
-// GET  /api/referrals — get my referral stats + code
+﻿// GET  /api/referrals — get my referral stats + code
 // POST /api/referrals/click — record a referral link click (public, no auth)
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateReferralCode, getReferralStats } from '@/lib/referrals/service';
 import { logger } from '@/lib/logger';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     let workspaceId = request.nextUrl.searchParams.get('workspaceId');
     if (!workspaceId) {
-      const { data: member } = await supabase
+      const { data: member } = await supabaseAdmin
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id)
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get display name for code generation
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('name')
       .eq('user_id', user.id)

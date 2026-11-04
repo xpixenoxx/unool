@@ -1,4 +1,4 @@
-// POST /api/follow-gate — create a new follow gate
+﻿// POST /api/follow-gate — create a new follow gate
 // GET  /api/follow-gate — list gates for current workspace
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -6,6 +6,7 @@ import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { createGate, listGates } from '@/lib/follow-gate/service';
 import { logger } from '@/lib/logger';
 import type { CreateGateInput } from '@/lib/follow-gate/types';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,8 +56,8 @@ export async function POST(request: NextRequest) {
     if (!igUserId) {
       const { createClient } = await import('@supabase/supabase-js');
       const { config } = await import('@/lib/config/schema');
-      const adminDb = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-      const { data: conn } = await adminDb
+      
+      const { data: conn } = await supabaseAdmin
         .from('platform_connections')
         .select('platform_user_id')
         .eq('workspace_id', workspaceId)

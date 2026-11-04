@@ -33,16 +33,46 @@ export function withTraceId<T>(traceId: string, fn: () => T): T {
   }
 }
 
+/**
+ * Redacts sensitive fields from log context before writing to stdout.
+ * Prevents tokens, passwords, and secrets from appearing in Vercel/Sentry logs.
+ */
+const SENSITIVE_KEYS = [
+  'password', 'token', 'secret', 'key', 'authorization',
+  'cookie', 'access_token', 'refresh_token', 'api_key',
+];
+
+function sanitizeContext(ctx: LogContext): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(ctx)) {
+    if (SENSITIVE_KEYS.some(s => k.toLowerCase().includes(s))) {
+      sanitized[k] = '[REDACTED]';
+    } else {
+      sanitized[k] = v;
+    }
+  }
+  return sanitized;
+}
+
 function formatLog(level: string, message: string, context: LogContext = {}) {
-  const traceId = context.traceId || traceIdMap.get(globalThis) || 'unknown';
-  const log = {
+  const traceId = (context.traceId as string | undefined) || traceIdMap.get(globalThis) || 'unknown';
+  const { error, ...rest } = context as LogContext & { error?: Error | unknown };
+  const sanitized = sanitizeContext(rest as LogContext);
+  const entry: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     level,
     message,
     traceId,
-    ...context,
+    ...sanitized,
   };
-  return JSON.stringify(log);
+  // Serialize Error objects to preserve message + stack
+  if (error instanceof Error) {
+    entry.errorMessage = error.message;
+    entry.errorStack = error.stack;
+  } else if (error !== undefined) {
+    entry.error = String(error);
+  }
+  return JSON.stringify(entry);
 }
 
 export const logger = {
@@ -57,9 +87,8 @@ export const logger = {
   warn: (message: string, context: LogContext = {}) => {
     console.warn(formatLog('warn', message, context));
   },
-  error: (message: string, context: LogContext & { error?: Error } = {}) => {
-    const { error, ...rest } = context;
-    console.error(formatLog('error', message, { ...rest, error: error?.message, stack: error?.stack }));
+  error: (message: string, context: LogContext = {}) => {
+    console.error(formatLog('error', message, context));
   },
   ai: (capability: string, context: LogContext & {
     promptVersion: string;

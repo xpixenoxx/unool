@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { PlatformType } from '@/lib/ai/PostAdapter';
 import { logger } from '@/lib/logger';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
@@ -8,8 +8,8 @@ import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { publishService } from '@/lib/services/PublishService';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
             adaptationPromptVersion: 'direct-broadcast',
           });
           await postRepository.updateStatus(existing.id, 'publishing');
-          const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-          await admin.from('post_variants').delete().eq('post_id', existing.id);
+          
+          await supabaseAdmin.from('post_variants').delete().eq('post_id', existing.id);
         }
       }
 

@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+﻿import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getDefaultAdminPlans } from '@/lib/billing/plans';
 import { config } from '@/lib/config/schema';
 import type {
@@ -32,8 +32,9 @@ import type {
   ListSubscriptionsParams,
   ListReferralCodesParams,
 } from '@/lib/repositories/interfaces/IAdminRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 function buildPagination<T>(data: T[], total: number, page: number, pageSize: number): PaginatedResult<T> {
   return {
@@ -56,7 +57,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   // ===== Admin Users =====
 
   async getAdminUserById(id: string): Promise<AdminUser | null> {
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('admin_users')
       .select('*')
       .eq('id', id)
@@ -67,7 +68,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async getAdminUserByEmail(email: string): Promise<AdminUser | null> {
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('admin_users')
       .select('*')
       .eq('email', email)
@@ -83,7 +84,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = adminClient
+    let query = supabaseAdmin
       .from('admin_users')
       .select('*', { count: 'exact' });
 
@@ -120,7 +121,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       throw new Error(authError?.message || 'Failed to create auth user');
     }
 
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('admin_users')
       .insert({
         id: authUser.user.id,
@@ -146,7 +147,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     if (input.permissions) updates.permissions = input.permissions;
     updates.updated_at = new Date().toISOString();
 
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('admin_users')
       .update(updates)
       .eq('id', id)
@@ -158,7 +159,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async deleteAdminUser(id: string): Promise<boolean> {
-    const { error } = await adminClient
+    const { error } = await supabaseAdmin
       .from('admin_users')
       .delete()
       .eq('id', id);
@@ -174,7 +175,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const defaultMap = new Map(defaultPlans.map((p) => [p.id, p]));
 
     try {
-      const { data, error } = await adminClient
+      const { data, error } = await supabaseAdmin
         .from('plans')
         .select('*')
         .order('sort_order', { ascending: true });
@@ -229,7 +230,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Fallback: When DB table is empty or unseeded, return canonical plans and attempt auto-seed
     try {
       for (const p of defaultPlans) {
-        await adminClient.from('plans').upsert({
+        await supabaseAdmin.from('plans').upsert({
           id: p.id,
           name: p.name,
           description: p.description,
@@ -254,7 +255,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const fallback = defaultPlans.find((p) => p.id === id) || null;
 
     try {
-      const { data, error } = await adminClient
+      const { data, error } = await supabaseAdmin
         .from('plans')
         .select('*')
         .eq('id', id)
@@ -296,7 +297,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async createPlan(input: CreatePlanInput): Promise<Plan> {
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('plans')
       .insert({
         id: input.id,
@@ -329,7 +330,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     updates.updated_at = new Date().toISOString();
 
     try {
-      const { data, error } = await adminClient
+      const { data, error } = await supabaseAdmin
         .from('plans')
         .update(updates)
         .eq('id', id)
@@ -360,7 +361,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
 
     try {
-      const { data: upserted, error: upsertErr } = await adminClient
+      const { data: upserted, error: upsertErr } = await supabaseAdmin
         .from('plans')
         .upsert(insertData, { onConflict: 'id' })
         .select('*')
@@ -381,7 +382,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async deletePlan(id: string): Promise<boolean> {
-    const { error } = await adminClient
+    const { error } = await supabaseAdmin
       .from('plans')
       .delete()
       .eq('id', id);
@@ -398,7 +399,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = adminClient
+    let query = supabaseAdmin
       .from('workspaces')
       .select('*', { count: 'exact' });
 
@@ -436,15 +437,15 @@ export class SupabaseAdminRepository implements IAdminRepository {
         monthStart.setHours(0, 0, 0, 0);
 
         const [membersResult, profilesResult, postsResult] = await Promise.all([
-          adminClient
+          supabaseAdmin
             .from('workspace_members')
             .select('workspace_id, user_id, role')
             .in('workspace_id', workspaceIds),
-          adminClient
+          supabaseAdmin
             .from('profiles')
             .select('workspace_id, user_id, name, deleted_at')
             .in('workspace_id', workspaceIds),
-          adminClient
+          supabaseAdmin
             .from('posts')
             .select('workspace_id')
             .in('workspace_id', workspaceIds)
@@ -496,7 +497,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
         if (ownerUserIds.length > 0) {
           try {
-            const { data: usersData, error: usersErr } = await adminClient
+            const { data: usersData, error: usersErr } = await supabaseAdmin
               .from('users')
               .select('id, email, full_name')
               .in('id', ownerUserIds);
@@ -522,7 +523,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
             await Promise.allSettled(
               missingIds.map(async (uid) => {
                 try {
-                  const { data: authData } = await adminClient.auth.admin.getUserById(uid);
+                  const { data: authData } = await supabaseAdmin.auth.admin.getUserById(uid);
                   if (authData?.user) {
                     const meta = (authData.user.user_metadata || {}) as Record<string, any>;
                     const authName = meta.full_name || meta.name || meta.user_name || meta.display_name || meta.preferred_username || null;
@@ -571,7 +572,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async getWorkspaceById(id: string): Promise<WorkspaceAdminView | null> {
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('workspaces')
       .select('*')
       .eq('id', id)
@@ -587,9 +588,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
       monthStart.setHours(0, 0, 0, 0);
 
       const [membersRes, profilesRes, postsRes] = await Promise.all([
-        adminClient.from('workspace_members').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
-        adminClient.from('profiles').select('id', { count: 'exact', head: true }).eq('workspace_id', id).is('deleted_at', null),
-        adminClient.from('posts').select('id', { count: 'exact', head: true }).eq('workspace_id', id).gte('created_at', monthStart.toISOString()),
+        supabaseAdmin.from('workspace_members').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+        supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true }).eq('workspace_id', id).is('deleted_at', null),
+        supabaseAdmin.from('posts').select('id', { count: 'exact', head: true }).eq('workspace_id', id).gte('created_at', monthStart.toISOString()),
       ]);
 
       ws.memberCount = membersRes.count ?? 0;
@@ -601,7 +602,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (ws.ownerId && (!ws.ownerEmail || !ws.ownerName)) {
       try {
-        const { data: userData } = await adminClient
+        const { data: userData } = await supabaseAdmin
           .from('users')
           .select('email, full_name')
           .eq('id', ws.ownerId)
@@ -612,7 +613,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
         if (!email || !name) {
           try {
-            const { data: authData } = await adminClient.auth.admin.getUserById(ws.ownerId);
+            const { data: authData } = await supabaseAdmin.auth.admin.getUserById(ws.ownerId);
             if (authData?.user) {
               const meta = (authData.user.user_metadata || {}) as Record<string, any>;
               email = email || authData.user.email || null;
@@ -630,7 +631,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async updateWorkspacePlan(workspaceId: string, plan: string, adminUserId: string): Promise<WorkspaceAdminView | null> {
-    const { data, error } = await adminClient.rpc('admin_update_workspace_plan', {
+    const { data, error } = await supabaseAdmin.rpc('admin_update_workspace_plan', {
       p_workspace_id: workspaceId,
       p_new_plan: plan,
       p_admin_user_id: adminUserId,
@@ -641,7 +642,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async updateWorkspacePlanStatus(workspaceId: string, status: string, adminUserId: string): Promise<WorkspaceAdminView | null> {
-    const { data, error } = await adminClient.rpc('admin_update_workspace_plan_status', {
+    const { data, error } = await supabaseAdmin.rpc('admin_update_workspace_plan_status', {
       p_workspace_id: workspaceId,
       p_new_status: status,
       p_admin_user_id: adminUserId,
@@ -657,7 +658,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    let query = adminClient
+    let query = supabaseAdmin
       .from('analytics_events')
       .select('event_type, event_data, created_at, workspace_id, profile_id')
       .gte('created_at', startDate.toISOString());
@@ -744,7 +745,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // Fetch profile details for real names, subdomains, avatars, user_id and custom links in parallel
     const fetchProfilesPromise = allProfileIdsToFetch.length > 0
-      ? adminClient
+      ? supabaseAdmin
           .from('profiles')
           .select('id, user_id, name, subdomain, avatar_url, links')
           .in('id', allProfileIdsToFetch)
@@ -757,12 +758,12 @@ export class SupabaseAdminRepository implements IAdminRepository {
       { count: totalPostsPublished },
       profilesRes,
     ] = await Promise.all([
-      adminClient.from('workspaces').select('id', { count: 'exact', head: true }),
-      Promise.resolve(adminClient.from('profiles').select('id', { count: 'exact', head: true }).limit(1))
-        .then(() => adminClient.auth.admin.listUsers())
+      supabaseAdmin.from('workspaces').select('id', { count: 'exact', head: true }),
+      Promise.resolve(supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true }).limit(1))
+        .then(() => supabaseAdmin.auth.admin.listUsers())
         .then((r) => ({ count: r?.data?.users?.length ?? 0 }))
         .catch(() => ({ count: 0 })),
-      adminClient.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'published'),
+      supabaseAdmin.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'published'),
       fetchProfilesPromise,
     ]);
 
@@ -779,7 +780,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       try {
         const userPromises = Array.from(userIdsToLookup).map(async (uid) => {
           try {
-            const res = await adminClient.auth.admin.getUserById(uid);
+            const res = await supabaseAdmin.auth.admin.getUserById(uid);
             return res.data?.user ? { id: uid, email: res.data.user.email || '' } : null;
           } catch {
             return null;
@@ -824,7 +825,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const missingProfileIds = allProfileIdsToFetch.filter((id) => !foundProfileIds.has(id));
     if (missingProfileIds.length > 0) {
       try {
-        const { data: wsData } = await adminClient
+        const { data: wsData } = await supabaseAdmin
           .from('workspaces')
           .select('id, name, slug')
           .in('id', missingProfileIds);
@@ -908,7 +909,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    let query = adminClient
+    let query = supabaseAdmin
       .from('analytics_events')
       .select('*')
       .gte('created_at', startDate.toISOString())
@@ -926,7 +927,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   // ===== Audit Log =====
 
   async getAuditLog(adminUserId?: string, limit: number = 100): Promise<AdminAuditLog[]> {
-    let query = adminClient
+    let query = supabaseAdmin
       .from('admin_audit_log')
       .select('*')
       .order('created_at', { ascending: false })
@@ -966,7 +967,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       const overrideInfoMap = new Map<string, { email?: string; name?: string; planId?: string; amount?: number }>();
       if (overrideIdsToLookup.size > 0) {
         try {
-          const { data: ovs } = await adminClient
+          const { data: ovs } = await supabaseAdmin
             .from('user_plan_overrides')
             .select('id, user_email, user_name, plan_id, custom_monthly_inr')
             .in('id', Array.from(overrideIdsToLookup));
@@ -984,7 +985,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       const subInfoMap = new Map<string, { userId?: string; workspaceName?: string }>();
       if (subIdsToLookup.size > 0) {
         try {
-          const { data: subs } = await adminClient
+          const { data: subs } = await supabaseAdmin
             .from('subscriptions')
             .select('id, user_id, workspace_id, workspaces(name, owner_id)')
             .in('id', Array.from(subIdsToLookup));
@@ -1000,7 +1001,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       const wsInfoMap = new Map<string, { name?: string; ownerId?: string }>();
       if (wsIdsToLookup.size > 0) {
         try {
-          const { data: wss } = await adminClient
+          const { data: wss } = await supabaseAdmin
             .from('workspaces')
             .select('id, name, owner_id')
             .in('id', Array.from(wsIdsToLookup));
@@ -1015,7 +1016,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       if (userIdsToLookup.size > 0) {
         const userIds = Array.from(userIdsToLookup);
         try {
-          const { data: profs } = await adminClient
+          const { data: profs } = await supabaseAdmin
             .from('profiles')
             .select('user_id, name')
             .in('user_id', userIds);
@@ -1029,7 +1030,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         try {
           const userPromises = userIds.slice(0, 30).map(async (id) => {
             try {
-              const res = await adminClient.auth.admin.getUserById(id);
+              const res = await supabaseAdmin.auth.admin.getUserById(id);
               return res.data?.user || null;
             } catch {
               return null;
@@ -1122,7 +1123,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       : { ...(metadata || {}), target_id_string: targetId };
 
     try {
-      const { error } = await adminClient
+      const { error } = await supabaseAdmin
         .from('admin_audit_log')
         .insert({
           admin_user_id: adminUserId,
@@ -1145,7 +1146,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   // ===== User Management =====
 
   async getUserById(userId: string): Promise<{ id: string; email: string; createdAt: string } | null> {
-    const { data, error } = await adminClient.auth.admin.getUserById(userId);
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (error || !data.user) return null;
     return {
       id: data.user.id,
@@ -1162,14 +1163,14 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // For now, fetch from auth and join with workspace data
     // This is a simplified version - in production you'd want a materialized view
-    const { data: users } = await adminClient.auth.admin.listUsers({ page, perPage: pageSize });
+    const { data: users } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: pageSize });
 
     // Get workspace counts for each user
     const userIds = users?.users?.map(u => u.id) || [];
     const workspacesByUser = new Map<string, { count: number; plans: string[] }>();
 
     if (userIds.length > 0) {
-      const { data: wm } = await adminClient
+      const { data: wm } = await supabaseAdmin
         .from('workspace_members')
         .select('user_id, workspaces ( plan )')
         .in('user_id', userIds);
@@ -1224,7 +1225,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
 
     try {
-      const usersRes = await Promise.resolve(adminClient.auth?.admin?.listUsers?.({ perPage: 1000 })).catch(() => null);
+      const usersRes = await Promise.resolve(supabaseAdmin.auth?.admin?.listUsers?.({ perPage: 1000 })).catch(() => null);
       const usersData = usersRes?.data;
       if (!usersData?.users) {
         return defaultData;
@@ -1253,7 +1254,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
       if (userIds.length > 0) {
         try {
-          const { data: wm } = await adminClient
+          const { data: wm } = await supabaseAdmin
             .from('workspace_members')
             .select('user_id, workspaces ( plan )')
             .in('user_id', userIds);
@@ -1366,10 +1367,10 @@ export class SupabaseAdminRepository implements IAdminRepository {
       ? null
       : new Date(Date.now() + Math.round(durationHours) * 60 * 60 * 1000).toISOString();
 
-    const { data: userData } = await adminClient.auth.admin.getUserById(userId);
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
     const existingMeta = (userData?.user as Record<string, any>)?.user_metadata || {};
 
-    const { error } = await adminClient.auth.admin.updateUserById(userId, {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       ban_duration: banDuration,
       user_metadata: {
         ...existingMeta,
@@ -1398,10 +1399,10 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async unsuspendUser(userId: string, adminUserId: string): Promise<boolean> {
-    const { data: userData } = await adminClient.auth.admin.getUserById(userId);
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
     const existingMeta = (userData?.user as Record<string, any>)?.user_metadata || {};
 
-    const { error } = await adminClient.auth.admin.updateUserById(userId, {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       ban_duration: 'none',
       user_metadata: {
         ...existingMeta,
@@ -1433,7 +1434,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Query audit log to get original reason and date for suspend/delete actions
     const latestAuditByUser = new Map<string, { reason: string; createdAt: string }>();
     try {
-      const { data: audits } = await adminClient
+      const { data: audits } = await supabaseAdmin
         .from('admin_audit_log')
         .select('target_id, action, metadata, created_at')
         .in('action', ['user_suspend', 'user_delete'])
@@ -1454,7 +1455,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // 1. Fetch deleted accounts from deleted_accounts table
     try {
-      const { data: delAccounts, error: dErr } = await adminClient
+      const { data: delAccounts, error: dErr } = await supabaseAdmin
         .from('deleted_accounts')
         .select('*')
         .is('recovered_at', null)
@@ -1483,7 +1484,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // 2. Fetch soft-deleted profiles from profiles table
     try {
-      const { data: deletedRows, error: pErr } = await adminClient
+      const { data: deletedRows, error: pErr } = await supabaseAdmin
         .from('profiles')
         .select('id, user_id, workspace_id, subdomain, name, avatar_url, deleted_at, updated_at')
         .not('deleted_at', 'is', null);
@@ -1495,7 +1496,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
           let email = 'Unknown user';
           try {
-            const { data: uData } = await adminClient.auth.admin.getUserById(row.user_id);
+            const { data: uData } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
             if (uData?.user?.email) {
               email = uData.user.email;
             }
@@ -1525,7 +1526,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // 3. Fetch deleted and suspended users from auth.users
     try {
-      const { data: usersData, error: uErr } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const { data: usersData, error: uErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       if (!uErr && usersData?.users) {
         const now = new Date();
 
@@ -1551,7 +1552,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         let profsByUser = new Map<string, any>();
         if (relevantUserIds.length > 0) {
           try {
-            const { data: profs } = await adminClient
+            const { data: profs } = await supabaseAdmin
               .from('profiles')
               .select('id, user_id, workspace_id, subdomain, name, avatar_url, deleted_at')
               .in('user_id', relevantUserIds);
@@ -1666,7 +1667,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // 1. If profileId provided, restore profile by clearing deleted_at
     if (profileId) {
       try {
-        const { error: pErr } = await adminClient
+        const { error: pErr } = await supabaseAdmin
           .from('profiles')
           .update({
             deleted_at: null,
@@ -1690,7 +1691,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     if (userId) {
       // a. Mark recovered in deleted_accounts
       try {
-        await adminClient
+        await supabaseAdmin
           .from('deleted_accounts')
           .update({ recovered_at: new Date().toISOString() })
           .eq('user_id', userId)
@@ -1702,13 +1703,13 @@ export class SupabaseAdminRepository implements IAdminRepository {
       // b. Unban in auth and clear is_deleted, deleted_at, deleted_reason, suspended_at, suspended_reason in user_metadata
       let isDeleteRecovery = type === 'deleted';
       try {
-        const { data: uData } = await adminClient.auth.admin.getUserById(userId);
+        const { data: uData } = await supabaseAdmin.auth.admin.getUserById(userId);
         const existingMeta = (uData?.user as Record<string, any>)?.user_metadata || {};
         if (existingMeta.is_deleted) {
           isDeleteRecovery = true;
         }
 
-        await adminClient.auth.admin.updateUserById(userId, {
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
           ban_duration: 'none',
           user_metadata: {
             ...existingMeta,
@@ -1730,7 +1731,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
       // c. Clear deleted_at on any profiles for this user
       try {
-        await adminClient
+        await supabaseAdmin
           .from('profiles')
           .update({
             deleted_at: null,
@@ -1760,7 +1761,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = adminClient
+    let query = supabaseAdmin
       .from('payment_orders')
       .select('*, workspaces!inner(name)', { count: 'exact' });
 
@@ -1801,7 +1802,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async getPaymentOrderById(id: string): Promise<PaymentOrderAdminView | null> {
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('payment_orders')
       .select('*, workspaces(name)')
       .eq('id', id)
@@ -1817,7 +1818,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     adminUserId: string,
     reason: string
   ): Promise<PaymentOrderAdminView | null> {
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('payment_orders')
       .update({
         status,
@@ -1832,7 +1833,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Append admin override metadata
     if (data) {
       const existingMeta = data.metadata || {};
-      await adminClient
+      await supabaseAdmin
         .from('payment_orders')
         .update({
           metadata: {
@@ -1867,7 +1868,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const pageSize = params?.pageSize ?? 20;
 
     // 1. Fetch all explicit subscriptions from subscriptions table
-    const { data: dbSubsData, error: dbSubsErr } = await adminClient
+    const { data: dbSubsData, error: dbSubsErr } = await supabaseAdmin
       .from('subscriptions')
       .select('*, workspaces(name)');
 
@@ -1876,7 +1877,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // 2. Fetch all workspaces to include all free/spark user accounts
     let allWorkspaces: any[] = [];
     try {
-      const { data: wsData } = await adminClient
+      const { data: wsData } = await supabaseAdmin
         .from('workspaces')
         .select('id, name, owner_id, plan, plan_status, plan_expires_at, trial_ends_at, created_at, updated_at');
       if (wsData) {
@@ -2052,7 +2053,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       const s = params.search.trim().toLowerCase();
       let matchingUserIds = new Set<string>();
       try {
-        const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
         if (usersData?.users) {
           usersData.users.forEach((u) => {
             const em = (u.email || '').toLowerCase();
@@ -2122,7 +2123,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (userIds.length > 0) {
       try {
-        const { data: usersData } = await adminClient
+        const { data: usersData } = await supabaseAdmin
           .from('users')
           .select('id, email, full_name')
           .in('id', userIds);
@@ -2142,7 +2143,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         await Promise.all(
           missingIds.map(async (uid) => {
             try {
-              const { data: authData } = await adminClient.auth.admin.getUserById(uid);
+              const { data: authData } = await supabaseAdmin.auth.admin.getUserById(uid);
               if (authData?.user) {
                 const meta = authData.user.user_metadata || {};
                 const current = userMap.get(uid);
@@ -2159,7 +2160,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       const workspaceIds = Array.from(new Set(pageRows.map((r: any) => r.workspace_id).filter(Boolean)));
       if (workspaceIds.length > 0) {
         try {
-          const { data: profData } = await adminClient
+          const { data: profData } = await supabaseAdmin
             .from('profiles')
             .select('workspace_id, user_id, name')
             .in('workspace_id', workspaceIds);
@@ -2191,7 +2192,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
   async getSubscriptionById(id: string): Promise<SubscriptionAdminView | null> {
     if (id.startsWith('ws_')) {
       const wsId = id.slice(3);
-      const { data: ws, error: wsErr } = await adminClient
+      const { data: ws, error: wsErr } = await supabaseAdmin
         .from('workspaces')
         .select('*')
         .eq('id', wsId)
@@ -2202,7 +2203,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       let uInfo: { email: string; name?: string } | null = null;
       if (ws.owner_id) {
         try {
-          const { data: authData } = await adminClient.auth.admin.getUserById(ws.owner_id);
+          const { data: authData } = await supabaseAdmin.auth.admin.getUserById(ws.owner_id);
           if (authData?.user) {
             const meta = authData.user.user_metadata || {};
             uInfo = {
@@ -2238,7 +2239,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         updated_at: ws.updated_at || ws.created_at,
       }, uInfo);
     }
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('subscriptions')
       .select('*, workspaces(name)')
       .eq('id', id)
@@ -2249,7 +2250,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     let uInfo: { email: string; name?: string } | null = null;
     if (data.user_id) {
       try {
-        const { data: authData } = await adminClient.auth.admin.getUserById(data.user_id);
+        const { data: authData } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
         if (authData?.user) {
           const meta = authData.user.user_metadata || {};
           uInfo = {
@@ -2272,7 +2273,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (id.startsWith('ws_')) {
       const wsId = id.slice(3);
-      await adminClient
+      await supabaseAdmin
         .from('workspaces')
         .update({ plan_status: 'cancelled', updated_at: now })
         .eq('id', wsId);
@@ -2281,7 +2282,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       return this.getSubscriptionById(id);
     }
 
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('subscriptions')
       .update({
         status: 'cancelled',
@@ -2299,7 +2300,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // Also update the workspace plan status
     if (data) {
-      await adminClient
+      await supabaseAdmin
         .from('workspaces')
         .update({ plan_status: 'cancelled', updated_at: now })
         .eq('id', data.workspace_id);
@@ -2315,7 +2316,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     reason: string
   ): Promise<SubscriptionAdminView | null> {
     const now = new Date().toISOString();
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('subscriptions')
       .update({
         current_period_end: newPeriodEnd,
@@ -2335,7 +2336,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // Also update the workspace plan expiry
     if (data) {
-      await adminClient
+      await supabaseAdmin
         .from('workspaces')
         .update({
           plan_status: 'active',
@@ -2363,10 +2364,10 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (subscriptionId.startsWith('ws_')) {
       const wsId = subscriptionId.slice(3);
-      const { data: ws } = await adminClient.from('workspaces').select('*').eq('id', wsId).single();
+      const { data: ws } = await supabaseAdmin.from('workspaces').select('*').eq('id', wsId).single();
       if (!ws) return null;
 
-      const { data: inserted, error: insErr } = await adminClient
+      const { data: inserted, error: insErr } = await supabaseAdmin
         .from('subscriptions')
         .insert({
           workspace_id: ws.id,
@@ -2384,7 +2385,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
       if (insErr) throw insErr;
 
-      await adminClient.from('workspaces').update({
+      await supabaseAdmin.from('workspaces').update({
         plan: newPlanId,
         plan_status: 'active',
         updated_at: now,
@@ -2403,7 +2404,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       return inserted ? this.mapSubscription(inserted) : null;
     }
 
-    const { data, error } = await adminClient
+    const { data, error } = await supabaseAdmin
       .from('subscriptions')
       .update({
         plan_id: newPlanId,
@@ -2429,7 +2430,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // Also update the workspace plan
     if (data) {
-      await adminClient
+      await supabaseAdmin
         .from('workspaces')
         .update({ plan: newPlanId, updated_at: now })
         .eq('id', data.workspace_id);
@@ -2457,11 +2458,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
       activeSubsResult,
       cancelledSubsResult,
     ] = await Promise.all([
-      adminClient.from('payment_orders').select('id, status, plan_id, amount_paise, created_at'),
-      adminClient.from('payment_orders').select('amount_paise').eq('status', 'PAID').gte('created_at', thisMonthStart),
-      adminClient.from('payment_orders').select('amount_paise').eq('status', 'PAID').gte('created_at', prevMonthStart).lte('created_at', prevMonthEnd),
-      adminClient.from('subscriptions').select('id, amount_paise, billing_cycle', { count: 'exact', head: false }).eq('status', 'active'),
-      adminClient.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'cancelled'),
+      supabaseAdmin.from('payment_orders').select('id, status, plan_id, amount_paise, created_at'),
+      supabaseAdmin.from('payment_orders').select('amount_paise').eq('status', 'PAID').gte('created_at', thisMonthStart),
+      supabaseAdmin.from('payment_orders').select('amount_paise').eq('status', 'PAID').gte('created_at', prevMonthStart).lte('created_at', prevMonthEnd),
+      supabaseAdmin.from('subscriptions').select('id, amount_paise, billing_cycle', { count: 'exact', head: false }).eq('status', 'active'),
+      supabaseAdmin.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'cancelled'),
     ]);
 
     const allOrders = allOrdersResult.data || [];
@@ -2534,7 +2535,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, error, count } = await adminClient
+    const { data, error, count } = await supabaseAdmin
       .from('webhook_events')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
@@ -2555,7 +2556,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const refCodesFromEvents = new Set<string>();
 
     try {
-      const { data: refEvents, count: totalEvents } = await adminClient
+      const { data: refEvents, count: totalEvents } = await supabaseAdmin
         .from('referrals')
         .select('referral_code, status, reward_type', { count: 'exact' });
 
@@ -2578,7 +2579,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     let activeCodes = 0;
     try {
-      const { data: codesData, count: codesCount } = await adminClient
+      const { data: codesData, count: codesCount } = await supabaseAdmin
         .from('referral_codes')
         .select('months_earned, conversion_count, signup_count', { count: 'exact' });
 
@@ -2600,7 +2601,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (activeCodes === 0) {
       try {
-        const { count: wsCount } = await adminClient
+        const { count: wsCount } = await supabaseAdmin
           .from('workspaces')
           .select('id', { count: 'exact', head: true });
         activeCodes = Math.max(activeCodes, refCodesFromEvents.size, wsCount || 0);
@@ -2626,7 +2627,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // 1. Fetch raw referral_codes (direct query without failing foreign-key join)
     let dbCodes: any[] = [];
     try {
-      const { data, error } = await adminClient
+      const { data, error } = await supabaseAdmin
         .from('referral_codes')
         .select('*');
 
@@ -2640,7 +2641,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // 2. Fetch referrals events to ensure codes with actual referral activity are included with live stats
     let refEvents: any[] = [];
     try {
-      const { data, error } = await adminClient
+      const { data, error } = await supabaseAdmin
         .from('referrals')
         .select('*');
 
@@ -2662,7 +2663,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // 3. Fetch workspaces and user emails for enrichment and auto-seeding
     let workspacesList: any[] = [];
     try {
-      const { data } = await adminClient.from('workspaces').select('id, name, owner_id, plan');
+      const { data } = await supabaseAdmin.from('workspaces').select('id, name, owner_id, plan');
       if (Array.isArray(data)) workspacesList = data;
     } catch {}
 
@@ -2705,7 +2706,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Fetch user emails from auth
     const userEmailMap = new Map<string, string>();
     try {
-      const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       if (usersData?.users && Array.isArray(usersData.users)) {
         for (const u of usersData.users) {
           if (u.id && u.email) {
@@ -2772,7 +2773,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         mergedList.push(newCodeItem);
 
         try {
-          await adminClient.from('referral_codes').upsert({
+          await supabaseAdmin.from('referral_codes').upsert({
             id: newCodeItem.id,
             user_id: newCodeItem.userId,
             workspace_id: newCodeItem.workspaceId,
@@ -2817,7 +2818,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
             mergedList.push(newCodeItem);
 
             try {
-              await adminClient.from('referral_codes').upsert({
+              await supabaseAdmin.from('referral_codes').upsert({
                 id: newCodeItem.id,
                 user_id: newCodeItem.userId,
                 workspace_id: newCodeItem.workspaceId,
@@ -2869,7 +2870,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = adminClient
+    let query = supabaseAdmin
       .from('referrals')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
@@ -2886,7 +2887,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Fetch user emails from auth for referrer and referred user
     const emailMap = new Map<string, string>();
     try {
-      const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       if (usersData?.users && Array.isArray(usersData.users)) {
         for (const u of usersData.users) {
           if (u.id && u.email) {

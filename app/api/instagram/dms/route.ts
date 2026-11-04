@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/instagram/dms?workspaceId=xxx&page=1&limit=20
 export async function GET(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('instagram_dm_logs')
       .select('*', { count: 'exact' })
       .eq('workspace_id', workspaceId)
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Stats
-    const { data: statsData } = await supabase
+    const { data: statsData } = await supabaseAdmin
       .from('instagram_dm_logs')
       .select('classification, auto_replied, escalated, lead_score')
       .eq('workspace_id', workspaceId);

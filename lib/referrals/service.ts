@@ -1,12 +1,12 @@
-// ============================================================
+﻿// ============================================================
 // lib/referrals/service.ts — Referral System Core
 // Generates codes, tracks clicks/signups, issues rewards.
 // ============================================================
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ export async function getOrCreateReferralCode(
   displayName: string
 ): Promise<ReferralCode> {
   // Check existing
-  const { data: existing } = await supabase
+  const { data: existing } = await supabaseAdmin
     .from('referral_codes')
     .select('*')
     .eq('user_id', userId)
@@ -82,7 +82,7 @@ export async function getOrCreateReferralCode(
   // Generate unique code (retry on collision)
   let code = generateCode(displayName || 'USER');
   for (let attempt = 0; attempt < 5; attempt++) {
-    const { data: collision } = await supabase
+    const { data: collision } = await supabaseAdmin
       .from('referral_codes')
       .select('id')
       .eq('code', code)
@@ -92,7 +92,7 @@ export async function getOrCreateReferralCode(
     code = generateCode(displayName || 'USER');
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('referral_codes')
     .insert({ user_id: userId, workspace_id: workspaceId, code })
     .select()
@@ -110,7 +110,7 @@ export async function recordReferralClick(code: string): Promise<ReferralCode | 
   const cleanCode = (code || '').trim().toUpperCase();
   if (!cleanCode) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('referral_codes')
     .select('*')
     .eq('code', cleanCode)
@@ -119,7 +119,7 @@ export async function recordReferralClick(code: string): Promise<ReferralCode | 
   if (error || !data) return null;
 
   // Increment click count
-  await supabase
+  await supabaseAdmin
     .from('referral_codes')
     .update({
       click_count: (Number((data as Record<string, unknown>).click_count) || 0) + 1,
@@ -142,7 +142,7 @@ export async function recordReferralSignup(
   if (!cleanCode) return;
 
   // Look up referral code owner
-  const { data: codeRow, error: codeErr } = await supabase
+  const { data: codeRow, error: codeErr } = await supabaseAdmin
     .from('referral_codes')
     .select('*')
     .eq('code', cleanCode)
@@ -160,7 +160,7 @@ export async function recordReferralSignup(
   if (referrerUserId === referredUserId) return;
 
   // Idempotency: already referred?
-  const { data: existing } = await supabase
+  const { data: existing } = await supabaseAdmin
     .from('referrals')
     .select('id')
     .eq('referred_user_id', referredUserId)
@@ -169,7 +169,7 @@ export async function recordReferralSignup(
   if (existing) return;
 
   // Create referral record
-  const { error: insertErr } = await supabase.from('referrals').insert({
+  const { error: insertErr } = await supabaseAdmin.from('referrals').insert({
     referrer_user_id: referrerUserId,
     referred_user_id: referredUserId,
     referral_code: cleanCode,
@@ -184,7 +184,7 @@ export async function recordReferralSignup(
   }
 
   // Increment signup count safely
-  await supabase
+  await supabaseAdmin
     .from('referral_codes')
     .update({
       signup_count: (Number(code.signup_count) || 0) + 1,
@@ -208,7 +208,7 @@ export async function recordReferralSignup(
  * Grants referrer 1 free month (as credits) and marks referral as rewarded.
  */
 export async function recordReferralConversion(referredUserId: string): Promise<void> {
-  const { data: referral, error } = await supabase
+  const { data: referral, error } = await supabaseAdmin
     .from('referrals')
     .select('*')
     .eq('referred_user_id', referredUserId)
@@ -225,7 +225,7 @@ export async function recordReferralConversion(referredUserId: string): Promise<
   const referralCode = ((ref.referral_code as string) || '').trim().toUpperCase();
 
   // Mark referral as converted + rewarded
-  await supabase
+  await supabaseAdmin
     .from('referrals')
     .update({
       status: 'rewarded',
@@ -239,7 +239,7 @@ export async function recordReferralConversion(referredUserId: string): Promise<
   await grantAiCredits(referrerUserId, creditsToGrant, 'referral_conversion');
 
   // Update referral_codes tracking
-  const { data: codeRow } = await supabase
+  const { data: codeRow } = await supabaseAdmin
     .from('referral_codes')
     .select('conversion_count, months_earned')
     .eq('code', referralCode)
@@ -247,7 +247,7 @@ export async function recordReferralConversion(referredUserId: string): Promise<
 
   if (codeRow) {
     const cr = codeRow as Record<string, unknown>;
-    await supabase
+    await supabaseAdmin
       .from('referral_codes')
       .update({
         conversion_count: (Number(cr.conversion_count) || 0) + 1,
@@ -259,7 +259,7 @@ export async function recordReferralConversion(referredUserId: string): Promise<
 
   // Also extend active subscription by 30 days if referrer has one
   try {
-    const { data: sub } = await supabase
+    const { data: sub } = await supabaseAdmin
       .from('subscriptions')
       .select('id, current_period_end, workspace_id')
       .eq('user_id', referrerUserId)
@@ -269,13 +269,13 @@ export async function recordReferralConversion(referredUserId: string): Promise<
     if (sub && sub.current_period_end) {
       const currentEnd = new Date(sub.current_period_end);
       const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + 30 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase
+      await supabaseAdmin
         .from('subscriptions')
         .update({ current_period_end: newEnd, updated_at: new Date().toISOString() })
         .eq('id', sub.id);
 
       if (sub.workspace_id) {
-        await supabase
+        await supabaseAdmin
           .from('workspaces')
           .update({ plan_expires_at: newEnd, updated_at: new Date().toISOString() })
           .eq('id', sub.workspace_id);
@@ -301,8 +301,8 @@ export async function getReferralStats(userId: string): Promise<{
   referrals: Referral[];
 }> {
   const [codeResult, referralsResult] = await Promise.all([
-    supabase.from('referral_codes').select('*').eq('user_id', userId).single(),
-    supabase
+    supabaseAdmin.from('referral_codes').select('*').eq('user_id', userId).single(),
+    supabaseAdmin
       .from('referrals')
       .select('*')
       .eq('referrer_user_id', userId)
@@ -323,7 +323,7 @@ async function grantAiCredits(userId: string, credits: number, reason: string): 
     logger.info('AI credits granted', { userId, credits, reason });
 
     // 1. Update rewards_earned counter on referral_codes (the visible tally)
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('referral_codes')
       .select('rewards_earned')
       .eq('user_id', userId)
@@ -331,7 +331,7 @@ async function grantAiCredits(userId: string, credits: number, reason: string): 
 
     if (existing) {
       const curr = (existing as Record<string, unknown>).rewards_earned as number ?? 0;
-      await supabase
+      await supabaseAdmin
         .from('referral_codes')
         .update({ rewards_earned: curr + credits, updated_at: new Date().toISOString() })
         .eq('user_id', userId);
@@ -339,7 +339,7 @@ async function grantAiCredits(userId: string, credits: number, reason: string): 
 
     // 2. Log to referral_rewards ledger (best-effort; table may not exist yet)
     try {
-      await supabase
+      await supabaseAdmin
         .from('referral_rewards')
         .insert({
           user_id: userId,

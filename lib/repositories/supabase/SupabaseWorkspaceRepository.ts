@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import type { IWorkspaceRepository, Workspace, CreateWorkspaceInput, IUserRepository } from '../interfaces/IWorkspaceRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabaseWorkspaceRepository implements IWorkspaceRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private mapRow(row: Record<string, unknown>): Workspace {
     return {
@@ -51,7 +51,7 @@ export class SupabaseWorkspaceRepository implements IWorkspaceRepository {
 }
 
 export class SupabaseUserRepository implements IUserRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   async findById(id: string): Promise<string | null> {
     const { data, error } = await this.supabase.from('users').select('id').eq('id', id).single();

@@ -1,26 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { config } from '@/lib/config/schema';
-import { isDevAuthEnabled } from '@/lib/auth/dev/bypass';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. Development auth bypass cookie
-    const devCookie = request.cookies.get('dev-auth-bypass')?.value;
-    if (devCookie === 'true') {
-      return NextResponse.json(
-        { authenticated: true, redirectTo: '/dashboard' },
-        {
-          status: 200,
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          },
-        }
-      );
-    }
-
     // 2. Injected headers from middleware.ts
     const headerUserId = request.headers.get('x-user-id');
     if (headerUserId) {

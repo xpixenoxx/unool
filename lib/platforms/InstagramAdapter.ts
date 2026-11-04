@@ -1,4 +1,5 @@
 import { config } from '@/lib/config/schema';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 import { logger } from '@/lib/logger';
 import {
   PlatformAdapter,
@@ -134,8 +135,8 @@ export class InstagramAdapter implements PlatformAdapter {
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('instagram', async () => {
       const profileResponse = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/me?fields=id,username,name,profile_picture_url&access_token=${accessToken}`,
-        {}
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name,profile_picture_url`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
       if (!profileResponse.ok) {
@@ -162,8 +163,8 @@ export class InstagramAdapter implements PlatformAdapter {
     return platformFetch('instagram', async () => {
       // Find the Instagram Business Account ID attached to the native user token
       const profileResponse = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/me?fields=id&access_token=${accessToken}`,
-        {}
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       if (!profileResponse.ok) {
         const errorText = await profileResponse.text();
@@ -207,7 +208,7 @@ export class InstagramAdapter implements PlatformAdapter {
           containerParams.append('image_url', mediaUrl);
         }
 
-        const containerRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
+        const containerRes = await fetchWithRetry(`https://graph.instagram.com/${API_VERSIONS.instagram}/${igAccountId}/media`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: containerParams.toString(),
@@ -243,7 +244,7 @@ export class InstagramAdapter implements PlatformAdapter {
               itemParams.append('image_url', url);
             }
 
-            const itemRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
+            const itemRes = await fetchWithRetry(`https://graph.instagram.com/${API_VERSIONS.instagram}/${igAccountId}/media`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
               body: itemParams.toString(),
@@ -276,7 +277,7 @@ export class InstagramAdapter implements PlatformAdapter {
           children: itemIds.join(','),
         });
 
-        const carouselRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
+        const carouselRes = await fetchWithRetry(`https://graph.instagram.com/${API_VERSIONS.instagram}/${igAccountId}/media`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: carouselParams.toString(),
@@ -299,7 +300,7 @@ export class InstagramAdapter implements PlatformAdapter {
       });
 
       const publishRes = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/${igAccountId}/media_publish`,
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/${igAccountId}/media_publish`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -318,8 +319,8 @@ export class InstagramAdapter implements PlatformAdapter {
       let permalink = '';
       try {
         const mediaRes = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${platformPostId}?fields=permalink&access_token=${accessToken}`,
-          {}
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}?fields=permalink`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         if (mediaRes.ok) {
           const mediaData = await mediaRes.json();
@@ -337,7 +338,7 @@ export class InstagramAdapter implements PlatformAdapter {
             access_token: accessToken,
           });
           const commentRes = await fetchWithRetry(
-            `https://graph.instagram.com/v20.0/${platformPostId}/comments`,
+            `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}/comments`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -370,8 +371,8 @@ export class InstagramAdapter implements PlatformAdapter {
 
       try {
         statusRes = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${containerId}?fields=status_code&access_token=${accessToken}`,
-          {}
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${containerId}?fields=status_code`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
       } catch (err) {
         // fetch network error, skip attempt
@@ -400,8 +401,8 @@ export class InstagramAdapter implements PlatformAdapter {
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('instagram', async () => {
       const response = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/${platformPostId}?fields=like_count,comments_count,views_count,shares_count&access_token=${accessToken}`,
-        {}
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}?fields=like_count,comments_count,views_count,shares_count`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
       if (!response.ok) {

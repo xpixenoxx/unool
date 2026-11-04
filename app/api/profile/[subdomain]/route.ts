@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { analytics, extractTrackingFromRequest } from '@/lib/analytics/track';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const profileRepository = new SupabaseProfileRepository();
-const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // Upstash Redis for rate limiting (optional - gracefully degrades if not configured)
 async function checkRateLimit(request: NextRequest): Promise<{ limited: boolean; headers: Record<string, string> }> {

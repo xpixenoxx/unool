@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import type { ListWorkspacesParams } from '@/lib/repositories/interfaces/IAdminRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/admin/workspaces - List all workspaces (admin view)
 export async function GET(request: NextRequest) {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert workspace
-    const { data: workspace, error: wsError } = await adminClient
+    const { data: workspace, error: wsError } = await supabaseAdmin
       .from('workspaces')
       .insert({
         name: name.trim(),
@@ -68,12 +68,12 @@ export async function POST(request: NextRequest) {
 
     // If ownerEmail provided, look up or attach user
     if (ownerEmail) {
-      const { data: users } = await adminClient.auth.admin.listUsers();
+      const { data: users } = await supabaseAdmin.auth.admin.listUsers();
       const ownerUser = users?.users?.find(
         (u) => u.email?.toLowerCase() === ownerEmail.toLowerCase().trim()
       );
       if (ownerUser) {
-        await adminClient.from('workspace_members').insert({
+        await supabaseAdmin.from('workspace_members').insert({
           workspace_id: workspace.id,
           user_id: ownerUser.id,
           role: 'owner',

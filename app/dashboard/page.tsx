@@ -1,13 +1,12 @@
-import { Suspense } from 'react';
+﻿import { Suspense } from 'react';
 import { getAuthContext } from '@/lib/auth/context';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { getCurrentUsage, getLimitsForTier, Tier } from '@/lib/limits/freeTier';
 import DashboardClient from './DashboardClient';
 
-const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 const profileRepository = new SupabaseProfileRepository();
 const postRepository = new SupabasePostRepository();
 
@@ -172,6 +171,7 @@ async function getDashboardData(): Promise<{
 }
 
 import DashboardLoading from './loading';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export default async function DashboardPage() {
   try {

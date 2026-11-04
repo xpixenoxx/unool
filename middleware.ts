@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
@@ -161,13 +161,12 @@ export async function middleware(request: NextRequest) {
 
   // ── Protected Dashboard Routes ───────────────────────────────────────────
   if (pathname.startsWith('/dashboard')) {
-    const isDevAuth = request.cookies.get('dev-auth-bypass')?.value === 'true' || process.env.DEV_AUTH_BYPASS === 'true';
     const allCookies = request.cookies.getAll();
     const hasAuthCookie = allCookies.some(
       (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token') && c.value && c.value.length > 5
     );
 
-    if (!isDevAuth && !hasAuthCookie) {
+    if (!hasAuthCookie) {
       const signinUrl = new URL('/signin', request.url);
       signinUrl.searchParams.set('redirect', pathname);
       const redirectResponse = NextResponse.redirect(signinUrl);

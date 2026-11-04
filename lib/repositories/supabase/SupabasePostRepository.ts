@@ -1,5 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import type { IPostRepository } from '../interfaces/IPostRepository';
 import type {
   Post,
@@ -21,9 +20,10 @@ import type {
   StoryType,
   ScheduleStrategy,
 } from '../interfaces/IPostRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabasePostRepository implements IPostRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private mapPostRow(row: Record<string, unknown>): Post {
     return {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET /api/auth/me
  *
  * Returns the currently authenticated user's public profile.
@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
   try {

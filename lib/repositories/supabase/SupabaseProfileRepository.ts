@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import type { IProfileRepository } from '../interfaces/IProfileRepository';
 import type { Profile, CreateProfileInput, UpdateProfileInput, ProfileLink, ProofPoint, ProfileTheme, ProfileViewer } from '../interfaces/IProfileRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabaseProfileRepository implements IProfileRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private mapRow(row: Record<string, unknown>): Profile {
     return {

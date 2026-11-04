@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // POST /api/admin/impersonate - Generate impersonation magic link
 export async function POST(request: NextRequest) {
@@ -17,16 +17,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
 
     // Get the target user
-    const { data: { user }, error: userError } = await adminClient.auth.admin.getUserById(userId);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (userError || !user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     // Generate magic link for impersonation
-    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: user.email!,
       options: {

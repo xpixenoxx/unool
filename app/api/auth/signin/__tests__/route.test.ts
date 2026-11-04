@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mockSelectQuery = {
@@ -76,11 +76,11 @@ vi.mock('@supabase/ssr', () => ({
 }));
 
 import { POST } from '../route';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 import { verifyPassword } from '@/lib/auth/password';
 import { checkOtpGenerateLimit } from '@/lib/auth/rate-limits';
 import { isResendCoolingDown } from '@/lib/auth/otp';
 import { sendOtpEmail } from '@/lib/auth/email';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 describe('POST /api/auth/signin', () => {
   beforeEach(() => {

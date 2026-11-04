@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/admin/platforms - List all connected social media platform accounts with user & workspace details
 export async function GET(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // 1. Fetch platform connections with workspace relations
     let rawData: any[] = [];
     try {
-      const { data, error } = await adminClient
+      const { data, error } = await supabaseAdmin
         .from('platform_connections')
         .select('id, workspace_id, user_id, platform, username, status, expires_at, created_at, updated_at, workspaces(id, name, owner_id)')
         .order('created_at', { ascending: false });
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     } catch {
       // Fallback if user_id column is not in schema or relation differences
       try {
-        const { data, error } = await adminClient
+        const { data, error } = await supabaseAdmin
           .from('platform_connections')
           .select('id, workspace_id, platform, username, status, expires_at, created_at, updated_at, workspaces(id, name, owner_id)')
           .order('created_at', { ascending: false });
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         if (error) throw error;
         rawData = data || [];
       } catch {
-        const { data, error } = await adminClient
+        const { data, error } = await supabaseAdmin
           .from('platform_connections')
           .select('id, workspace_id, platform, username, status, expires_at, created_at, updated_at, workspaces(name)')
           .order('created_at', { ascending: false });
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Query public.users
     try {
-      const { data: dbUsers } = await adminClient.from('users').select('id, email, full_name');
+      const { data: dbUsers } = await supabaseAdmin.from('users').select('id, email, full_name');
       (dbUsers || []).forEach((u: any) => {
         if (u.id) {
           userMap.set(u.id, {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     // Query auth.users
     try {
-      const { data: authUsersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const { data: authUsersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       (authUsersData?.users || []).forEach((u: any) => {
         const meta = u.user_metadata || {};
         const metaName = meta.full_name || meta.name || (meta.first_name ? `${meta.first_name} ${meta.last_name || ''}`.trim() : null);
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const wsNameMap = new Map<string, string>();
 
     try {
-      const { data: wsRows } = await adminClient.from('workspaces').select('id, name, owner_id');
+      const { data: wsRows } = await supabaseAdmin.from('workspaces').select('id, name, owner_id');
       (wsRows || []).forEach((w: any) => {
         if (w.id) {
           if (w.name) wsNameMap.set(w.id, w.name);
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const { data: memberRows } = await adminClient.from('workspace_members').select('workspace_id, user_id, role');
+      const { data: memberRows } = await supabaseAdmin.from('workspace_members').select('workspace_id, user_id, role');
       (memberRows || []).forEach((m: any) => {
         if (m.workspace_id && m.user_id) {
           if (m.role === 'owner' || !wsToUserMap.has(m.workspace_id)) {
@@ -230,7 +230,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Connection ID is required' }, { status: 400 });
     }
 
-    const { error } = await adminClient
+    const { error } = await supabaseAdmin
       .from('platform_connections')
       .delete()
       .eq('id', id);

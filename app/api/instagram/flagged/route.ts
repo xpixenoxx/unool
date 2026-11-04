@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 interface UnifiedFlaggedItem {
   id: string;
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Fetch flagged comments (unless type === 'dms')
     if (type !== 'dms') {
-      let commentQuery = supabase
+      let commentQuery = supabaseAdmin
         .from('instagram_flagged_comments')
         .select('*')
         .eq('workspace_id', workspaceId)
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Counts for comments
-      const { data: commentCounts } = await supabase
+      const { data: commentCounts } = await supabaseAdmin
         .from('instagram_flagged_comments')
         .select('status')
         .eq('workspace_id', workspaceId);
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     // 2. Fetch flagged DMs (unless type === 'comments')
     if (type !== 'comments') {
       try {
-        let dmQuery = supabase
+        let dmQuery = supabaseAdmin
           .from('instagram_flagged_dms')
           .select('*')
           .eq('workspace_id', workspaceId)
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Counts for DMs
-        const { data: dmCounts } = await supabase
+        const { data: dmCounts } = await supabaseAdmin
           .from('instagram_flagged_dms')
           .select('status')
           .eq('workspace_id', workspaceId);

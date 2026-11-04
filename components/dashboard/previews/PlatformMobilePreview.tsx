@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -39,234 +39,21 @@ import {
 } from 'lucide-react';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
-export type SupportedPlatformType =
-  | 'linkedin'
-  | 'x'
-  | 'threads'
-  | 'facebook'
-  | 'instagram'
-  | 'youtube'
-  | 'pinterest'
-  | 'bluesky'
-  | 'mastodon'
-  | 'slack'
-  | 'twitch'
-  | 'telegram'
-  | 'discord'
-  | 'dribbble'
-  | 'skool'
-  | 'whop'
-  | 'kick'
-  | 'warpcast'
-  | 'mewe'
-  | 'nostr'
-  | 'medium'
-  | 'lemmy'
-  | 'listmonk'
-  | 'reddit'
-  | 'hashnode'
-  | 'devto'
-  | 'whatsapp'
-  | 'twitter';
-
-export interface MobilePreviewProps {
-  platform: SupportedPlatformType;
-  content: string;
-  isEmpty: boolean;
-  media: { url: string; type: 'image' | 'video' | 'document'; alt?: string }[];
-  profileName: string;
-  profileHeadline?: string;
-  initials: string;
-  avatarUrl?: string;
-}
-
-/** Check if platform uses dark background theme */
-export function isPlatformDark(platform: SupportedPlatformType): boolean {
-  return [
-    'x',
-    'threads',
-    'youtube',
-    'bluesky',
-    'mastodon',
-    'discord',
-    'slack',
-    'reddit',
-    'twitch',
-    'kick',
-    'warpcast',
-    'nostr',
-    'skool',
-    'whop',
-    'lemmy',
-  ].includes(platform);
-}
-
-/** Get background color for the screen area */
-export function getPlatformBgColor(platform: SupportedPlatformType): string {
-  switch (platform) {
-    case 'x': return '#000000';
-    case 'threads': return '#101010';
-    case 'youtube': return '#0F0F0F';
-    case 'bluesky': return '#16202A';
-    case 'mastodon': return '#191B22';
-    case 'discord': return '#313338';
-    case 'slack': return '#1A1D21';
-    case 'reddit': return '#0E1113';
-    case 'twitch': return '#0E0E10';
-    case 'kick': return '#0B0E0F';
-    case 'warpcast': return '#141416';
-    case 'nostr': return '#111116';
-    case 'skool': return '#1F2023';
-    case 'whop': return '#121212';
-    case 'lemmy': return '#1B1E21';
-    case 'linkedin': return '#F3F2EF';
-    case 'facebook': return '#F0F2F5';
-    case 'telegram': return '#0E1621';
-    case 'devto': return '#F5F5F5';
-    case 'listmonk': return '#F8FAFC';
-    case 'mewe': return '#F2F4F7';
-    case 'dribbble':
-    case 'pinterest':
-    case 'medium':
-    case 'hashnode':
-    case 'instagram':
-    default:
-      return '#FFFFFF';
-  }
-}
-
-/** Helper Avatar component */
-function AvatarCircle({
-  initials,
-  avatarUrl,
-  size = 40,
-  bg = 'linear-gradient(135deg, #C4A265, #8B7355)',
-  className = '',
-}: {
-  initials: string;
-  avatarUrl?: string;
-  size?: number;
-  bg?: string;
-  className?: string;
-}) {
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt=""
-        className={`rounded-full object-cover flex-shrink-0 ${className}`}
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return (
-    <div
-      className={`rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0 ${className}`}
-      style={{
-        width: size,
-        height: size,
-        background: bg,
-        fontSize: size * 0.38,
-      }}
-    >
-      {initials || 'U'}
-    </div>
-  );
-}
-
-/** Expandable text block */
-function ExpandableText({
-  content,
-  maxLength = 160,
-  isEmpty,
-  color,
-  highlightColor = '#0A66C2',
-}: {
-  content: string;
-  maxLength?: number;
-  isEmpty: boolean;
-  color: string;
-  highlightColor?: string;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const shouldTruncate = content.length > maxLength && !expanded;
-  const displayContent = shouldTruncate ? content.slice(0, maxLength) + '...' : content;
-
-  return (
-    <p
-      className="cursor-pointer"
-      onClick={() => setExpanded(!expanded)}
-      style={{
-        fontSize: 14,
-        color: isEmpty ? '#999' : color,
-        lineHeight: 1.45,
-        fontStyle: isEmpty ? 'italic' : 'normal',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {displayContent}
-      {shouldTruncate && (
-        <span style={{ color: highlightColor, fontWeight: 600 }}> see more</span>
-      )}
-    </p>
-  );
-}
-
-/** Standard Media Area */
-function MediaArea({
-  media,
-  aspectRatio = '16/9',
-  maxHeight = 220,
-}: {
-  media: MobilePreviewProps['media'];
-  aspectRatio?: string;
-  maxHeight?: number;
-}) {
-  const images = media.filter(m => m.type === 'image');
-  const videos = media.filter(m => m.type === 'video');
-
-  if (images.length === 0 && videos.length === 0) return null;
-
-  return (
-    <div className="mt-2.5 rounded-xl overflow-hidden" style={{ maxHeight }}>
-      {videos.length > 0 && (
-        <video
-          src={videos[0].url}
-          className="w-full object-cover bg-black"
-          style={{ maxHeight }}
-          muted
-          playsInline
-        />
-      )}
-      {images.length === 1 && (
-        <img
-          src={images[0].url}
-          alt=""
-          className="w-full object-cover"
-          style={{ maxHeight }}
-        />
-      )}
-      {images.length > 1 && (
-        <div className="grid grid-cols-2 gap-0.5">
-          {images.slice(0, 4).map((img, i) => (
-            <div key={i} className="relative aspect-square">
-              <img src={img.url} alt="" className="w-full h-full object-cover" />
-              {i === 3 && images.length > 4 && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-lg">
-                  +{images.length - 4}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+export * from './previewTypes';
+export * from './sharedComponents';
+import {
+  type SupportedPlatformType,
+  type MobilePreviewProps,
+  isPlatformDark,
+  getPlatformBgColor,
+} from './previewTypes';
+import {
+  AvatarCircle,
+  ExpandableText,
+  MediaArea,
+} from './sharedComponents';
 
 export { PlatformBrandLogo };
-
 /* ─────────────────────────────────────────────────────────────
    1. LinkedIn
    ───────────────────────────────────────────────────────────── */

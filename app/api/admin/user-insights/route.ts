@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const userBreakdown = await adminRepository.getUserPlanDistribution();
 
     // ── 1. Posts by platform & published posts per workspace ──────────────────
-    const { data: platformPostsRaw, error: pvErr } = await adminClient
+    const { data: platformPostsRaw, error: pvErr } = await supabaseAdmin
       .from('post_variants')
       .select('platform')
       .eq('status', 'published');
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     const wsPublishedPostsCount: Record<string, number> = {};
     try {
-      const { data: postsRaw } = await adminClient
+      const { data: postsRaw } = await supabaseAdmin
         .from('posts')
         .select('workspace_id')
         .eq('status', 'published');
@@ -76,11 +76,11 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 2. Platform connections & multi-channel stats ─────────────────────────
-    const { data: platformConnsRaw } = await adminClient
+    const { data: platformConnsRaw } = await supabaseAdmin
       .from('platform_connections')
       .select('workspace_id, platform');
 
-    const { data: wmRaw } = await adminClient
+    const { data: wmRaw } = await supabaseAdmin
       .from('workspace_members')
       .select('workspace_id, user_id');
 
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
 
     // 3a. Read from user_section_time table if present
     try {
-      const { data: dbTimes, error: dbTimeErr } = await adminClient
+      const { data: dbTimes, error: dbTimeErr } = await supabaseAdmin
         .from('user_section_time')
         .select('user_id, section, duration_seconds, last_active_at');
 
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
     // 3b. Read from user_metadata in auth.users (covers users before migration)
     let authUsers: any[] = [];
     try {
-      const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       if (usersData?.users) {
         authUsers = usersData.users;
         authUsers.forEach((u) => {

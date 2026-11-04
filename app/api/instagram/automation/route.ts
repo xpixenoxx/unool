@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // GET /api/instagram/automation?workspaceId=xxx
 export async function GET(request: NextRequest) {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from('instagram_automation_config')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // This drives DM traffic to their personal brand hub automatically.
     let defaultLinkUrl: string | null = null;
     try {
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('subdomain')
         .eq('user_id', user.id)
@@ -145,7 +145,7 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('instagram_automation_config')
       .upsert(upsertData, { onConflict: 'workspace_id' })
       .select()

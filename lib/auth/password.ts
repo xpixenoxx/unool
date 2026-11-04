@@ -4,11 +4,11 @@
  * Argon2id password hashing and verification.
  * Uses the `argon2` npm package (node-argon2).
  *
- * Parameters chosen for 2025 server-side production use:
+ * Parameters chosen for serverless production use (OWASP Argon2id minimums):
  *   type:       argon2id  (resistant to both side-channel and GPU attacks)
- *   memoryCost: 65536 KB (64 MB)
+ *   memoryCost: 19456 KB (19 MiB - OWASP minimum, brute-force resistant)
  *   timeCost:   3 iterations
- *   parallelism: 4
+ *   parallelism: 1 (single-threaded for serverless)
  *
  * Policy:
  *   - Minimum 8 characters
@@ -22,9 +22,9 @@ export const PASSWORD_MAX = 128;
 
 const ARGON2_OPTIONS = {
   type:       argon2.argon2id,
-  memoryCost: 65536,   // 64 MiB
+  memoryCost: 19456,  // 19 MiB (OWASP minimum - still brute-force resistant)
   timeCost:   3,
-  parallelism: 4,
+  parallelism: 1,     // Serverless: single-threaded
 } as const;
 
 /** Returns a human-readable reason string or null if the password is valid. */

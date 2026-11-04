@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
+﻿import { config } from '@/lib/config/schema';
 import type { ISyncEventRepository } from '../interfaces/ISyncEventRepository';
 import type { SyncEvent, SyncEventType } from '../interfaces/ISyncEventRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabaseSyncEventRepository implements ISyncEventRepository {
-  private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+  private supabase = supabaseAdmin;
 
   private mapRow(row: Record<string, unknown>): SyncEvent {
     return {

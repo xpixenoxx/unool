@@ -12,8 +12,8 @@ import type {
 } from '@/lib/repositories/interfaces/IPostRepository';
 import type { PlatformType } from '@/lib/ai/PostAdapter';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const postRepository = new SupabasePostRepository();
 const workspaceRepository = new SupabaseWorkspaceRepository();
@@ -130,8 +130,14 @@ function computeScheduledAt(
     const refinedLocalMs = getLocalMs(new Date(correctedMs));
     const refinedOffset = refinedLocalMs - targetLocalMs;
     return new Date(correctedMs - refinedOffset);
-  } catch {
-    // Fallback: simple UTC calculation
+  } catch (tzError) {
+    logger.error('computeScheduledAt: timezone conversion failed, falling back to UTC. Post may publish at wrong time!', {
+      timezone,
+      requestedTime: { year: weekStart.getUTCFullYear(), month: weekStart.getUTCMonth() + 1, day: weekStart.getUTCDate() + dayOffset, hour, minute },
+      error: tzError instanceof Error ? tzError : new Error(String(tzError)),
+    });
+    // Fallback: treat as UTC — this is incorrect but prevents a crash
+    // TODO: Use Temporal API or date-fns-tz for reliable timezone handling
     const d = new Date(weekStart);
     d.setUTCDate(d.getUTCDate() + dayOffset);
     d.setUTCHours(hour, minute, 0, 0);
@@ -160,8 +166,8 @@ export class ScheduleService {
           scheduleStrategy: input.strategy,
           arcId: input.arcId ?? existing.arcId,
         });
-        const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-        await admin.from('post_variants').delete().eq('post_id', existing.id);
+        
+        await supabaseAdmin.from('post_variants').delete().eq('post_id', existing.id);
       }
     }
 
@@ -600,12 +606,6 @@ export class ScheduleService {
     post: Post;
     variants: PostVariant[];
   }[]> {
-    // Self-heal: process any scheduled posts that have become due in background
-    // (non-blocking so week canvas load returns immediately without waiting for external social dispatches)
-    void this.processDueScheduledPosts(workspaceId).catch(err => {
-      logger.warn('Non-fatal error self-healing due posts in getWeekCanvas', { error: String(err) });
-    });
-
     // Safe timezone buffer: from 1 day prior to 8 days after to safely encompass all timezones (UTC-12 to UTC+14)
     const weekStartBuffer = new Date(weekStart.getTime() - 24 * 60 * 60 * 1000);
     const weekEnd = new Date(weekStart.getTime() + 8 * 24 * 60 * 60 * 1000);

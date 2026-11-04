@@ -4,12 +4,12 @@
 // plan activation, and webhook event deduplication.
 // ============================================================
 
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import type { PlanId, BillingCycle, Currency } from './plans';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ export async function createPaymentOrder(params: {
   idempotencyKey: string;
   paymentSessionId: string;
 }): Promise<PaymentOrder> {
-  const { data, error } = await adminClient
+  const { data, error } = await supabaseAdmin
     .from('payment_orders')
     .insert({
       workspace_id: params.workspaceId,
@@ -92,7 +92,7 @@ export async function createPaymentOrder(params: {
       logger.info('Idempotency hit — returning existing order', {
         idempotencyKey: params.idempotencyKey,
       });
-      const { data: existing } = await adminClient
+      const { data: existing } = await supabaseAdmin
         .from('payment_orders')
         .select()
         .eq('idempotency_key', params.idempotencyKey)
@@ -111,7 +111,7 @@ export async function createPaymentOrder(params: {
  * Find an existing pending order with the same idempotency key.
  */
 export async function findOrderByIdempotencyKey(key: string): Promise<PaymentOrder | null> {
-  const { data } = await adminClient
+  const { data } = await supabaseAdmin
     .from('payment_orders')
     .select()
     .eq('idempotency_key', key)
@@ -124,7 +124,7 @@ export async function findOrderByIdempotencyKey(key: string): Promise<PaymentOrd
  * Find order by Cashfree order ID.
  */
 export async function findOrderByCfOrderId(cfOrderId: string): Promise<PaymentOrder | null> {
-  const { data } = await adminClient
+  const { data } = await supabaseAdmin
     .from('payment_orders')
     .select()
     .eq('cf_order_id', cfOrderId)
@@ -143,7 +143,7 @@ export async function markOrderPaid(
   paymentMethod?: string
 ): Promise<{ success: boolean; alreadyProcessed: boolean }> {
   // Use RPC for atomic row-level lock
-  const { data: order } = await adminClient
+  const { data: order } = await supabaseAdmin
     .from('payment_orders')
     .select()
     .eq('cf_order_id', cfOrderId)
@@ -200,7 +200,7 @@ export async function markOrderPaid(
   }
 
   // Update order status
-  const { error: updateError } = await adminClient
+  const { error: updateError } = await supabaseAdmin
     .from('payment_orders')
     .update({
       status: 'PAID',
@@ -216,41 +216,59 @@ export async function markOrderPaid(
     return { success: false, alreadyProcessed: false };
   }
 
-  // Activate the plan on the workspace
-  try {
-    await activateWorkspacePlan(
-      order.workspace_id,
-      order.plan_id,
-      order.billing_cycle
-    );
-  } catch (wsErr) {
-    logger.error('Failed to activate workspace plan in markOrderPaid', {
-      error: wsErr instanceof Error ? wsErr : new Error(String(wsErr)),
-      workspaceId: order.workspace_id,
-      planId: order.plan_id,
+  // Activate workspace plan — retry up to 3 times with exponential backoff
+  let planActivated = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await activateWorkspacePlan(order.workspace_id, order.plan_id, order.billing_cycle);
+      planActivated = true;
+      break;
+    } catch (wsErr) {
+      logger.error(`Failed to activate workspace plan (attempt ${attempt}/3)`, {
+        error: wsErr instanceof Error ? wsErr : new Error(String(wsErr)),
+        workspaceId: order.workspace_id,
+        planId: order.plan_id,
+      });
+      if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1000));
+    }
+  }
+  if (!planActivated) {
+    logger.error('CRITICAL: Payment recorded but workspace plan NOT activated. Manual intervention required.', {
+      cfOrderId, workspaceId: order.workspace_id, planId: order.plan_id
     });
+    // Still continue — subscription upsert below provides a second path to recovery
   }
 
-  // Activate and persist subscription record on the workspace
-  try {
-    await upsertSubscription({
-      workspaceId: order.workspace_id,
-      userId: order.user_id,
-      planId: order.plan_id as PlanId,
-      billingCycle: order.billing_cycle as BillingCycle,
-      amountPaise: order.amount_paise,
-      currency: order.currency as Currency,
-      cfSubscriptionId: cfPaymentId,
-      status: 'active',
-      currentPeriodStart: new Date().toISOString(),
-      currentPeriodEnd: calculatePeriodEnd(order.billing_cycle as BillingCycle),
-      paymentMethod: paymentMethod || order.payment_method || undefined,
-    });
-  } catch (subErr) {
-    logger.error('Failed to upsert subscription in markOrderPaid', {
-      error: subErr instanceof Error ? subErr : new Error(String(subErr)),
-      workspaceId: order.workspace_id,
-      planId: order.plan_id,
+  // Upsert subscription record — retry up to 3 times
+  let subscriptionCreated = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await upsertSubscription({
+        workspaceId: order.workspace_id,
+        userId: order.user_id,
+        planId: order.plan_id as PlanId,
+        billingCycle: order.billing_cycle as BillingCycle,
+        amountPaise: order.amount_paise,
+        currency: order.currency as Currency,
+        cfSubscriptionId: cfPaymentId,
+        status: 'active',
+        currentPeriodStart: new Date().toISOString(),
+        currentPeriodEnd: calculatePeriodEnd(order.billing_cycle as BillingCycle),
+        paymentMethod: paymentMethod || order.payment_method || undefined,
+      });
+      subscriptionCreated = true;
+      break;
+    } catch (subErr) {
+      logger.error(`Failed to upsert subscription (attempt ${attempt}/3)`, {
+        error: subErr instanceof Error ? subErr : new Error(String(subErr)),
+        workspaceId: order.workspace_id,
+      });
+      if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1000));
+    }
+  }
+  if (!subscriptionCreated) {
+    logger.error('CRITICAL: Payment recorded but subscription NOT created. Manual intervention required.', {
+      cfOrderId, workspaceId: order.workspace_id
     });
   }
 
@@ -276,7 +294,7 @@ export async function markOrderPaid(
  * Mark a payment order as FAILED.
  */
 export async function markOrderFailed(cfOrderId: string): Promise<void> {
-  await adminClient
+  await supabaseAdmin
     .from('payment_orders')
     .update({
       status: 'FAILED',
@@ -305,7 +323,7 @@ export async function upsertSubscription(params: {
   trialEnd?: string;
   paymentMethod?: string;
 }): Promise<Subscription> {
-  const { data, error } = await adminClient
+  const { data, error } = await supabaseAdmin
     .from('subscriptions')
     .upsert(
       {
@@ -340,7 +358,7 @@ export async function upsertSubscription(params: {
  * Get the current subscription for a workspace.
  */
 export async function getWorkspaceSubscription(workspaceId: string): Promise<Subscription | null> {
-  const { data } = await adminClient
+  const { data } = await supabaseAdmin
     .from('subscriptions')
     .select()
     .eq('workspace_id', workspaceId)
@@ -357,7 +375,7 @@ export async function cancelSubscription(
   immediate: boolean = false
 ): Promise<void> {
   if (immediate) {
-    await adminClient
+    await supabaseAdmin
       .from('subscriptions')
       .update({
         status: 'cancelled',
@@ -367,7 +385,7 @@ export async function cancelSubscription(
       .eq('workspace_id', workspaceId);
 
     // Downgrade workspace to Spark immediately
-    await adminClient
+    await supabaseAdmin
       .from('workspaces')
       .update({
         plan: 'spark',
@@ -377,7 +395,7 @@ export async function cancelSubscription(
       .eq('id', workspaceId);
   } else {
     // Cancel at end of billing period
-    await adminClient
+    await supabaseAdmin
       .from('subscriptions')
       .update({
         cancel_at_period_end: true,
@@ -402,7 +420,7 @@ export async function activateWorkspacePlan(
 ): Promise<void> {
   const periodEnd = calculatePeriodEnd(billingCycle as BillingCycle);
 
-  let { error } = await adminClient
+  let { error } = await supabaseAdmin
     .from('workspaces')
     .update({
       plan: planId,
@@ -414,7 +432,7 @@ export async function activateWorkspacePlan(
 
   // If column updated_at doesn't exist, retry without it
   if (error && (error.message.includes('updated_at') || error.code === '42703')) {
-    const retry = await adminClient
+    const retry = await supabaseAdmin
       .from('workspaces')
       .update({
         plan: planId,
@@ -449,7 +467,7 @@ export async function recordWebhookEvent(
   eventType: string,
   rawPayload: unknown
 ): Promise<boolean> {
-  const { error } = await adminClient
+  const { error } = await supabaseAdmin
     .from('webhook_events')
     .insert({
       cf_payment_id: cfPaymentId,
@@ -492,7 +510,7 @@ export async function getPendingStaleOrders(
 ): Promise<PaymentOrder[]> {
   const threshold = new Date(Date.now() - olderThanMinutes * 60 * 1000).toISOString();
 
-  const { data } = await adminClient
+  const { data } = await supabaseAdmin
     .from('payment_orders')
     .select()
     .eq('status', 'PENDING')

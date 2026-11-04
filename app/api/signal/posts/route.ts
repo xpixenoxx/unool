@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { extractNormalizedEngagement } from '@/lib/services/analytics/normalize';
 import { syncWorkspaceEngagement } from '@/lib/services/analytics/syncEngagement';
 import { scheduleService } from '@/lib/services/ScheduleService';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export async function GET(request: NextRequest) {
   const auth = await getCurrentAuth(request);
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch last 50 posts (published, scheduled, draft, failed, publishing with variants)
-  const { data: posts, error: postsError } = await admin
+  const { data: posts, error: postsError } = await supabaseAdmin
     .from('posts')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
   const postIds = posts.map((p: any) => p.id);
 
   // Fetch all variants for these posts in one query
-  const { data: variants, error: variantsError } = await admin
+  const { data: variants, error: variantsError } = await supabaseAdmin
     .from('post_variants')
     .select('*')
     .in('post_id', postIds)
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
   const variantIds = (variants || []).map((v: any) => v.id);
   let platformPostsByVariant: Record<string, any[]> = {};
   if (variantIds.length > 0) {
-    const { data: pPosts } = await admin
+    const { data: pPosts } = await supabaseAdmin
       .from('platform_posts')
       .select('id, post_variant_id, platform_connection_id, platform_post_id, platform_url, engagement')
       .in('post_variant_id', variantIds);
@@ -199,7 +199,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   // Verify workspace ownership
-  const { data: post } = await admin
+  const { data: post } = await supabaseAdmin
     .from('posts')
     .select('id, workspace_id')
     .eq('id', postId)
@@ -211,18 +211,18 @@ export async function DELETE(request: NextRequest) {
   }
 
   // Find and clean up variants & platform posts
-  const { data: variants } = await admin
+  const { data: variants } = await supabaseAdmin
     .from('post_variants')
     .select('id')
     .eq('post_id', postId);
 
   const variantIds = (variants || []).map((v: any) => v.id);
   if (variantIds.length > 0) {
-    await admin.from('platform_posts').delete().in('post_variant_id', variantIds);
-    await admin.from('post_variants').delete().in('id', variantIds);
+    await supabaseAdmin.from('platform_posts').delete().in('post_variant_id', variantIds);
+    await supabaseAdmin.from('post_variants').delete().in('id', variantIds);
   }
 
-  const { error: deleteError } = await admin
+  const { error: deleteError } = await supabaseAdmin
     .from('posts')
     .delete()
     .eq('id', postId)

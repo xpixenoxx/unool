@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { listAllActiveOverrides, createOverride } from '@/lib/billing/overrides';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const sbAdmin = () => createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 /**
  * GET /api/admin/plan-overrides
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Look up user by email ────────────────────────────────
-    const client = sbAdmin();
+    const client = supabaseAdmin;
     const { data: { users }, error: listError } = await client.auth.admin.listUsers({ perPage: 1000 });
     if (listError) throw new Error('Failed to search users');
 

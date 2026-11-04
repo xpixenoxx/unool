@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -7,21 +6,22 @@ import { InstagramCommentAutomation, type CommentEvent } from '@/lib/services/In
 import { logger } from '@/lib/logger';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/instagram/test-comment?workspaceId=...
- * Health-check the entire pipeline: Supabase connection, Token decryption, Meta Graph API validity, Groq AI key.
+ * Health-check the entire pipeline: supabaseAdmin connection, Token decryption, Meta Graph API validity, Groq AI key.
  */
 export async function GET(request: NextRequest) {
   try {
     const workspaceId = request.nextUrl.searchParams.get('workspaceId') || '1cd222a9-0147-4da6-a7d9-ab7e42462fcb';
 
     // 1. Connection check
-    const { data: connections, error: connErr } = await supabase
+    const { data: connections, error: connErr } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const groqKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
 
     // 5. Automation Config check
-    const { data: autoConfig } = await supabase
+    const { data: autoConfig } = await supabaseAdmin
       .from('instagram_automation_config')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     const postLive = body.postLive === true;
 
     // Fetch connection
-    const { data: connections } = await supabase
+    const { data: connections } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch automation config
-    const { data: cfg } = await supabase
+    const { data: cfg } = await supabaseAdmin
       .from('instagram_automation_config')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -200,8 +200,8 @@ export async function POST(request: NextRequest) {
       graphApiResult = await automation.postPublicReply(accessToken, body.mediaId, body.commentId, finalReply);
     }
 
-    // Log to Supabase
-    const { data: logData, error: logErr } = await supabase
+    // Log to supabaseAdmin
+    const { data: logData, error: logErr } = await supabaseAdmin
       .from('instagram_comment_logs')
       .insert({
         workspace_id: workspaceId,
