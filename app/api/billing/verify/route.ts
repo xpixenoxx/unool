@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       const successPayment = payments.find(p => p.payment_status === 'SUCCESS');
 
       let paymentId = successPayment?.cf_payment_id;
-      let paymentMethodStr = successPayment?.payment_method
+      const paymentMethodStr = successPayment?.payment_method
         ? Object.keys(successPayment.payment_method)[0] || 'unknown'
         : 'unknown';
 

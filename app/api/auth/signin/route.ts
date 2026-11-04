@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
 
       const cookieStore = await cookies();
       let sessionData: any = null;
-      let cookiesToSet: { name: string; value: string; options: any }[] = [];
+      const cookiesToSet: { name: string; value: string; options: any }[] = [];
       
       const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
         cookies: {

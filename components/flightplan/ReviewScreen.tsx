@@ -741,7 +741,7 @@ export function ReviewScreen({
               <div className="main">
                 <div className="fp-air">
                   <span>
-                    <i>✈</i> FLIGHT LEG 0{postDayIndex + 1} // 07
+                    <i>✈</i> FLIGHT LEG 0{postDayIndex + 1} {'//'} 07
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span>{format(dayDate, 'EEEE d MMMM')}</span>

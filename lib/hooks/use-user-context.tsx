@@ -1,69 +1,76 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
-interface User {
-  id: string;
-  email: string;
-  fullName?: string;
-  avatarUrl?: string;
-}
-
-interface Profile {
-  id: string;
-  name: string;
-  headline: string;
-  subdomain: string | null;
-  status: 'published' | 'draft';
-  theme: { preset: string };
-}
-
-interface Workspace {
-  id: string;
-  name: string;
-  planTier: string;
-}
-
-interface UserContext {
-  user: User | null;
-  profile: Profile | null;
-  workspace: Workspace | null;
+export interface UserContextType {
+  user: any | null;
+  profile: any | null;
+  workspace: any | null;
   pendingPostsCount: number;
   loading: boolean;
   refetch: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContext | null>(null);
+const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<any | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
+  const [workspace, setWorkspace] = useState<any | null>(null);
   const [pendingPostsCount, setPendingPostsCount] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const fetchUserContext = async () => {
     try {
-      const res = await fetch('/api/user/context', { credentials: 'include' });
-      if (res.status === 401) {
+      const supabase = createSupabaseBrowserClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      if (!authUser) {
         setUser(null);
         setProfile(null);
         setWorkspace(null);
         setPendingPostsCount(0);
-        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard')) {
-          window.location.replace('/signin');
-        }
+        setLoading(false);
         return;
       }
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-        setProfile(data.profile);
-        setWorkspace(data.workspace);
-        setPendingPostsCount(typeof data.pendingPostsCount === 'number' ? data.pendingPostsCount : 0);
+
+      setUser(authUser);
+
+      // Fetch Profile
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single();
+
+      if (userProfile) {
+        setProfile(userProfile);
+      }
+
+      // Fetch Default/Active Workspace
+      const { data: userWorkspace } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('owner_id', authUser.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (userWorkspace) {
+        setWorkspace(userWorkspace);
+
+        // Fetch Pending Posts Count for workspace
+        const { count } = await supabase
+          .from('scheduled_posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('workspace_id', userWorkspace.id)
+          .eq('status', 'scheduled');
+
+        setPendingPostsCount(count || 0);
       }
     } catch (error) {
-      console.error('Failed to fetch user context:', error);
+      console.error('Error fetching User Context:', error);
     } finally {
       setLoading(false);
     }
@@ -95,4 +102,8 @@ export function useUserContext() {
     throw new Error('useUserContext must be used within a UserProvider');
   }
   return context;
+}
+
+export function useOptionalUserContext(): UserContextType | undefined {
+  return useContext(UserContext);
 }

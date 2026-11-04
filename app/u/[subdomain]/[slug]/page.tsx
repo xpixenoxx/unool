@@ -82,12 +82,12 @@ export default async function BrandMaterialsSlugPage({ params, searchParams }: P
           <p className="text-sm text-white/60 mb-6">
             The profile for <span className="text-white font-mono">@{subdomain}</span> does not exist or has been updated.
           </p>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-semibold bg-white text-black hover:bg-white/90 transition-all"
           >
             Go to UNOOL Home
-          </a>
+          </Link>
         </div>
       </div>
     );

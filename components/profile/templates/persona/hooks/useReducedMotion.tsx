@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 
 /* ============================================================
    REDUCED MOTION HOOK
@@ -31,8 +31,6 @@ export function useReducedMotion(): boolean {
    REDUCED MOTION CONTEXT
    ============================================================ */
 
-import { createContext, useContext, ReactNode } from 'react';
-
 interface ReducedMotionContextType {
   prefersReducedMotion: boolean;
 }
@@ -51,10 +49,7 @@ export function ReducedMotionProvider({ children }: { children: ReactNode }) {
 }
 
 export function useReducedMotionContext(): boolean {
+  const fallback = useReducedMotion();
   const context = useContext(ReducedMotionContext);
-  if (!context) {
-    // Fallback to hook if not wrapped in provider
-    return useReducedMotion();
-  }
-  return context.prefersReducedMotion;
+  return context ? context.prefersReducedMotion : fallback;
 }

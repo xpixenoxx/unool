@@ -361,7 +361,7 @@ function TopOneLinksTable({ topProfiles }: {
   );
 }
 
-let cachedAnalyticsMap: Record<number, AnalyticsSummary> = {};
+const cachedAnalyticsMap: Record<number, AnalyticsSummary> = {};
 
 export default function AdminAnalyticsPage() {
   const [days, setDays] = React.useState(30);

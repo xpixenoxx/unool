@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       const numDays = Math.min(Math.max(numberOfDays || 3, 1), 14);
 
       // Resolve profile
-      let profileContext: AdaptationContext = {};
+      const profileContext: AdaptationContext = {};
       let resolvedProfileId = profileId;
       let targetProfile = null;
 

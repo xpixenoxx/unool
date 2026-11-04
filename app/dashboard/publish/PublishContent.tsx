@@ -180,7 +180,7 @@ function PublishContentInner() {
       }
 
       // Update draft statuses based on results
-      let results: Record<string, { success: boolean; platformUrl?: string; error?: string }> = {};
+      const results: Record<string, { success: boolean; platformUrl?: string; error?: string }> = {};
       if (data.results) {
         for (const [platform, result] of Object.entries(data.results)) {
           const r = result as { success: boolean; platformUrl?: string; error?: string };

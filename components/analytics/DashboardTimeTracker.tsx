@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { useUserContext } from '@/lib/hooks/use-user-context';
+import { useOptionalUserContext } from '@/lib/hooks/use-user-context';
 import { getAccessToken } from '@/lib/supabase/browser';
 
 export function normalizeDashboardSection(pathname: string): string {
@@ -38,13 +38,8 @@ interface DashboardTimeTrackerProps {
 export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWorkspaceId }: DashboardTimeTrackerProps = {}) {
   const pathname = usePathname();
 
-  // Safely retrieve user and workspace context
-  let userContext: any = null;
-  try {
-    userContext = useUserContext();
-  } catch {
-    // Graceful fallback if rendered outside UserProvider
-  }
+  // Safely retrieve user and workspace context unconditionally (Rules of Hooks compliant)
+  const userContext = useOptionalUserContext();
 
   const effectiveUserId = propUserId || userContext?.user?.id;
   const effectiveWorkspaceId = propWorkspaceId || userContext?.workspace?.id;

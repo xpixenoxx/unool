@@ -10,8 +10,8 @@ async function handleGenerate(request: NextRequest) {
   const traceId = crypto.randomUUID();
 
   try {
-    let userId = request.headers.get('x-user-id');
-    let workspaceId = request.headers.get('x-workspace-id');
+    const userId = request.headers.get('x-user-id');
+    const workspaceId = request.headers.get('x-workspace-id');
 
 
     if (!userId || !workspaceId) {

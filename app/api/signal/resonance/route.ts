@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
   const variantIds = (variants || []).map((v: any) => v.id);
 
   // 2. Fetch real platform posts containing engagement data
-  let platformPostsByVariant: Record<string, any[]> = {};
+  const platformPostsByVariant: Record<string, any[]> = {};
   if (variantIds.length > 0) {
     const { data: pPosts } = await supabaseAdmin
       .from('platform_posts')

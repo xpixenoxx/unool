@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const connection = connections && connections.length > 0 ? connections[0] : null;
     let instagramLivePosts: PublishedInstagramPost[] = [];
     let isConnected = false;
-    let username = connection?.username || '';
+    const username = connection?.username || '';
 
     if (connection && connection.access_token_encrypted) {
       isConnected = true;

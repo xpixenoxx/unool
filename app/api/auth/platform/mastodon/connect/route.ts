@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Normalize instance URL: remove protocol and trailing slashes
-    let normalizedUrl = instanceUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const normalizedUrl = instanceUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
     const tokenPayload = JSON.stringify({ instanceUrl: normalizedUrl, accessToken });
 

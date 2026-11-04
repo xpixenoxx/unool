@@ -14,8 +14,8 @@ async function handleExtract(request: NextRequest) {
 
   try {
     // Get userId and workspaceId from headers (added by middleware) or dev bypass
-    let userId = request.headers.get('x-user-id');
-    let workspaceId = request.headers.get('x-workspace-id');
+    const userId = request.headers.get('x-user-id');
+    const workspaceId = request.headers.get('x-workspace-id');
 
 
     if (!userId || !workspaceId) {
