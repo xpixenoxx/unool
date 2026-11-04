@@ -1,76 +1,69 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 
-export interface UserContextType {
-  user: any | null;
-  profile: any | null;
-  workspace: any | null;
+interface User {
+  id: string;
+  email: string;
+  fullName?: string;
+  avatarUrl?: string;
+}
+
+interface Profile {
+  id: string;
+  name: string;
+  headline: string;
+  subdomain: string | null;
+  status: 'published' | 'draft';
+  theme: { preset: string };
+}
+
+interface Workspace {
+  id: string;
+  name: string;
+  planTier: string;
+}
+
+export interface UserContext {
+  user: User | null;
+  profile: Profile | null;
+  workspace: Workspace | null;
   pendingPostsCount: number;
   loading: boolean;
   refetch: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+const UserContext = createContext<UserContext | null>(null);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
-  const [workspace, setWorkspace] = useState<any | null>(null);
+export function UserProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [pendingPostsCount, setPendingPostsCount] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
 
   const fetchUserContext = async () => {
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-
-      if (!authUser) {
+      const res = await fetch('/api/user/context', { credentials: 'include' });
+      if (res.status === 401) {
         setUser(null);
         setProfile(null);
         setWorkspace(null);
         setPendingPostsCount(0);
-        setLoading(false);
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard')) {
+          window.location.replace('/signin');
+        }
         return;
       }
-
-      setUser(authUser);
-
-      // Fetch Profile
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .single();
-
-      if (userProfile) {
-        setProfile(userProfile);
-      }
-
-      // Fetch Default/Active Workspace
-      const { data: userWorkspace } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('owner_id', authUser.id)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
-
-      if (userWorkspace) {
-        setWorkspace(userWorkspace);
-
-        // Fetch Pending Posts Count for workspace
-        const { count } = await supabase
-          .from('scheduled_posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('workspace_id', userWorkspace.id)
-          .eq('status', 'scheduled');
-
-        setPendingPostsCount(count || 0);
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+        setProfile(data.profile);
+        setWorkspace(data.workspace);
+        setPendingPostsCount(typeof data.pendingPostsCount === 'number' ? data.pendingPostsCount : 0);
       }
     } catch (error) {
-      console.error('Error fetching User Context:', error);
+      console.error('Failed to fetch user context:', error);
     } finally {
       setLoading(false);
     }
@@ -104,6 +97,6 @@ export function useUserContext() {
   return context;
 }
 
-export function useOptionalUserContext(): UserContextType | undefined {
+export function useOptionalUserContext(): UserContext | null {
   return useContext(UserContext);
 }
