@@ -423,25 +423,35 @@ export class InstagramAdapter implements PlatformAdapter {
         views: 0,
       };
 
-      // Step 2: Fetch reach/impressions via Insights API.
+      // Step 2: Fetch reach/views via Insights API.
       // Requires instagram_business_manage_insights scope (already in authConfig.scopes).
-      // Reels/Videos use different metric names than Images/Carousels.
+      // Meta Graph API v20+ supports 'views' and 'reach'.
       const isVideo = data.media_type === 'VIDEO' || data.media_type === 'REELS';
-      const insightMetrics = isVideo ? 'plays,reach,saved' : 'reach,impressions,saved';
+      const insightMetrics = isVideo ? 'views,reach,plays' : 'views,reach';
 
       try {
-        const insightsResponse = await fetchWithRetry(
+        let insightsResponse = await fetchWithRetry(
           `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}/insights?metric=${insightMetrics}&access_token=${accessToken}`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
+
+        // Fallback: If compound metric query failed (e.g. 'views' or 'plays' unsupported for this media),
+        // query universal 'reach' alone
+        if (!insightsResponse.ok) {
+          insightsResponse = await fetchWithRetry(
+            `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}/insights?metric=reach&access_token=${accessToken}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+        }
 
         if (insightsResponse.ok) {
           const insightsData = await insightsResponse.json();
           const metrics: Array<{ name: string; values: Array<{ value: number }> }> = insightsData.data || [];
           for (const metric of metrics) {
             const val = metric.values?.[0]?.value ?? 0;
-            if (metric.name === 'reach') baseEngagement.views = val;
-            if (metric.name === 'plays') baseEngagement.views = val;        // Reels video plays
+            if (metric.name === 'views' && val > 0) baseEngagement.views = val;
+            if (metric.name === 'reach' && (!baseEngagement.views || Number(baseEngagement.views) === 0)) baseEngagement.views = val;
+            if (metric.name === 'plays' && (!baseEngagement.views || Number(baseEngagement.views) === 0)) baseEngagement.views = val;
             if (metric.name === 'impressions') baseEngagement.impressions = val;
             if (metric.name === 'saved') baseEngagement.saved = val;
           }
