@@ -27,3 +27,4 @@ export function formatSeconds(seconds: number, showSeconds: boolean = false): st
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
+

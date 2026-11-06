@@ -29,3 +29,4 @@ export function normalizeSectionName(raw: string): DashboardSection {
   if (clean.startsWith('composer')) return 'studio';
   return 'overview';
 }
+
