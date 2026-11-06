@@ -91,7 +91,9 @@ export function extractNormalizedEngagement(raw: any): UniversalEngagement {
     engagementRate = Math.min(Math.round(totalInteractions * 3.5), 100);
   }
 
-  const hasRealData = totalInteractions > 0 || views > 0 || Boolean(raw.syncedAt);
+  // hasRealData must reflect actual numeric data, NOT just a successful sync attempt.
+  // syncedAt alone means the sync ran but data could still be all-zeros (e.g. API error).
+  const hasRealData = totalInteractions > 0 || views > 0;
 
   return {
     likes: Math.max(0, isNaN(likes) ? 0 : likes),

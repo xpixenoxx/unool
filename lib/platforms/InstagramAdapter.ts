@@ -400,22 +400,61 @@ export class InstagramAdapter implements PlatformAdapter {
 
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('instagram', async () => {
+      // Step 1: Fetch basic engagement — like_count and comments_count are always
+      // available on Business/Creator accounts. views_count and shares_count do NOT
+      // exist on the Instagram Graph API Media object (they cause a #100 error that
+      // rejects the entire request), so we fetch them separately via the Insights API.
       const response = await fetchWithRetry(
-        `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}?fields=like_count,comments_count,views_count,shares_count`,
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}?fields=like_count,comments_count,media_type`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
       if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        logger.error('Instagram getEngagement basic fetch failed', { platformPostId, status: response.status, body: errText });
         return {};
       }
 
       const data = await response.json();
-      return {
-        likes: data.like_count || 0,
-        comments: data.comments_count || 0,
-        views: data.views_count || 0,
-        shares: data.shares_count || 0,
+      const baseEngagement: Record<string, unknown> = {
+        likes: data.like_count ?? 0,
+        comments: data.comments_count ?? 0,
+        shares: 0,
+        views: 0,
       };
+
+      // Step 2: Fetch reach/impressions via Insights API.
+      // Requires instagram_business_manage_insights scope (already in authConfig.scopes).
+      // Reels/Videos use different metric names than Images/Carousels.
+      const isVideo = data.media_type === 'VIDEO' || data.media_type === 'REELS';
+      const insightMetrics = isVideo ? 'plays,reach,saved' : 'reach,impressions,saved';
+
+      try {
+        const insightsResponse = await fetchWithRetry(
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}/insights?metric=${insightMetrics}&access_token=${accessToken}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+
+        if (insightsResponse.ok) {
+          const insightsData = await insightsResponse.json();
+          const metrics: Array<{ name: string; values: Array<{ value: number }> }> = insightsData.data || [];
+          for (const metric of metrics) {
+            const val = metric.values?.[0]?.value ?? 0;
+            if (metric.name === 'reach') baseEngagement.views = val;
+            if (metric.name === 'plays') baseEngagement.views = val;        // Reels video plays
+            if (metric.name === 'impressions') baseEngagement.impressions = val;
+            if (metric.name === 'saved') baseEngagement.saved = val;
+          }
+        } else {
+          const insightsErr = await insightsResponse.text().catch(() => '');
+          logger.warn('Instagram insights fetch non-ok (non-critical)', { platformPostId, status: insightsResponse.status, body: insightsErr });
+        }
+      } catch (insightsError) {
+        // Insights are non-critical — basic like/comment engagement is still returned
+        logger.warn('Instagram insights fetch threw (non-critical)', { platformPostId, error: insightsError });
+      }
+
+      return baseEngagement;
     });
   }
 }
