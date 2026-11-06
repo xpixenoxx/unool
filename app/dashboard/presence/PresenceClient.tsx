@@ -1213,7 +1213,7 @@ export function PresenceClient(_props: PresenceClientProps) {
                           border: `1px solid ${T.inputBorder}`,
                           color: T.text,
                         }}
-                        placeholder="Jane Doe"
+                        placeholder="Pixenox Creator"
                       />
                     </div>
                     <div className="space-y-1.5">

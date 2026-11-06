@@ -139,7 +139,7 @@ export default function ContactUsPage() {
                     <input
                       type="text"
                       required
-                      placeholder="Jane Doe"
+                      placeholder="Pixenox Partner / Your Name"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C84B31]"
@@ -150,7 +150,7 @@ export default function ContactUsPage() {
                     <input
                       type="email"
                       required
-                      placeholder="jane@example.com"
+                      placeholder="connect@pixenox.com"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C84B31]"
@@ -163,7 +163,7 @@ export default function ContactUsPage() {
                   <input
                     type="text"
                     required
-                    placeholder="Billing / Account Query / Business Collaboration"
+                    placeholder="Pixenox Solutions Query / Billing / Collaboration"
                     value={form.subject}
                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C84B31]"
@@ -175,7 +175,7 @@ export default function ContactUsPage() {
                   <textarea
                     rows={4}
                     required
-                    placeholder="How can we assist you today?"
+                    placeholder="How can Pixenox Solutions assist you with Unool today?"
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C84B31]"

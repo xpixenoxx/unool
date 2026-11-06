@@ -344,7 +344,7 @@ export function ClubContactDrawer({ isOpen, onClose, profile, onSubmit }: ClubCo
                     id="name"
                     name="name"
                     className="club-form-input"
-                    placeholder="Jane Doe"
+                    placeholder="Pixenox Partner / Your Name"
                     value={formData.name}
                     onChange={handleChange}
                     required
@@ -359,7 +359,7 @@ export function ClubContactDrawer({ isOpen, onClose, profile, onSubmit }: ClubCo
                     id="email"
                     name="email"
                     className="club-form-input"
-                    placeholder="jane@company.com"
+                    placeholder="partner@pixenox.com"
                     value={formData.email}
                     onChange={handleChange}
                     required
