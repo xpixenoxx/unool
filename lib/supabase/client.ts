@@ -4,3 +4,4 @@ export {
   getSupabaseBrowserClient as createSupabaseBrowserClient,
   getAccessToken,
 } from './browser';
+

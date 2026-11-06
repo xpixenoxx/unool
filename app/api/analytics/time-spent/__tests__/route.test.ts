@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { normalizeSectionName } from '../route';
+import { normalizeSectionName } from '../helpers';
 
 const mockGetCurrentAuth = vi.fn();
 const mockGetUserById = vi.fn();

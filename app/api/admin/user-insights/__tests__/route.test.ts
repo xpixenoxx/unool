@@ -25,7 +25,8 @@ vi.mock('@supabase/supabase-js', () => ({
   })),
 }));
 
-import { GET, formatSeconds } from '../route';
+import { GET } from '../route';
+import { formatSeconds } from '../helpers';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
 
