@@ -3,7 +3,7 @@
  *
  * Cryptographically-secure OTP generation and verification.
  *
- * For SIGNUP, no Supabase user is created yet â€” OTP is stored with email + metadata only.
+ * For SIGNUP, no Supabase user is created yet — OTP is stored with email + metadata only.
  * For SIGNIN, user_id is used for lookup.
  *
  * RULES:
@@ -30,7 +30,7 @@ if (!OTP_PEPPER) {
 
 export type OtpPurpose = 'signup' | 'signin' | 'reset';
 
-// â”€â”€ Generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Generation ────────────────────────────────────────────────────────────────
 
 export function generateOtp(): string {
   const n = crypto.randomInt(0, 1_000_000);
@@ -49,10 +49,10 @@ function safeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
-// â”€â”€ Issue (Signup â€” no user yet) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Issue (Signup — no user yet) ──────────────────────────────────────────────
 
 export interface IssueOtpResult {
-  otp:          string;   // plaintext â€” send via email; never log or store
+  otp:          string;   // plaintext — send via email; never log or store
   expiresAt:    Date;
   nextResendAt: Date;
 }
@@ -148,7 +148,7 @@ export async function issueOtp(userId: string, purpose: OtpPurpose, email?: stri
   return { otp, expiresAt, nextResendAt };
 }
 
-// â”€â”€ Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Verification ──────────────────────────────────────────────────────────────
 
 export type OtpVerifyResult =
   | { success: true;  metadata?: Record<string, string> }
@@ -245,7 +245,7 @@ async function _checkAndMarkOtp(challenge: Record<string, unknown>, plainOtp: st
   return { success: true, metadata: challenge.metadata as Record<string, string> };
 }
 
-// â”€â”€ Resend Check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Resend Check ─────────────────────────────────────────────────────────────
 
 export async function isSignupResendCoolingDown(email: string): Promise<boolean> {
   const { data } = await supabaseAdmin

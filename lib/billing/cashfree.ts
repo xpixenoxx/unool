@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// CASHFREE API CLIENT â€” Server-side only
+// CASHFREE API CLIENT — Server-side only
 // This file MUST NEVER be imported in client components.
 // All API keys stay server-side (no NEXT_PUBLIC_ prefix).
 // ============================================================
@@ -9,11 +9,11 @@ import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 export type { PlanId, BillingCycle, Currency } from '@/lib/billing/plans';
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ───────────────────────────────────────────────────────
 
 export interface CashfreeOrderRequest {
   order_id: string;
-  order_amount: number;        // In rupees (not paise) â€” Cashfree expects decimal
+  order_amount: number;        // In rupees (not paise) — Cashfree expects decimal
   order_currency: string;      // 'INR' or 'USD'
   customer_details: {
     customer_id: string;
@@ -82,7 +82,7 @@ export interface CashfreeWebhookPayload {
   };
 }
 
-// â”€â”€ API Client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── API Client ──────────────────────────────────────────────────
 
 function getHeaders(): Record<string, string> {
   const appId = config.CASHFREE_APP_ID || process.env.CASHFREE_APP_ID;
@@ -437,7 +437,7 @@ export async function payOrderWithNetbanking(
   return data;
 }
 
-// â”€â”€ Webhook Signature Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Webhook Signature Verification ──────────────────────────────
 
 /**
  * Verify Cashfree webhook signature using HMAC-SHA256.

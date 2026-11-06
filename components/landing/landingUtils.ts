@@ -339,7 +339,7 @@ export function initUaPlayer(containerEl?: HTMLElement | null): () => void {
               '</span>Queued post</div>'
             : '') +
           (b
-            ? '<div class="bt" data-k="bt">Best time ┬╖ 9:40</div><div class="chip" data-k="dc" style="left:8px;top:22px;width:auto;right:8px"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div>'
+            ? '<div class="bt" data-k="bt">Best time · 9:40</div><div class="chip" data-k="dc" style="left:8px;top:22px;width:auto;right:8px"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div>'
             : '') +
           '</div>';
       }
@@ -348,9 +348,9 @@ export function initUaPlayer(containerEl?: HTMLElement | null): () => void {
   }
 
   const STEPS: [string, string, number, number][] = [
-    ['Departure time reached', 'Tue 9:40 ┬╖ queue checked', 7, 7.6],
+    ['Departure time reached', 'Tue 9:40 · queue checked', 7, 7.6],
     ['Preparing media', 'Resized for 4:5 and 1.91:1', 7.6, 9],
-    ['Publishing to Instagram', 'Container created ΓåÆ published', 9, 10.6],
+    ['Publishing to Instagram', 'Container created → published', 9, 10.6],
     ['Publishing to LinkedIn', 'Post shared to your profile', 10.4, 12.1]
   ];
   const stepsEl = $('steps');
@@ -420,7 +420,7 @@ export function initUaPlayer(containerEl?: HTMLElement | null): () => void {
   }
 
   const CAPS: [number, string, string, string][] = [
-    [0, 'STEP 3', 'Flight plan', 'Drop it on the best time ΓÇö Unool suggests when your audience is online.'],
+    [0, 'STEP 3', 'Flight plan', 'Drop it on the best time — Unool suggests when your audience is online.'],
     [6.5, 'STEP 4', 'Publish', 'At the scheduled minute it goes live everywhere, hands-free.']
   ];
 
@@ -450,7 +450,7 @@ export function initUaPlayer(containerEl?: HTMLElement | null): () => void {
     if (swEl) swEl.className = 'sw' + (sw ? ' on' : '');
     put('swl', sw ? 'Auto-publish ON' : 'Auto-publish');
 
-    const fs = t < 7 ? 'Scheduled' : t < 9 ? 'Boarding' : t < 12.2 ? 'In flight' : 'Landed ┬╖ Live';
+    const fs = t < 7 ? 'Scheduled' : t < 9 ? 'Boarding' : t < 12.2 ? 'In flight' : 'Landed · Live';
     const fsEl = $('fs');
     if (fsEl) fsEl.textContent = fs;
     const plEl = $('pl');
@@ -463,7 +463,7 @@ export function initUaPlayer(containerEl?: HTMLElement | null): () => void {
       const a = t >= s[2] && !d;
       e.className = 'stp ' + (d ? 'd' : a ? 'a' : 'p');
       const dot = e.querySelector('.dot');
-      if (dot) dot.textContent = d ? 'Γ£ô' : '';
+      if (dot) dot.textContent = d ? '✓' : '';
     });
 
     const lvEl = $('lv');
@@ -660,10 +660,10 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
     const brandAvatar =
       '<div class="px-av"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>';
 
-    // 0: Instagram ΓÇö pixel-perfect authentic iOS feed post
+    // 0: Instagram — pixel-perfect authentic iOS feed post
     CD[0].innerHTML =
       SB +
-      // Instagram header bar ΓÇö wordmark + actions
+      // Instagram header bar — wordmark + actions
       '<div class="ig-header">' +
       '<span class="ig-wordmark">Instagram</span>' +
       '<div class="ig-header-actions">' +
@@ -682,11 +682,11 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       '</div>' +
       '<div class="ig-author-meta">' +
       '<div class="ig-author-name">pixenox.atelier <svg viewBox="0 0 24 24" width="13" height="13" fill="#0095f6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>' +
-      '<span class="ig-location">Paris, France ΓÇó Original audio</span>' +
+      '<span class="ig-location">Paris, France • Original audio</span>' +
       '</div>' +
-      '<span class="ig-more">┬╖┬╖┬╖</span>' +
+      '<span class="ig-more">···</span>' +
       '</div>' +
-      // Post media ΓÇö full-bleed 1080x1350 vertical dress image
+      // Post media — full-bleed 1080x1350 vertical dress image
       '<div class="ig-media"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
       // Instagram engagement action row
       '<div class="ig-action-bar">' +
@@ -703,7 +703,7 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       // Instagram caption & social proof
       '<div class="ig-post-info">' +
       '<div class="ig-likes-row">Liked by <b>clara.style</b> and <b>2,842 others</b></div>' +
-      '<div class="ig-caption"><b>pixenox.atelier</b> Meet the Linen Wrap Dress ≡ƒî┐ Hand-woven terracotta linen, crafted for warm days. Sizes XSΓÇôXL.<br>First 50 orders get <b>20% off</b> this week only Γ£¿</div>' +
+      '<div class="ig-caption"><b>pixenox.atelier</b> Meet the Linen Wrap Dress 🌿 Hand-woven terracotta linen, crafted for warm days. Sizes XS–XL.<br>First 50 orders get <b>20% off</b> this week only ✨</div>' +
       '<div class="ig-tags">#sustainablefashion #slowfashion #linendress #atelier</div>' +
       '<div class="ig-comments-link">View all 64 comments</div>' +
       '<div class="ig-timestamp">2 HOURS AGO</div>' +
@@ -713,10 +713,10 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
       HI;
 
-    // 1: LinkedIn ΓÇö pixel-perfect native feed post
+    // 1: LinkedIn — pixel-perfect native feed post
     CD[1].innerHTML =
       SB +
-      // LinkedIn header bar ΓÇö avatar + search + messaging
+      // LinkedIn header bar — avatar + search + messaging
       '<div class="lh">' +
       brandAvatarSm +
       '<div class="srch">' +
@@ -735,22 +735,22 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       '<div class="li-author-row">' +
       brandAvatar +
       '<div class="li-author-meta">' +
-      '<div class="li-author-name">Pixenox Atelier <small>ΓÇó 1st</small></div>' +
+      '<div class="li-author-name">Pixenox Atelier <small>• 1st</small></div>' +
       '<span class="li-author-sub">Sustainable Artisan Apparel &amp; Design</span>' +
-      '<div class="li-author-time">2h ΓÇó <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 14.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13zM1.5 8h3a11.5 11.5 0 00.7 4H2.4A6.5 6.5 0 011.5 8zm0-1a6.5 6.5 0 01.9-3h2.8a11.5 11.5 0 00-.7 3h-3zm6.5-5.5a10 10 0 011.9 4.5h-3.8A10 10 0 018 1.5zm0 13a10 10 0 01-1.9-4.5h3.8A10 10 0 018 14.5zm0-5.5H5.1A10.8 10.8 0 015 8c0-.3 0-.7.1-1h5.8c.1.3.1.7.1 1 0 .3 0 .7-.1 1H8zm2.8 4a11.5 11.5 0 00.7-3h3a6.5 6.5 0 01-.9 3h-2.8zm.7-4a11.5 11.5 0 00-.7-3h2.8a6.5 6.5 0 01.9 3h-3z"/></svg></div>' +
+      '<div class="li-author-time">2h • <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 14.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13zM1.5 8h3a11.5 11.5 0 00.7 4H2.4A6.5 6.5 0 011.5 8zm0-1a6.5 6.5 0 01.9-3h2.8a11.5 11.5 0 00-.7 3h-3zm6.5-5.5a10 10 0 011.9 4.5h-3.8A10 10 0 018 1.5zm0 13a10 10 0 01-1.9-4.5h3.8A10 10 0 018 14.5zm0-5.5H5.1A10.8 10.8 0 015 8c0-.3 0-.7.1-1h5.8c.1.3.1.7.1 1 0 .3 0 .7-.1 1H8zm2.8 4a11.5 11.5 0 00.7-3h3a6.5 6.5 0 01-.9 3h-2.8zm.7-4a11.5 11.5 0 00-.7-3h2.8a6.5 6.5 0 01.9 3h-3z"/></svg></div>' +
       '</div>' +
       '<span class="li-follow-btn">+ Follow</span>' +
-      '<span class="li-more-btn">┬╖┬╖┬╖</span>' +
+      '<span class="li-more-btn">···</span>' +
       '</div>' +
-      // Post body ΓÇö formatted for LinkedIn
+      // Post body — formatted for LinkedIn
       '<div class="li-body">' +
-      '<p><b>≡ƒî┐ Introducing the Linen Wrap Dress:</b></p>' +
-      '<p>Hand-woven terracotta linen, crafted for warm days and effortless movement. Sizes XSΓÇôXL.</p>' +
-      '<p>ΓåÆ 100% breathable organic European linen<br>ΓåÆ Hand-dyed natural terracotta hue<br>ΓåÆ Tailored zero-waste silhouette</p>' +
+      '<p><b>🌿 Introducing the Linen Wrap Dress:</b></p>' +
+      '<p>Hand-woven terracotta linen, crafted for warm days and effortless movement. Sizes XS–XL.</p>' +
+      '<p>→ 100% breathable organic European linen<br>→ Hand-dyed natural terracotta hue<br>→ Tailored zero-waste silhouette</p>' +
       '<p>First 50 pieces: <b>20% off this week only.</b></p>' +
       '<p class="li-tags">#SustainableFashion #SlowFashion #LinenDress #Atelier</p>' +
       '</div>' +
-      // Full-bleed post image (LinkedIn style ΓÇö extends edge-to-edge)
+      // Full-bleed post image (LinkedIn style — extends edge-to-edge)
       '<div class="li-media"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
       // Reactions row with authentic LinkedIn badge icons
       '<div class="li-reactions-row">' +
@@ -762,7 +762,7 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       '</div>' +
       '<span style="font-weight:600;margin-left:3px">1,420</span>' +
       '</div>' +
-      '<span>98 comments ΓÇó 34 reposts</span>' +
+      '<span>98 comments • 34 reposts</span>' +
       '</div>' +
       // Action buttons row
       '<div class="li-action-bar">' +
@@ -791,7 +791,7 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
 
   const isDefault =
     text.includes('At Pixenox, we just shipped') ||
-    text === 'At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by 80%. HereΓÇÖs what we learned building it.';
+    text === 'At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by 80%. Here’s what we learned building it.';
 
   if (isDefault) {
     // 0: LinkedIn
@@ -801,7 +801,7 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       ic('search', 15, 2) +
       'Search</div>' +
       ic('chat', 23, 1.7) +
-      '</div><div class="fd"><div class="lp"><div class="ph"><span class="av">P</span><div><b>Pixenox</b> ΓÇó 1st<small>AI Design Systems</small><small>2h ΓÇó ≡ƒîÉ</small></div><span class="fl">+ Follow</span></div><p><b>≡ƒÜÇ Big announcement from Pixenox:</b></p><p>We just shipped our AI-powered design system that reduces brand iteration time by <b>80%.</b></p><p>ΓåÆ Consistency beats creativity at scale<br>ΓåÆ Design tokens are your secret weapon<br>ΓåÆ AI amplifies designers, not replaces them</p><p><i>#DesignSystems #AI #Startups</i></p><div class="gfx"><u style="background:#fdf6ee"></u><u style="background:#e8a595"></u><u style="background:#c84b31"></u><em>80%<small>faster iteration</small></em></div><div class="rx"><span>≡ƒæìΓ¥ñ∩╕Å≡ƒÆí 842</span><span>67 comments ΓÇó 12 reposts</span></div><div class="ar"><span>' +
+      '</div><div class="fd"><div class="lp"><div class="ph"><span class="av">P</span><div><b>Pixenox</b> • 1st<small>AI Design Systems</small><small>2h • 🌐</small></div><span class="fl">+ Follow</span></div><p><b>🚀 Big announcement from Pixenox:</b></p><p>We just shipped our AI-powered design system that reduces brand iteration time by <b>80%.</b></p><p>→ Consistency beats creativity at scale<br>→ Design tokens are your secret weapon<br>→ AI amplifies designers, not replaces them</p><p><i>#DesignSystems #AI #Startups</i></p><div class="gfx"><u style="background:#fdf6ee"></u><u style="background:#e8a595"></u><u style="background:#c84b31"></u><em>80%<small>faster iteration</small></em></div><div class="rx"><span>👍❤️💡 842</span><span>67 comments • 12 reposts</span></div><div class="ar"><span>' +
       ic('like', 19) +
       'Like</span><span>' +
       ic('chat', 19) +
@@ -809,7 +809,7 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       ic('rep', 19) +
       'Repost</span><span>' +
       ic('send', 19) +
-      'Send</span></div></div><div class="lp"><div class="ph"><span class="av" style="background:#7a3b69">M</span><div><b>Maya Chen</b> ΓÇó 2nd<small>Brand Lead at Northwind</small></div></div></div></div>' +
+      'Send</span></div></div><div class="lp"><div class="ph"><span class="av" style="background:#7a3b69">M</span><div><b>Maya Chen</b> • 2nd<small>Brand Lead at Northwind</small></div></div></div></div>' +
       tb(
         [
           ['home', 'Home'],
@@ -830,11 +830,11 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       svg(PLATFORMS[1], 20) +
       '<span></span></div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>Pixenox</b> ' +
       VB +
-      ' <span class="g">@pixenox ┬╖ now</span></div><p>We just shipped something big at <span class="bl">@pixenox</span> ≡ƒöÑ</p><p>An AI design system that cuts brand iteration time by 80%.</p><p>Thread on what we learned ≡ƒº╡≡ƒæç</p>' +
+      ' <span class="g">@pixenox · now</span></div><p>We just shipped something big at <span class="bl">@pixenox</span> 🔥</p><p>An AI design system that cuts brand iteration time by 80%.</p><p>Thread on what we learned 🧵👇</p>' +
       xm([['chat', '48'], ['rep', '312'], ['heart', '1.2K'], ['eye', '45K'], ['up', '']]) +
       '</div></div><div class="xp"><span class="av">P</span><div class="bx"><div><b>Pixenox</b> ' +
       VB +
-      ' <span class="g">@pixenox ┬╖ now</span></div><p>Old way: create ΓåÆ review ΓåÆ 3 weeks back-and-forth.</p><p>Pixenox way: design tokens + AI = instant brand-consistent output ΓÜí</p>' +
+      ' <span class="g">@pixenox · now</span></div><p>Old way: create → review → 3 weeks back-and-forth.</p><p>Pixenox way: design tokens + AI = instant brand-consistent output ⚡</p>' +
       xm([['chat', '21'], ['rep', '140'], ['heart', '860'], ['eye', '18K'], ['up', '']]) +
       '</div></div></div><span class="fab">+</span>' +
       tb([['home'], ['search'], ['bell'], ['mail']], 0) +
@@ -848,12 +848,12 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
         svg(PLATFORMS[2], 28) +
         '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>pixenox</b> ' +
         VB +
-        ' <span class="g">2m</span><span class="g r">┬╖┬╖┬╖</span></div><p>okay so weΓÇÖve been quietly working on something at pixenox and iΓÇÖm finally allowed to talk about it</p><p>we built an AI design system that does in hours what used to take our team weeks</p><p>the biggest lesson? AI doesnΓÇÖt make designers obsolete ΓÇö it makes them dangerous (in the best way) ≡ƒöÑ</p><div class="tx">' +
+        ' <span class="g">2m</span><span class="g r">···</span></div><p>okay so we’ve been quietly working on something at pixenox and i’m finally allowed to talk about it</p><p>we built an AI design system that does in hours what used to take our team weeks</p><p>the biggest lesson? AI doesn’t make designers obsolete — it makes them dangerous (in the best way) 🔥</p><div class="tx">' +
         ic('heart', 20, 1.6) +
         ic('chat', 20, 1.6) +
         ic('rep', 20, 1.6) +
         ic('send', 20, 1.6) +
-        '</div><div class="g">89 replies ┬╖ 234 likes</div></div></div><div class="xp"><span class="av" style="background:#2a7f78">M</span><div class="bx"><div><b>maya.builds</b> <span class="g">1m</span></div><p>wait, this is huge. how are you handling token drift across brands?</p><div class="tx">' +
+        '</div><div class="g">89 replies · 234 likes</div></div></div><div class="xp"><span class="av" style="background:#2a7f78">M</span><div class="bx"><div><b>maya.builds</b> <span class="g">1m</span></div><p>wait, this is huge. how are you handling token drift across brands?</p><div class="tx">' +
         ic('heart', 20, 1.6) +
         ic('chat', 20, 1.6) +
         ic('rep', 20, 1.6) +
@@ -872,7 +872,7 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
     .replace(/>/g, '&gt;');
 
   const metricMatch = text.match(/(\d+[\d,.]*%\b|\$\d+[\d,.]*[kKmMbB]?\b|\b\d+x\b|\b\d+[\d,.]*\b)/);
-  const metricVal = metricMatch ? metricMatch[0] : 'ΓÜí';
+  const metricVal = metricMatch ? metricMatch[0] : '⚡';
   const metricLabel = metricMatch ? 'key highlight' : 'native voice';
 
   const sentences = text
@@ -903,7 +903,7 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
     : '#Leadership #Innovation #Growth #Strategy';
 
   const xHook = text.length > 140 ? mainSentence : text;
-  const xInsight = rest.length > 0 ? rest[0] : '1 thought ΓåÆ adapted natively for 30+ platforms in 0.8s.';
+  const xInsight = rest.length > 0 ? rest[0] : '1 thought → adapted natively for 30+ platforms in 0.8s.';
 
   const thText = (text || 'something exciting is in the works').toLowerCase();
 
@@ -914,17 +914,17 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
     ic('search', 15, 2) +
     'Search</div>' +
     ic('chat', 23, 1.7) +
-    '</div><div class="fd"><div class="lp"><div class="ph"><span class="av">U</span><div><b>You</b> ΓÇó 1st<small>Creator &amp; Founder</small><small>Just now ΓÇó ≡ƒîÉ</small></div><span class="fl">+ Follow</span></div><p><b>≡ƒÜÇ Big update:</b></p><p>' +
+    '</div><div class="fd"><div class="lp"><div class="ph"><span class="av">U</span><div><b>You</b> • 1st<small>Creator &amp; Founder</small><small>Just now • 🌐</small></div><span class="fl">+ Follow</span></div><p><b>🚀 Big update:</b></p><p>' +
     safe +
     '</p><p>' +
-    bullets.map(b => 'ΓåÆ ' + b).join('<br>') +
+    bullets.map(b => '→ ' + b).join('<br>') +
     '</p><p><i>' +
     hashTags +
     '</i></p><div class="gfx"><u style="background:#fdf6ee"></u><u style="background:#e8a595"></u><u style="background:#c84b31"></u><em>' +
     metricVal +
     '<small>' +
     metricLabel +
-    '</small></em></div><div class="rx"><span>≡ƒæìΓ¥ñ∩╕Å≡ƒÆí 1.2K</span><span>94 comments ΓÇó 38 reposts</span></div><div class="ar"><span>' +
+    '</small></em></div><div class="rx"><span>👍❤️💡 1.2K</span><span>94 comments • 38 reposts</span></div><div class="ar"><span>' +
     ic('like', 19) +
     'Like</span><span>' +
     ic('chat', 19) +
@@ -953,15 +953,15 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
     svg(PLATFORMS[1], 20) +
     '<span></span></div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">U</span><u class="thl"></u></div><div class="bx"><div><b>You</b> ' +
     VB +
-    ' <span class="g">@you ┬╖ now</span></div><p>' +
+    ' <span class="g">@you · now</span></div><p>' +
     xHook +
-    ' ≡ƒöÑ</p><p>Thread on what we learned ≡ƒº╡≡ƒæç</p>' +
+    ' 🔥</p><p>Thread on what we learned 🧵👇</p>' +
     xm([['chat', '54'], ['rep', '412'], ['heart', '1.8K'], ['eye', '62K'], ['up', '']]) +
     '</div></div><div class="xp"><span class="av">U</span><div class="bx"><div><b>You</b> ' +
     VB +
-    ' <span class="g">@you ┬╖ now</span></div><p>' +
+    ' <span class="g">@you · now</span></div><p>' +
     xInsight +
-    ' ΓÜí</p>' +
+    ' ⚡</p>' +
     xm([['chat', '29'], ['rep', '180'], ['heart', '940'], ['eye', '24K'], ['up', '']]) +
     '</div></div></div><span class="fab">+</span>' +
     tb([['home'], ['search'], ['bell'], ['mail']], 0) +
@@ -975,14 +975,14 @@ export function renderPhoneMockups(root: HTMLElement, rawText: string) {
       svg(PLATFORMS[2], 28) +
       '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">U</span><u class="thl"></u></div><div class="bx"><div><b>you</b> ' +
       VB +
-      ' <span class="g">now</span><span class="g r">┬╖┬╖┬╖</span></div><p>okay so i wanted to share something weΓÇÖve been working on...</p><p>' +
+      ' <span class="g">now</span><span class="g r">···</span></div><p>okay so i wanted to share something we’ve been working on...</p><p>' +
       thText +
-      '</p><p>the biggest lesson? speed and consistency compound faster than anything else Γ£¿</p><div class="tx">' +
+      '</p><p>the biggest lesson? speed and consistency compound faster than anything else ✨</p><div class="tx">' +
       ic('heart', 20, 1.6) +
       ic('chat', 20, 1.6) +
       ic('rep', 20, 1.6) +
       ic('send', 20, 1.6) +
-      '</div><div class="g">124 replies ┬╖ 410 likes</div></div></div></div>' +
+      '</div><div class="g">124 replies · 410 likes</div></div></div></div>' +
       tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
       HI;
   }

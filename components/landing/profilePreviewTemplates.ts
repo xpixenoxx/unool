@@ -37,7 +37,7 @@ export interface ProfilePreviewTemplate {
 }
 
 export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
-  // 01 ΓÇö THE STORYTELLER / LOVER (Terracotta #c84b31 ΓÇö Unool Signature)
+  // 01 — THE STORYTELLER / LOVER (Terracotta #c84b31 — Unool Signature)
   {
     id: 'storyteller',
     name: 'The Storyteller',
@@ -50,9 +50,9 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     appBarColor: '#1c0b09',
     avatarBg: 'linear-gradient(135deg, #521f13, #c84b31)',
     avatarText: 'P',
-    badge: { text: 'Γ£ª Signature Story', bg: 'rgba(200, 75, 49, 0.1)', color: '#c84b31', border: '1px solid rgba(200, 75, 49, 0.2)' },
-    role: 'AI Design Systems ΓÇó San Francisco',
-    bio: 'ΓÇ£Automated storytelling across every network you use.ΓÇ¥',
+    badge: { text: '✦ Signature Story', bg: 'rgba(200, 75, 49, 0.1)', color: '#c84b31', border: '1px solid rgba(200, 75, 49, 0.2)' },
+    role: 'AI Design Systems • San Francisco',
+    bio: '“Automated storytelling across every network you use.”',
     proofs: [
       { val: '80%', lbl: 'Faster build' },
       { val: '30+', lbl: 'Networks' },
@@ -82,7 +82,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
         iconBg: '#000000',
         iconFg: '#ffffff',
         title: 'X (Twitter)',
-        subtitle: '@pixenox ┬╖ Building in public thread'
+        subtitle: '@pixenox · Building in public thread'
       },
       {
         platform: 'Instagram',
@@ -90,7 +90,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
         iconBg: 'linear-gradient(45deg,#FEDA75,#FA7E1E,#D62976,#962FBF,#4F5BD5)',
         iconFg: '#ffffff',
         title: 'Instagram',
-        subtitle: '@pixenox.design ┬╖ Visual components'
+        subtitle: '@pixenox.design · Visual components'
       },
       {
         platform: 'YouTube',
@@ -111,7 +111,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     ]
   },
 
-  // 02 ΓÇö THE CREATOR (Peach / Salmon #e8a595)
+  // 02 — THE CREATOR (Peach / Salmon #e8a595)
   {
     id: 'creator',
     name: 'The Creator',
@@ -124,12 +124,12 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     appBarColor: '#26160f',
     avatarBg: 'linear-gradient(135deg, #e8a595, #ea580c)',
     avatarText: 'P',
-    badge: { text: '≡ƒÄ¼ Top Creator', bg: 'rgba(232, 165, 149, 0.25)', color: '#b4482a', border: '1px solid rgba(180, 72, 42, 0.25)' },
+    badge: { text: '🎬 Top Creator', bg: 'rgba(232, 165, 149, 0.25)', color: '#b4482a', border: '1px solid rgba(180, 72, 42, 0.25)' },
     role: 'Visual Systems & Creative Tech',
-    bio: 'ΓÇ£Designing motion systems and interactive experiments.ΓÇ¥',
+    bio: '“Designing motion systems and interactive experiments.”',
     proofs: [
       { val: '250K', lbl: 'Audience' },
-      { val: '4.9Γÿà', lbl: 'Asset Kits' },
+      { val: '4.9★', lbl: 'Asset Kits' },
       { val: 'Weekly', lbl: 'Drops' }
     ],
     proofBg: 'rgba(255, 255, 255, 0.7)',
@@ -185,7 +185,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     ]
   },
 
-  // 03 ΓÇö THE FOUNDER (Deep Wine / Maroon #832723)
+  // 03 — THE FOUNDER (Deep Wine / Maroon #832723)
   {
     id: 'founder',
     name: 'The Founder',
@@ -198,9 +198,9 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     appBarColor: '#fdf6ee',
     avatarBg: 'linear-gradient(135deg, #3d0c1a, #832723)',
     avatarText: 'P',
-    badge: { text: 'Γ£ô Verified Founder', bg: 'rgba(131, 39, 35, 0.5)', color: '#ffb3a7', border: '1px solid rgba(255, 179, 167, 0.3)' },
-    role: 'Founder & CEO ΓÇó Pixenox Labs',
-    bio: 'ΓÇ£Scaling autonomous brand storytelling for modern founders.ΓÇ¥',
+    badge: { text: '✓ Verified Founder', bg: 'rgba(131, 39, 35, 0.5)', color: '#ffb3a7', border: '1px solid rgba(255, 179, 167, 0.3)' },
+    role: 'Founder & CEO • Pixenox Labs',
+    bio: '“Scaling autonomous brand storytelling for modern founders.”',
     proofs: [
       { val: '$2.4M', lbl: 'ARR Run-rate' },
       { val: '80%', lbl: 'Time saved' },
@@ -230,7 +230,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
         iconBg: '#000000',
         iconFg: '#ffffff',
         title: 'X (Twitter)',
-        subtitle: '@pixenox ┬╖ Daily founder reflections'
+        subtitle: '@pixenox · Daily founder reflections'
       },
       {
         platform: 'Substack',
@@ -259,7 +259,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     ]
   },
 
-  // 04 ΓÇö THE MINIMALIST (Almond / Sand #d8b9b0)
+  // 04 — THE MINIMALIST (Almond / Sand #d8b9b0)
   {
     id: 'minimalist',
     name: 'The Minimalist',
@@ -272,9 +272,9 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     appBarColor: '#1f1a17',
     avatarBg: 'linear-gradient(135deg, #c4a49a, #8c6a60)',
     avatarText: 'P',
-    badge: { text: 'Γ£ª Selected Work', bg: 'rgba(216, 185, 176, 0.35)', color: '#4a3b35', border: '1px solid rgba(74, 59, 53, 0.15)' },
+    badge: { text: '✦ Selected Work', bg: 'rgba(216, 185, 176, 0.35)', color: '#4a3b35', border: '1px solid rgba(74, 59, 53, 0.15)' },
     role: 'Systems Designer & Typographer',
-    bio: 'ΓÇ£Simplicity is clarity made visible.ΓÇ¥',
+    bio: '“Simplicity is clarity made visible.”',
     proofs: [
       { val: '12', lbl: 'Yrs crafting' },
       { val: 'SF', lbl: 'California' },
@@ -333,7 +333,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     ]
   },
 
-  // 05 ΓÇö THE DEVELOPER (Obsidian Dark Cyber #1c0b09)
+  // 05 — THE DEVELOPER (Obsidian Dark Cyber #1c0b09)
   {
     id: 'developer',
     name: 'The Developer',
@@ -346,11 +346,11 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     appBarColor: '#f8fafc',
     avatarBg: 'linear-gradient(135deg, #0f172a, #1e293b)',
     avatarText: 'P',
-    badge: { text: 'ΓùÅ terminal live', bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(74, 222, 128, 0.3)' },
-    role: 'Lead Systems Architect ΓÇó Rust & TS',
+    badge: { text: '● terminal live', bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(74, 222, 128, 0.3)' },
+    role: 'Lead Systems Architect • Rust & TS',
     bio: '$ pnpm dlx unool-cli@latest init',
     proofs: [
-      { val: '1.4k Γÿà', lbl: 'GitHub Stars' },
+      { val: '1.4k ★', lbl: 'GitHub Stars' },
       { val: '99.9%', lbl: 'Core Uptime' },
       { val: '0ms', lbl: 'Edge Sync' }
     ],
@@ -407,7 +407,7 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     ]
   },
 
-  // 06 ΓÇö THE STUDIO (Atelier Violet #4f46e5)
+  // 06 — THE STUDIO (Atelier Violet #4f46e5)
   {
     id: 'studio',
     name: 'The Studio',
@@ -420,9 +420,9 @@ export const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
     appBarColor: '#fdf6ee',
     avatarBg: 'linear-gradient(135deg, #311042, #4f46e5)',
     avatarText: 'P',
-    badge: { text: '≡ƒÅ¢∩╕Å Studio Atelier', bg: 'rgba(79, 70, 229, 0.25)', color: '#a5b4fc', border: '1px solid rgba(165, 180, 252, 0.3)' },
+    badge: { text: '🏛️ Studio Atelier', bg: 'rgba(79, 70, 229, 0.25)', color: '#a5b4fc', border: '1px solid rgba(165, 180, 252, 0.3)' },
     role: 'Culture & Digital Experience Studio',
-    bio: 'ΓÇ£Crafting digital worlds for leading brands.ΓÇ¥',
+    bio: '“Crafting digital worlds for leading brands.”',
     proofs: [
       { val: '15', lbl: 'Awwwards' },
       { val: '50M+', lbl: 'Global reach' },

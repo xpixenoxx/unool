@@ -5,7 +5,7 @@ export const UNOOL_VIDEO_3_HTML_DOC = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Unool ┬╖ Automation section</title>
+<title>Unool · Automation section</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@ html,body{margin:0;background:transparent;overflow-x:hidden;padding:0;-webkit-fo
 </style>
 </head>
 <body>
-<!-- UNOOL ┬╖ 03 AUTOMATE COMMENTS & DMs ΓÇö copy from here to the end of the script block. -->
+<!-- UNOOL · 03 AUTOMATE COMMENTS & DMs — copy from here to the end of the script block. -->
 <style>
 .ua{--bg:#F3EBDF;--bg2:#EEE4D5;--surface:#FAF6EF;--surface2:#F0E7DA;--line:rgba(70,45,30,.12);--line2:rgba(70,45,30,.22);
 --text:#2A1E17;--muted:#7B6A5C;--dim:#A19080;--accent:#C2603E;--accent2:#A44A2B;--soft:rgba(194,96,62,.13);--good:#4F8A5B;--warn:#B9812A;--li:#0A66C2;
@@ -160,7 +160,7 @@ position:relative;background:transparent;color:var(--text);font-family:var(--san
 .thr .ub{display:inline-block;margin-top:4px;font-size:10.5px;font-weight:700;color:var(--accent2);background:var(--soft);padding:2px 8px;border-radius:99px}
 .thr .tg{margin:6px 0 0 42px;font-size:11.5px;font-weight:600;color:#8e8e8e}.thr .tg.bad{color:#C0392B}.thr .tg.hold{color:#B9812A;background:#FFF6E0;display:inline-block;padding:4px 9px;border-radius:8px}
 
-/* ===== Video 3 ┬╖ native Instagram / LinkedIn UI ===== */
+/* ===== Video 3 · native Instagram / LinkedIn UI ===== */
 .thr{display:flex;flex-direction:column;padding:0}
 .nh{flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #efefef;min-height:48px}
 .nh.c{justify-content:center;position:relative}.nh.c .ic{position:absolute;right:14px}
@@ -240,19 +240,19 @@ position:relative;background:transparent;color:var(--text);font-family:var(--san
       <div class="ua-stage" data-k="stage">
         <div class="ua-chrome"><span class="nv"><span>Compose</span><span>Flight plan</span><span>Inbox</span></span><span class="ua-live">LIVE DEMO</span></div>
         <div class="ua-body">
-          <!-- PART 3 ┬╖ automation -->
+          <!-- PART 3 · automation -->
           <div class="sub" data-k="c1">
             <div class="card" style="left:24px;top:20px;width:270px;height:460px;padding:0">
               <div class="lp np" data-k="lp" style="height:370px"></div><div style="position:absolute;left:0;right:0;top:370px;border-top:1px solid var(--line)"></div>
-              <div class="tg2" style="left:16px;bottom:54px"><span class="sw" data-k="t1"></span>Auto-reply ┬╖ comments</div>
-              <div class="tg2" style="left:16px;bottom:16px"><span class="sw" data-k="t2"></span>Auto-reply ┬╖ DMs</div>
+              <div class="tg2" style="left:16px;bottom:54px"><span class="sw" data-k="t1"></span>Auto-reply · comments</div>
+              <div class="tg2" style="left:16px;bottom:16px"><span class="sw" data-k="t2"></span>Auto-reply · DMs</div>
             </div>
             <div class="card" style="left:306px;top:20px;width:366px;height:460px">
               <div data-k="tabs" style="display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line)"></div>
               <div class="thr" data-k="thr"></div>
             </div>
             <div class="card" style="left:686px;top:20px;width:250px;height:460px">
-              <div class="rd" style="top:20px"><div class="lbl">Unool ┬╖ reading</div><div data-k="rd"></div></div>
+              <div class="rd" style="top:20px"><div class="lbl">Unool · reading</div><div data-k="rd"></div></div>
               <div class="kp" style="left:12px;bottom:18px"><b data-k="k1">0</b>Replies sent</div><div class="kp" style="left:89px;bottom:18px"><b data-k="k2">0</b>Spam hidden</div><div class="kp" style="left:166px;bottom:18px"><b data-k="k3">0</b>Leads saved</div>
             </div>
           </div>
@@ -285,51 +285,51 @@ $('tabs').innerHTML=TABS.map(function(t){return '<span class="pill">'+t[0]+t[1]+
 var tabEls=[].slice.call(root.querySelectorAll('.pill'));
 /* ---- script for part 3 ---- */
 var PH=[
- {a:34,b:44.5,it:[{n:'@maya.kapoor',c:'#C2603E',pk:'i',x:'Love this colour ≡ƒÿì Is it available in M?',t:34.6,tp:35.3,te:36.8,rep:'Thank you, Maya! ≡ƒÆ¢ Yes, M is in stock ΓÇö IΓÇÖve sent the size guide to your DMs.',i:'Size question',r:'Keywords: size, available',a:'Reply + send DM'},
-  {n:'@cheap.followers.24',c:'#9A8878',pk:'i',x:'Get 10K followers now ≡ƒÜÇ click my bio',t:37.4,sp:38.4,i:'Spam ┬╖ 98%',r:'Spam filter',a:'Hide comment'},
-  {n:'@karan.dev',c:'#3E6C94',pk:'i',x:'WhatΓÇÖs the price? Do you deliver to Delhi? ≡ƒÖÅ',t:40,tp:40.7,te:42.4,rep:'Hi Karan! ItΓÇÖs Γé╣3,499 and we deliver to Delhi in 2ΓÇô3 days ≡ƒÜÜ Free shipping above Γé╣2,000.',i:'Price + delivery question',r:'FAQ match ┬╖ 97%',a:'Reply with answer'}]},
- {a:44.5,b:54.5,it:[{n:'Priya Menon ┬╖ Founder, Loom & Co',c:'#3E6C94',pk:'l',x:'Beautiful work! Is the linen sourced sustainably?',t:45.1,tp:45.9,te:47.9,rep:'Thank you, Priya! The linen is OEKO-TEX certified and woven by artisan partners in India ≡ƒî┐',i:'Product question',r:'FAQ match ┬╖ 96%',a:'Reply with answer'},
-  {n:'Arjun Nair ┬╖ Buyer, Tulsi Boutique',c:'#4F8A5B',pk:'l',x:'Lovely piece. Do you ship internationally?',t:49.2,tp:50,te:52,rep:'Thank you, Arjun! Yes ΓÇö we ship worldwide, and delivery takes 7ΓÇô10 days ≡ƒîì',i:'Shipping question',r:'FAQ match ┬╖ 95%',a:'Reply with answer'}]},
- {a:54.5,b:74,it:[{n:'aanya.s',c:'#4F8A5B',x:'Hi! Does the wrap dress come in M? ≡ƒæï',t:55,tp:55.6,te:57.4,rep:'Hi Aanya! Yes ΓÇö M is in stock ≡ƒÄë Quick check: are you following @saanvi.studio? Followers get 10% off ≡ƒºí',i:'Stock question',r:'Keywords: size, stock',a:'Reply + ask if following'},
-  {n:'aanya.s',c:'#4F8A5B',x:'Yes, I follow you ≡ƒÖî',t:58.6,tp:59.1,te:60.7,rep:'Amazing, thank you! ≡ƒÆ¢ Your code is SAANVI10 ΓÇö apply it at checkout.',i:'Follower confirmed',r:'Follow check ┬╖ passed',a:'Share 10% code'},
-  {n:'aanya.s',c:'#4F8A5B',x:'How long does delivery to Hyderabad take?',t:62,tp:62.6,te:64.4,rep:'Delivery to Hyderabad takes 3ΓÇô4 days, and shipping is free above Γé╣2,000 ≡ƒÜÜ',i:'Delivery question',r:'FAQ match ┬╖ 97%',a:'Auto-reply'},
-  {n:'aanya.s',c:'#4F8A5B',x:'Can I return it if the size is off?',t:65.6,tp:66.2,te:68.2,rep:'Of course! Free 7-day returns and exchanges. Want me to hold an M for you?',i:'Returns question',r:'FAQ match ┬╖ 95%',a:'Auto-reply'},
-  {n:'aanya.s',c:'#4F8A5B',x:'Yes please, hold one ≡ƒÖÅ',t:69.6,tp:70.1,te:71.6,rep:'Done! WhatΓÇÖs your email for the checkout link?',i:'Buying intent ┬╖ lead',r:'Lead capture',a:'Reply + save lead',lead:1}]},
- {a:74,b:85,it:[{n:'Rohan Mehta',c:'#B9812A',x:'We run a boutique in Pune ΓÇö can we stock your dresses wholesale?',t:74.5,ha:75.4,hb:76.8,tp:76.9,te:78.6,rep:'Thanks for reaching out, Rohan! Sharing our wholesale catalogue now ΓÇö whatΓÇÖs the best email?',i:'Wholesale ┬╖ sensitive',r:'Approval required',a:'Hold ΓåÆ you approve',lead:1},
-  {n:'Rohan Mehta',c:'#B9812A',x:'Is there a minimum order?',t:80.4,tp:81,te:82.8,rep:'Our wholesale minimum is 12 pieces, mixed sizes allowed. Catalogue is on its way ≡ƒô⌐',i:'Wholesale question',r:'FAQ match ┬╖ 94%',a:'Auto-reply'}]}];
+ {a:34,b:44.5,it:[{n:'@maya.kapoor',c:'#C2603E',pk:'i',x:'Love this colour 😍 Is it available in M?',t:34.6,tp:35.3,te:36.8,rep:'Thank you, Maya! 💛 Yes, M is in stock — I’ve sent the size guide to your DMs.',i:'Size question',r:'Keywords: size, available',a:'Reply + send DM'},
+  {n:'@cheap.followers.24',c:'#9A8878',pk:'i',x:'Get 10K followers now 🚀 click my bio',t:37.4,sp:38.4,i:'Spam · 98%',r:'Spam filter',a:'Hide comment'},
+  {n:'@karan.dev',c:'#3E6C94',pk:'i',x:'What’s the price? Do you deliver to Delhi? 🙏',t:40,tp:40.7,te:42.4,rep:'Hi Karan! It’s ₹3,499 and we deliver to Delhi in 2–3 days 🚚 Free shipping above ₹2,000.',i:'Price + delivery question',r:'FAQ match · 97%',a:'Reply with answer'}]},
+ {a:44.5,b:54.5,it:[{n:'Priya Menon · Founder, Loom & Co',c:'#3E6C94',pk:'l',x:'Beautiful work! Is the linen sourced sustainably?',t:45.1,tp:45.9,te:47.9,rep:'Thank you, Priya! The linen is OEKO-TEX certified and woven by artisan partners in India 🌿',i:'Product question',r:'FAQ match · 96%',a:'Reply with answer'},
+  {n:'Arjun Nair · Buyer, Tulsi Boutique',c:'#4F8A5B',pk:'l',x:'Lovely piece. Do you ship internationally?',t:49.2,tp:50,te:52,rep:'Thank you, Arjun! Yes — we ship worldwide, and delivery takes 7–10 days 🌍',i:'Shipping question',r:'FAQ match · 95%',a:'Reply with answer'}]},
+ {a:54.5,b:74,it:[{n:'aanya.s',c:'#4F8A5B',x:'Hi! Does the wrap dress come in M? 👋',t:55,tp:55.6,te:57.4,rep:'Hi Aanya! Yes — M is in stock 🎉 Quick check: are you following @saanvi.studio? Followers get 10% off 🧡',i:'Stock question',r:'Keywords: size, stock',a:'Reply + ask if following'},
+  {n:'aanya.s',c:'#4F8A5B',x:'Yes, I follow you 🙌',t:58.6,tp:59.1,te:60.7,rep:'Amazing, thank you! 💛 Your code is SAANVI10 — apply it at checkout.',i:'Follower confirmed',r:'Follow check · passed',a:'Share 10% code'},
+  {n:'aanya.s',c:'#4F8A5B',x:'How long does delivery to Hyderabad take?',t:62,tp:62.6,te:64.4,rep:'Delivery to Hyderabad takes 3–4 days, and shipping is free above ₹2,000 🚚',i:'Delivery question',r:'FAQ match · 97%',a:'Auto-reply'},
+  {n:'aanya.s',c:'#4F8A5B',x:'Can I return it if the size is off?',t:65.6,tp:66.2,te:68.2,rep:'Of course! Free 7-day returns and exchanges. Want me to hold an M for you?',i:'Returns question',r:'FAQ match · 95%',a:'Auto-reply'},
+  {n:'aanya.s',c:'#4F8A5B',x:'Yes please, hold one 🙏',t:69.6,tp:70.1,te:71.6,rep:'Done! What’s your email for the checkout link?',i:'Buying intent · lead',r:'Lead capture',a:'Reply + save lead',lead:1}]},
+ {a:74,b:85,it:[{n:'Rohan Mehta',c:'#B9812A',x:'We run a boutique in Pune — can we stock your dresses wholesale?',t:74.5,ha:75.4,hb:76.8,tp:76.9,te:78.6,rep:'Thanks for reaching out, Rohan! Sharing our wholesale catalogue now — what’s the best email?',i:'Wholesale · sensitive',r:'Approval required',a:'Hold → you approve',lead:1},
+  {n:'Rohan Mehta',c:'#B9812A',x:'Is there a minimum order?',t:80.4,tp:81,te:82.8,rep:'Our wholesale minimum is 12 pieces, mixed sizes allowed. Catalogue is on its way 📩',i:'Wholesale question',r:'FAQ match · 94%',a:'Auto-reply'}]}];
 var ALL=[];PH.forEach(function(p){p.it.forEach(function(i){ALL.push(i)})});
 function typh(s,p){var a=Array.from(s),n=Math.round(a.length*clamp(p));return a.slice(0,n).join('')+'<span style="visibility:hidden">'+a.slice(n).join('')+'</span>'}
 function typ(s,p){var a=Array.from(s);return a.slice(0,Math.round(a.length*p)).join('')}
 var K=['igc','lic','igd','lid'];
-function nm(it){return it.n.replace(/^@/,'').split(' ┬╖ ')[0]}
-function hlt(it){return it.n.split(' ┬╖ ').slice(1).join(' ┬╖ ')}
-function ub(d,it){return '<span class="ub">Γ£ª '+(d?'Unool is typingΓÇª':it.hb?'Approved by you ┬╖ sent by Unool':'Auto-reply by Unool')+'</span>'}
+function nm(it){return it.n.replace(/^@/,'').split(' · ')[0]}
+function hlt(it){return it.n.split(' · ').slice(1).join(' · ')}
+function ub(d,it){return '<span class="ub">✦ '+(d?'Unool is typing…':it.hb?'Approved by you · sent by Unool':'Auto-reply by Unool')+'</span>'}
 var ico=function(p){return '<svg class="ic" viewBox="0 0 24 24">'+p+'</svg>'},INF=ico('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'),VID=ico('<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M22 8l-6 4 6 4z"/>'),SND=ico('<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>'),use=function(i){return '<svg class="ic"><use href="#'+i+'"/></svg>'};
 function art(h){return '<div class="art" style="height:'+h+'px">'+(DRESS_PHOTO?'<img alt="Linen Wrap Dress" src="'+DRESS_PHOTO+'">':'<svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg>')+'</div>'}
 function left(k,lk,cm){var ig=k[0]=='i';
- if(k[2]=='d'){var R=ig?[['aanya.s','Hi! Does the wrap dress come in M? ≡ƒæï ┬╖ now','#4F8A5B'],['nisha.r','Sent a reel ┬╖ 2h','#8A6BBE'],['the.loomco','Thanks so much! ┬╖ 1d','#3E6C94'],['kavya.m','≡ƒÿì ┬╖ 3d','#B9812A']]:[['Rohan Mehta','We run a boutique in PuneΓÇª ┬╖ now','#B9812A'],['Priya Menon','Thank you for the reply ┬╖ 1d','#3E6C94'],['Ishaan Rao','Sounds great, letΓÇÖs connect ┬╖ 3d','#4F8A5B'],['Meera Shah','Congrats on the launch! ┬╖ 1w','#8A6BBE']];
-  return '<div class="lh"><b>'+(ig?'saanvi.studio Γîä':'Messaging')+'</b><span>'+(ig?'Messages':'Focused Γîä')+'</span></div>'+R.map(function(r,i){return '<div class="rw'+(i?'':' on')+'"><span class="av" style="background:'+r[2]+';width:40px;height:40px;font-size:15px">'+r[0].charAt(0).toUpperCase()+'</span><div><b>'+r[0]+'</b><small>'+r[1]+'</small></div></div>'}).join('')}
- if(ig)return '<div class="ph0"><span class="bav ring">S</span><b>saanvi.studio</b><span class="dots">ΓÇóΓÇóΓÇó</span></div>'+art(150)+'<div class="acts">'+use('ic-heart')+use('ic-cmt')+use('ic-send')+'<span style="margin-left:auto">'+use('ic-bm')+'</span></div><div class="pt"><b><span class="vl"></span> likes</b><p><b>saanvi.studio</b> Meet the Linen Wrap Dress ≡ƒî┐Γ£¿ Hand-woven terracotta, made for warm days.</p><small>View all <span class="vm"></span> comments</small><small class="up">2 HOURS AGO</small></div>';
- return '<div class="ph0"><span class="bav sq" style="width:38px;height:38px">S</span><div><b>Saanvi Studio</b><small>1,248 followers</small><small>2h ┬╖ ≡ƒîÉ</small></div><span class="fo">+ Follow</span></div><p class="lt">Introducing the Linen Wrap Dress. Woven by artisan partners for warm days. Sizes XSΓÇôXL.</p>'+art(104)+'<div class="rx2"><span>≡ƒæìΓ¥ñ∩╕Å <span class="vr"></span></span><span><span class="vm"></span> comments ┬╖ 2 reposts</span></div><div class="acts2"><span>'+use('ic-like')+'Like</span><span>'+use('ic-cm2')+'Comment</span><span>'+use('ic-rep')+'Repost</span><span>'+use('ic-send')+'Send</span></div>'}
+ if(k[2]=='d'){var R=ig?[['aanya.s','Hi! Does the wrap dress come in M? 👋 · now','#4F8A5B'],['nisha.r','Sent a reel · 2h','#8A6BBE'],['the.loomco','Thanks so much! · 1d','#3E6C94'],['kavya.m','😍 · 3d','#B9812A']]:[['Rohan Mehta','We run a boutique in Pune… · now','#B9812A'],['Priya Menon','Thank you for the reply · 1d','#3E6C94'],['Ishaan Rao','Sounds great, let’s connect · 3d','#4F8A5B'],['Meera Shah','Congrats on the launch! · 1w','#8A6BBE']];
+  return '<div class="lh"><b>'+(ig?'saanvi.studio ⌄':'Messaging')+'</b><span>'+(ig?'Messages':'Focused ⌄')+'</span></div>'+R.map(function(r,i){return '<div class="rw'+(i?'':' on')+'"><span class="av" style="background:'+r[2]+';width:40px;height:40px;font-size:15px">'+r[0].charAt(0).toUpperCase()+'</span><div><b>'+r[0]+'</b><small>'+r[1]+'</small></div></div>'}).join('')}
+ if(ig)return '<div class="ph0"><span class="bav ring">S</span><b>saanvi.studio</b><span class="dots">•••</span></div>'+art(150)+'<div class="acts">'+use('ic-heart')+use('ic-cmt')+use('ic-send')+'<span style="margin-left:auto">'+use('ic-bm')+'</span></div><div class="pt"><b><span class="vl"></span> likes</b><p><b>saanvi.studio</b> Meet the Linen Wrap Dress 🌿✨ Hand-woven terracotta, made for warm days.</p><small>View all <span class="vm"></span> comments</small><small class="up">2 HOURS AGO</small></div>';
+ return '<div class="ph0"><span class="bav sq" style="width:38px;height:38px">S</span><div><b>Saanvi Studio</b><small>1,248 followers</small><small>2h · 🌐</small></div><span class="fo">+ Follow</span></div><p class="lt">Introducing the Linen Wrap Dress. Woven by artisan partners for warm days. Sizes XS–XL.</p>'+art(104)+'<div class="rx2"><span>👍❤️ <span class="vr"></span></span><span><span class="vm"></span> comments · 2 reposts</span></div><div class="acts2"><span>'+use('ic-like')+'Like</span><span>'+use('ic-cm2')+'Comment</span><span>'+use('ic-rep')+'Repost</span><span>'+use('ic-send')+'Send</span></div>'}
 function hdr(k){var av=function(c,l){return '<span class="av" style="background:'+c+'">'+l+'</span>'};
  return k=='igc'?'<div class="nh c"><b>Comments</b>'+SND+'</div>'
- :k=='lic'?'<div class="nh"><span class="bav sq" style="width:32px;height:32px;font-size:18px">S</span><div class="lin">Add a commentΓÇª</div></div><div class="srt">Most relevant Γû╛</div>'
- :k=='igd'?'<div class="nh"><span class="bk">ΓÇ╣</span>'+av('#4F8A5B','A')+'<div><b>aanya.s</b><small>Active now</small></div>'+VID+INF+'</div>'
- :'<div class="nh">'+av('#B9812A','R')+'<div><b>Rohan Mehta</b><small>Boutique owner ┬╖ Pune</small></div><span style="margin-left:auto">ΓÇóΓÇóΓÇó</span></div>'}
-function cap(k){return k=='igc'?'<div class="r cap" style="padding-top:2px"><span class="bav ring">S</span><div class="rx"><p><b>saanvi.studio</b> Meet the Linen Wrap Dress ≡ƒî┐Γ£¿ Hand-woven terracotta, made for warm days.</p><small>2h</small></div></div>':k=='igd'?'<div class="ds">Today 9:52 AM</div>':k=='lid'?'<div class="ds">TODAY</div>':''}
-function ftr(k){return k=='igc'?'<div class="nf"><span class="bav ring" style="width:28px;height:28px;font-size:16px">S</span><span class="in">Add a commentΓÇª</span><span class="po">Post</span></div>':k=='igd'?'<div class="nf dm"><span class="in">MessageΓÇª</span><span>≡ƒÄÖ</span><span>≡ƒû╝</span><span>ΓÖí</span></div>':k=='lid'?'<div class="nf lm"><div class="in">Write a messageΓÇª</div><div class="sd"><span>Send</span></div></div>':''}
+ :k=='lic'?'<div class="nh"><span class="bav sq" style="width:32px;height:32px;font-size:18px">S</span><div class="lin">Add a comment…</div></div><div class="srt">Most relevant ▸</div>'
+ :k=='igd'?'<div class="nh"><span class="bk">‹</span>'+av('#4F8A5B','A')+'<div><b>aanya.s</b><small>Active now</small></div>'+VID+INF+'</div>'
+ :'<div class="nh">'+av('#B9812A','R')+'<div><b>Rohan Mehta</b><small>Boutique owner · Pune</small></div><span style="margin-left:auto">•••</span></div>'}
+function cap(k){return k=='igc'?'<div class="r cap" style="padding-top:2px"><span class="bav ring">S</span><div class="rx"><p><b>saanvi.studio</b> Meet the Linen Wrap Dress 🌿✨ Hand-woven terracotta, made for warm days.</p><small>2h</small></div></div>':k=='igd'?'<div class="ds">Today 9:52 AM</div>':k=='lid'?'<div class="ds">TODAY</div>':''}
+function ftr(k){return k=='igc'?'<div class="nf"><span class="bav ring" style="width:28px;height:28px;font-size:16px">S</span><span class="in">Add a comment…</span><span class="po">Post</span></div>':k=='igd'?'<div class="nf dm"><span class="in">Message…</span><span>🎙️</span><span>🖼️</span><span>♡</span></div>':k=='lid'?'<div class="nf lm"><div class="in">Write a message…</div><div class="sd"><span>Send</span></div></div>':''}
 function item(it,t,k){
  var hid=it.sp&&t>=it.sp,n=nm(it),c='<span class="av" style="background:'+it.c+'">'+n.charAt(0).toUpperCase()+'</span>',h,r='',tg='',d=t<it.te;
- if(k=='igc')h='<div class="r'+(hid?' hid':'')+'">'+c+'<div class="rx"><p><b>'+n+'</b> '+it.x+'</p><small>2m &nbsp; Reply</small></div><span class="hr">ΓÖí</span></div>';
- else if(k=='lic')h='<div class="r">'+c+'<div class="lb"><b>'+n+'</b> <em>┬╖ 1st</em><span class="hl">'+hlt(it)+'</span><p>'+it.x+'</p></div></div><div class="la">Like &nbsp;|&nbsp; Reply</div>';
+ if(k=='igc')h='<div class="r'+(hid?' hid':'')+'">'+c+'<div class="rx"><p><b>'+n+'</b> '+it.x+'</p><small>2m &nbsp; Reply</small></div><span class="hr">♡</span></div>';
+ else if(k=='lic')h='<div class="r">'+c+'<div class="lb"><b>'+n+'</b> <em>· 1st</em><span class="hl">'+hlt(it)+'</span><p>'+it.x+'</p></div></div><div class="la">Like &nbsp;|&nbsp; Reply</div>';
  else if(k=='igd')h='<div class="r dr">'+c+'<div class="db in">'+it.x+'</div></div>';
  else h='<div class="r lm">'+c+'<div><b>'+n+'</b><em>9:52 AM</em><div class="lbub">'+it.x+'</div></div></div>';
- if(hid)return h+'<div class="tg bad">Γî½ Hidden by Unool ┬╖ spam</div>';
+ if(hid)return h+'<div class="tg bad">⌫ Hidden by Unool · spam</div>';
  if(!it.rep)return h;
- if(it.ha&&t>=it.ha&&t<it.hb)return h+'<div class="tg hold">ΓÅ╕ Held for your approval ΓÇö sensitive lead</div>';
- if(t<it.tp)return h+'<div class="tg">Γ£ª Unool is readingΓÇª</div>';
+ if(it.ha&&t>=it.ha&&t<it.hb)return h+'<div class="tg hold">⏸ Held for your approval — sensitive lead</div>';
+ if(t<it.tp)return h+'<div class="tg">✦ Unool is reading…</div>';
  var x=typh(it.rep,prog(t,it.tp,it.te));
- if(k=='igc')r='<div class="r rin"><span class="bav ring" style="width:28px;height:28px;font-size:16px">S</span><div class="rx"><p><b>saanvi.studio</b> '+x+'</p><small>now &nbsp; Reply</small>'+ub(d,it)+'</div><span class="hr">ΓÖí</span></div>';
+ if(k=='igc')r='<div class="r rin"><span class="bav ring" style="width:28px;height:28px;font-size:16px">S</span><div class="rx"><p><b>saanvi.studio</b> '+x+'</p><small>now &nbsp; Reply</small>'+ub(d,it)+'</div><span class="hr">♡</span></div>';
  else if(k=='lic')r='<div class="r rin"><span class="bav sq" style="width:28px;height:28px;font-size:16px">S</span><div class="lb"><b>Saanvi Studio</b><i class="au">Author</i><span class="hl">1,248 followers</span><p>'+x+'</p></div></div><div class="la">Like &nbsp;|&nbsp; Reply &nbsp; '+ub(d,it)+'</div>';
  else if(k=='igd')r='<div class="r dr rg"><div class="db out">'+x+'</div></div><div class="la rg">'+ub(d,it)+'</div>';
  else r='<div class="r lm"><span class="bav sq">S</span><div><b>Saanvi Studio</b><em>9:53 AM</em><div class="lbub me">'+x+'</div>'+ub(d,it)+'</div></div>';
@@ -357,7 +357,7 @@ function render(t){if(cfg.live&&LV.on){live(performance.now());return}
  if(ni._h!==h){ni._h=h;ni.innerHTML=h;var dy=-Math.max(0,ni.offsetHeight-ni.parentNode.clientHeight+8)+'px';if(ni._y!==dy){ni._y=dy;ni.style.transition=ni._f?'transform .4s ease':'none';ni.style.transform='translateY('+dy+')';ni._f=1}}
  th.style.opacity=sm(prog(t,ph.a,ph.a+.4))*(1-sm(prog(t,ph.b-.3,ph.b)))}else{if(th._pi!=null){th._pi=null;th.innerHTML=''}th.style.opacity=1}
  var pf=(pi<0?'igc':K[pi]).charAt(0),last=null,rp=0,sp=0,ld=0,cm=0;ALL.forEach(function(i){if(t>=i.t){last=i;if(i.pk==pf)cm++}if(i.rep&&t>=i.te)rp++;if(i.sp&&t>=i.sp)sp++;if(i.lead&&t>=i.te)ld++});
- put('rd',last?'<small class="lbl">Intent</small><b>'+last.i+'</b><small class="lbl">Rule matched</small><b>'+last.r+'</b><small class="lbl">Action</small><b>'+last.a+'</b>':'<small style="color:var(--dim)">Waiting for activityΓÇª</small>');
+ put('rd',last?'<small class="lbl">Intent</small><b>'+last.i+'</b><small class="lbl">Rule matched</small><b>'+last.r+'</b><small class="lbl">Action</small><b>'+last.a+'</b>':'<small style="color:var(--dim)">Waiting for activity…</small>');
  $('k1').textContent=rp;$('k2').textContent=sp;$('k3').textContent=ld;var lp=$('lp'),lk2=pi<0?'igc':K[pi],LKV=124+Math.round(34*prog(t,32,85));if(lp._k!==lk2){lp._k=lk2;lp._v=null;lp.innerHTML=left(lk2)}var sv=LKV+'|'+cm;if(lp._v!==sv){lp._v=sv;[].forEach.call(lp.querySelectorAll('.vl'),function(e){e.textContent=LKV});[].forEach.call(lp.querySelectorAll('.vr'),function(e){e.textContent=Math.round(LKV/5)});[].forEach.call(lp.querySelectorAll('.vm'),function(e){e.textContent=cm})}
  /* cursor */
  var cu=$('cur'),press=CK.some(function(c){return Math.abs(t-c)<.12});
@@ -369,17 +369,17 @@ function render(t){if(cfg.live&&LV.on){live(performance.now());return}
 
 /* ---- Try it live: viewer plays the customer ---- */
 var LV={on:0,m:[],ask:0},tr=$('try');
-if(cfg.live){tr.innerHTML='<b>Γ£ª Try it live</b><span>Be the customer ΓÇö tap a question or type your own in the DM box:</span>'+['Is it available in M?','How long is delivery?','WhatΓÇÖs the return policy?','Can I buy wholesale?'].map(function(q){return '<button data-q="'+q+'">'+q+'</button>'}).join('');
+if(cfg.live){tr.innerHTML='<b>✦ Try it live</b><span>Be the customer — tap a question or type your own in the DM box:</span>'+['Is it available in M?','How long is delivery?','What’s the return policy?','Can I buy wholesale?'].map(function(q){return '<button data-q="'+q+'">'+q+'</button>'}).join('');
 }else tr.remove();
 function esc(x){return x.replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
 function ans(q){var l=q.toLowerCase();
- if(LV.ask){LV.ask=0;if(/\\b(no|not|nope|haven)/.test(l))return['No worries! Follow @saanvi.studio and IΓÇÖll unlock your 10% code ≡ƒºí','Follow check ┬╖ pending','Follow check','Ask to follow'];if(/yes|yeah|yep|follow|done|sure/.test(l))return['Amazing, thank you! ≡ƒÆ¢ Your code is SAANVI10 ΓÇö apply it at checkout.','Follower confirmed','Follow check ┬╖ passed','Share 10% code']}
- if(/\\b(size|m|l|xl|available|stock)\\b/.test(l)){LV.ask=1;return['Yes ΓÇö that size is in stock ≡ƒÄë Quick check: are you following @saanvi.studio? Followers get 10% off ≡ƒºí','Stock question','Keywords: size, stock','Reply + ask if following']}
- if(/deliver|ship|days|when/.test(l))return['Delivery takes 3ΓÇô4 days across India, and shipping is free above Γé╣2,000 ≡ƒÜÜ','Delivery question','FAQ match ┬╖ 97%','Auto-reply'];
- if(/return|exchange|refund/.test(l))return['Free 7-day returns and exchanges ΓÇö no questions asked ≡ƒÆ¢','Returns question','FAQ match ┬╖ 95%','Auto-reply'];
- if(/price|cost|how much|Γé╣/.test(l))return['The Linen Wrap Dress is Γé╣3,499 ΓÇö with 20% off for the first 50 orders ≡ƒºí','Price question','FAQ match ┬╖ 96%','Auto-reply'];
- if(/wholesale|bulk|boutique|reseller/.test(l))return['Lovely! Wholesale enquiries get a quick approval from our team ΓÇö IΓÇÖve flagged yours ≡ƒÖî','Wholesale ┬╖ sensitive','Approval required','Hold ΓåÆ you approve'];
- return['Thanks for your message! IΓÇÖve passed this to the team and theyΓÇÖll reply shortly ≡ƒºí','Unclear intent','No rule matched','Hand off to a human']}
+ if(LV.ask){LV.ask=0;if(/\\b(no|not|nope|haven)/.test(l))return['No worries! Follow @saanvi.studio and I’ll unlock your 10% code 🧡','Follow check · pending','Follow check','Ask to follow'];if(/yes|yeah|yep|follow|done|sure/.test(l))return['Amazing, thank you! 💛 Your code is SAANVI10 — apply it at checkout.','Follower confirmed','Follow check · passed','Share 10% code']}
+ if(/\\b(size|m|l|xl|available|stock)\\b/.test(l)){LV.ask=1;return['Yes — that size is in stock 🎉 Quick check: are you following @saanvi.studio? Followers get 10% off 🧡','Stock question','Keywords: size, stock','Reply + ask if following']}
+ if(/deliver|ship|days|when/.test(l))return['Delivery takes 3–4 days across India, and shipping is free above ₹2,000 🚚','Delivery question','FAQ match · 97%','Auto-reply'];
+ if(/return|exchange|refund/.test(l))return['Free 7-day returns and exchanges — no questions asked 💛','Returns question','FAQ match · 95%','Auto-reply'];
+ if(/price|cost|how much|₹/.test(l))return['The Linen Wrap Dress is ₹3,499 — with 20% off for the first 50 orders 🧡','Price question','FAQ match · 96%','Auto-reply'];
+ if(/wholesale|bulk|boutique|reseller/.test(l))return['Lovely! Wholesale enquiries get a quick approval from our team — I’ve flagged yours 🙌','Wholesale · sensitive','Approval required','Hold → you approve'];
+ return['Thanks for your message! I’ve passed this to the team and they’ll reply shortly 🧡','Unclear intent','No rule matched','Hand off to a human']}
 function send(q){var a=ans(q);LV.m.push({n:'aanya.s',c:'#4F8A5B',x:esc(q),s:performance.now(),t:0,tp:.5,te:.5+Math.max(1.2,a[0].length*.03),rep:a[0],i:a[1],r:a[2],a:a[3]})}
 var liveTimer=null;
 function goLive(q){
@@ -397,15 +397,15 @@ function goLive(q){
 function exitLive(){clearTimeout(liveTimer);LV.on=0;tr.classList.remove('on');var th=$('thr');if(th)th._pi=null;dirty=true}
 function sub(){var i=$('thr').querySelector('input');if(i&&i.value.trim()){send(i.value.trim());i.value=''}}
 function live(now){var c1=$('c1');c1.style.opacity=1;c1.style.visibility='visible';var th=$('thr');
- if(th._pi!=='L'){th._pi='L';th.innerHTML=hdr('igd')+'<div class="nb"><div class="ni"></div></div><div class="nf dm"><input class="in" placeholder="MessageΓÇª" autocomplete="off"><span class="po">Send</span></div>';th._ni=th.querySelector('.ni');th._ni._f=0;th.style.opacity=1}
- var ni=th._ni,h='<div class="ds">Today</div>'+(LV.m.length?'':'<div class="ds" style="margin-top:70px;font-size:12.5px;line-height:1.6">YouΓÇÖre Aanya ≡ƒæï<br>Ask about the dress below</div>')+LV.m.map(function(m){return item(m,(now-m.s)/1000,'igd')}).join('');
+ if(th._pi!=='L'){th._pi='L';th.innerHTML=hdr('igd')+'<div class="nb"><div class="ni"></div></div><div class="nf dm"><input class="in" placeholder="Message…" autocomplete="off"><span class="po">Send</span></div>';th._ni=th.querySelector('.ni');th._ni._f=0;th.style.opacity=1}
+ var ni=th._ni,h='<div class="ds">Today</div>'+(LV.m.length?'':'<div class="ds" style="margin-top:70px;font-size:12.5px;line-height:1.6">You’re Aanya 👋<br>Ask about the dress below</div>')+LV.m.map(function(m){return item(m,(now-m.s)/1000,'igd')}).join('');
  if(ni._h!==h){ni._h=h;ni.innerHTML=h;var dy=-Math.max(0,ni.offsetHeight-ni.parentNode.clientHeight+8)+'px';if(ni._y!==dy){ni._y=dy;ni.style.transition=ni._f?'transform .4s ease':'none';ni.style.transform='translateY('+dy+')';ni._f=1}}
  tabEls.forEach(function(e,i){e.className='pill'+(i==2?' on':'')});nvEls.forEach(function(e,i){e.className=i==2?'on':''});
  var lp=$('lp');if(lp._k!=='igd'){lp._k='igd';lp.innerHTML=left('igd')}
  var la=null,dn=0;LV.m.forEach(function(m){if(now>=m.s+m.tp*1000)la=m;if(now>=m.s+m.te*1000)dn++});
- put('rd',la?'<small class="lbl">Intent</small><b>'+la.i+'</b><small class="lbl">Rule matched</small><b>'+la.r+'</b><small class="lbl">Action</small><b>'+la.a+'</b>':'<small style="color:var(--dim)">Waiting for a messageΓÇª</small>');
+ put('rd',la?'<small class="lbl">Intent</small><b>'+la.i+'</b><small class="lbl">Rule matched</small><b>'+la.r+'</b><small class="lbl">Action</small><b>'+la.a+'</b>':'<small style="color:var(--dim)">Waiting for a message…</small>');
  $('k1').textContent=11+dn;$('k2').textContent=1;$('k3').textContent=2;
- var _st=$('st'),_cb=$('cb'),_ct=$('ct');if(_st)_st.textContent='TRY IT';if(_cb)_cb.textContent='YouΓÇÖre the customer';if(_ct)_ct.textContent='Ask anything ΓÇö Unool replies in real time.';}
+ var _st=$('st'),_cb=$('cb'),_ct=$('ct');if(_st)_st.textContent='TRY IT';if(_cb)_cb.textContent='You’re the customer';if(_ct)_ct.textContent='Ask anything — Unool replies in real time.';}
 tr.onclick=function(e){var b=e.target.closest&&e.target.closest('button');if(!b)return;if(b.getAttribute('data-q'))goLive(b.getAttribute('data-q'));else exitLive()};
 root.addEventListener('keydown',function(e){if(LV.on&&e.key=='Enter'&&e.target.tagName=='INPUT')sub()});
 root.addEventListener('click',function(e){if(LV.on&&e.target.classList&&e.target.classList.contains('po'))sub()});
@@ -442,7 +442,7 @@ if(DRESS_PHOTO)[].forEach.call(root.querySelectorAll('.art'),function(a){a.inner
 return{tick:tick,go:go};
 }
 var CFG=[
- {t0:32,dur:53,live:1,sc:['c1'],n:'03',h:'Automate comments & DMs',p:'Every comment and DM on Instagram and LinkedIn is read, answered or hidden ΓÇö and sensitive ones wait for your approval.',chips:['Instagram','LinkedIn','Comments','DMs'],nx:'',end:'Every reply, handled.',aria:'Video 3: Unool automatically replies to comments and DMs on Instagram and LinkedIn about the dress post'}];
+ {t0:32,dur:53,live:1,sc:['c1'],n:'03',h:'Automate comments & DMs',p:'Every comment and DM on Instagram and LinkedIn is read, answered or hidden — and sensitive ones wait for your approval.',chips:['Instagram','LinkedIn','Comments','DMs'],nx:'',end:'Every reply, handled.',aria:'Video 3: Unool automatically replies to comments and DMs on Instagram and LinkedIn about the dress post'}];
 var tpl=document.getElementById('ua-tpl').innerHTML,wrap=document.getElementById('ua-vids'),players=[],rio=window.IntersectionObserver?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target)}})},{threshold:.08}):null;
 CFG.forEach(function(c,i){var d=document.createElement('div');d.className='vid';
  d.innerHTML='<div class="vh"><div class="vt"><h3>'+c.h+'</h3><p>'+c.p+'</p></div><div class="vc">'+c.chips.map(function(x){return'<span>'+x+'</span>'}).join('')+'</div></div>'+tpl;

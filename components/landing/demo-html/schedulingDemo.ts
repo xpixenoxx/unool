@@ -48,42 +48,42 @@ export const UA_VIDEO_HTML = `
     <div class="ua-player" id="ua-player">
       <div class="ua-viewport" data-k="viewport" role="img" aria-label="Video 2: schedule the dress post on the best time and publish it automatically to Instagram and LinkedIn">
         <div class="ua-stage" data-k="stage">
-          <div class="ua-chrome"><i></i><i></i><i></i><span class="ua-url">≡ƒöÆ app.unool.co/automation</span><span class="nv"><span>Compose</span><span class="on">Flight plan</span><span>Inbox</span></span><span class="ua-live">LIVE DEMO</span></div>
+          <div class="ua-chrome"><i></i><i></i><i></i><span class="ua-url">🔒 app.unool.co/automation</span><span class="nv"><span>Compose</span><span class="on">Flight plan</span><span>Inbox</span></span><span class="ua-live">LIVE DEMO</span></div>
           <div class="ua-body">
-            <!-- PART 2a ┬╖ flight plan -->
+            <!-- PART 2a · flight plan -->
             <div class="sub" data-k="b1">
               <div class="card" style="left:24px;top:20px;width:640px;height:400px">
-                <div style="position:absolute;left:16px;top:12px;font-weight:600">Flight plan <span style="color:var(--dim);font-weight:500;font-size:13px">┬╖ this week</span></div>
-                <div data-k="cal"><div class="dy" style="left:16px">MON</div><div class="dy" style="left:137.6px">TUE</div><div class="dy" style="left:259.2px">WED</div><div class="dy" style="left:380.8px">THU</div><div class="dy" style="left:502.4px">FRI</div><div class="cal"><div class="sl"><em>9:00</em><div class="q"><span class="pi sm ig"></span>Queued post</div></div><div class="sl" data-k="best"><em>9:00</em><div class="bt" data-k="bt">Best time ┬╖ 9:40</div><div class="chip" data-k="dc" style="left:8px;top:22px;width:auto;right:8px;opacity:0"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div></div><div class="sl"><em>9:00</em></div><div class="sl"><em>9:00</em><div class="q"><span class="pi sm ig"></span>Queued post</div></div><div class="sl"><em>9:00</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em><div class="q"><span class="pi sm li">in</span>Queued post</div></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em><div class="q"><span class="pi sm li">in</span>Queued post</div></div></div></div>
+                <div style="position:absolute;left:16px;top:12px;font-weight:600">Flight plan <span style="color:var(--dim);font-weight:500;font-size:13px">· this week</span></div>
+                <div data-k="cal"><div class="dy" style="left:16px">MON</div><div class="dy" style="left:137.6px">TUE</div><div class="dy" style="left:259.2px">WED</div><div class="dy" style="left:380.8px">THU</div><div class="dy" style="left:502.4px">FRI</div><div class="cal"><div class="sl"><em>9:00</em><div class="q"><span class="pi sm ig"></span>Queued post</div></div><div class="sl" data-k="best"><em>9:00</em><div class="bt" data-k="bt">Best time · 9:40</div><div class="chip" data-k="dc" style="left:8px;top:22px;width:auto;right:8px;opacity:0"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div></div><div class="sl"><em>9:00</em></div><div class="sl"><em>9:00</em><div class="q"><span class="pi sm ig"></span>Queued post</div></div><div class="sl"><em>9:00</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em><div class="q"><span class="pi sm li">in</span>Queued post</div></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em><div class="q"><span class="pi sm li">in</span>Queued post</div></div></div></div>
               </div>
               <div class="card" style="left:684px;top:20px;width:252px;height:400px;padding:16px">
                 <div class="lbl">Ready to schedule</div>
                 <div data-k="src" class="chip" style="position:relative;margin-top:14px;width:auto;height:84px;padding:12px"><div class="art" style="width:46px;height:58px;border-radius:8px"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>Instagram + LinkedIn</small></div></div>
-                <div data-k="done" style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(79,138,91,.12);color:var(--good);font-weight:600;font-size:13.5px;line-height:1.4">Γ£ô Scheduled ┬╖ Tue 9:40<small style="display:block;font-weight:500;color:var(--muted)">Your audience is most active then</small></div>
+                <div data-k="done" style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(79,138,91,.12);color:var(--good);font-weight:600;font-size:13.5px;line-height:1.4">✓ Scheduled · Tue 9:40<small style="display:block;font-weight:500;color:var(--muted)">Your audience is most active then</small></div>
                 <div class="tg2" style="left:16px;bottom:18px"><span class="sw" data-k="sw"></span><span data-k="swl">Auto-publish</span></div>
               </div>
               <div class="chip" data-k="dg"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div>
             </div>
-            <!-- PART 2b ┬╖ publish -->
+            <!-- PART 2b · publish -->
             <div class="sub" data-k="b2">
               <div class="card bp">
                 <div style="display:flex;align-items:center;gap:12px"><span class="pi brand">ßÿÉ</span><div><div class="lbl">Flight UN-204</div><b style="font-size:15px">Auto-publish</b></div></div>
                 <div class="rt"><div><small>FROM</small>Queue</div><div style="text-align:right"><small>TO</small>Live</div></div>
-                <div class="bar2"><span data-k="pl">Γ£ê</span></div>
+                <div class="bar2"><span data-k="pl">✈</span></div>
                 <div style="font-size:19px;font-weight:600;margin-top:22px">Linen Wrap Dress drop</div>
                 <div class="grid3"><div class="lbl">Platforms<b>IG + LI</b></div><div class="lbl">Departs<b>Tue 9:40</b></div><div class="lbl">Status<b data-k="fs" style="color:var(--accent2)">Scheduled</b></div></div>
                 <div class="stub"><i></i><span>Boarding pass<br>issued by Unool</span></div>
               </div>
               <div class="card" style="left:468px;top:24px;width:464px;height:404px;padding:20px">
-                <div class="lbl">Publishing</div><div data-k="steps" style="margin-top:6px"><div class="stp p"><span class="dot"></span><div><b>Departure time reached</b><small>Tue 9:40 ┬╖ queue checked</small></div></div><div class="stp p"><span class="dot"></span><div><b>Preparing media</b><small>Resized for 4:5 and 1.91:1</small></div></div><div class="stp p"><span class="dot"></span><div><b>Publishing to Instagram</b><small>Container created ΓåÆ published</small></div></div><div class="stp p"><span class="dot"></span><div><b>Publishing to LinkedIn</b><small>Post shared to your profile</small></div></div></div>
-                <div class="live2" data-k="lv"><div><span class="pi sm ig"></span>Instagram ┬╖ Live</div><div><span class="pi sm li">in</span>LinkedIn ┬╖ Live</div></div>
+                <div class="lbl">Publishing</div><div data-k="steps" style="margin-top:6px"><div class="stp p"><span class="dot"></span><div><b>Departure time reached</b><small>Tue 9:40 · queue checked</small></div></div><div class="stp p"><span class="dot"></span><div><b>Preparing media</b><small>Resized for 4:5 and 1.91:1</small></div></div><div class="stp p"><span class="dot"></span><div><b>Publishing to Instagram</b><small>Container created → published</small></div></div><div class="stp p"><span class="dot"></span><div><b>Publishing to LinkedIn</b><small>Post shared to your profile</small></div></div></div>
+                <div class="live2" data-k="lv"><div><span class="pi sm ig"></span>Instagram · Live</div><div><span class="pi sm li">in</span>LinkedIn · Live</div></div>
               </div>
             </div>
           </div>
-          <div class="ua-cap"><span class="st" data-k="st">STEP 3</span><b data-k="cb">Flight plan</b><span data-k="ct">Drop it on the best time ΓÇö Unool suggests when your audience is online.</span></div>
+          <div class="ua-cap"><span class="st" data-k="st">STEP 3</span><b data-k="cb">Flight plan</b><span data-k="ct">Drop it on the best time — Unool suggests when your audience is online.</span></div>
           <svg class="cur" data-k="cur" viewBox="0 0 22 22"><path d="M3 2l14 8-6.2 1.6L8 18z" fill="#2A1E17" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
-        <div class="end" data-k="end"><div><b>Live on both platforms.</b><div class="eb"><button data-k="replay">Γå╗ Replay</button></div></div></div>
+        <div class="end" data-k="end"><div><b>Live on both platforms.</b><div class="eb"><button data-k="replay">↻ Replay</button></div></div></div>
       </div>
       <div class="ua-ctrl">
         <button class="ua-pb" data-k="play" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path data-k="pp" d="M6 4h4v16h-4zM14 4h4v16h-4z"/></svg></button>

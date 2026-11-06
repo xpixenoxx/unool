@@ -50,7 +50,7 @@ export default function HomePage() {
   };
 
   const [thought] = useState(
-    'Meet the Linen Wrap Dress ≡ƒî┐ Hand-woven terracotta, made for warm days. Sizes XSΓÇôXL. First 50 pieces: 20% off this week.'
+    'Meet the Linen Wrap Dress 🌿 Hand-woven terracotta, made for warm days. Sizes XS–XL. First 50 pieces: 20% off this week.'
   );
 
   // 3-step auto-playing video flow: 0 = Connect accounts, 1 = Write post, 2 = Adapt (Mobile view)
@@ -555,7 +555,7 @@ export default function HomePage() {
         busy = 1;
         let c = 0;
         vy = 0.03;
-        stt.innerHTML = 'Publishing <b id="pc">0</b>/' + N + ' ΓÇª';
+        stt.innerHTML = 'Publishing <b id="pc">0</b>/' + N + ' …';
 
         T.forEach(function(d, i) {
           setTimeout(function() {
@@ -564,7 +564,7 @@ export default function HomePage() {
             if (pc) pc.textContent = String(++c);
             if (c === N) {
               vy = 0.004;
-              stt.innerHTML = 'Γ£ô Live on <b>' + N + ' platforms</b> ┬╖ 1 link ┬╖ 1 click';
+              stt.innerHTML = '✓ Live on <b>' + N + ' platforms</b> · 1 link · 1 click';
             }
           }, i * 90);
         });
@@ -573,7 +573,7 @@ export default function HomePage() {
           T.forEach(function(d) {
             d.classList.remove('ok');
           });
-          stt.innerHTML = 'Ready ┬╖ <b>' + N + ' platforms</b> connected';
+          stt.innerHTML = 'Ready · <b>' + N + ' platforms</b> connected';
           busy = 0;
         }, N * 90 + 3200);
       };
@@ -601,8 +601,8 @@ export default function HomePage() {
     const cds = $$('.cd');
     const tbBtns = $$('#tabs button[data-i]');
     const cps = [
-      'Instagram ┬╖ Visual narrative ┬╖ 2,200 chars',
-      'LinkedIn ┬╖ Professional authority ┬╖ 3,000 chars'
+      'Instagram · Visual narrative · 2,200 chars',
+      'LinkedIn · Professional authority · 3,000 chars'
     ];
     let act = 0;
     let deckHov = 0;
@@ -681,7 +681,7 @@ export default function HomePage() {
     if (ap) {
       ap.onclick = function() {
         ap.classList.toggle('on');
-        ap.textContent = ap.classList.contains('on') ? 'Approved Γ£ô' : 'Approve';
+        ap.textContent = ap.classList.contains('on') ? 'Approved ✓' : 'Approve';
       };
     }
 
@@ -808,11 +808,11 @@ export default function HomePage() {
         <section id="overview">
           <div className="hero-content">
             <div className="hero-pill-badge">
-              <span className="hero-pill-sparkle">Γ£ª</span>
+              <span className="hero-pill-sparkle">✦</span>
               <span className="hero-pill-tag">Unified Social Engine</span>
-              <span className="hero-pill-sep">┬╖</span>
+              <span className="hero-pill-sep">·</span>
               <span className="hero-pill-text">30+ Channels Sync Live</span>
-              <span className="hero-pill-arrow">ΓåÆ</span>
+              <span className="hero-pill-arrow">→</span>
             </div>
             <h1 className="d">
               <span>
@@ -832,7 +832,7 @@ export default function HomePage() {
             <p className="sub">
               Unool is your social media command center. Paste a single link and we build your profile,
               write platform-native posts, and publish to LinkedIn, X, Instagram, YouTube, Discord and
-              30+ more ΓÇö in one click.
+              30+ more — in one click.
             </p>
             <div className="go">
               <input
@@ -843,12 +843,12 @@ export default function HomePage() {
                 style={{ cursor: 'default' }}
               />
               <button className="btn" id="pub">
-                Publish everywhere ΓåÆ
+                Publish everywhere →
               </button>
             </div>
             <div id="st">
               <span className="st-pulse-dot"></span>
-              <span>Ready ┬╖ <b>30 platforms</b> connected live</span>
+              <span>Ready · <b>30 platforms</b> connected live</span>
             </div>
             <div className="stats">
               <div className="stat-card">
@@ -895,7 +895,7 @@ export default function HomePage() {
             One thought. <em>Every voice.</em>
           </h2>
           <p className="sub rv" style={{ margin: '24px auto 0' }}>
-            Unool adapts your content to each platformΓÇÖs native format, tone, and limits. Here are just
+            Unool adapts your content to each platform’s native format, tone, and limits. Here are just
             three examples out of 30+.
           </p>
 
@@ -985,7 +985,7 @@ export default function HomePage() {
                     </div>
                     <div className="flow-account-status">
                       {connectedAccounts.instagram ? (
-                        <span className="status-connected">Γ£ô Connected as @pixenox</span>
+                        <span className="status-connected">✓ Connected as @pixenox</span>
                       ) : (
                         <span className="status-idle">Not connected</span>
                       )}
@@ -1002,7 +1002,7 @@ export default function HomePage() {
                         </>
                       ) : connectedAccounts.instagram ? (
                         <>
-                          <span>Γ£ô Connected</span>
+                          <span>✓ Connected</span>
                         </>
                       ) : (
                         <span>Connect Instagram</span>
@@ -1025,7 +1025,7 @@ export default function HomePage() {
                     </div>
                     <div className="flow-account-status">
                       {connectedAccounts.linkedin ? (
-                        <span className="status-connected">Γ£ô Connected as Pixenox</span>
+                        <span className="status-connected">✓ Connected as Pixenox</span>
                       ) : (
                         <span className="status-idle">Not connected</span>
                       )}
@@ -1042,7 +1042,7 @@ export default function HomePage() {
                         </>
                       ) : connectedAccounts.linkedin ? (
                         <>
-                          <span>Γ£ô Connected</span>
+                          <span>✓ Connected</span>
                         </>
                       ) : (
                         <span>Connect LinkedIn</span>
@@ -1058,7 +1058,7 @@ export default function HomePage() {
                     onClick={() => setFlowStep(1)}
                   >
                     <span>Next: Write the post</span>
-                    <span>ΓåÆ</span>
+                    <span>→</span>
                   </button>
                 </div>
               </div>
@@ -1079,7 +1079,7 @@ export default function HomePage() {
                     />
                     <div className="flow-media-meta">
                       <span className="flow-media-filename">linen-wrap-dress.jpg</span>
-                      <span className="flow-media-specs">1080 ├ù 1350 ┬╖ attached</span>
+                      <span className="flow-media-specs">1080 × 1350 · attached</span>
                     </div>
                     <span className="flow-media-badge">Attached</span>
                   </div>
@@ -1087,7 +1087,7 @@ export default function HomePage() {
                   {/* Post Draft Box (Linen Wrap Dress) */}
                   <div className="flow-draft-box">
                     <p className="flow-draft-content">
-                      Meet the Linen Wrap Dress ≡ƒî┐ Hand-woven terracotta, made for warm days. Sizes XSΓÇôXL. First 50 pieces: 20% off this week.
+                      Meet the Linen Wrap Dress 🌿 Hand-woven terracotta, made for warm days. Sizes XS–XL. First 50 pieces: 20% off this week.
                     </p>
                   </div>
 
@@ -1113,11 +1113,11 @@ export default function HomePage() {
                     {isAdapted ? (
                       <>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span>Γ£ô Adapted for both</span>
+                        <span>✓ Adapted for both</span>
                       </>
                     ) : (
                       <>
-                        <span>ΓÜí Adapt for both</span>
+                        <span>⚡ Adapt for both</span>
                       </>
                     )}
                   </button>
@@ -1139,7 +1139,7 @@ export default function HomePage() {
               </button>
               <button data-i="1">LinkedIn</button>
             </div>
-            <p id="cap">Instagram ┬╖ Visual narrative ┬╖ 2,200 chars</p>
+            <p id="cap">Instagram · Visual narrative · 2,200 chars</p>
           </div>
         </section>
       </div>
@@ -1151,14 +1151,14 @@ export default function HomePage() {
         </h2>
         <div className="bento" id="bento">
           <div className="bt w12 dk rv">
-            <div className="ib">Γ¥û</div>
+            <div className="ib">✕</div>
             <h3>Multi-Network Composer</h3>
-            <p>Write once. Adapted to every platformΓÇÖs limits, formatting and best practices.</p>
+            <p>Write once. Adapted to every platform’s limits, formatting and best practices.</p>
             <div className="chips" id="chips"></div>
           </div>
 
           <div className="bt rv">
-            <div className="ib">Γ£ô</div>
+            <div className="ib">✓</div>
             <h3>Human-in-the-Loop</h3>
             <p>AI drafts. You approve. Nothing posts without your click.</p>
             <div className="ab">
@@ -1223,11 +1223,11 @@ export default function HomePage() {
 
               {/* Top App bar */}
               <div className="pf-appbar" style={{ color: currentTpl.appBarColor }}>
-                <span style={{ cursor: 'pointer', fontSize: '18px' }}>Γÿ░</span>
+                <span style={{ cursor: 'pointer', fontSize: '18px' }}>☰</span>
                 <div className="brand">
                   unool<span>.</span>
                 </div>
-                <span>≡ƒÿÄ</span>
+                <span>😎</span>
               </div>
 
               {/* Scrollable Screen Body */}
@@ -1249,7 +1249,7 @@ export default function HomePage() {
                     {currentTpl.avatarText}
                   </div>
                   <span className="pf-badge-verified" title="Verified Unool Profile">
-                    Γ£ô
+                    ✓
                   </span>
                 </div>
 
@@ -1329,7 +1329,7 @@ export default function HomePage() {
                         </span>
                       </div>
                       <span className="pf-link-arrow" style={{ color: currentTpl.color }}>
-                        ΓåÆ
+                        →
                       </span>
                     </div>
                   ))}
@@ -1343,7 +1343,7 @@ export default function HomePage() {
               Every link. <em>One home.</em>
             </h3>
             <p className="lead" style={{ margin: 0 }}>
-              Automated storytelling across every network you use. Customizable, instantly shareable ΓÇö pick
+              Automated storytelling across every network you use. Customizable, instantly shareable — pick
               a theme and watch it change live.
             </p>
 
@@ -1368,12 +1368,12 @@ export default function HomePage() {
             </div>
 
             <Link className="btn" href="/signup">
-              Get started ΓåÆ
+              Get started →
             </Link>
           </div>
         </div>
 
-        {/* Analytics & Insights ΓÇö placed after Every link. One home. */}
+        {/* Analytics & Insights — placed after Every link. One home. */}
         <div
           id="analytics"
           className="an-wrap"
@@ -1386,7 +1386,7 @@ export default function HomePage() {
         >
           <div className="bt w12 dk an rv">
             <div>
-              <div className="ib">Γåù</div>
+              <div className="ib">↗</div>
               <h3>Analytics &amp; Insights</h3>
               <p>
                 Track engagement across all platforms in one dashboard. Understand what resonates. Grow
@@ -1394,8 +1394,8 @@ export default function HomePage() {
               </p>
               <div className="kp">
                 <div>
-                  <b id="rk">ΓÇö</b>
-                  <small>Reach ┬╖ 14 days</small>
+                  <b id="rk">—</b>
+                  <small>Reach · 14 days</small>
                 </div>
                 <div>
                   <b>6.9%</b>
@@ -1419,11 +1419,11 @@ export default function HomePage() {
       <section id="pricing">
         <div className="pricing-header-wrap">
           <h2 className="d rv">
-            Start free. <em>Scale when youΓÇÖre ready.</em>
+            Start free. <em>Scale when you’re ready.</em>
           </h2>
           <div className="pricing-sublink rv">
             <Link href="/pricing">
-              Compare all 4 plans &amp; full features (including Studio for agencies) ΓåÆ
+              Compare all 4 plans &amp; full features (including Studio for agencies) →
             </Link>
           </div>
         </div>
@@ -1453,7 +1453,7 @@ export default function HomePage() {
             <h3>Creator</h3>
             <div className="for">For growing creators &amp; personal brands</div>
             <div className="pr">
-              {getPriceById('creator')?.monthlyInr ?? 'Γé╣799'}<small>/mo</small>
+              {getPriceById('creator')?.monthlyInr ?? '₹799'}<small>/mo</small>
             </div>
             <ul>
               <li>Everything in Spark, plus:</li>
@@ -1474,7 +1474,7 @@ export default function HomePage() {
             <h3>Pro</h3>
             <div className="for">The full engine for serious creators &amp; teams</div>
             <div className="pr">
-              {getPriceById('pro')?.monthlyInr ?? 'Γé╣1,999'}<small>/mo</small>
+              {getPriceById('pro')?.monthlyInr ?? '₹1,999'}<small>/mo</small>
             </div>
             <ul>
               <li>Everything in Creator, plus:</li>
@@ -1485,7 +1485,7 @@ export default function HomePage() {
               <li>3 team seats &amp; priority support</li>
             </ul>
             <Link className="btn" href="/signup?plan=pro">
-              Get Pro ΓåÆ
+              Get Pro →
             </Link>
           </div>
 
@@ -1497,7 +1497,7 @@ export default function HomePage() {
             <h3>Studio</h3>
             <div className="for">For agencies &amp; teams</div>
             <div className="pr">
-              {getPriceById('studio')?.monthlyInr ?? 'Γé╣4,166'}<small>/mo</small>
+              {getPriceById('studio')?.monthlyInr ?? '₹4,166'}<small>/mo</small>
             </div>
             <ul>
               <li>Everything in Pro, plus:</li>
@@ -1509,7 +1509,7 @@ export default function HomePage() {
               <li>Priority support + onboarding call</li>
             </ul>
             <Link className="btn" href="/signup?plan=studio" style={{ background: '#8b5cf6' }}>
-              Start 14-day trial ΓåÆ
+              Start 14-day trial →
             </Link>
           </div>
         </div>
@@ -1551,7 +1551,7 @@ export default function HomePage() {
               <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">
                 www.pixenox.com
               </a>{' '}
-              ┬╖ Prathipadu, Kakinada District, Andhra Pradesh, India
+              · Prathipadu, Kakinada District, Andhra Pradesh, India
             </p>
           </div>
 

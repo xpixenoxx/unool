@@ -29,7 +29,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 
 
-// â”€â”€â”€ GET: Meta Webhook Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── GET: Meta Webhook Verification ─────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get('hub.mode');
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
 }
 
-// â”€â”€â”€ POST: Receive Instagram Webhook Events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── POST: Receive Instagram Webhook Events ──────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
               );
             }
           } else if (change.field === 'follow' || change.field === 'follows') {
-            // â”€â”€ Follow-Gate: real-time follow detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Follow-Gate: real-time follow detection ───────────────────────
             // Meta sends this when someone follows the creator's IG account.
             // field: "follow", value: { follower_id, follower_username }
             const value = change.value as Record<string, unknown>;
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// â”€â”€â”€ Connection & Token Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Connection & Token Helpers ──────────────────────────────────────────────
 
 async function resolveInstagramConnection(igUserId: string): Promise<any> {
   const { data: directConnections } = await supabaseAdmin
@@ -281,13 +281,13 @@ async function getOrRefreshAccessToken(connection: any): Promise<string | null> 
       logger.info('Instagram token refreshed proactively', { connectionId: connection.id });
     } catch (refreshErr) {
       const err = refreshErr instanceof Error ? refreshErr : new Error(String(refreshErr));
-      logger.warn('Instagram token refresh failed â€” continuing with existing token', { connectionId: connection.id, error: err.message });
+      logger.warn('Instagram token refresh failed — continuing with existing token', { connectionId: connection.id, error: err.message });
       if (expiresAt && expiresAt.getTime() < Date.now()) {
         await supabaseAdmin
           .from('platform_connections')
           .update({ status: 'expired', updated_at: new Date().toISOString() })
           .eq('id', connection.id);
-        logger.error('Instagram token expired and refresh failed â€” connection marked expired', { connectionId: connection.id });
+        logger.error('Instagram token expired and refresh failed — connection marked expired', { connectionId: connection.id });
         return null;
       }
     }
@@ -296,7 +296,7 @@ async function getOrRefreshAccessToken(connection: any): Promise<string | null> 
   return accessToken;
 }
 
-// â”€â”€â”€ Comment Processing Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Comment Processing Logic ─────────────────────────────────────────────────
 
 async function processCommentEvent(igUserId: string, value: Record<string, unknown>): Promise<void> {
   const commentEvent: CommentEvent = {
@@ -316,7 +316,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // â”€â”€ Deduplication guard: skip if this comment_id was already processed â”€â”€
+  // ── Deduplication guard: skip if this comment_id was already processed ──
   const { data: existing } = await supabaseAdmin
     .from('instagram_comment_logs')
     .select('id')
@@ -327,7 +327,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // â”€â”€ ContentGuard: pre-filter harmful incoming content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── ContentGuard: pre-filter harmful incoming content ──────────────────
   const guardResult = ContentGuard.validateComment(commentEvent.text);
   if (!guardResult.safe && guardResult.violation.level === 'blocked') {
     logger.info('ContentGuard blocked incoming comment', {
@@ -432,13 +432,13 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // â”€â”€ Velocity check: enforce hourly rate limits â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Velocity check: enforce hourly rate limits ──────────────────────────
   const canReply = await velocityThrottle.canReply(
     connection.workspace_id,
     automationConfig.maxRepliesPerHour || 30
   );
   if (!canReply) {
-    logger.info('Velocity limit reached â€” queuing comment for later', {
+    logger.info('Velocity limit reached — queuing comment for later', {
       workspaceId: connection.workspace_id,
       commentId: commentEvent.commentId,
     });
@@ -446,7 +446,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     await flagCommentForReview(connection.workspace_id, commentEvent, {
       classification: 'unrelated',
       suggestedReply: '',
-      reasoning: 'Rate limit reached â€” deferred for human review',
+      reasoning: 'Rate limit reached — deferred for human review',
     }, 0);
     return;
   }
@@ -468,10 +468,10 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     }
   }
 
-  // â”€â”€ Fetch recent replies for anti-duplication â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Fetch recent replies for anti-duplication ───────────────────────────
   const recentReplies = await lexicalEntropyGuard.getRecentReplies(connection.workspace_id, 15);
 
-  // â”€â”€ Classify and generate reply â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Classify and generate reply ─────────────────────────────────────────
   const automation = new InstagramCommentAutomation(groqApiKey);
   let result: ClassifiedComment;
   try {
@@ -498,23 +498,23 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
   // Act on the classification
   if (result.shouldAutoReply && result.suggestedReply && result.suggestedReply !== 'SKIP') {
-    // â”€â”€ Humanize the reply through ContentHumanizer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Humanize the reply through ContentHumanizer ─────────────────────
     let finalReply = result.suggestedReply;
     try {
       const humanized = ContentHumanizer.humanize(finalReply, 'instagram');
       finalReply = humanized.humanized || finalReply;
     } catch {
-      logger.debug('ContentHumanizer failed â€” using raw reply');
+      logger.debug('ContentHumanizer failed — using raw reply');
     }
 
-    // â”€â”€ Anti-duplication check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Anti-duplication check ─────────────────────────────────────────
     if (lexicalEntropyGuard.isTooSimilar(finalReply, recentReplies)) {
-      logger.info('Reply too similar to recent replies â€” flagging for review', {
+      logger.info('Reply too similar to recent replies — flagging for review', {
         commentId: commentEvent.commentId,
       });
       result.shouldFlagForReview = true;
     } else {
-      // â”€â”€ Fast jitter delay (1-2s) so response feels natural but runs well within serverless limits
+      // ── Fast jitter delay (1-2s) so response feels natural but runs well within serverless limits
       await humanizedSleep(1, 2);
 
       // Post the public reply
@@ -548,7 +548,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       }
     }
 
-    // â”€â”€ Resolve specific brand materials page linked to this Instagram post â”€â”€
+    // ── Resolve specific brand materials page linked to this Instagram post ──
     let activeLinkUrl = automationConfig.linkUrl;
     if (commentEvent.mediaId && connection.workspace_id) {
       try {
@@ -584,7 +584,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       }
     }
 
-    // â”€â”€ Send DM for link_request / purchase_intent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Send DM for link_request / purchase_intent ──────────────────────
     if (result.shouldSendDM && activeLinkUrl) {
       const commenterIgScopedId = (value.from as any)?.id as string | undefined;
       const dmText = result.suggestedDM 
@@ -612,7 +612,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     await flagCommentForReview(connection.workspace_id, commentEvent, result, result.leadScore);
   }
 
-  // â”€â”€ autoHideSpam: hide spam comments via Graph API if enabled â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── autoHideSpam: hide spam comments via Graph API if enabled ──────────────
   if (
     result.classification === 'spam' &&
     automationConfig.autoHideSpam &&
@@ -641,7 +641,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   }
 }
 
-// â”€â”€â”€ Inbound DM Processing Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Inbound DM Processing Logic ─────────────────────────────────────────────
 
 async function processDmEvent(igUserId: string, messaging: Record<string, unknown>): Promise<void> {
   const message = messaging.message as Record<string, unknown> | undefined;
@@ -713,7 +713,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
 
   const automation = new InstagramCommentAutomation(groqApiKey);
 
-  // â”€â”€ Multi-Turn Conversation Memory Engine (10 to 15 turns) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Multi-Turn Conversation Memory Engine (10 to 15 turns) ──────────
   // Fetch chronological conversation history for this sender in this workspace
   const { data: previousLogs } = await supabaseAdmin
     .from('instagram_dm_logs')
@@ -778,10 +778,10 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
       const humanized = ContentHumanizer.humanize(finalReply, 'instagram');
       finalReply = humanized.humanized || finalReply;
     } catch {
-      logger.debug('ContentHumanizer failed for DM â€” using raw reply');
+      logger.debug('ContentHumanizer failed for DM — using raw reply');
     }
 
-    // Jitter delay for DMs (2â€“4s for natural and fast response)
+    // Jitter delay for DMs (2–4s for natural and fast response)
     await humanizedSleep(2, 4);
 
     // Send the DM reply
@@ -825,7 +825,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   }
 }
 
-// â”€â”€â”€ Helper: Load automation config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper: Load automation config ──────────────────────────────────────────
 
 async function loadAutomationConfig(workspaceId: string): Promise<AutomationConfig> {
   const globalAutomationEnabled = await isAutomationEnabledServer();
@@ -880,7 +880,7 @@ async function loadAutomationConfig(workspaceId: string): Promise<AutomationConf
       };
     }
   } catch {
-    // Table may not exist yet â€” fall back to defaults
+    // Table may not exist yet — fall back to defaults
   }
 
   return DEFAULT_AUTOMATION_CONFIG;
@@ -897,7 +897,7 @@ async function getWorkspaceIdForIgUser(igUserId: string): Promise<string> {
   return data?.workspace_id || '';
 }
 
-// â”€â”€â”€ Helper: Log comment event â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper: Log comment event ────────────────────────────────────────────────
 
 async function logCommentEvent(
   workspaceId: string,
@@ -915,7 +915,7 @@ async function logCommentEvent(
         classification: classification.classification,
         confidence: classification.confidence,
         suggested_reply: classification.suggestedReply,
-        // Always insert false â€” updated to true only after confirmed API success
+        // Always insert false — updated to true only after confirmed API success
         auto_replied: false,
         flagged_for_review: classification.shouldFlagForReview,
         reasoning: classification.reasoning,
@@ -931,7 +931,7 @@ async function logCommentEvent(
   }
 }
 
-// â”€â”€â”€ Helper: Log DM event â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper: Log DM event ─────────────────────────────────────────────────────
 
 async function logDmEvent(
   workspaceId: string,
@@ -958,7 +958,7 @@ async function logDmEvent(
   }
 }
 
-// â”€â”€â”€ Helper: Flag comment for review â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper: Flag comment for review ─────────────────────────────────────────
 
 async function flagCommentForReview(
   workspaceId: string,
