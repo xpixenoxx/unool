@@ -1,4 +1,4 @@
-﻿import { config } from '@/lib/config/schema';
+import { config } from '@/lib/config/schema';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { extractNormalizedEngagement, UniversalEngagement } from './normalize';
@@ -98,8 +98,19 @@ export async function syncWorkspaceEngagement(
     await Promise.all(
       pPosts.map(async (pp: any) => {
         const platformPostId = pp.platform_post_id;
-        const connInfo = connectionMap.get(pp.platform_connection_id);
+        let connInfo = connectionMap.get(pp.platform_connection_id);
         const platform = connInfo?.platform || (pp.post_variant?.platform as string);
+
+        // Fallback: If connection ID changed or was unlinked (e.g. user reconnected account),
+        // resolve the active connection for this platform in the workspace
+        if (!connInfo && platform) {
+          for (const conn of connectionMap.values()) {
+            if (conn.platform === platform) {
+              connInfo = conn;
+              break;
+            }
+          }
+        }
 
         if (!platformPostId || !connInfo) {
           result.skippedCount++;

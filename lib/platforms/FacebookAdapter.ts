@@ -12,7 +12,7 @@ import {
 import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
 
 const META_AUTH_URL = 'https://www.facebook.com/v20.0/dialog/oauth';
-const META_TOKEN_URL = 'https://graph.facebook.com/${API_VERSIONS.facebook}/oauth/access_token';
+const META_TOKEN_URL = `https://graph.facebook.com/${API_VERSIONS.facebook}/oauth/access_token`;
 const FACEBOOK_API_BASE = 'https://graph.facebook.com/v20.0';
 
 export class FacebookAdapter implements PlatformAdapter {
@@ -47,8 +47,9 @@ export class FacebookAdapter implements PlatformAdapter {
     });
 
     return platformFetch('facebook', async () => {
+      // Step 1: Exchange code for user access token
       const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
-        method: 'POST',
+        method: 'GET',
       });
 
       if (!response.ok) {
@@ -57,27 +58,62 @@ export class FacebookAdapter implements PlatformAdapter {
         throw new Error(`Token exchange failed: ${error}`);
       }
 
-      const data = await response.json();
+      const shortLivedData = await response.json();
+      const shortLivedToken = shortLivedData.access_token;
+
+      // Step 2: Exchange for long-lived (60 days) token using fb_exchange_token
+      try {
+        const longLivedParams = new URLSearchParams({
+          grant_type: 'fb_exchange_token',
+          client_id: this.authConfig.clientId,
+          client_secret: this.authConfig.clientSecret,
+          fb_exchange_token: shortLivedToken,
+        });
+
+        const longLivedResponse = await fetchWithRetry(
+          `${META_TOKEN_URL}?${longLivedParams.toString()}`,
+          { method: 'GET' }
+        );
+
+        if (longLivedResponse.ok) {
+          const longLivedData = await longLivedResponse.json();
+          logger.info('Facebook long-lived token obtained', { expiresIn: longLivedData.expires_in });
+          return {
+            accessToken: longLivedData.access_token,
+            refreshToken: longLivedData.access_token,
+            expiresIn: longLivedData.expires_in || 5184000,
+            scope: shortLivedData.scope,
+          };
+        } else {
+          const errText = await longLivedResponse.text();
+          logger.warn('Facebook long-lived token exchange non-ok, using short-lived', { error: errText });
+        }
+      } catch (err) {
+        logger.warn('Facebook long-lived token exchange failed, using short-lived', { error: err });
+      }
+
       return {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresIn: data.expires_in,
-        scope: data.scope,
+        accessToken: shortLivedToken,
+        refreshToken: shortLivedToken,
+        expiresIn: shortLivedData.expires_in || 3600,
+        scope: shortLivedData.scope,
       };
     });
   }
 
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-    // Facebook uses th_exchange_token same as Threads
+    // Facebook uses fb_exchange_token to extend/refresh access tokens
     const params = new URLSearchParams({
-      grant_type: 'th_exchange_token',
+      grant_type: 'fb_exchange_token',
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
-      access_token: refreshToken,
+      fb_exchange_token: refreshToken,
     });
 
     return platformFetch('facebook', async () => {
-      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {});
+      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
+        method: 'GET',
+      });
 
       if (!response.ok) {
         const error = await response.text();
@@ -88,7 +124,8 @@ export class FacebookAdapter implements PlatformAdapter {
       const data = await response.json();
       return {
         accessToken: data.access_token,
-        expiresIn: data.expires_in,
+        refreshToken: data.access_token,
+        expiresIn: data.expires_in || 5184000,
       };
     });
   }
