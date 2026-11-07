@@ -29,6 +29,7 @@ const TEMPLATE_NAMES: Record<string, string> = {
   'the-creator': 'The Creator',
   'the-voice': 'The Voice',
   'the-studio': 'The Studio',
+  'the-stack': 'The Stack',
 };
 
 // GET /api/profile/analytics - Get template analytics for current user's profile
