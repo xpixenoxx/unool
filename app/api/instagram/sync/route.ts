@@ -608,6 +608,27 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const shouldFlag = result.shouldFlagForReview || (!didReply && result.shouldAutoReply && finalReply !== 'SKIP');
+        if (shouldFlag) {
+          try {
+            await supabaseAdmin.from('instagram_flagged_comments').upsert({
+              workspace_id: workspaceId,
+              comment_id: commentId,
+              media_id: media.id,
+              comment_text: commentText,
+              commenter_username: rawUsername || commenterUsername || 'instagram_user',
+              classification: result.classification,
+              suggested_reply: finalReply || '',
+              reasoning: result.reasoning + (didReply ? '' : ' (Auto-reply failed/pending review)'),
+              status: 'pending',
+              priority: result.leadScore > 0 ? 'high' : 'normal',
+              lead_score: result.leadScore || 0,
+            }, { onConflict: 'comment_id', ignoreDuplicates: false });
+          } catch (flagErr) {
+            logger.warn('Failed to insert flagged comment in sync route', { commentId, error: flagErr });
+          }
+        }
+
         // Log comment into database
         await supabaseAdmin.from('instagram_comment_logs').upsert({
           workspace_id: workspaceId,
@@ -619,7 +640,8 @@ export async function POST(request: NextRequest) {
           confidence: result.confidence,
           suggested_reply: finalReply,
           auto_replied: didReply,
-          flagged_for_review: result.shouldFlagForReview,
+          delivery_status: didReply ? 'sent' : (shouldFlag ? 'needs_review' : 'sent'),
+          flagged_for_review: shouldFlag,
           reasoning: result.reasoning + ' (Live sync)',
           lead_score: result.leadScore,
           dm_sent: false,

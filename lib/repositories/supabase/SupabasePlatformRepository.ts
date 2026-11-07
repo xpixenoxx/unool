@@ -27,6 +27,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       status: row.status as 'connected' | 'expired' | 'revoked' | 'error',
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
+      metadata: (row.metadata as Record<string, unknown>) || {},
     };
   }
 
@@ -121,6 +122,10 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         updatePayload.user_id = input.userId;
       }
 
+      if (input.metadata) {
+        updatePayload.metadata = input.metadata;
+      }
+
       const result = await this.supabase
         .from('platform_connections')
         .update(updatePayload)
@@ -145,6 +150,10 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       // Only set user_id if provided (column may not exist in DB)
       if (input.userId) {
         insertPayload.user_id = input.userId;
+      }
+
+      if (input.metadata) {
+        insertPayload.metadata = input.metadata;
       }
 
       const result = await this.supabase

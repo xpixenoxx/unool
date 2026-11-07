@@ -41,6 +41,8 @@ export interface CommentLog {
   thread_hook: string | null;
   reasoning: string;
   created_at: string;
+  delivery_status?: string;
+  flagged_for_review?: boolean;
 }
 
 export interface DmLog {

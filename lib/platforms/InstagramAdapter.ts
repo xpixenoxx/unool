@@ -135,7 +135,7 @@ export class InstagramAdapter implements PlatformAdapter {
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('instagram', async () => {
       const profileResponse = await fetchWithRetry(
-        `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name,profile_picture_url`,
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name,profile_picture_url,user_id,account_type`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
@@ -155,6 +155,8 @@ export class InstagramAdapter implements PlatformAdapter {
         displayName: profileData.name || profileData.username,
         profileUrl: `https://instagram.com/${profileData.username}`,
         avatarUrl: profileData.profile_picture_url,
+        instagramBusinessAccountId: profileData.user_id || undefined,
+        accountType: profileData.account_type || undefined,
       };
     });
   }

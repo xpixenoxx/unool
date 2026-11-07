@@ -400,7 +400,10 @@ describe('sendPrivateReplyToComment', () => {
     expect(result).toEqual({ messageId: 'private_msg_123' });
     const calledUrl: string = mockFetch.mock.calls[0][0];
     expect(calledUrl).toContain('graph.instagram.com');
-    expect(calledUrl).toContain('/private_replies');
+    expect(calledUrl).toContain('/messages');
+    const calledBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(calledBody.recipient).toEqual({ comment_id: 'comment_id_999' });
+    expect(calledBody.message).toEqual({ text: 'Private reply message' });
   });
 
   it('skips test_ prefixed commentIds', async () => {
@@ -454,7 +457,9 @@ describe('sendDmForComment', () => {
     // Should only have called once (private_replies), NOT twice (which would indicate DM fallback)
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const calledUrl: string = mockFetch.mock.calls[0][0];
-    expect(calledUrl).toContain('/private_replies');
+    expect(calledUrl).toContain('/messages');
+    const calledBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(calledBody.recipient).toEqual({ comment_id: 'comment_id_999' });
   });
 
   it('succeeds when private reply API accepts the request', async () => {

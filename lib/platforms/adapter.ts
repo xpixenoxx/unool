@@ -18,6 +18,8 @@ export interface UserProfile {
   displayName?: string;
   profileUrl?: string;
   avatarUrl?: string;
+  instagramBusinessAccountId?: string;
+  accountType?: string;
 }
 
 export interface PublishInput {

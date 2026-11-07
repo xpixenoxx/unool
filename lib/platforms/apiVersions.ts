@@ -15,15 +15,8 @@ export const API_VERSIONS = {
 /**
  * API hosts keyed by Instagram authentication method.
  *
- * Instagram Login (new OAuth 2.0 flow) issues IGqxxx / EAA… scoped tokens that
- * must call graph.instagram.com.  Facebook Business Login issues Page/System-User
- * tokens (EAA… beginning with a Facebook app-scoped prefix) that must call
- * graph.facebook.com for most Graph endpoints.
- *
- * Since the platform_connections table does not store an explicit auth_method
- * column, we detect the method from the access token prefix:
- *   - Tokens starting with "IGqx" or "IGdid" → Instagram Login → graph.instagram.com
- *   - All other tokens → Facebook Business Login → graph.facebook.com
+ * Instagram Login (OAuth 2.0 flow) issues tokens that call graph.instagram.com.
+ * Facebook Business Login issues Page/System-User tokens that call graph.facebook.com.
  */
 export const INSTAGRAM_API_HOSTS = {
   instagramLogin: 'https://graph.instagram.com',
@@ -31,18 +24,33 @@ export const INSTAGRAM_API_HOSTS = {
 } as const;
 
 /**
- * Returns the correct Graph API host for an Instagram access token.
- * Uses token prefix to detect Instagram Login vs Facebook Business Login.
+ * Returns the correct Graph API host for an Instagram access token and optional auth method.
+ * Prefers explicit authMethod when available, falling back to clean token prefix inspection.
  */
-export function resolveInstagramApiHost(accessToken: string): string {
-  // Instagram Login tokens (OAuth 2.0 for Instagram) use graph.instagram.com.
-  // All Instagram User Access Tokens begin with "IG" (e.g. IGqx, IGdid, IGAA, IGQ, etc.).
-  if (accessToken.startsWith('IG')) {
+export function resolveInstagramApiHost(accessToken: string, authMethod?: string): string {
+  if (authMethod === 'instagram_login') {
     return INSTAGRAM_API_HOSTS.instagramLogin;
   }
-  // Facebook Business Login tokens (e.g. EAAB...) go to graph.facebook.com.
+  if (authMethod === 'facebook_login') {
+    return INSTAGRAM_API_HOSTS.facebookLogin;
+  }
+  // Instagram User Access Tokens begin with "IG" (e.g. IGAA, IGqx, IGdid, IGQ, etc.).
+  if (accessToken && accessToken.startsWith('IG')) {
+    return INSTAGRAM_API_HOSTS.instagramLogin;
+  }
   return INSTAGRAM_API_HOSTS.facebookLogin;
 }
 
-export type PlatformApiVersion = typeof API_VERSIONS;
+/**
+ * Resolves the messaging endpoint URL for an Instagram account.
+ */
+export function getInstagramMessagingEndpoint(
+  accessToken: string,
+  igUserId: string = 'me',
+  authMethod?: string
+): string {
+  const host = resolveInstagramApiHost(accessToken, authMethod);
+  return `${host}/${API_VERSIONS.instagram}/${igUserId}/messages`;
+}
 
+export type PlatformApiVersion = typeof API_VERSIONS;

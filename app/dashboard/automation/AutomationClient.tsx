@@ -1378,9 +1378,38 @@ export default function AutomationClient({
                                     </span>
                                   )}
                                   {!c.auto_replied && !c.dm_sent && (
-                                    <span style={{ fontSize: 10.5, fontWeight: 600, background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '2px 7px', borderRadius: 8 }}>
-                                      {c.classification === 'harmful' || c.classification === 'spam' ? 'Quarantined' : 'Logged'}
-                                    </span>
+                                    <>
+                                      {c.delivery_status === 'queued' && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 600, background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', padding: '2px 7px', borderRadius: 8 }}>
+                                          Queued
+                                        </span>
+                                      )}
+                                      {c.delivery_status === 'processing' && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 600, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '2px 7px', borderRadius: 8 }}>
+                                          Dispatching
+                                        </span>
+                                      )}
+                                      {(c.delivery_status === 'needs_review' || c.flagged_for_review) && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 600, background: '#FFF7ED', color: '#C2410C', border: '1px solid #FFEDD5', padding: '2px 7px', borderRadius: 8 }}>
+                                          Needs Review
+                                        </span>
+                                      )}
+                                      {c.delivery_status === 'failed' && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 600, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA', padding: '2px 7px', borderRadius: 8 }}>
+                                          Failed
+                                        </span>
+                                      )}
+                                      {(c.classification === 'harmful' || c.classification === 'spam') && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 600, background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '2px 7px', borderRadius: 8 }}>
+                                          Quarantined
+                                        </span>
+                                      )}
+                                      {c.delivery_status !== 'queued' && c.delivery_status !== 'processing' && c.delivery_status !== 'needs_review' && !c.flagged_for_review && c.delivery_status !== 'failed' && c.classification !== 'harmful' && c.classification !== 'spam' && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 600, background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '2px 7px', borderRadius: 8 }}>
+                                          Logged
+                                        </span>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </td>

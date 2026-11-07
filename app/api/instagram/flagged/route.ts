@@ -85,6 +85,60 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Reconcile: auto-heal any flagged_for_review rows from comment_logs not yet in flagged_comments
+      try {
+        const { data: orphanedLogs } = await supabaseAdmin
+          .from('instagram_comment_logs')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .eq('flagged_for_review', true)
+          .eq('auto_replied', false)
+          .not('comment_id', 'like', 'test_%');
+
+        if (orphanedLogs && orphanedLogs.length > 0) {
+          const existingIds = new Set(items.map(i => i.comment_id));
+          for (const orphan of orphanedLogs) {
+            if (!existingIds.has(orphan.comment_id)) {
+              await supabaseAdmin.from('instagram_flagged_comments').upsert({
+                workspace_id: workspaceId,
+                comment_id: orphan.comment_id,
+                media_id: orphan.media_id || '',
+                comment_text: orphan.comment_text,
+                commenter_username: orphan.commenter_username || 'instagram_user',
+                classification: orphan.classification || 'question',
+                suggested_reply: orphan.suggested_reply || '',
+                reasoning: orphan.reasoning || 'Flagged for review',
+                status: 'pending',
+                priority: (orphan.lead_score && orphan.lead_score >= 2) ? 'high' : 'normal',
+                lead_score: orphan.lead_score || 0,
+              }, { onConflict: 'comment_id', ignoreDuplicates: true });
+
+              if (status === 'all' || status === 'pending') {
+                items.push({
+                  id: orphan.id,
+                  item_type: 'comment',
+                  comment_id: orphan.comment_id,
+                  media_id: orphan.media_id,
+                  comment_text: orphan.comment_text,
+                  commenter_username: orphan.commenter_username || 'instagram_user',
+                  classification: orphan.classification || 'question',
+                  suggested_reply: orphan.suggested_reply || '',
+                  reasoning: orphan.reasoning || 'Flagged for review',
+                  status: 'pending',
+                  lead_score: orphan.lead_score || 0,
+                  priority: (orphan.lead_score && orphan.lead_score >= 2) ? 'high' : 'normal',
+                  owner_reply: undefined,
+                  created_at: orphan.created_at,
+                });
+                statusCounts.pending++;
+              }
+            }
+          }
+        }
+      } catch (reconcileErr) {
+        logger.debug('Comment reconciliation error in flagged queue', { error: reconcileErr });
+      }
+
       // Counts for comments
       const { data: commentCounts } = await supabaseAdmin
         .from('instagram_flagged_comments')

@@ -783,7 +783,8 @@ Return ONLY valid JSON:
   async sendPrivateReplyToComment(
     accessToken: string,
     commentId: string,
-    message: string
+    message: string,
+    igUserId?: string
   ): Promise<{ messageId: string } | null> {
     if (!commentId || commentId.startsWith('test_')) {
       logger.debug('Skipping private reply for test/empty comment ID', { commentId });
@@ -792,23 +793,28 @@ Return ONLY valid JSON:
 
     const apiHost = resolveInstagramApiHost(accessToken);
     const apiVersion = API_VERSIONS.instagram;
-    const body = new URLSearchParams({ message, access_token: accessToken }).toString();
+    const targetEndpoint = `${apiHost}/${apiVersion}/${igUserId || 'me'}/messages`;
 
     try {
       const data = await (await fetchWithRetry(
-        `${apiHost}/${apiVersion}/${commentId}/private_replies`,
+        targetEndpoint,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipient: { comment_id: commentId },
+            message: { text: message },
+            access_token: accessToken,
+          }),
         }
       )).json();
 
-      const messageId = data.id || data.message_id || 'sent';
-      logger.info('Private reply sent to comment via Private Replies API', {
+      const messageId = data.message_id || data.id || 'sent';
+      logger.info('Private reply sent to comment via Instagram Messaging API', {
         commentId,
         messageId,
         apiHost,
+        igUserId: igUserId || 'me',
       });
       return { messageId };
     } catch (error) {
@@ -839,15 +845,15 @@ Return ONLY valid JSON:
    */
   async sendDmForComment(
     accessToken: string,
-    _igUserId: string,
+    igUserId: string,
     commentId: string,
     _recipientIgScopedId: string | undefined,
     message: string
   ): Promise<{ messageId: string } | null> {
-    // Private Replies API is the only supported path for comment-triggered DMs.
+    // Comment-triggered private reply via Instagram Messaging API (recipient: { comment_id }).
     // The 7-day eligibility window is enforced by Meta — if rejected, we do not
     // fall back to ordinary messaging which would bypass the window check.
-    const result = await this.sendPrivateReplyToComment(accessToken, commentId, message);
+    const result = await this.sendPrivateReplyToComment(accessToken, commentId, message, igUserId);
     if (!result) {
       logger.warn('Private reply rejected — not falling back to ordinary DM (policy)', {
         commentId,

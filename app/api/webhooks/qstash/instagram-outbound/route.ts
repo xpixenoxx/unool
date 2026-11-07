@@ -230,6 +230,17 @@ async function handleJob(params: InstagramOutboundJobParams) {
         if (classified.shouldFlagForReview) {
           await flagCommentForDeadLetter(workspaceId, params, classified.reasoning, classified.suggestedReply);
         }
+        await supabaseAdmin
+          .from('instagram_comment_logs')
+          .update({
+            classification: classified.classification,
+            confidence: classified.confidence,
+            delivery_status: classified.shouldFlagForReview ? 'needs_review' : 'sent',
+            flagged_for_review: classified.shouldFlagForReview,
+            suggested_reply: classified.suggestedReply || '',
+            reasoning: classified.reasoning,
+          })
+          .eq('comment_id', commentId);
         await markJobSent(workspaceId, jobType, targetId);
         return NextResponse.json({ success: true, action: 'skipped_by_policy' }, { status: 200 });
       }
@@ -265,13 +276,40 @@ async function handleJob(params: InstagramOutboundJobParams) {
 
       // CONFIRMED SUCCESS: Update all tables
       await markJobSent(workspaceId, jobType, targetId);
+
+      let didSendDm = false;
+      let sentDmText = '';
+      if (classified.shouldSendDM && classified.suggestedDM) {
+        try {
+          const dmRes = await automation.sendDmForComment(
+            accessToken,
+            connection.platform_user_id,
+            commentId,
+            undefined,
+            classified.suggestedDM
+          );
+          if (dmRes) {
+            didSendDm = true;
+            sentDmText = classified.suggestedDM;
+            logger.info('Comment-triggered private reply sent via outbound worker', { commentId, msgId: dmRes.messageId });
+          }
+        } catch (dmErr) {
+          logger.warn('Failed to send comment-triggered private reply', { commentId, error: dmErr });
+        }
+      }
+
       await supabaseAdmin
         .from('instagram_comment_logs')
         .update({
+          classification: classified.classification,
+          confidence: classified.confidence,
           auto_replied: true,
           delivery_status: 'sent',
           reply_sent_at: new Date().toISOString(),
           suggested_reply: finalReply,
+          reasoning: classified.reasoning,
+          dm_sent: didSendDm,
+          dm_message: didSendDm ? sentDmText : null,
         })
         .eq('comment_id', commentId);
 
@@ -365,6 +403,17 @@ async function handleJob(params: InstagramOutboundJobParams) {
         if (classified.shouldEscalate) {
           await flagDmForDeadLetter(workspaceId, params, classified.reasoning, classified.suggestedReply);
         }
+        await supabaseAdmin
+          .from('instagram_dm_logs')
+          .update({
+            classification: classified.classification,
+            confidence: classified.confidence,
+            delivery_status: classified.shouldEscalate ? 'needs_review' : 'sent',
+            escalated: classified.shouldEscalate,
+            ai_reply: classified.suggestedReply || '',
+            reasoning: classified.reasoning,
+          })
+          .eq('message_id', messageId);
         await markJobSent(workspaceId, jobType, targetId);
         return NextResponse.json({ success: true, action: 'skipped_by_policy' }, { status: 200 });
       }
@@ -394,10 +443,13 @@ async function handleJob(params: InstagramOutboundJobParams) {
       await supabaseAdmin
         .from('instagram_dm_logs')
         .update({
+          classification: classified.classification,
+          confidence: classified.confidence,
           auto_replied: true,
           delivery_status: 'sent',
           reply_sent_at: new Date().toISOString(),
           ai_reply: finalReply,
+          reasoning: classified.reasoning,
         })
         .eq('message_id', messageId);
 

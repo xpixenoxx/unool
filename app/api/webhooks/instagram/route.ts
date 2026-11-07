@@ -25,6 +25,7 @@ import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { handleFollowWebhookEvent } from '@/lib/follow-gate/service';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { resolveInstagramConnection } from '@/lib/platforms/instagram/identityResolver';
 import { queueService } from '@/lib/services/QueueService';
 
 
@@ -205,47 +206,7 @@ export async function POST(request: NextRequest) {
 
 // ─── Connection & Token Helpers ──────────────────────────────────────────────
 
-async function resolveInstagramConnection(igUserId: string): Promise<any> {
-  const { data: directConnections } = await supabaseAdmin
-    .from('platform_connections')
-    .select('*')
-    .eq('platform', 'instagram')
-    .eq('platform_user_id', igUserId)
-    .eq('status', 'connected');
 
-  if (directConnections && directConnections.length > 0) {
-    return directConnections[0];
-  }
-
-  // Fallback: find a connection whose workspace has automation ENABLED
-  const { data: allActive } = await supabaseAdmin
-    .from('platform_connections')
-    .select('*')
-    .eq('platform', 'instagram')
-    .eq('status', 'connected');
-
-  if (allActive && allActive.length > 0) {
-    for (const conn of allActive) {
-      const { data: cfg } = await supabaseAdmin
-        .from('instagram_automation_config')
-        .select('enabled')
-        .eq('workspace_id', conn.workspace_id)
-        .single();
-      if (cfg?.enabled) {
-        logger.info('Resolved Instagram connection via automation-enabled workspace fallback', {
-          igUserId,
-          matchedUserId: conn.platform_user_id,
-          matchedUsername: conn.username,
-        });
-        return conn;
-      }
-    }
-    logger.warn('Using first active connection as last-resort fallback', { igUserId });
-    return allActive[0];
-  }
-
-  return null;
-}
 
 async function getOrRefreshAccessToken(connection: any): Promise<string | null> {
   let accessToken: string;
@@ -335,6 +296,21 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     logger.debug('Re-processing previously failed comment for retry', { commentId: commentEvent.commentId });
   }
 
+  // Find the platform connection with multi-tenant isolation
+  const connection = await resolveInstagramConnection(igUserId, {
+    mediaId: commentEvent.mediaId,
+    commentId: commentEvent.commentId,
+  });
+
+  if (!connection) {
+    logger.warn('No active Instagram connection found for webhook — dropping event', {
+      igUserId,
+      commentId: commentEvent.commentId,
+      mediaId: commentEvent.mediaId,
+    });
+    return;
+  }
+
   // ── ContentGuard: pre-filter harmful incoming content ──────────────────
   const guardResult = ContentGuard.validateComment(commentEvent.text);
   if (!guardResult.safe && guardResult.violation.level === 'blocked') {
@@ -344,34 +320,11 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     });
     // Flag internally without engaging
     await flagCommentForReview(
-      await getWorkspaceIdForIgUser(igUserId),
+      connection.workspace_id,
       commentEvent,
       { classification: 'harmful', suggestedReply: 'SKIP', reasoning: guardResult.violation.internal || guardResult.violation.message },
       0
     );
-    return;
-  }
-
-  // Find the platform connection
-  const connection = await resolveInstagramConnection(igUserId);
-
-  if (!connection) {
-    logger.warn('No active Instagram connection found for webhook', { igUserId });
-    const { data: ws } = await supabaseAdmin.from('workspaces').select('id').limit(1).single();
-    if (ws?.id) {
-      await logCommentEvent(ws.id, commentEvent, {
-        classification: 'unrelated',
-        confidence: 0,
-        suggestedReply: '',
-        suggestedDM: null,
-        threadHook: null,
-        leadScore: 0,
-        shouldAutoReply: false,
-        shouldSendDM: false,
-        shouldFlagForReview: true,
-        reasoning: `No active connection matched webhook igUserId: ${igUserId}`,
-      });
-    }
     return;
   }
 
@@ -758,8 +711,10 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     return;
   }
 
-  // Find the platform connection
-  const connection = await resolveInstagramConnection(igUserId);
+  // Find the platform connection with multi-tenant isolation
+  const connection = await resolveInstagramConnection(igUserId, {
+    senderId: dmEvent.senderId,
+  });
 
   if (!connection) {
     logger.warn('No active Instagram connection for DM webhook', { igUserId });
@@ -1112,14 +1067,8 @@ async function loadAutomationConfig(workspaceId: string): Promise<AutomationConf
 }
 
 async function getWorkspaceIdForIgUser(igUserId: string): Promise<string> {
-  const { data } = await supabaseAdmin
-    .from('platform_connections')
-    .select('workspace_id')
-    .eq('platform', 'instagram')
-    .eq('platform_user_id', igUserId)
-    .eq('status', 'connected')
-    .single();
-  return data?.workspace_id || '';
+  const conn = await resolveInstagramConnection(igUserId);
+  return conn?.workspace_id || '';
 }
 
 // ─── Helper: Log comment event ────────────────────────────────────────────────

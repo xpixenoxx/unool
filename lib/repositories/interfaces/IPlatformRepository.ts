@@ -14,6 +14,7 @@ export interface PlatformConnection {
   status: PlatformConnectionStatus;
   createdAt: Date;
   updatedAt: Date;
+  metadata?: Record<string, unknown>;
 }
 
 export type PlatformConnectionStatus = 'connected' | 'expired' | 'revoked' | 'error';
@@ -40,6 +41,7 @@ export interface CreatePlatformConnectionInput {
   refreshToken?: string;
   expiresAt?: Date;
   scopes?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface IPlatformRepository {

@@ -132,7 +132,6 @@ export async function GET(request: NextRequest) {
     });
 
     // Encrypt tokens
-    const accessTokenEncrypted = await encryptToken(tokenResponse.accessToken);
     const refreshTokenEncrypted = tokenResponse.refreshToken
       ? await encryptToken(tokenResponse.refreshToken)
       : undefined;
@@ -216,6 +215,24 @@ export async function GET(request: NextRequest) {
 
     const finalAccessTokenEncrypted = await encryptToken(finalAccessTokenToEncrypt);
 
+    const baseScopes = tokenResponse.scope ? tokenResponse.scope.split(' ') : adapter.authConfig.scopes;
+    const finalScopes = [...baseScopes];
+    const connectionMetadata: Record<string, unknown> = {};
+
+    if (platform === 'instagram') {
+      connectionMetadata.auth_method = 'instagram_login';
+      if (profile.instagramBusinessAccountId) {
+        connectionMetadata.instagram_business_account_id = profile.instagramBusinessAccountId;
+        const aliasTag = `ig_business_id:${profile.instagramBusinessAccountId}`;
+        if (!finalScopes.includes(aliasTag)) {
+          finalScopes.push(aliasTag);
+        }
+      }
+      if (profile.accountType) {
+        connectionMetadata.account_type = profile.accountType;
+      }
+    }
+
     // Save or update platform connection
     const savedConnection = await platformRepository.create({
       workspaceId: finalWorkspaceId,
@@ -226,7 +243,8 @@ export async function GET(request: NextRequest) {
       accessToken: finalAccessTokenEncrypted,
       refreshToken: refreshTokenEncrypted || '',
       expiresAt,
-      scopes: tokenResponse.scope ? tokenResponse.scope.split(' ') : adapter.authConfig.scopes,
+      scopes: finalScopes,
+      metadata: connectionMetadata,
     });
 
     logger.info('Platform connected successfully', {
