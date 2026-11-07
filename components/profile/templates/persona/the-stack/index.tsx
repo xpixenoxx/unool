@@ -116,6 +116,15 @@ export function StackTemplate({
     }
   }, [name, role, email, numericPhone, location, bio, profile?.subdomain, showToast]);
 
+  // Smooth scroll handler for transparent swipe cues
+  const scrollToCard = useCallback((cardIndex: number) => {
+    if (typeof document === 'undefined') return;
+    const targetCard = document.querySelector(`.sc-${cardIndex}`);
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
   // Social handles extraction
   const socialEntries = useMemo(() => {
     const handles = profile?.socialHandles || {};
@@ -189,7 +198,7 @@ export function StackTemplate({
           color: var(--stack-text-dark);
           min-height: 100vh;
           width: 100%;
-          padding: 24px 14px 100px;
+          padding: 22px 14px 120px;
           position: relative;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
@@ -201,23 +210,40 @@ export function StackTemplate({
           position: relative;
         }
 
-        /* Hardware-Accelerated Stacking Physics */
+        /* Hardware-Accelerated Stacking Physics with Guaranteed 5-6mm Margins */
         .stack-card {
           position: sticky;
-          border-radius: 28px;
-          padding: 28px;
-          margin-bottom: 28px;
+          border-radius: 26px;
+          padding: clamp(18px, 3.5vw, 24px);
+          margin-bottom: 24px;
           box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
           transform: translate3d(0, 0, 0);
           will-change: transform;
           contain: paint layout;
           transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          max-height: calc(100dvh - 44px - var(--n, 0) * 18px);
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
         }
 
-        /* Top Offsets to create the physical cascading ledger */
+        .stack-card::-webkit-scrollbar {
+          width: 4px;
+        }
+        .stack-card::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .stack-card::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.15);
+          border-radius: 4px;
+        }
+        .sc-4::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Top Offsets to create the physical cascading ledger with ~5.5mm top spacing */
         .sc-1 {
           --n: 0;
-          top: calc(14px + var(--n) * 22px);
+          top: calc(22px + var(--n) * 18px);
           background: var(--c1-bg);
           color: var(--stack-text-dark);
           z-index: 10;
@@ -225,7 +251,7 @@ export function StackTemplate({
 
         .sc-2 {
           --n: 1;
-          top: calc(14px + var(--n) * 22px);
+          top: calc(22px + var(--n) * 18px);
           background: var(--c2-bg);
           color: var(--stack-text-dark);
           z-index: 20;
@@ -233,7 +259,7 @@ export function StackTemplate({
 
         .sc-3 {
           --n: 2;
-          top: calc(14px + var(--n) * 22px);
+          top: calc(22px + var(--n) * 18px);
           background: var(--c3-bg);
           color: var(--stack-text-dark);
           z-index: 30;
@@ -241,40 +267,42 @@ export function StackTemplate({
 
         .sc-4 {
           --n: 3;
-          top: calc(14px + var(--n) * 22px);
+          top: calc(22px + var(--n) * 18px);
           background: var(--c4-bg);
           color: var(--stack-text-light);
           z-index: 40;
         }
 
-        /* Responsive Mobile Clearance (Eliminates the premature sticky clipping trap) */
+        /* Responsive Mobile Clearance (Guaranteed 5-6mm breathing room top and bottom) */
         @media (max-width: 640px) {
           .stack-wrap {
-            padding: 16px 10px 80px;
+            padding: 20px 10px 90px;
           }
           .stack-card {
-            padding: 22px 18px;
-            border-radius: 24px;
-            max-height: calc(86dvh - var(--n) * 22px);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            padding: 16px 14px;
+            border-radius: 22px;
+            max-height: calc(100dvh - 40px - var(--n, 0) * 16px);
+          }
+          .stack-portrait {
+            height: clamp(130px, 24dvh, 180px) !important;
+            margin-bottom: 12px !important;
           }
         }
 
-        /* Typography & Micro-labels */
+        /* Typography & Micro-labels Proportioned to Fit Screen Vertically */
         .stack-card h1 {
-          font-size: clamp(2.2rem, 6vw, 3rem);
-          line-height: 1.05;
+          font-size: clamp(1.75rem, 4.5vw, 2.3rem);
+          line-height: 1.1;
           letter-spacing: -0.03em;
           font-weight: 700;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }
 
         .stack-card .stack-role {
-          font-size: 1.1rem;
+          font-size: 0.95rem;
           font-weight: 500;
           opacity: 0.75;
-          margin-bottom: 12px;
+          margin-bottom: 8px;
           display: flex;
           align-items: center;
           gap: 6px;
@@ -282,8 +310,8 @@ export function StackTemplate({
         }
 
         .stack-card .stack-bio {
-          font-size: 0.95rem;
-          line-height: 1.6;
+          font-size: 0.88rem;
+          line-height: 1.5;
           opacity: 0.85;
           max-width: 520px;
         }
@@ -292,22 +320,22 @@ export function StackTemplate({
           font-size: 11px;
           letter-spacing: 0.25em;
           text-transform: uppercase;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
           font-weight: 700;
           opacity: 0.75;
         }
 
-        /* Card 1 Hero Portrait */
+        /* Card 1 Hero Portrait - Adaptive Height that Never Overflows Screen */
         .stack-portrait {
-          aspect-ratio: 5 / 4;
           width: 100%;
+          height: clamp(140px, 26dvh, 220px);
           border-radius: 18px;
           background: #cfc8b8;
           overflow: hidden;
           position: relative;
           display: grid;
           place-items: center;
-          margin-bottom: 20px;
+          margin-bottom: 14px;
           box-shadow: inset 0 2px 6px rgba(0,0,0,0.06);
         }
 
@@ -315,6 +343,7 @@ export function StackTemplate({
           width: 100%;
           height: 100%;
           object-fit: cover;
+          object-position: center;
           display: block;
         }
 
@@ -324,6 +353,73 @@ export function StackTemplate({
           text-transform: uppercase;
           color: #6a6458;
           font-weight: 700;
+        }
+
+        /* Transparent Swipe Indicator */
+        .stack-swipe-hint {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          margin: 14px auto 0;
+          width: fit-content;
+          padding: 6px 14px;
+          border-radius: 999px;
+          background: rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(0, 0, 0, 0.09);
+          color: rgba(23, 23, 20, 0.72);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          cursor: pointer;
+          user-select: none;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+
+        .stack-swipe-hint:hover {
+          background: rgba(0, 0, 0, 0.1);
+          color: rgba(23, 23, 20, 0.95);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .stack-swipe-hint-c2 {
+          background: rgba(255, 255, 255, 0.18);
+          border-color: rgba(255, 255, 255, 0.28);
+          color: #171714;
+        }
+        .stack-swipe-hint-c2:hover {
+          background: rgba(255, 255, 255, 0.28);
+          color: #171714;
+        }
+
+        .stack-swipe-hint-c3 {
+          background: rgba(0, 0, 0, 0.06);
+          border-color: rgba(0, 0, 0, 0.12);
+          color: #171714;
+        }
+        .stack-swipe-hint-c3:hover {
+          background: rgba(0, 0, 0, 0.12);
+          color: #171714;
+        }
+
+        .stack-swipe-hint .stack-swipe-icon {
+          animation: stackSwipeFloat 2s infinite ease-in-out;
+        }
+
+        @keyframes stackSwipeFloat {
+          0%, 100% {
+            transform: translateY(0);
+            opacity: 0.7;
+          }
+          50% {
+            transform: translateY(-3px);
+            opacity: 1;
+          }
         }
 
         /* Card 2 Links Grid */
@@ -557,6 +653,32 @@ export function StackTemplate({
               ))}
             </div>
           )}
+
+          {/* Transparent Swipe Cue */}
+          <div
+            className="stack-swipe-hint"
+            onClick={() => scrollToCard(2)}
+            role="button"
+            tabIndex={0}
+            title="Swipe up to explore links"
+          >
+            <svg
+              className="stack-swipe-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="7 14 12 9 17 14" />
+              <polyline points="7 19 12 14 17 19" />
+            </svg>
+            <span>Swipe</span>
+          </div>
         </section>
 
         {/* ── CARD 2: CHANNELS & PROOF LINKS ─────────────────────── */}
@@ -595,6 +717,32 @@ export function StackTemplate({
                 No active links currently published.
               </div>
             )}
+          </div>
+
+          {/* Transparent Swipe Cue */}
+          <div
+            className="stack-swipe-hint stack-swipe-hint-c2"
+            onClick={() => scrollToCard(3)}
+            role="button"
+            tabIndex={0}
+            title="Swipe up to explore services"
+          >
+            <svg
+              className="stack-swipe-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="7 14 12 9 17 14" />
+              <polyline points="7 19 12 14 17 19" />
+            </svg>
+            <span>Swipe</span>
           </div>
         </section>
 
@@ -640,6 +788,32 @@ export function StackTemplate({
               />
             </div>
           )}
+
+          {/* Transparent Swipe Cue */}
+          <div
+            className="stack-swipe-hint stack-swipe-hint-c3"
+            onClick={() => scrollToCard(4)}
+            role="button"
+            tabIndex={0}
+            title="Swipe up to contact"
+          >
+            <svg
+              className="stack-swipe-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="7 14 12 9 17 14" />
+              <polyline points="7 19 12 14 17 19" />
+            </svg>
+            <span>Swipe</span>
+          </div>
         </section>
 
         {/* ── CARD 4: ACTION DOCK & CONTACT MATRIX ───────────────── */}

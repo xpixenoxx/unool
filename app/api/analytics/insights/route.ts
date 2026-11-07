@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { config } from '@/lib/config/schema';
 import { buildDailySeries, calcPercentageChange } from '@/lib/analytics/timeSeries';
