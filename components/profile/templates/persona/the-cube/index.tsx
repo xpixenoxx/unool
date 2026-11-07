@@ -931,3 +931,4 @@ export function CubeTemplate({
 }
 
 export default CubeTemplate;
+
