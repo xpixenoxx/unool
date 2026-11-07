@@ -920,7 +920,7 @@ export function BookshelfTemplate({
                             id: vol.id,
                             label: vol.title,
                             url: vol.url,
-                            icon: vol.customIcon,
+                            icon: vol.customIcon || null,
                             clicks: 0,
                             order: 0,
                             isVisible: true,
