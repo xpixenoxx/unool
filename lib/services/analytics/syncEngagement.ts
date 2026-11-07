@@ -134,10 +134,10 @@ export async function syncWorkspaceEngagement(
         }
 
         try {
-          // Fetch engagement with 4s timeout per platform
+          // Fetch engagement with 6s timeout per platform
           const fetchPromise = adapter.getEngagement(connInfo.token, platformPostId);
           const timeoutPromise = new Promise<Record<string, unknown>>((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 4000)
+            setTimeout(() => reject(new Error('Timeout')), 6000)
           );
 
           const rawEngagement = await Promise.race([fetchPromise, timeoutPromise]);

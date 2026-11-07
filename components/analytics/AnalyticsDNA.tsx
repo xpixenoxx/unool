@@ -45,8 +45,17 @@ const HOOK_COLORS: Record<string, string> = {
   story: '#EC4899', contrarian: '#EF4444', framework: '#8B5CF6', unknown: '#9CA3AF',
 };
 const PLATFORM_COLORS: Record<string, string> = {
-  instagram: '#E1306C', linkedin: '#0A66C2', twitter: '#1DA1F2',
-  facebook: '#1877F2', tiktok: '#555555', youtube: '#FF0000',
+  instagram: '#E1306C',
+  threads: '#101010',
+  linkedin: '#0A66C2',
+  twitter: '#1DA1F2',
+  x: '#000000',
+  facebook: '#1877F2',
+  tiktok: '#000000',
+  youtube: '#FF0000',
+  bluesky: '#0085FF',
+  reddit: '#FF4500',
+  pinterest: '#E60023',
 };
 
 function InfoTip({ text }: { text: string }) {

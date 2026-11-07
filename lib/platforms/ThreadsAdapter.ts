@@ -405,24 +405,140 @@ export class ThreadsAdapter implements PlatformAdapter {
 
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('threads', async () => {
-      const response = await fetchWithRetry(
-        `${THREADS_API_BASE}/${platformPostId}?fields=like_count,replies_count,reposts_count,quotes_count&access_token=${accessToken}`,
-        {}
-      );
+      const cleanPostId = encodeURIComponent(platformPostId.trim());
+      const baseHeaders = { Authorization: `Bearer ${accessToken}` };
 
-      if (!response.ok) {
-        const error = await response.text();
-        logger.error('Threads engagement fetch failed', { errorMessage: error, status: response.status });
-        return {};
+      const engagement: Record<string, unknown> = {
+        likes: 0,
+        replies: 0,
+        comments: 0,
+        reposts: 0,
+        quotes: 0,
+        shares: 0,
+        views: 0,
+      };
+
+      // Threads Graph API provides media metrics via /{threads-media-id}/insights?metric=...
+      // Core metrics: views, likes, replies, reposts, quotes (and shares in development).
+      // If compound query with 'views' or 'shares' fails (HTTP 400) due to account/post type rollout,
+      // gracefully fall back to the lifetime core metrics (likes, replies, reposts, quotes).
+      const metricQueryCandidates = [
+        'views,likes,replies,reposts,quotes,shares',
+        'views,likes,replies,reposts,quotes',
+        'likes,replies,reposts,quotes',
+        'likes,replies',
+      ];
+
+      let insightsData: { data?: Array<{ name: string; values?: Array<{ value: number }>; total_value?: { value: number } }> } | null = null;
+      let hasViewsAttempted = false;
+
+      for (const metrics of metricQueryCandidates) {
+        try {
+          const url = `${THREADS_API_BASE}/${cleanPostId}/insights?metric=${metrics}&access_token=${encodeURIComponent(accessToken)}`;
+          const response = await fetchWithRetry(
+            url,
+            { method: 'GET', headers: baseHeaders },
+            { maxRetries: 1, baseDelayMs: 200 }
+          );
+
+          if (response.status === 401 || response.status === 403) {
+            throw new TokenExpiredError('Threads token expired or invalid', 'threads');
+          }
+
+          if (response.ok) {
+            insightsData = await response.json().catch(() => null);
+            if (metrics.includes('views')) {
+              hasViewsAttempted = true;
+            }
+            break;
+          } else {
+            const errText = await response.text().catch(() => '');
+            logger.warn('Threads insights query candidate failed, trying fallback candidate', {
+              platformPostId,
+              metrics,
+              status: response.status,
+              body: errText,
+            });
+          }
+        } catch (fetchErr) {
+          if (fetchErr instanceof TokenExpiredError) throw fetchErr;
+          logger.warn('Threads insights query candidate error', {
+            platformPostId,
+            metrics,
+            error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+          });
+        }
       }
 
-      const data = await response.json();
-      return {
-        likes: data.like_count || 0,
-        replies: data.replies_count || 0,
-        reposts: data.reposts_count || 0,
-        quotes: data.quotes_count || 0,
-      };
+      // If views was not in the successful candidate (e.g. compound query failed but core metrics succeeded),
+      // make an opportunistic standalone request for 'views'
+      if (insightsData && !hasViewsAttempted) {
+        try {
+          const viewsUrl = `${THREADS_API_BASE}/${cleanPostId}/insights?metric=views&access_token=${encodeURIComponent(accessToken)}`;
+          const viewsRes = await fetchWithRetry(
+            viewsUrl,
+            { method: 'GET', headers: baseHeaders },
+            { maxRetries: 1, baseDelayMs: 200 }
+          );
+          if (viewsRes.ok) {
+            const vJson = await viewsRes.json().catch(() => null);
+            if (vJson?.data && Array.isArray(vJson.data)) {
+              insightsData.data = [...(insightsData.data || []), ...vJson.data];
+            }
+          }
+        } catch {
+          // views metric is optional / in-development, ignore standalone failure
+        }
+      }
+
+      if (!insightsData || !Array.isArray(insightsData.data)) {
+        logger.error('Threads engagement fetch returned no usable insights data', { platformPostId });
+        return engagement;
+      }
+
+      let directShares = 0;
+      let reposts = 0;
+      let quotes = 0;
+
+      for (const metric of insightsData.data) {
+        const val = Number(metric.values?.[0]?.value ?? metric.total_value?.value ?? 0);
+        const safeVal = isNaN(val) ? 0 : Math.max(0, val);
+
+        switch (metric.name) {
+          case 'likes':
+            engagement.likes = safeVal;
+            break;
+          case 'replies':
+            engagement.replies = safeVal;
+            engagement.comments = safeVal;
+            break;
+          case 'reposts':
+            reposts = safeVal;
+            engagement.reposts = safeVal;
+            break;
+          case 'quotes':
+            quotes = safeVal;
+            engagement.quotes = safeVal;
+            break;
+          case 'shares':
+            directShares = safeVal;
+            break;
+          case 'views':
+            engagement.views = safeVal;
+            break;
+        }
+      }
+
+      // On Threads, post distribution / sharing consists of reposts and quote posts.
+      // If the API exposes a distinct direct 'shares' metric, include that alongside reposts and quotes.
+      const totalShares = directShares > 0 ? (directShares + reposts + quotes) : (reposts + quotes);
+      engagement.shares = totalShares;
+
+      const totalLikes = Number(engagement.likes || 0);
+      const totalComments = Number(engagement.comments || 0);
+      engagement.totalInteractions = totalLikes + totalComments + totalShares;
+
+      return engagement;
     });
   }
 }

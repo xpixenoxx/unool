@@ -38,6 +38,8 @@ export function extractNormalizedEngagement(raw: any): UniversalEngagement {
     raw.reaction_count ??
     raw.score ??
     raw.upvotes ??
+    raw.favorites ??
+    raw.favorite_count ??
     0
   );
 
@@ -55,28 +57,39 @@ export function extractNormalizedEngagement(raw: any): UniversalEngagement {
   );
 
   // 3. Shares / Reposts / Retweets / Boosts / Quotes / Pins / Saves
-  const shares = Number(
-    raw.shares ??
-    raw.shares_count ??
-    raw.totalShares ??
-    raw.reposts ??
-    raw.reposts_count ??
-    raw.retweets ??
-    raw.retweet_count ??
-    raw.quotes ??
-    raw.quotes_count ??
-    raw.saves ??
-    raw.pin_clicks ??
-    0
-  );
+  let shares = 0;
+  if (raw.shares !== undefined || raw.shares_count !== undefined || raw.totalShares !== undefined) {
+    const explicitShares = Number(raw.shares ?? raw.shares_count ?? raw.totalShares ?? 0);
+    const distinctReposts = Number(raw.reposts ?? raw.reposts_count ?? raw.retweets ?? raw.retweet_count ?? 0);
+    const distinctQuotes = Number(raw.quotes ?? raw.quotes_count ?? 0);
 
-  // 4. Views / Impressions
+    // If explicitShares is 0 but distinct reposts or quotes were reported, use their sum
+    if (explicitShares === 0 && (distinctReposts > 0 || distinctQuotes > 0)) {
+      shares = (isNaN(distinctReposts) ? 0 : distinctReposts) + (isNaN(distinctQuotes) ? 0 : distinctQuotes);
+    } else {
+      shares = isNaN(explicitShares) ? 0 : explicitShares;
+    }
+  } else {
+    // No explicit shares field: sum distinct reposts/retweets and quotes
+    const distinctReposts = Number(raw.reposts ?? raw.reposts_count ?? raw.retweets ?? raw.retweet_count ?? 0);
+    const distinctQuotes = Number(raw.quotes ?? raw.quotes_count ?? 0);
+    const saves = Number(raw.saves ?? raw.pin_clicks ?? 0);
+    shares =
+      (isNaN(distinctReposts) ? 0 : distinctReposts) +
+      (isNaN(distinctQuotes) ? 0 : distinctQuotes) +
+      (isNaN(saves) ? 0 : saves);
+  }
+
+  // 4. Views / Impressions / Reach / Plays
   const views = Number(
     raw.views ??
     raw.views_count ??
     raw.view_count ??
     raw.viewCount ??
     raw.impressions ??
+    raw.reach ??
+    raw.plays ??
+    raw.pageViews ??
     0
   );
 
