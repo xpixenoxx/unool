@@ -214,16 +214,19 @@ export function StackTemplate({
         .stack-card {
           position: sticky;
           border-radius: 26px;
-          padding: clamp(18px, 3.5vw, 24px);
-          margin-bottom: 24px;
+          padding: clamp(20px, 3.5vw, 28px);
+          margin-bottom: 28px;
           box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
           transform: translate3d(0, 0, 0);
           will-change: transform;
           contain: paint layout;
           transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          max-height: calc(100dvh - 44px - var(--n, 0) * 18px);
+          min-height: calc(100dvh - 44px);
+          max-height: calc(100dvh - 44px);
           overflow-y: auto;
           -webkit-overflow-scrolling: touch;
+          display: flex;
+          flex-direction: column;
         }
 
         .stack-card::-webkit-scrollbar {
@@ -247,6 +250,7 @@ export function StackTemplate({
           background: var(--c1-bg);
           color: var(--stack-text-dark);
           z-index: 10;
+          justify-content: space-between;
         }
 
         .sc-2 {
@@ -271,20 +275,22 @@ export function StackTemplate({
           background: var(--c4-bg);
           color: var(--stack-text-light);
           z-index: 40;
+          justify-content: space-between;
         }
 
         /* Responsive Mobile Clearance (Guaranteed 5-6mm breathing room top and bottom) */
         @media (max-width: 640px) {
           .stack-wrap {
-            padding: 20px 10px 90px;
+            padding: 20px 10px 80px;
           }
           .stack-card {
-            padding: 16px 14px;
+            padding: 18px 16px;
             border-radius: 22px;
-            max-height: calc(100dvh - 40px - var(--n, 0) * 16px);
+            min-height: calc(100dvh - 40px);
+            max-height: calc(100dvh - 40px);
           }
           .stack-portrait {
-            height: clamp(130px, 24dvh, 180px) !important;
+            max-height: min(32dvh, 220px) !important;
             margin-bottom: 12px !important;
           }
         }
@@ -325,25 +331,28 @@ export function StackTemplate({
           opacity: 0.75;
         }
 
-        /* Card 1 Hero Portrait - Adaptive Height that Never Overflows Screen */
+        /* Card 1 Hero Portrait - Authentic aspect ratio that preserves logos & photos */
         .stack-portrait {
           width: 100%;
-          height: clamp(140px, 26dvh, 220px);
+          aspect-ratio: 5 / 4;
+          max-height: min(36dvh, 270px);
+          max-width: 360px;
+          margin: 0 auto 16px;
           border-radius: 18px;
-          background: #cfc8b8;
+          background: #ffffff;
           overflow: hidden;
           position: relative;
-          display: grid;
-          place-items: center;
-          margin-bottom: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           box-shadow: inset 0 2px 6px rgba(0,0,0,0.06);
         }
 
         .stack-portrait img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
-          object-position: center;
+          object-fit: contain;
+          padding: 12px;
           display: block;
         }
 
@@ -355,69 +364,42 @@ export function StackTemplate({
           font-weight: 700;
         }
 
-        /* Transparent Swipe Indicator */
-        .stack-swipe-hint {
+        /* Transparent Swipe Cue (Circular Icon Only) */
+        .stack-swipe-cue {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          margin: 14px auto 0;
-          width: fit-content;
-          padding: 6px 14px;
-          border-radius: 999px;
+          width: 42px;
+          height: 42px;
+          margin: 14px auto 2px;
+          border-radius: 50%;
           background: rgba(0, 0, 0, 0.05);
-          border: 1px solid rgba(0, 0, 0, 0.09);
-          color: rgba(23, 23, 20, 0.72);
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          color: rgba(23, 23, 20, 0.65);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
           cursor: pointer;
           user-select: none;
           transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
         }
 
-        .stack-swipe-hint:hover {
+        .stack-swipe-cue:hover {
           background: rgba(0, 0, 0, 0.1);
           color: rgba(23, 23, 20, 0.95);
           transform: translateY(-2px);
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
         }
 
-        .stack-swipe-hint-c2 {
-          background: rgba(255, 255, 255, 0.18);
-          border-color: rgba(255, 255, 255, 0.28);
-          color: #171714;
-        }
-        .stack-swipe-hint-c2:hover {
-          background: rgba(255, 255, 255, 0.28);
-          color: #171714;
-        }
-
-        .stack-swipe-hint-c3 {
-          background: rgba(0, 0, 0, 0.06);
-          border-color: rgba(0, 0, 0, 0.12);
-          color: #171714;
-        }
-        .stack-swipe-hint-c3:hover {
-          background: rgba(0, 0, 0, 0.12);
-          color: #171714;
-        }
-
-        .stack-swipe-hint .stack-swipe-icon {
+        .stack-swipe-cue .stack-swipe-icon {
           animation: stackSwipeFloat 2s infinite ease-in-out;
         }
 
         @keyframes stackSwipeFloat {
           0%, 100% {
             transform: translateY(0);
-            opacity: 0.7;
+            opacity: 0.6;
           }
           50% {
-            transform: translateY(-3px);
+            transform: translateY(-4px);
             opacity: 1;
           }
         }
@@ -616,68 +598,69 @@ export function StackTemplate({
         
         {/* ── CARD 1: IDENTITY & HERO ────────────────────────────── */}
         <section className="stack-card sc-1" aria-label="Profile Identity">
-          <div className="stack-portrait">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={name} loading="eager" />
-            ) : (
-              <div className="stack-portrait-placeholder">
-                {name ? name.slice(0, 2).toUpperCase() : 'PORTFOLIO'}
+          <div className="stack-card-content">
+            <div className="stack-portrait">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={name} loading="eager" />
+              ) : (
+                <div className="stack-portrait-placeholder">
+                  {name ? name.slice(0, 2).toUpperCase() : 'PORTFOLIO'}
+                </div>
+              )}
+            </div>
+
+            <h1>{name}</h1>
+
+            <div className="stack-role">
+              <span>{role}</span>
+              {location && (
+                <span className="inline-flex items-center gap-1 opacity-70 text-sm ml-1">
+                  <MapPin size={13} className="shrink-0" />
+                  {location}
+                </span>
+              )}
+            </div>
+
+            <p className="stack-bio">{bio}</p>
+
+            {/* Open To Intent Badges (if available) */}
+            {profile?.openTo && profile.openTo.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-black/10">
+                {profile.openTo.map((intent: string) => (
+                  <span
+                    key={intent}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-black/5 text-[#171714] tracking-wide"
+                  >
+                    {intent.replace(/-/g, ' ')}
+                  </span>
+                ))}
               </div>
             )}
           </div>
 
-          <h1>{name}</h1>
-
-          <div className="stack-role">
-            <span>{role}</span>
-            {location && (
-              <span className="inline-flex items-center gap-1 opacity-70 text-sm ml-1">
-                <MapPin size={13} className="shrink-0" />
-                {location}
-              </span>
-            )}
-          </div>
-
-          <p className="stack-bio">{bio}</p>
-
-          {/* Open To Intent Badges (if available) */}
-          {profile?.openTo && profile.openTo.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-black/10">
-              {profile.openTo.map((intent: string) => (
-                <span
-                  key={intent}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-black/5 text-[#171714] tracking-wide"
-                >
-                  {intent.replace(/-/g, ' ')}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Transparent Swipe Cue */}
+          {/* Transparent Swipe Cue (Card 1 discovery only, no text clutter) */}
           <div
-            className="stack-swipe-hint"
+            className="stack-swipe-cue"
             onClick={() => scrollToCard(2)}
             role="button"
             tabIndex={0}
-            title="Swipe up to explore links"
+            title="Swipe up to explore"
+            aria-label="Swipe to view more"
           >
             <svg
               className="stack-swipe-icon"
-              width="15"
-              height="15"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.4"
+              strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              aria-hidden="true"
             >
               <polyline points="7 14 12 9 17 14" />
               <polyline points="7 19 12 14 17 19" />
             </svg>
-            <span>Swipe</span>
           </div>
         </section>
 
@@ -717,32 +700,6 @@ export function StackTemplate({
                 No active links currently published.
               </div>
             )}
-          </div>
-
-          {/* Transparent Swipe Cue */}
-          <div
-            className="stack-swipe-hint stack-swipe-hint-c2"
-            onClick={() => scrollToCard(3)}
-            role="button"
-            tabIndex={0}
-            title="Swipe up to explore services"
-          >
-            <svg
-              className="stack-swipe-icon"
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="7 14 12 9 17 14" />
-              <polyline points="7 19 12 14 17 19" />
-            </svg>
-            <span>Swipe</span>
           </div>
         </section>
 
@@ -788,32 +745,6 @@ export function StackTemplate({
               />
             </div>
           )}
-
-          {/* Transparent Swipe Cue */}
-          <div
-            className="stack-swipe-hint stack-swipe-hint-c3"
-            onClick={() => scrollToCard(4)}
-            role="button"
-            tabIndex={0}
-            title="Swipe up to contact"
-          >
-            <svg
-              className="stack-swipe-icon"
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="7 14 12 9 17 14" />
-              <polyline points="7 19 12 14 17 19" />
-            </svg>
-            <span>Swipe</span>
-          </div>
         </section>
 
         {/* ── CARD 4: ACTION DOCK & CONTACT MATRIX ───────────────── */}
