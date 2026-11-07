@@ -257,7 +257,7 @@ export function RecentActivitySection({
     ? customContent(contentExcerpt)
     : (
         <p
-          className={config.contentClassName}
+          className="text-inherit leading-relaxed m-0 p-0"
           style={contentStyle}
         >
           "{contentExcerpt}"

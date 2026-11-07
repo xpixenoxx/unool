@@ -649,7 +649,7 @@ export function BookshelfTemplate({
           border: 2px solid var(--bs-gold);
           border-radius: 12px;
           padding: 24px 28px;
-          margin-top: 40px;
+          margin-top: 32px;
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
         }
 
@@ -660,6 +660,94 @@ export function BookshelfTemplate({
           color: var(--bs-gold-bright);
           margin-bottom: 18px;
           font-weight: 700;
+        }
+
+        /* ── Featured Active Project Card ── */
+        .bs-project-card {
+          background: #17100a;
+          border: 1px solid rgba(184, 151, 90, 0.45);
+          border-radius: 10px;
+          padding: 16px 20px;
+          margin-bottom: 14px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+          transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .bs-project-card:hover {
+          border-color: var(--bs-gold-bright);
+          transform: translateY(-1px);
+        }
+
+        .bs-project-meta {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+
+        .bs-project-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--bs-gold-bright);
+        }
+
+        .bs-project-pulse {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #4ade80;
+          box-shadow: 0 0 8px #4ade80;
+        }
+
+        .bs-project-tag {
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: rgba(244, 234, 215, 0.5);
+          font-family: 'Avenir Next', sans-serif;
+        }
+
+        .bs-project-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+
+        .bs-project-domain {
+          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+          font-size: clamp(20px, 4vw, 26px);
+          font-weight: 400;
+          color: #ffffff;
+          letter-spacing: -0.01em;
+        }
+
+        .bs-project-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 6px;
+          background: var(--bs-wood);
+          color: #f4ead7;
+          border: 1px solid var(--bs-gold);
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          text-decoration: none;
+          transition: background 0.18s ease, transform 0.18s ease;
+        }
+
+        .bs-project-btn:hover {
+          background: #3a2211;
+          transform: translateY(-1px);
         }
 
         .bs-service-list {
@@ -714,31 +802,6 @@ export function BookshelfTemplate({
 
         .bs-service-val:hover {
           text-decoration: underline;
-        }
-
-        /* Guaranteed Crisp Readability for Embedded Dispatch */
-        .bs-services #recent-activity {
-          background: #140e09 !important;
-          border: 1px solid rgba(184, 151, 90, 0.45) !important;
-          border-radius: 12px !important;
-          padding: 18px !important;
-          margin-top: 20px !important;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
-        }
-
-        .bs-services #recent-activity p {
-          color: #ffffff !important;
-          font-size: 15px !important;
-          line-height: 1.65 !important;
-          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif !important;
-          background: transparent !important;
-          border: none !important;
-          padding: 0 !important;
-          opacity: 1 !important;
-        }
-
-        .bs-services #recent-activity .font-mono {
-          color: #e8d9b5 !important;
         }
 
         /* ── Action Dock ── */
@@ -975,11 +1038,24 @@ export function BookshelfTemplate({
 
         <p className="bs-shelf-hint">Pull a volume from the shelf to open.</p>
 
+        {/* Standalone Archival Dispatch Section (No Double Boxes) */}
+        {profile?.recentActivity && (
+          <section className="bs-dispatch-wrap" aria-label="Latest Archival Dispatch">
+            <RecentActivitySection
+              activity={profile.recentActivity}
+              variant="the-bookshelf"
+              isDark={true}
+              accentColor="#d9b86c"
+              autoScroll={profile.autoScroll}
+            />
+          </section>
+        )}
+
         {/* Services & Offerings Bookplate */}
         <section className="bs-services" aria-label="Services and Offerings">
-          <h2>Services & Archive</h2>
+          <h2>Active Practice & Works</h2>
           {proofs && proofs.length > 0 ? (
-            <ul className="bs-service-list">
+            <div className="bs-proofs-stack">
               {proofs.map((proof, idx) => {
                 const rawTitle = (proof.title || '').trim();
                 const rawValue = (proof.value || '').trim();
@@ -1005,27 +1081,50 @@ export function BookshelfTemplate({
 
                 const isUrl = /^https?:\/\//i.test(displayValue) || /^www\./i.test(displayValue) || (displayValue.includes('.') && !displayValue.includes(' '));
                 const targetUrl = isUrl ? (displayValue.startsWith('http') ? displayValue : `https://${displayValue}`) : null;
+                const isProject = isUrl || displayTitle.toLowerCase().includes('project') || displayTitle.toLowerCase().includes('venture');
+
+                if (isProject) {
+                  return (
+                    <div key={proof.id || idx} className="bs-project-card">
+                      <div className="bs-project-meta">
+                        <div className="bs-project-badge">
+                          <span className="bs-project-pulse" />
+                          <span>{displayTitle || 'Active Project'}</span>
+                        </div>
+                        <span className="bs-project-tag">Featured Venture</span>
+                      </div>
+
+                      <div className="bs-project-row">
+                        <span className="bs-project-domain">{displayValue || displayTitle}</span>
+                        {targetUrl && (
+                          <a
+                            href={targetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bs-project-btn"
+                          >
+                            <span>Explore</span>
+                            <ExternalLink size={13} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
-                  <li key={proof.id || idx} className="bs-service-row">
+                  <div key={proof.id || idx} className="bs-service-row">
                     <div className="bs-service-main">
                       <span className="bs-service-mark">✦</span>
-                      <b>{displayTitle || 'Key Project'}</b>
+                      <b>{displayTitle || 'Key Metric'}</b>
                     </div>
                     {displayValue && (
-                      targetUrl ? (
-                        <a href={targetUrl} target="_blank" rel="noopener noreferrer" className="bs-service-val">
-                          <span>{displayValue}</span>
-                          <ExternalLink size={13} />
-                        </a>
-                      ) : (
-                        <span className="bs-service-val">{displayValue}</span>
-                      )
+                      <span className="bs-service-val">{displayValue}</span>
                     )}
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           ) : (
             <ul className="bs-service-list">
               <li className="bs-service-row">
@@ -1050,19 +1149,6 @@ export function BookshelfTemplate({
                 <span className="bs-service-val">From $600</span>
               </li>
             </ul>
-          )}
-
-          {/* Activity Section with Guaranteed High Contrast */}
-          {profile?.recentActivity && (
-            <div className="mt-5 pt-4 border-t border-[#b8975a]/30">
-              <RecentActivitySection
-                activity={profile.recentActivity}
-                variant="the-bookshelf"
-                isDark={true}
-                accentColor="#d9b86c"
-                autoScroll={profile.autoScroll}
-              />
-            </div>
           )}
         </section>
 
