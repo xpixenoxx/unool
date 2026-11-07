@@ -183,7 +183,8 @@ describe('POST /api/instagram/flagged/[id]/action', () => {
       'IGqx_VALID_TOKEN',
       'media_123',
       'cmt_flagged_1',
-      'Our pricing starts at $49/mo'
+      'Our pricing starts at $49/mo',
+      'prospect_1'
     );
 
     // Verify instagram_flagged_comments updated to replied

@@ -576,12 +576,13 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       // ── Fast jitter delay (1-2s) so response feels natural but runs well within serverless limits
       await humanizedSleep(1, 2);
 
-      // Post the public reply
+      // Post the public reply (threaded under the specific comment with user tagging)
       const replyResult = await automation.postPublicReply(
         accessToken,
         commentEvent.mediaId,
         commentEvent.commentId,
-        finalReply
+        finalReply,
+        commentEvent.username
       );
 
       if (replyResult) {

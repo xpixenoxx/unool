@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // Follow-Gate Service — lib/follow-gate/service.ts
 // All DB + business logic. No HTTP here.
 // ============================================================
@@ -11,6 +11,7 @@ import type {
   CheckFollowResult,
 } from './types';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 
 
 
@@ -284,7 +285,7 @@ export async function checkFollowViaApi(
     // Fetch followers of the creator's account
     // This requires the creator to have a professional IG account with instagram_manage_insights permission
     const res = await fetch(
-      `https://graph.instagram.com/v20.0/${creatorIgUserId}/followers?fields=id&limit=50&access_token=${creatorAccessToken}`
+      `https://graph.instagram.com/${API_VERSIONS.instagram}/${creatorIgUserId}/followers?fields=id&limit=50&access_token=${creatorAccessToken}`
     );
 
     if (!res.ok) {

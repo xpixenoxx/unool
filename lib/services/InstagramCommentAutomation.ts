@@ -475,14 +475,19 @@ Return ONLY valid JSON:
    * Posts a public reply to an Instagram comment.
    *
    * Selects the Graph API host based on the access token's authentication method:
-   *   - Instagram Login tokens (IGqx…) → graph.instagram.com
-   *   - Facebook Business Login tokens → graph.facebook.com
+   *   - Instagram Login tokens (IG...) → graph.instagram.com
+   *   - Facebook Business Login tokens (EAA...) → graph.facebook.com
    *
    * Does NOT fall back across hosts — using the wrong host for a given token type
    * returns a persistent 400/OAuthException that retrying on the other host cannot fix.
    *
-   * Endpoint: POST /{commentId}/replies
-   * Falls back to the media comments edge only when the comment-level endpoint fails.
+   * Endpoint for comment reply: POST /{commentId}/replies
+   * IMPORTANT: When replying to a comment, this function NEVER falls back to /{mediaId}/comments.
+   * Posting to /{mediaId}/comments creates a detached top-level comment on the root post
+   * rather than a threaded reply to the commenter.
+   *
+   * If commenterUsername is provided, ensures the reply starts with `@{username} ` so
+   * Instagram properly threads and notifies the commenter.
    *
    * fetchWithRetry() throws on 4xx/5xx — all calls are wrapped in try/catch so the
    * exception is converted to a structured log entry and null return, never a thrown error.
@@ -491,7 +496,8 @@ Return ONLY valid JSON:
     accessToken: string,
     mediaId: string,
     commentId: string,
-    message: string
+    message: string,
+    commenterUsername?: string
   ): Promise<{ replyId: string } | null> {
     if (!commentId && !mediaId) {
       logger.warn('postPublicReply: both commentId and mediaId are empty — cannot post reply');
@@ -502,13 +508,29 @@ Return ONLY valid JSON:
     const apiHost = resolveInstagramApiHost(accessToken);
     const apiVersion = API_VERSIONS.instagram;
 
+    // Ensure the reply tags the user directly (e.g. "@username ...") so Instagram threads and notifies them properly
+    let formattedMessage = message.trim();
+    if (commenterUsername) {
+      const cleanUsername = commenterUsername.replace(/^@/, '').trim();
+      if (cleanUsername && !formattedMessage.toLowerCase().startsWith(`@${cleanUsername.toLowerCase()}`)) {
+        formattedMessage = `@${cleanUsername} ${formattedMessage}`;
+      }
+    }
+
     // 1. Reply directly under the specific comment (nested reply).
     if (commentId && !commentId.startsWith('test_')) {
-      const replyParams = new URLSearchParams({ message, access_token: accessToken });
+      const replyParams = new URLSearchParams({
+        message: formattedMessage,
+        access_token: accessToken,
+      });
 
       try {
-        const replyUrl = `${apiHost}/${apiVersion}/${commentId}/replies`;
-        const data = await fetchWithRetry(replyUrl, {
+        // Pass access_token and message in both search params and form body for maximum gateway compatibility
+        const replyUrl = new URL(`${apiHost}/${apiVersion}/${commentId}/replies`);
+        replyUrl.searchParams.set('access_token', accessToken);
+        replyUrl.searchParams.set('message', formattedMessage);
+
+        const data = await fetchWithRetry(replyUrl.toString(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: replyParams.toString(),
@@ -520,41 +542,46 @@ Return ONLY valid JSON:
           commentId,
           replyId: responseData.id,
           apiHost,
+          commenterUsername,
         });
         return { replyId: responseData.id };
       } catch (replyErr) {
         const err = replyErr instanceof Error ? replyErr : new Error(String(replyErr));
         // Extract structured Meta error info where possible.
         const metaCode = (replyErr as any)?.statusCode;
-        logger.warn('Comment-level reply failed — falling back to media comments edge', {
+        logger.error('Failed to post nested comment reply to Instagram', {
           commentId,
           apiHost,
           errorType: err.name,
           errorMessage: err.message,
           httpStatus: metaCode,
         });
-        // Do NOT try the other host — wrong-host failures are persistent OAuth errors.
-        // Fall through to media comments edge below.
+        // CRITICAL: Do NOT fall back to media comments edge (/{mediaId}/comments) when replying to a comment.
+        // Posting to /{mediaId}/comments creates an unthreaded root comment on the media post, disconnected from the user.
+        return null;
       }
     }
 
-    // 2. Fallback: post to the media comments edge.
-    // Uses graph.instagram.com unconditionally — this endpoint is only on the IG Graph.
-    if (mediaId && !mediaId.startsWith('test_')) {
-      const mediaParams = new URLSearchParams({ message, access_token: accessToken });
-      const mediaUrl = `${INSTAGRAM_MEDIA_HOST}/${apiVersion}/${mediaId}/comments`;
+    // 2. Standalone media post comment (ONLY when NO commentId is provided).
+    if (!commentId && mediaId && !mediaId.startsWith('test_')) {
+      const mediaParams = new URLSearchParams({
+        message: formattedMessage,
+        access_token: accessToken,
+      });
+      const mediaUrl = new URL(`${INSTAGRAM_MEDIA_HOST}/${apiVersion}/${mediaId}/comments`);
+      mediaUrl.searchParams.set('access_token', accessToken);
+      mediaUrl.searchParams.set('message', formattedMessage);
 
       try {
-        const mediaData = await fetchWithRetry(mediaUrl, {
+        const mediaData = await fetchWithRetry(mediaUrl.toString(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: mediaParams.toString(),
         });
 
         const responseData = await mediaData.json();
-        logger.info('Instagram comment posted via media comments edge fallback', {
+        logger.info('Instagram comment posted via media comments edge', {
           mediaId,
-          commentId,
           replyId: responseData.id,
         });
         return { replyId: responseData.id };
@@ -563,15 +590,15 @@ Return ONLY valid JSON:
         const metaCode = (mediaErr as any)?.statusCode;
         logger.error('Failed to post comment via media comments edge', {
           mediaId,
-          commentId,
           errorType: err.name,
           errorMessage: err.message,
           httpStatus: metaCode,
         });
+        return null;
       }
     }
 
-    logger.error('All comment reply endpoints failed — reply not posted', { commentId, mediaId, apiHost });
+    logger.warn('No valid commentId or mediaId provided for public reply', { commentId, mediaId });
     return null;
   }
 

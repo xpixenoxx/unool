@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 
 
 
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
     // Action 1: Fetch live comments on post from Meta Graph API
     if (body.action === 'fetch_live_comments') {
       const mediaId = body.mediaId || '17939119815372917';
-      const res = await fetch(`https://graph.instagram.com/v20.0/${mediaId}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`);
+      const res = await fetch(`https://graph.instagram.com/${API_VERSIONS.instagram}/${mediaId}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`);
       const data = await res.json();
       return NextResponse.json({ ok: res.ok, mediaId, commentsData: data });
     }
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
       const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY || '';
       const automation = new InstagramCommentAutomation(groqApiKey);
       const message = body.message || 'Hey! Thanks for stopping by! 👋';
-      const replyRes = await automation.postPublicReply(accessToken, body.mediaId || '17939119815372917', body.commentId, message);
+      const replyRes = await automation.postPublicReply(accessToken, body.mediaId || '17939119815372917', body.commentId, message, body.username);
       return NextResponse.json({ ok: !!replyRes, commentId: body.commentId, replyRes });
     }
 
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     let graphApiResult: any = null;
     if (postLive && body.mediaId && body.commentId) {
-      graphApiResult = await automation.postPublicReply(accessToken, body.mediaId, body.commentId, finalReply);
+      graphApiResult = await automation.postPublicReply(accessToken, body.mediaId, body.commentId, finalReply, commenterUsername);
     }
 
     // Log to supabaseAdmin

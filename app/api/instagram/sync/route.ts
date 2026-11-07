@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -17,6 +17,7 @@ import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
     let metaProfile: any = null;
     try {
       const profileRes = await fetch(
-        `https://graph.instagram.com/v20.0/me?fields=id,username,name,account_type&access_token=${accessToken}`
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name,account_type&access_token=${accessToken}`
       );
       if (profileRes.ok) {
         metaProfile = await profileRes.json();
@@ -205,7 +206,7 @@ export async function POST(request: NextRequest) {
     // Check webhook subscriptions
     try {
       const subRes = await fetch(
-        `https://graph.instagram.com/v20.0/${connection.platform_user_id}/subscribed_apps?access_token=${accessToken}`
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/${connection.platform_user_id}/subscribed_apps?access_token=${accessToken}`
       );
       if (subRes.ok) {
         const subData = await subRes.json();
@@ -233,9 +234,9 @@ export async function POST(request: NextRequest) {
     const fetchLimit = 100;
     let mediaSource = '';
 
-    // Endpoint A: graph.instagram.com/v20.0/me/media (request comments directly in bulk)
+    // Endpoint A: graph.instagram.com/{version}/me/media (request comments directly in bulk)
     try {
-      let nextUrl: string | null = `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp}&limit=${fetchLimit}&access_token=${accessToken}`;
+      let nextUrl: string | null = `https://graph.instagram.com/${API_VERSIONS.instagram}/me/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp}&limit=${fetchLimit}&access_token=${accessToken}`;
       let pageCount = 0;
       while (nextUrl && pageCount < 3) {
         pageCount++;
@@ -249,7 +250,7 @@ export async function POST(request: NextRequest) {
         } else {
           // If bulk comments edge fails, try without comments field
           const fallbackRes: Response = await fetch(
-            `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
+            `https://graph.instagram.com/${API_VERSIONS.instagram}/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
           );
           if (fallbackRes.ok) {
             const fbData: any = await fallbackRes.json();
@@ -278,10 +279,10 @@ export async function POST(request: NextRequest) {
       diagnostics.push({ step: 'fetch_media_A', status: 'error', detail: e.message });
     }
 
-    // Endpoint B: graph.facebook.com/v20.0/{platform_user_id}/media
+    // Endpoint B: graph.facebook.com/{version}/{platform_user_id}/media
     if (mediaItems.length === 0 && connection.platform_user_id) {
       try {
-        let nextUrl: string | null = `https://graph.facebook.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp}&limit=${fetchLimit}&access_token=${accessToken}`;
+        let nextUrl: string | null = `https://graph.facebook.com/${API_VERSIONS.facebook}/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp}&limit=${fetchLimit}&access_token=${accessToken}`;
         let pageCount = 0;
         while (nextUrl && pageCount < 3) {
           pageCount++;
@@ -314,11 +315,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Endpoint C: graph.instagram.com/v20.0/{platform_user_id}/media
+    // Endpoint C: graph.instagram.com/{version}/{platform_user_id}/media
     if (mediaItems.length === 0 && connection.platform_user_id) {
       try {
         const igUserRes = await fetch(
-          `https://graph.instagram.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
         );
         if (igUserRes.ok) {
           const igUserData = await igUserRes.json();
@@ -342,11 +343,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Endpoint D: graph.facebook.com/v20.0/me/media
+    // Endpoint D: graph.facebook.com/{version}/me/media
     if (mediaItems.length === 0) {
       try {
         const fbMeRes = await fetch(
-          `https://graph.facebook.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
+          `https://graph.facebook.com/${API_VERSIONS.facebook}/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
         );
         if (fbMeRes.ok) {
           const fbMeData = await fbMeRes.json();
@@ -406,21 +407,21 @@ export async function POST(request: NextRequest) {
       if (rawComments.length === 0) {
         const queryCandidates = [
           // Pattern A: Standard Instagram Graph API with from{id,username}
-          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
           // Pattern B: graph.facebook.com with from{id,username}
-          `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
+          `https://graph.facebook.com/${API_VERSIONS.facebook}/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
           // Pattern C: graph.instagram.com with root username
-          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
           // Pattern D: graph.facebook.com with root username
-          `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
+          `https://graph.facebook.com/${API_VERSIONS.facebook}/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
           // Pattern E: Minimal id,text on graph.instagram.com (guaranteed fields)
-          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp&access_token=${accessToken}`,
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp&access_token=${accessToken}`,
           // Pattern F: Pure parameterless call on graph.instagram.com (cannot fail on nonexistent fields)
-          `https://graph.instagram.com/v20.0/${media.id}/comments?access_token=${accessToken}`,
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?access_token=${accessToken}`,
           // Pattern G: Pure parameterless call on graph.facebook.com
-          `https://graph.facebook.com/v20.0/${media.id}/comments?access_token=${accessToken}`,
+          `https://graph.facebook.com/${API_VERSIONS.facebook}/${media.id}/comments?access_token=${accessToken}`,
           // Pattern H: Media node expansion with comments
-          `https://graph.instagram.com/v20.0/${media.id}?fields=id,comments{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}?fields=id,comments{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
           // Pattern I: Versionless fallback
           `https://graph.instagram.com/${media.id}/comments?access_token=${accessToken}`,
         ];
@@ -472,7 +473,7 @@ export async function POST(request: NextRequest) {
           const sampleCount = diagnostics.filter(d => d.step.startsWith('withheld_sample')).length;
           if (sampleCount < 4) {
             try {
-              const sampleRes = await fetch(`https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`);
+              const sampleRes = await fetch(`https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`);
               const sampleBody = await sampleRes.text();
               logger.warn('Meta Graph API returned empty data for post with comments (Dev Mode withholding)', {
                 mediaId: media.id,
@@ -511,7 +512,7 @@ export async function POST(request: NextRequest) {
         if (!rawUsername && commentId) {
           try {
             const cRes = await fetch(
-              `https://graph.instagram.com/v20.0/${commentId}?fields=from{id,username},username&access_token=${accessToken}`
+              `https://graph.instagram.com/${API_VERSIONS.instagram}/${commentId}?fields=from{id,username},username&access_token=${accessToken}`
             );
             if (cRes.ok) {
               const cData = await cRes.json();
@@ -594,7 +595,8 @@ export async function POST(request: NextRequest) {
             accessToken,
             media.id,
             commentId,
-            finalReply
+            finalReply,
+            rawUsername || commenterUsername
           );
 
           if (replyResult) {
@@ -693,7 +695,7 @@ export async function POST(request: NextRequest) {
           try {
             const hideParams = new URLSearchParams({ hide: 'true', access_token: accessToken });
             const hideRes = await fetch(
-              `https://graph.facebook.com/v20.0/${commentId}`,
+              `https://graph.facebook.com/${API_VERSIONS.facebook}/${commentId}`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

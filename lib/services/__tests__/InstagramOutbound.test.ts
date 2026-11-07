@@ -115,12 +115,45 @@ describe('postPublicReply', () => {
     expect(calledUrl).not.toContain('graph.instagram.com');
   });
 
-  it('does NOT cross-host fallback on 4xx error', async () => {
-    // fetchWithRetry throws on 4xx — the function should catch it and fall through
-    // to the media comments edge, not try the other host.
-    mockFetch
-      .mockRejectedValueOnce(makeThrowingError(403, 'Permission denied')) // comment/replies fails
-      .mockResolvedValueOnce(makeJsonResponse({ id: 'media_reply_789' }));  // media/comments succeeds
+  it('tags the commenter with @username when commenterUsername is provided', async () => {
+    mockFetch.mockResolvedValueOnce(makeJsonResponse({ id: 'reply_tagged' }));
+
+    const result = await automation.postPublicReply(
+      INSTAGRAM_LOGIN_TOKEN,
+      'media_456',
+      'comment_789',
+      'Check your DMs!',
+      'hamster.1397359'
+    );
+
+    expect(result).toEqual({ replyId: 'reply_tagged' });
+    const callUrl = mockFetch.mock.calls[0][0];
+    const callOptions = mockFetch.mock.calls[0][1];
+    expect(callUrl).toContain('comment_789/replies');
+    expect(new URL(callUrl).searchParams.get('message')).toBe('@hamster.1397359 Check your DMs!');
+    expect(new URLSearchParams(callOptions.body).get('message')).toBe('@hamster.1397359 Check your DMs!');
+  });
+
+  it('does NOT duplicate @username if already present at start of reply', async () => {
+    mockFetch.mockResolvedValueOnce(makeJsonResponse({ id: 'reply_already_tagged' }));
+
+    const result = await automation.postPublicReply(
+      INSTAGRAM_LOGIN_TOKEN,
+      'media_456',
+      'comment_789',
+      '@hamster.1397359 Check your DMs!',
+      'hamster.1397359'
+    );
+
+    expect(result).toEqual({ replyId: 'reply_already_tagged' });
+    const callUrl = mockFetch.mock.calls[0][0];
+    expect(new URL(callUrl).searchParams.get('message')).toBe('@hamster.1397359 Check your DMs!');
+  });
+
+  it('does NOT fall back to media comments edge when comment-level replies endpoint fails', async () => {
+    // When replying to a comment, falling back to /{mediaId}/comments creates an unthreaded root
+    // comment on the post. When comment/replies fails, it must return null and NOT touch media/comments.
+    mockFetch.mockRejectedValueOnce(makeThrowingError(403, 'Permission denied'));
 
     const result = await automation.postPublicReply(
       INSTAGRAM_LOGIN_TOKEN,
@@ -129,19 +162,16 @@ describe('postPublicReply', () => {
       'Great post!'
     );
 
-    expect(result).toEqual({ replyId: 'media_reply_789' });
-    // Should have made exactly 2 calls — NOT 3 (which would indicate a cross-host retry)
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    // Second call should be to media/comments on graph.instagram.com
-    const secondUrl: string = mockFetch.mock.calls[1][0];
-    expect(secondUrl).toContain('/comments');
+    expect(result).toBeNull();
+    // Exactly 1 call was made to comment/replies; no fallback call to media/comments was made
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain('comment_789/replies');
   });
 
-  it('returns null and logs on Meta 400 Bad Request', async () => {
+  it('returns null and logs on Meta 400 Bad Request without falling back to media', async () => {
     const { logger } = await import('@/lib/logger');
-    mockFetch
-      .mockRejectedValueOnce(makeThrowingError(400, 'Bad request: {"error":{"code":190,"type":"OAuthException"}}'))
-      .mockRejectedValueOnce(makeThrowingError(400, 'Bad request on media edge'));
+    mockFetch.mockRejectedValueOnce(makeThrowingError(400, 'Bad request: {"error":{"code":190,"type":"OAuthException"}}'));
 
     const result = await automation.postPublicReply(
       INSTAGRAM_LOGIN_TOKEN,
@@ -151,14 +181,13 @@ describe('postPublicReply', () => {
     );
 
     expect(result).toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalled();
   });
 
   it('returns null and logs on Meta 401 Unauthorized (expired token)', async () => {
     const { logger } = await import('@/lib/logger');
-    mockFetch
-      .mockRejectedValueOnce(makeThrowingError(401, 'Token expired'))
-      .mockRejectedValueOnce(makeThrowingError(401, 'Token expired'));
+    mockFetch.mockRejectedValueOnce(makeThrowingError(401, 'Token expired'));
 
     const result = await automation.postPublicReply(
       INSTAGRAM_LOGIN_TOKEN,
@@ -168,13 +197,12 @@ describe('postPublicReply', () => {
     );
 
     expect(result).toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalled();
   });
 
   it('returns null on Meta 403 (missing permission)', async () => {
-    mockFetch
-      .mockRejectedValueOnce(makeThrowingError(403, 'Permission denied'))
-      .mockRejectedValueOnce(makeThrowingError(403, 'Permission denied'));
+    mockFetch.mockRejectedValueOnce(makeThrowingError(403, 'Permission denied'));
 
     const result = await automation.postPublicReply(
       INSTAGRAM_LOGIN_TOKEN,
@@ -184,22 +212,23 @@ describe('postPublicReply', () => {
     );
 
     expect(result).toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to media comments edge when comment-level replies endpoint fails', async () => {
-    mockFetch
-      .mockRejectedValueOnce(makeThrowingError(400, 'Comment node error'))
-      .mockResolvedValueOnce(makeJsonResponse({ id: 'fallback_reply_id' }));
+  it('posts to media comments edge ONLY when no commentId is provided', async () => {
+    mockFetch.mockResolvedValueOnce(makeJsonResponse({ id: 'root_media_comment_123' }));
 
     const result = await automation.postPublicReply(
       INSTAGRAM_LOGIN_TOKEN,
       'media_456',
-      'comment_789',
-      'Reply text'
+      '', // No commentId — standalone post comment
+      'First comment on post!'
     );
 
-    expect(result).toEqual({ replyId: 'fallback_reply_id' });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ replyId: 'root_media_comment_123' });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain('media_456/comments');
   });
 
   it('skips test_ prefixed commentIds to avoid accidental API calls', async () => {
@@ -489,19 +518,17 @@ describe('sendQuickReplyMessage', () => {
 // ─── API version tests ────────────────────────────────────────────────────────
 
 describe('API version routing', () => {
-  it('resolveInstagramApiHost returns instagram host for IGqx tokens', async () => {
+  it('resolveInstagramApiHost returns instagram host for all IG-prefixed tokens (IGqx, IGdid, IGAA, IGQ)', async () => {
     const { resolveInstagramApiHost } = await import('@/lib/platforms/apiVersions');
     expect(resolveInstagramApiHost('IGqxTESTTOKEN')).toBe('https://graph.instagram.com');
+    expect(resolveInstagramApiHost('IGdidTESTTOKEN')).toBe('https://graph.instagram.com');
+    expect(resolveInstagramApiHost('IGAABTESTTOKEN')).toBe('https://graph.instagram.com');
+    expect(resolveInstagramApiHost('IGQTESTTOKEN')).toBe('https://graph.instagram.com');
   });
 
   it('resolveInstagramApiHost returns facebook host for EAA tokens', async () => {
     const { resolveInstagramApiHost } = await import('@/lib/platforms/apiVersions');
     expect(resolveInstagramApiHost('EAABwzLixnjYBO')).toBe('https://graph.facebook.com');
-  });
-
-  it('resolveInstagramApiHost returns facebook host for IGdid tokens', async () => {
-    const { resolveInstagramApiHost } = await import('@/lib/platforms/apiVersions');
-    expect(resolveInstagramApiHost('IGdidTESTTOKEN')).toBe('https://graph.instagram.com');
   });
 
   it('API_VERSIONS.instagram is v21.0 (not deprecated v20.0)', async () => {

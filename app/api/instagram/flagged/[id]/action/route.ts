@@ -164,12 +164,13 @@ export async function POST(
       logger.info('Flagged DM resolved', { id, action, workspaceId });
       return NextResponse.json({ success: true, status: 'replied', messageId: dmResult.messageId });
     } else {
-      // Post comment reply
+      // Post comment reply (threaded with user tagging)
       const result = await automation.postPublicReply(
         accessToken,
         item.media_id || '',
         item.comment_id,
-        replyText
+        replyText,
+        item.commenter_username
       );
 
       if (!result) {

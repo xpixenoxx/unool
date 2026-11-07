@@ -267,7 +267,8 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
       'IGqx_VALID_TOKEN',
       '',
       'cmt_new_1',
-      'Thanks for reaching out!'
+      'Thanks for reaching out!',
+      'customer_1'
     );
 
     // Verify job status updated to sent

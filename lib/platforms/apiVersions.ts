@@ -35,12 +35,12 @@ export const INSTAGRAM_API_HOSTS = {
  * Uses token prefix to detect Instagram Login vs Facebook Business Login.
  */
 export function resolveInstagramApiHost(accessToken: string): string {
-  // Instagram Login tokens (new OAuth 2.0 for Instagram) use graph.instagram.com.
-  // The token prefix IGqx (Instagram Query exchange) is specific to this flow.
-  if (accessToken.startsWith('IGqx') || accessToken.startsWith('IGdid')) {
+  // Instagram Login tokens (OAuth 2.0 for Instagram) use graph.instagram.com.
+  // All Instagram User Access Tokens begin with "IG" (e.g. IGqx, IGdid, IGAA, IGQ, etc.).
+  if (accessToken.startsWith('IG')) {
     return INSTAGRAM_API_HOSTS.instagramLogin;
   }
-  // Facebook Business Login tokens go to graph.facebook.com.
+  // Facebook Business Login tokens (e.g. EAAB...) go to graph.facebook.com.
   return INSTAGRAM_API_HOSTS.facebookLogin;
 }
 

@@ -13,7 +13,7 @@ import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/re
 
 const META_AUTH_URL = 'https://www.instagram.com/oauth/authorize';
 const META_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
-const FACEBOOK_API_BASE = 'https://graph.facebook.com/v20.0';
+const FACEBOOK_API_BASE = `https://graph.facebook.com/${API_VERSIONS.facebook}`;
 
 export class InstagramAdapter implements PlatformAdapter {
   readonly platform = 'instagram' as const;

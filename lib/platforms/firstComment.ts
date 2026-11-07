@@ -1,5 +1,6 @@
 import { fetchWithRetry } from '@/lib/utils/retry';
 import { logger } from '@/lib/logger';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 
 /**
  * Posts a first comment on a published Instagram post.
@@ -37,7 +38,7 @@ export async function postFirstComment(
   });
 
   const response = await fetchWithRetry(
-    `https://graph.instagram.com/v20.0/${platformPostId}/comments`,
+    `https://graph.instagram.com/${API_VERSIONS.instagram}/${platformPostId}/comments`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

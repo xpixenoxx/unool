@@ -250,12 +250,13 @@ async function handleJob(params: InstagramOutboundJobParams) {
         return NextResponse.json({ success: true, flagged: true }, { status: 200 });
       }
 
-      // Post public reply via Graph API
+      // Post public reply via Graph API (threaded under specific comment)
       const replyResult = await automation.postPublicReply(
         accessToken,
         mediaId || '',
         commentId,
-        finalReply
+        finalReply,
+        commenterUsername
       );
 
       if (!replyResult) {
