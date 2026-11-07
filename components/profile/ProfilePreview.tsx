@@ -26,6 +26,7 @@ const templateComponents: Record<string, React.LazyExoticComponent<React.Compone
   'the-builder': React.lazy(() => import('@/components/profile/templates/persona/the-builder').then(m => ({ default: m.BuilderTemplate }))),
   'the-visionary': React.lazy(() => import('@/components/profile/templates/persona/the-visionary').then(m => ({ default: m.VisionaryTemplate }))),
   'the-hustler': React.lazy(() => import('@/components/profile/templates/persona/the-hustler').then(m => ({ default: m.HustlerTemplate }))),
+  'the-stack': React.lazy(() => import('@/components/profile/templates/persona/the-stack').then(m => ({ default: m.StackTemplate }))),
   // Influencer
   'the-aesthete': React.lazy(() => import('@/components/profile/templates/persona/the-aesthete').then(m => ({ default: m.AestheteTemplate }))),
   'the-creator': React.lazy(() => import('@/components/profile/templates/persona/the-creator').then(m => ({ default: m.CreatorTemplate }))),

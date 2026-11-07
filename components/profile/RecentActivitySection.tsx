@@ -38,6 +38,8 @@ export interface RecentActivitySectionProps {
     | 'human'
     | 'aesthete'
     | 'voice'
+    | 'stack'
+    | 'the-stack'
     | 'default';
   /** Whether the parent template has a dark background */
   isDark?: boolean;

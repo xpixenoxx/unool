@@ -1,0 +1,58 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="-6" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Deep Slate Background -->
+  <rect width="400" height="600" fill="#121212"/>
+
+  <!-- Card 1: Ivory Linen (Hero) -->
+  <g filter="url(#shadow)">
+    <rect x="24" y="30" width="352" height="420" rx="24" fill="#ece6d8"/>
+    <!-- Avatar photo placeholder -->
+    <rect x="48" y="54" width="304" height="150" rx="16" fill="#cfc8b8"/>
+    <text x="200" y="135" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#6a6458" letter-spacing="2" text-anchor="middle">PORTFOLIO</text>
+    <!-- Title and Subtitle -->
+    <text x="48" y="240" font-family="system-ui, sans-serif" font-size="28" font-weight="700" fill="#171714" letter-spacing="-0.5">Aarav Rao</text>
+    <text x="48" y="266" font-family="system-ui, sans-serif" font-size="14" font-weight="500" fill="#171714" opacity="0.65">Brand Designer • Hyderabad</text>
+    <rect x="48" y="284" width="280" height="8" rx="4" fill="#171714" opacity="0.15"/>
+    <rect x="48" y="302" width="220" height="8" rx="4" fill="#171714" opacity="0.15"/>
+  </g>
+
+  <!-- Card 2: Terracotta (Links) -->
+  <g filter="url(#shadow)">
+    <rect x="24" y="280" width="352" height="280" rx="24" fill="#c4693f"/>
+    <text x="48" y="315" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#171714" opacity="0.75" letter-spacing="2">LINKS &amp; CHANNELS</text>
+    <!-- Link 1 -->
+    <rect x="48" y="332" width="304" height="42" rx="12" fill="#ffffff" opacity="0.3"/>
+    <rect x="56" y="338" width="30" height="30" rx="8" fill="#171714"/>
+    <rect x="96" y="347" width="100" height="6" rx="3" fill="#171714"/>
+    <rect x="96" y="357" width="60" height="5" rx="2.5" fill="#171714" opacity="0.6"/>
+    <!-- Link 2 -->
+    <rect x="48" y="382" width="304" height="42" rx="12" fill="#ffffff" opacity="0.3"/>
+    <rect x="56" y="388" width="30" height="30" rx="8" fill="#171714"/>
+    <rect x="96" y="397" width="120" height="6" rx="3" fill="#171714"/>
+    <rect x="96" y="407" width="80" height="5" rx="2.5" fill="#171714" opacity="0.6"/>
+  </g>
+
+  <!-- Card 3: Sage Olive (Services) -->
+  <g filter="url(#shadow)">
+    <rect x="24" y="440" width="352" height="200" rx="24" fill="#8c9a73"/>
+    <text x="48" y="475" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#171714" opacity="0.75" letter-spacing="2">SERVICES &amp; RATES</text>
+    <rect x="48" y="492" width="140" height="7" rx="3.5" fill="#171714"/>
+    <rect x="300" y="492" width="52" height="7" rx="3.5" fill="#171714"/>
+    <rect x="48" y="514" width="160" height="7" rx="3.5" fill="#171714"/>
+    <rect x="290" y="514" width="62" height="7" rx="3.5" fill="#171714"/>
+  </g>
+
+  <!-- Card 4: Charcoal Basalt (Action Dock Peek) -->
+  <g filter="url(#shadow)">
+    <rect x="24" y="540" width="352" height="100" rx="24" fill="#2a2a27"/>
+    <text x="48" y="575" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#ece6d8" opacity="0.8" letter-spacing="2">INITIATE CONTACT</text>
+    <rect x="48" y="588" width="146" height="28" rx="8" fill="#ffffff" opacity="0.08"/>
+    <rect x="206" y="588" width="146" height="28" rx="8" fill="#ffffff" opacity="0.08"/>
+  </g>
+</svg>
+

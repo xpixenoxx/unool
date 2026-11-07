@@ -114,7 +114,7 @@ export function getSkeletonCategory(templateId: string): TemplateSkeletonProps['
   const individualTemplates = ['lover', 'lone', 'energy'];
   const startupTemplates = ['rebellion', 'vision', 'human'];
   const agencyTemplates = ['the-studio', 'the-machine', 'the-club'];
-  const entrepreneurTemplates = ['the-builder', 'the-visionary', 'the-hustler'];
+  const entrepreneurTemplates = ['the-builder', 'the-visionary', 'the-hustler', 'the-stack', 'stack'];
   const influencerTemplates = ['the-aesthete', 'the-creator', 'the-voice'];
 
   if (individualTemplates.includes(templateId)) return 'individual';

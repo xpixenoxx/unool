@@ -112,7 +112,8 @@ export interface VariantConfig {
 export type VariantKey =
   | 'lover' | 'lone' | 'rebellion' | 'builder' | 'visionary'
   | 'hustler' | 'creator' | 'studio' | 'machine' | 'club'
-  | 'energy' | 'vision' | 'human' | 'aesthete' | 'voice' | 'default';
+  | 'energy' | 'vision' | 'human' | 'aesthete' | 'voice'
+  | 'stack' | 'the-stack' | 'default';
 
 // ─── Helper Functions ────────────────────────────────────────────────────────────
 
@@ -538,6 +539,42 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     }),
     footerDescription: 'Tap any platform above to view & engage with the full post',
     pulseAnimationColor: '#22C55E',
+  },
+
+  stack: {
+    containerClassName: 'my-4 space-y-2.5',
+    headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.2em] text-[#171714]/70 px-1',
+    pulseColor: '#c4693f',
+    pulseSize: 'w-2 h-2',
+    title: 'LATEST SIGNAL // DISPATCH',
+    titleClassName: 'flex items-center gap-2 font-bold text-[#171714]',
+    timestampClassName: 'text-[10px] text-[#171714]/60 font-mono',
+    contentClassName: 'p-4 rounded-2xl bg-white/40 backdrop-blur-sm border border-[#171714]/10 shadow-sm space-y-3 transition-all hover:bg-white/60',
+    excerptMaxLength: 140,
+    platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#171714]/10',
+    platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm hover:scale-105 active:scale-95 transition-all text-white no-underline',
+    platformIconSize: 13,
+    footerClassName: 'text-[10px] text-[#171714]/60 font-mono flex items-center justify-between pt-1',
+    footerDescription: 'Tap to view live content',
+    pulseAnimationColor: '#c4693f',
+  },
+
+  'the-stack': {
+    containerClassName: 'my-4 space-y-2.5',
+    headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.2em] text-[#171714]/70 px-1',
+    pulseColor: '#c4693f',
+    pulseSize: 'w-2 h-2',
+    title: 'LATEST SIGNAL // DISPATCH',
+    titleClassName: 'flex items-center gap-2 font-bold text-[#171714]',
+    timestampClassName: 'text-[10px] text-[#171714]/60 font-mono',
+    contentClassName: 'p-4 rounded-2xl bg-white/40 backdrop-blur-sm border border-[#171714]/10 shadow-sm space-y-3 transition-all hover:bg-white/60',
+    excerptMaxLength: 140,
+    platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#171714]/10',
+    platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm hover:scale-105 active:scale-95 transition-all text-white no-underline',
+    platformIconSize: 13,
+    footerClassName: 'text-[10px] text-[#171714]/60 font-mono flex items-center justify-between pt-1',
+    footerDescription: 'Tap to view live content',
+    pulseAnimationColor: '#c4693f',
   },
 };
 

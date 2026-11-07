@@ -13,6 +13,7 @@ import { StudioTemplate } from './the-studio';
 import { BuilderTemplate } from './the-builder';
 import { VisionaryTemplate } from './the-visionary';
 import { HustlerTemplate } from './the-hustler';
+import { StackTemplate } from './the-stack';
 import { AestheteTemplate } from './the-aesthete';
 import { CreatorTemplate } from './the-creator';
 import { VoiceTemplate } from './the-voice';
@@ -30,6 +31,7 @@ export {
   BuilderTemplate,
   VisionaryTemplate,
   HustlerTemplate,
+  StackTemplate,
   AestheteTemplate,
   CreatorTemplate,
   VoiceTemplate,
@@ -49,6 +51,7 @@ export const TEMPLATE_COMPONENTS = {
   'the-builder': BuilderTemplate,
   'the-visionary': VisionaryTemplate,
   'the-hustler': HustlerTemplate,
+  'the-stack': StackTemplate,
   'the-aesthete': AestheteTemplate,
   'the-creator': CreatorTemplate,
   'the-voice': VoiceTemplate,

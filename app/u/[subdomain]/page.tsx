@@ -164,7 +164,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       const target = e.target as HTMLElement;
       const anchor = target.closest('a');
       if (!anchor) return;
-      
+
       const rawHref = anchor.getAttribute('href') || '';
       // Ignore hash jumps on the same page, javascript, or empty links
       if (!anchor.href || rawHref.startsWith('#') || rawHref.startsWith('javascript:')) {
@@ -183,16 +183,16 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       const linkType = anchor.href.startsWith('mailto:')
         ? 'email'
         : anchor.href.startsWith('tel:')
-        ? 'phone'
-        : anchor.href.includes('linkedin.com')
-        ? 'linkedin'
-        : anchor.href.includes('twitter.com') || anchor.href.includes('x.com')
-        ? 'x'
-        : anchor.href.includes('instagram.com')
-        ? 'instagram'
-        : anchor.href.includes('github.com')
-        ? 'github'
-        : 'website';
+          ? 'phone'
+          : anchor.href.includes('linkedin.com')
+            ? 'linkedin'
+            : anchor.href.includes('twitter.com') || anchor.href.includes('x.com')
+              ? 'x'
+              : anchor.href.includes('instagram.com')
+                ? 'instagram'
+                : anchor.href.includes('github.com')
+                  ? 'github'
+                  : 'website';
 
       // Send tracking event without blocking navigation
       fetch('/api/analytics/track', {
@@ -249,6 +249,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     'aesthete': 'the-aesthete',
     'voice': 'the-voice',
     'machine': 'the-machine',
+    'stack': 'the-stack',
+    'craftsman': 'the-stack',
+    'the-craftsman': 'the-stack',
     // Old essential templates
     'essential-minimal': 'lone',
     'essential-light': 'lone',

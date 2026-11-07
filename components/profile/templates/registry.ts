@@ -267,6 +267,35 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     },
     persona: 'the-studio',
   },
+
+  // 07 — ENTREPRENEUR / CRAFTSMAN (STACKING DOSSIER)
+  {
+    id: 'the-stack',
+    name: 'The Stack',
+    category: 'entrepreneur',
+    intensity: 'standard',
+    preset: 'creative',
+    icon: '🗂️',
+    tagline: 'Dimensional cards built to convert visitors into clients.',
+    description: 'Physical stacking dossier for independent designers, consultants, and solo practitioners. Structured for services, clear links, and direct hiring.',
+    tags: ['stacking-cards', 'editorial', 'freelancer', 'services', 'tactile'],
+    thumbnail: '/templates/previews/the-stack.svg',
+    features: {
+      has3DBackground: false,
+      hasParallax: true,
+      hasTiltCards: false,
+      hasMagneticHover: true,
+      hasAnimatedOrbs: false,
+      hasGradientText: false,
+      supportsVideoBackground: false,
+      maxLinks: 12,
+      maxProofPoints: 6,
+      performanceBudget: 'light',
+      maxBundleSizeKB: 40,
+      maxRenderMs: 60,
+    },
+    persona: 'the-stack',
+  },
 ];
 
 export function getTemplateById(id: string): TemplateMeta | undefined {
