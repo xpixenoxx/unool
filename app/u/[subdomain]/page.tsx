@@ -186,7 +186,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
           ? 'phone'
           : anchor.href.includes('linkedin.com')
             ? 'linkedin'
-            : anchor.href.includes('twitter.com') || anchor.href.includes('x.com')
+            : anchor.href.includes('twitter.com') || /(?:^|[\/\.])x\.com(?=[\/\?#:]|$)/i.test(anchor.href)
               ? 'x'
               : anchor.href.includes('instagram.com')
                 ? 'instagram'

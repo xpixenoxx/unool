@@ -327,10 +327,15 @@ export function normalizeSocialPlatform(label?: string, url?: string, explicitIc
   if (combined.includes('linkedin')) return 'linkedin';
   if (combined.includes('instagram') || combined.includes('insta')) return 'instagram';
   if (combined.includes('youtube') || combined.includes('youtu.be')) return 'youtube';
-  if (combined.includes('twitter') || combined.includes('x.com') || (label && /^x$/i.test(label.trim()))) return 'x';
+  // Strict X / Twitter check (avoids false-matching domains containing x.com such as pixenox.com or dropbox.com)
+  const isXBrand = combined.includes('twitter') ||
+                   (label && /^x$/i.test(label.trim())) ||
+                   (explicitIcon && /^x$/i.test(explicitIcon.trim())) ||
+                   /(?:^|[\/\s\.@])x\.com(?:[\/\s\?#:]|$)/i.test(combined);
+  if (isXBrand) return 'x';
   if (combined.includes('threads')) return 'threads';
   if (combined.includes('tiktok')) return 'tiktok';
-  if (combined.includes('facebook') || combined.includes('fb.com')) return 'facebook';
+  if (combined.includes('facebook') || /(?:^|[\/\s\.@])fb\.com(?:[\/\s\?#:]|$)/i.test(combined)) return 'facebook';
   if (combined.includes('discord') || combined.includes('discord.gg')) return 'discord';
   if (combined.includes('twitch')) return 'twitch';
   if (combined.includes('reddit')) return 'reddit';
@@ -350,7 +355,7 @@ export function normalizeSocialPlatform(label?: string, url?: string, explicitIc
 
   // Communication & Web
   if (combined.includes('mailto:') || combined.includes('email') || combined.includes('mail')) return 'email';
-  if (combined.includes('website') || combined.includes('portfolio') || combined.includes('personal site') || combined.includes('homepage')) return 'website';
+  if (combined.includes('website') || combined.includes('portfolio') || combined.includes('personal site') || combined.includes('homepage') || combined.includes('web')) return 'website';
 
   // Domain parsing fallback
   if (url) {
@@ -360,7 +365,7 @@ export function normalizeSocialPlatform(label?: string, url?: string, explicitIc
       if (host.includes('leetcode.com')) return 'leetcode';
       if (host.includes('github.com')) return 'github';
       if (host.includes('linkedin.com')) return 'linkedin';
-      if (host.includes('x.com') || host.includes('twitter.com')) return 'x';
+      if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) return 'x';
       if (host.includes('instagram.com')) return 'instagram';
       if (host.includes('youtube.com') || host.includes('youtu.be')) return 'youtube';
       if (host.includes('hackerrank.com')) return 'hackerrank';

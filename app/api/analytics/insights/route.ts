@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
     try {
       const host = new URL(row.referrer).hostname.replace('www.', '');
       if (host.includes('linkedin')) source = 'LinkedIn';
-      else if (host.includes('twitter') || host.includes('x.com')) source = 'X / Twitter';
+      else if (host.includes('twitter') || host === 'x.com' || host.endsWith('.x.com')) source = 'X / Twitter';
       else if (host.includes('instagram')) source = 'Instagram';
       else if (host.includes('google')) source = 'Google';
       else source = host;

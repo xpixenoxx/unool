@@ -4,7 +4,7 @@ import React, { useMemo, useCallback, useState } from 'react';
 import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
 import { SocialIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
-import { Phone, Mail, MessageCircle, Download, ExternalLink, MapPin, Sparkles, Check, Copy } from 'lucide-react';
+import { Phone, Mail, MessageCircle, Download, ExternalLink, MapPin, Check, Copy } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
    Action Verb Intelligence: Infers intentional CTA verbs from URLs
@@ -12,17 +12,32 @@ import { Phone, Mail, MessageCircle, Download, ExternalLink, MapPin, Sparkles, C
 function getActionVerb(url: string, label: string): string {
   const u = (url || '').toLowerCase();
   const l = (label || '').toLowerCase();
-  if (u.includes('cal.com') || u.includes('calendly.com') || l.includes('book') || l.includes('schedule')) return 'Book';
-  if (u.includes('youtube.com') || u.includes('twitch.tv') || u.includes('vimeo') || l.includes('watch')) return 'Watch';
-  if (u.includes('github.com') || u.includes('gitlab.com') || l.includes('code')) return 'Inspect';
+
+  // 1. Portfolio, creative showcases, case studies
+  if (l.includes('portfolio') || l.includes('work') || l.includes('case stud') || u.includes('dribbble.com') || u.includes('behance.net')) return 'Explore';
+
+  // 2. Websites, personal domains, company portals
+  if (l.includes('website') || l.includes('site') || l.includes('homepage') || l.includes('web') || l.includes('portal')) return 'Visit';
+
+  // 3. High-intent interactive actions
+  if (u.includes('cal.com') || u.includes('calendly.com') || l.includes('book') || l.includes('schedule') || l.includes('meeting')) return 'Book';
+  if (u.includes('wa.me') || u.includes('whatsapp') || l.includes('chat') || l.includes('message')) return 'Chat';
   if (u.includes('linkedin.com') || l.includes('connect')) return 'Connect';
   if (u.includes('.pdf') || l.includes('resume') || l.includes('cv') || l.includes('download')) return 'Get';
-  if (u.includes('wa.me') || u.includes('whatsapp') || l.includes('chat')) return 'Chat';
-  if (u.includes('spotify.com') || u.includes('apple.com/music') || u.includes('soundcloud') || l.includes('listen')) return 'Listen';
-  if (u.includes('instagram.com') || u.includes('x.com') || u.includes('twitter.com') || u.includes('threads.net')) return 'Follow';
-  if (u.includes('dribbble.com') || u.includes('behance.net') || l.includes('portfolio') || l.includes('work')) return 'Explore';
-  if (u.includes('substack.com') || u.includes('medium.com') || l.includes('blog') || l.includes('read')) return 'Read';
-  return 'Open';
+  if (u.includes('github.com') || u.includes('gitlab.com') || l.includes('code') || l.includes('repo')) return 'Inspect';
+
+  // 4. Media & Content
+  if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('twitch.tv') || u.includes('vimeo') || l.includes('watch') || l.includes('video')) return 'Watch';
+  if (u.includes('spotify.com') || u.includes('apple.com/music') || u.includes('soundcloud') || l.includes('listen') || l.includes('podcast')) return 'Listen';
+  if (u.includes('substack.com') || u.includes('medium.com') || l.includes('blog') || l.includes('article') || l.includes('read') || l.includes('newsletter')) return 'Read';
+
+  // 5. Social networks (strict boundary check so domains like pixenox.com or dropbox.com don't match x.com)
+  const isX = /(?:^|[\/\.])x\.com(?=[\/\?#:]|$)/i.test(u) || u.includes('twitter.com') || l === 'x' || l === 'twitter';
+  const isSocial = isX || u.includes('instagram.com') || u.includes('threads.net') || u.includes('tiktok.com');
+  if (isSocial) return 'Follow';
+
+  // 6. High-impact default for custom domains / general links
+  return 'Visit';
 }
 
 function cleanDisplayUrl(rawUrl: string): string {
@@ -535,9 +550,8 @@ export function StackTemplate({
               {profile.openTo.map((intent: string) => (
                 <span
                   key={intent}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-black/5 text-[#171714]"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-black/5 text-[#171714] tracking-wide"
                 >
-                  <Sparkles size={11} className="text-[#c4693f]" />
                   {intent.replace(/-/g, ' ')}
                 </span>
               ))}
@@ -724,7 +738,6 @@ export function StackTemplate({
 
           <footer className="mt-6 pt-3 text-[12px] opacity-50 flex items-center justify-between">
             <p>&copy; {new Date().getFullYear()} {name}</p>
-            <span>The Craftsman Dossier</span>
           </footer>
         </section>
       </main>

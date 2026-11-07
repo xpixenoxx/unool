@@ -88,7 +88,7 @@ const T = {
 /* ─── Platform Detection Helper ───────────────────────────── */
 function getPlatformInfo(label: string, url: string) {
   const query = `${label} ${url}`.toLowerCase();
-  if (query.includes('twitter') || query.includes('x.com')) return { name: 'X / Twitter', color: '#1C1917', bg: '#F5F5F4' };
+  if (query.includes('twitter') || /(?:^|[\/\s\.@])x\.com(?:[\/\s\?#:]|$)/i.test(query)) return { name: 'X / Twitter', color: '#1C1917', bg: '#F5F5F4' };
   if (query.includes('github')) return { name: 'GitHub', color: '#181717', bg: '#F5F3FF' };
   if (query.includes('linkedin')) return { name: 'LinkedIn', color: '#0A66C2', bg: '#EFF6FF' };
   if (query.includes('youtube')) return { name: 'YouTube', color: '#DC2626', bg: '#FEF2F2' };
