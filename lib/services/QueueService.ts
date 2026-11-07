@@ -15,6 +15,23 @@ export interface SchedulePublishParams {
   autoFirstComment?: string;   // Fire a first-comment 90s after publishing
 }
 
+export interface InstagramOutboundJobParams {
+  jobId: string;
+  jobType: 'comment_reply' | 'dm_reply';
+  workspaceId: string;
+  connectionId: string;
+  // Comment fields
+  commentId?: string;
+  mediaId?: string;
+  commentText?: string;
+  commenterUsername?: string;
+  // DM fields
+  messageId?: string;
+  senderId?: string;
+  senderUsername?: string;
+  dmText?: string;
+}
+
 class QueueService {
   private client: Client | null = null;
 
@@ -28,6 +45,17 @@ class QueueService {
 
   private get webhookUrl(): string {
     return `${config.NEXT_PUBLIC_APP_URL}/api/webhooks/qstash/publish`;
+  }
+
+  private get instagramOutboundWebhookUrl(): string {
+    return `${config.NEXT_PUBLIC_APP_URL}/api/webhooks/qstash/instagram-outbound`;
+  }
+
+  /**
+   * Returns true if QStash is configured and available for background queuing.
+   */
+  isAvailable(): boolean {
+    return !!this.client && !!config.NEXT_PUBLIC_APP_URL;
   }
 
   /**
@@ -120,6 +148,44 @@ class QueueService {
       logger.error('Failed to schedule publish task via QStash', {
         error: new Error(error instanceof Error ? error.message : String(error)),
         postId: params.postId,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Enqueues an asynchronous durable task for Instagram outbound comment reply or DM.
+   * Utilizes QStash retry limit (3 retries), exponential backoff, and idempotency deduplicationId.
+   */
+  async enqueueInstagramOutboundTask(params: InstagramOutboundJobParams): Promise<string | null> {
+    if (!this.client) {
+      logger.error('Cannot enqueue Instagram outbound task: QStash client is not initialized');
+      return null;
+    }
+
+    try {
+      const dedupeKey = `ig-outbound-${params.jobType}-${params.commentId || params.messageId}`;
+      const res = await this.client.publishJSON({
+        url: this.instagramOutboundWebhookUrl,
+        body: params,
+        retries: 3,
+        headers: {
+          'Upstash-Timeout': '60s',
+        },
+        deduplicationId: dedupeKey,
+      });
+
+      logger.info('Enqueued Instagram outbound task via QStash', {
+        messageId: res.messageId,
+        jobId: params.jobId,
+        jobType: params.jobType,
+        targetId: params.commentId || params.messageId,
+      });
+      return res.messageId;
+    } catch (error) {
+      logger.error('Failed to enqueue Instagram outbound task via QStash', {
+        error: new Error(error instanceof Error ? error.message : String(error)),
+        jobId: params.jobId,
       });
       return null;
     }

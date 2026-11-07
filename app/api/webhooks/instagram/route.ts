@@ -25,6 +25,7 @@ import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { handleFollowWebhookEvent } from '@/lib/follow-gate/service';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { queueService } from '@/lib/services/QueueService';
 
 
 
@@ -316,15 +317,22 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // ── Deduplication guard: skip if this comment_id was already processed ──
+  // ── Deduplication guard: skip if this comment was already SUCCESSFULLY replied ──
+  // We skip if auto_replied=true (success) to prevent duplicate replies.
+  // We do NOT skip if auto_replied=false — that means a previous attempt failed and
+  // this re-delivery is an opportunity to retry the outbound operation.
   const { data: existing } = await supabaseAdmin
     .from('instagram_comment_logs')
-    .select('id')
+    .select('id, auto_replied')
     .eq('comment_id', commentEvent.commentId)
     .limit(1);
   if (existing && existing.length > 0) {
-    logger.debug('Skipping already-processed comment (idempotency guard)', { commentId: commentEvent.commentId });
-    return;
+    if (existing[0].auto_replied === true) {
+      logger.debug('Skipping already-replied comment (idempotency guard)', { commentId: commentEvent.commentId });
+      return;
+    }
+    // auto_replied=false means prior attempt failed — allow processing to retry the send.
+    logger.debug('Re-processing previously failed comment for retry', { commentId: commentEvent.commentId });
   }
 
   // ── ContentGuard: pre-filter harmful incoming content ──────────────────
@@ -430,6 +438,57 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       reasoning: 'Automation disabled in SignalDM settings',
     });
     return;
+  }
+
+  // ── Phase 4: Durable Outbound Queue Dispatch via QStash ──────────────────
+  if (queueService.isAvailable()) {
+    try {
+      const jobId = `job_cmt_${commentEvent.commentId}`;
+      await supabaseAdmin.from('instagram_outbound_jobs').upsert({
+        workspace_id: connection.workspace_id,
+        connection_id: connection.id,
+        job_type: 'comment_reply',
+        target_id: commentEvent.commentId,
+        payload: { commentEvent },
+        status: 'queued',
+        retry_count: 0,
+        max_retries: 3,
+      }, { onConflict: 'workspace_id,job_type,target_id', ignoreDuplicates: true });
+
+      // Persist comment in logs before dispatch
+      await supabaseAdmin.from('instagram_comment_logs').upsert({
+        workspace_id: connection.workspace_id,
+        comment_id: commentEvent.commentId,
+        media_id: commentEvent.mediaId,
+        comment_text: commentEvent.text,
+        commenter_username: commentEvent.username,
+        classification: 'pending',
+        confidence: 0,
+        suggested_reply: '',
+        auto_replied: false,
+        delivery_status: 'queued',
+        flagged_for_review: false,
+        reasoning: 'Enqueued for durable background dispatch',
+      }, { onConflict: 'comment_id', ignoreDuplicates: true });
+
+      const msgId = await queueService.enqueueInstagramOutboundTask({
+        jobId,
+        jobType: 'comment_reply',
+        workspaceId: connection.workspace_id,
+        connectionId: connection.id,
+        commentId: commentEvent.commentId,
+        mediaId: commentEvent.mediaId,
+        commentText: commentEvent.text,
+        commenterUsername: commentEvent.username,
+      });
+
+      if (msgId) {
+        logger.info('Dispatched Instagram comment to QStash queue', { commentId: commentEvent.commentId, msgId });
+        return; // Webhook acknowledged, processing continues asynchronously in worker
+      }
+    } catch (queueErr) {
+      logger.warn('Failed to enqueue comment outbound task — continuing synchronously', { error: queueErr });
+    }
   }
 
   // ── Velocity check: enforce hourly rate limits ──────────────────────────
@@ -545,6 +604,18 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
             reasoning: `${result.reasoning} (Failed to post reply via Graph API - check account permissions)`,
           })
           .eq('comment_id', commentEvent.commentId);
+
+        // Ensure failed replies appear in the human review queue
+        await flagCommentForReview(
+          connection.workspace_id,
+          commentEvent,
+          {
+            classification: result.classification,
+            suggestedReply: finalReply,
+            reasoning: `${result.reasoning} (Failed to post reply via Graph API - check account permissions)`,
+          },
+          result.leadScore
+        );
       }
     }
 
@@ -646,7 +717,6 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 async function processDmEvent(igUserId: string, messaging: Record<string, unknown>): Promise<void> {
   const message = messaging.message as Record<string, unknown> | undefined;
   const sender = messaging.sender as Record<string, unknown> | undefined;
-  const recipient = messaging.recipient as Record<string, unknown> | undefined;
 
   if (!message || !sender) return;
 
@@ -669,6 +739,17 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     return;
   }
 
+  // ── Idempotency guard: skip entirely if this message_id was already processed ──
+  const { data: existingDm } = await supabaseAdmin
+    .from('instagram_dm_logs')
+    .select('id, auto_replied')
+    .eq('message_id', dmEvent.messageId)
+    .limit(1);
+  if (existingDm && existingDm.length > 0) {
+    logger.debug('Skipping already-processed DM (idempotency guard)', { messageId: dmEvent.messageId });
+    return;
+  }
+
   // ContentGuard check on DM text
   const guardResult = ContentGuard.validateComment(dmEvent.text);
   if (!guardResult.safe && guardResult.violation.level === 'blocked') {
@@ -684,15 +765,110 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     return;
   }
 
-  const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
-
-  if (!groqApiKey) return;
-
   const automationConfig = await loadAutomationConfig(connection.workspace_id);
 
-  if (!automationConfig.enabled || !automationConfig.dmAutoReplyEnabled) {
-    logger.debug('DM automation disabled for workspace', { workspaceId: connection.workspace_id });
+  // ── ALWAYS record the inbound DM regardless of auto-reply setting ──────────
+  // dmAutoReplyEnabled controls ONLY whether we send an automated reply,
+  // NOT whether we record the message in the inbox for human review.
+  const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
+
+  if (!automationConfig.enabled || !automationConfig.dmAutoReplyEnabled || !groqApiKey) {
+    // Record the DM for human review without attempting to auto-reply.
+    logger.debug('DM auto-reply disabled — recording for inbox only', {
+      workspaceId: connection.workspace_id,
+      enabled: automationConfig.enabled,
+      dmAutoReplyEnabled: automationConfig.dmAutoReplyEnabled,
+      hasGroqKey: !!groqApiKey,
+    });
+
+    await logDmEvent(connection.workspace_id, dmEvent, {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldEscalate: false,
+      reasoning: !groqApiKey
+        ? 'GROQ_API_KEY not configured'
+        : !automationConfig.enabled
+          ? 'Automation disabled in settings'
+          : 'DM auto-reply disabled — recorded for human review',
+    });
+
+    // Insert into flagged DMs for human inbox review when auto-reply is off
+    if (automationConfig.enabled && !automationConfig.dmAutoReplyEnabled) {
+      try {
+        await supabaseAdmin.from('instagram_flagged_dms').upsert(
+          {
+            workspace_id: connection.workspace_id,
+            message_id: dmEvent.messageId,
+            sender_id: dmEvent.senderId,
+            sender_username: dmEvent.senderUsername,
+            message_text: dmEvent.text,
+            classification: 'unrelated',
+            ai_suggested_reply: null,
+            lead_score: 0,
+            reasoning: 'DM auto-reply disabled — queued for human review',
+            status: 'pending',
+          },
+          { onConflict: 'message_id', ignoreDuplicates: true }
+        );
+      } catch (flagErr) {
+        logger.warn('Failed to flag incoming DM for inbox', { error: flagErr });
+      }
+    }
     return;
+  }
+
+  // ── Phase 4: Durable Outbound Queue Dispatch via QStash ──────────────────
+  if (queueService.isAvailable()) {
+    try {
+      const jobId = `job_dm_${dmEvent.messageId}`;
+      await supabaseAdmin.from('instagram_outbound_jobs').upsert({
+        workspace_id: connection.workspace_id,
+        connection_id: connection.id,
+        job_type: 'dm_reply',
+        target_id: dmEvent.messageId,
+        payload: { dmEvent },
+        status: 'queued',
+        retry_count: 0,
+        max_retries: 3,
+      }, { onConflict: 'workspace_id,job_type,target_id', ignoreDuplicates: true });
+
+      // Persist DM in logs before dispatch
+      await supabaseAdmin.from('instagram_dm_logs').upsert({
+        workspace_id: connection.workspace_id,
+        message_id: dmEvent.messageId,
+        sender_id: dmEvent.senderId,
+        sender_username: dmEvent.senderUsername,
+        message_text: dmEvent.text,
+        classification: 'pending',
+        confidence: 0,
+        ai_reply: '',
+        auto_replied: false,
+        delivery_status: 'queued',
+        escalated: false,
+        reasoning: 'Enqueued for durable background dispatch',
+      }, { onConflict: 'message_id', ignoreDuplicates: true });
+
+      const msgId = await queueService.enqueueInstagramOutboundTask({
+        jobId,
+        jobType: 'dm_reply',
+        workspaceId: connection.workspace_id,
+        connectionId: connection.id,
+        messageId: dmEvent.messageId,
+        senderId: dmEvent.senderId,
+        senderUsername: dmEvent.senderUsername,
+        dmText: dmEvent.text,
+      });
+
+      if (msgId) {
+        logger.info('Dispatched Instagram DM to QStash queue', { messageId: dmEvent.messageId, msgId });
+        return; // Webhook acknowledged, processing continues asynchronously in worker
+      }
+    } catch (queueErr) {
+      logger.warn('Failed to enqueue DM outbound task — continuing synchronously', { error: queueErr });
+    }
   }
 
   // Velocity check for DMs
@@ -702,12 +878,30 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   );
   if (!canReply) {
     logger.info('DM velocity limit reached', { workspaceId: connection.workspace_id });
+    await logDmEvent(connection.workspace_id, dmEvent, {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldEscalate: false,
+      reasoning: 'Rate limit reached — recorded for human review',
+    });
     return;
   }
 
   const accessToken = await getOrRefreshAccessToken(connection);
   if (!accessToken) {
     logger.error('Failed to obtain valid access token for DM automation', { connectionId: connection.id });
+    await logDmEvent(connection.workspace_id, dmEvent, {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldEscalate: false,
+      reasoning: 'Failed to decrypt or refresh access token',
+    });
     return;
   }
 
@@ -768,7 +962,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     brandName
   );
 
-  // Log the DM (auto_replied starts as false, updated on confirmed send)
+  // Log the DM (auto_replied starts as false, updated to true only after confirmed send)
   await logDmEvent(connection.workspace_id, dmEvent, result);
 
   if (result.shouldAutoReply && result.suggestedReply && result.suggestedReply !== 'SKIP') {
@@ -789,13 +983,43 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     if (sendRes) {
       await supabaseAdmin
         .from('instagram_dm_logs')
-        .update({ auto_replied: true })
+        .update({ auto_replied: true, reply_sent_at: new Date().toISOString() })
         .eq('workspace_id', connection.workspace_id)
         .eq('message_id', dmEvent.messageId);
       await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
       logger.info('Auto DM reply sent and logged', { messageId: dmEvent.messageId });
     } else {
+      // Mark as failed — do not mark auto_replied=true
+      await supabaseAdmin
+        .from('instagram_dm_logs')
+        .update({
+          auto_replied: false,
+          reasoning: `${result.reasoning} (Send failed — check account permissions and messaging window)`,
+        })
+        .eq('workspace_id', connection.workspace_id)
+        .eq('message_id', dmEvent.messageId);
       logger.error('Failed to send DM reply via Instagram Graph API', { messageId: dmEvent.messageId });
+
+      // Ensure failed DMs appear in the human review queue
+      try {
+        await supabaseAdmin.from('instagram_flagged_dms').upsert(
+          {
+            workspace_id: connection.workspace_id,
+            message_id: dmEvent.messageId,
+            sender_id: dmEvent.senderId,
+            sender_username: dmEvent.senderUsername,
+            message_text: dmEvent.text,
+            classification: result.classification,
+            ai_suggested_reply: finalReply,
+            lead_score: result.leadScore,
+            reasoning: `${result.reasoning} (Send failed — check account permissions and messaging window)`,
+            status: 'pending',
+          },
+          { onConflict: 'workspace_id,message_id', ignoreDuplicates: false }
+        );
+      } catch (flagErr) {
+        logger.warn('Failed to insert failed DM into flagged inbox', { error: flagErr });
+      }
     }
   }
 
@@ -939,20 +1163,26 @@ async function logDmEvent(
   classification: { classification: string; confidence: number; suggestedReply: string; leadScore: number; shouldAutoReply: boolean; shouldEscalate: boolean; reasoning: string }
 ): Promise<void> {
   try {
-    await supabaseAdmin.from('instagram_dm_logs').insert({
-      workspace_id: workspaceId,
-      message_id: dm.messageId,
-      sender_id: dm.senderId,
-      sender_username: dm.senderUsername,
-      message_text: dm.text,
-      classification: classification.classification,
-      confidence: classification.confidence,
-      ai_reply: classification.suggestedReply,
-      auto_replied: false,
-      escalated: classification.shouldEscalate,
-      lead_score: classification.leadScore,
-      reasoning: classification.reasoning,
-    });
+    // Use upsert with ignoreDuplicates to prevent duplicate rows from webhook re-delivery.
+    // auto_replied is always inserted as false here; it is updated to true only after a
+    // confirmed successful send.  This prevents counting a generated reply as a sent reply.
+    await supabaseAdmin.from('instagram_dm_logs').upsert(
+      {
+        workspace_id: workspaceId,
+        message_id: dm.messageId,
+        sender_id: dm.senderId,
+        sender_username: dm.senderUsername,
+        message_text: dm.text,
+        classification: classification.classification,
+        confidence: classification.confidence,
+        ai_reply: classification.suggestedReply,
+        auto_replied: false,
+        escalated: classification.shouldEscalate,
+        lead_score: classification.leadScore,
+        reasoning: classification.reasoning,
+      },
+      { onConflict: 'message_id', ignoreDuplicates: true }
+    );
   } catch (error) {
     logger.warn('Failed to log Instagram DM event', { error });
   }
@@ -968,19 +1198,23 @@ async function flagCommentForReview(
 ): Promise<void> {
   if (!workspaceId) return;
   try {
-    await supabaseAdmin.from('instagram_flagged_comments').insert({
-      workspace_id: workspaceId,
-      comment_id: comment.commentId,
-      media_id: comment.mediaId,
-      comment_text: comment.text,
-      commenter_username: comment.username,
-      classification: classification.classification,
-      suggested_reply: classification.suggestedReply,
-      reasoning: classification.reasoning,
-      status: 'pending',
-      lead_score: leadScore,
-      priority: leadScore >= 2 ? 'high' : 'normal',
-    });
+    // Use upsert to avoid duplicate flagged rows from repeated webhook deliveries.
+    await supabaseAdmin.from('instagram_flagged_comments').upsert(
+      {
+        workspace_id: workspaceId,
+        comment_id: comment.commentId,
+        media_id: comment.mediaId,
+        comment_text: comment.text,
+        commenter_username: comment.username,
+        classification: classification.classification,
+        suggested_reply: classification.suggestedReply,
+        reasoning: classification.reasoning,
+        status: 'pending',
+        lead_score: leadScore,
+        priority: leadScore >= 2 ? 'high' : 'normal',
+      },
+      { onConflict: 'comment_id', ignoreDuplicates: true }
+    );
   } catch (error) {
     logger.warn('Failed to flag Instagram comment for review', { error });
   }

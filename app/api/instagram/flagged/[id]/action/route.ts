@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -131,7 +131,13 @@ export async function POST(
       );
 
       if (!dmResult) {
-        return NextResponse.json({ error: 'Failed to send DM reply to Instagram' }, { status: 500 });
+        await supabaseAdmin
+          .from('instagram_flagged_dms')
+          .update({
+            reasoning: `${item.reasoning} (Outbound DM failed — check permissions and 24h messaging window)`,
+          })
+          .eq('id', id);
+        return NextResponse.json({ error: 'Failed to send DM reply to Instagram: check permissions and 24h window' }, { status: 500 });
       }
 
       await supabaseAdmin
@@ -142,6 +148,18 @@ export async function POST(
           resolved_at: new Date().toISOString(),
         })
         .eq('id', id);
+
+      // Keep instagram_dm_logs synchronized with human resolution
+      await supabaseAdmin
+        .from('instagram_dm_logs')
+        .update({
+          auto_replied: true,
+          ai_reply: replyText,
+          escalated: false,
+          reply_sent_at: new Date().toISOString(),
+        })
+        .eq('workspace_id', workspaceId)
+        .eq('message_id', item.message_id || item.comment_id);
 
       logger.info('Flagged DM resolved', { id, action, workspaceId });
       return NextResponse.json({ success: true, status: 'replied', messageId: dmResult.messageId });
@@ -155,7 +173,13 @@ export async function POST(
       );
 
       if (!result) {
-        return NextResponse.json({ error: 'Failed to post reply to Instagram' }, { status: 500 });
+        await supabaseAdmin
+          .from('instagram_flagged_comments')
+          .update({
+            reasoning: `${item.reasoning} (Outbound public reply failed via Graph API — check permissions)`,
+          })
+          .eq('id', id);
+        return NextResponse.json({ error: 'Failed to post reply to Instagram: check permissions' }, { status: 500 });
       }
 
       // Update the flagged comment status
@@ -167,6 +191,17 @@ export async function POST(
           resolved_at: new Date().toISOString(),
         })
         .eq('id', id);
+
+      // Keep instagram_comment_logs synchronized with human resolution
+      await supabaseAdmin
+        .from('instagram_comment_logs')
+        .update({
+          auto_replied: true,
+          suggested_reply: replyText,
+          flagged_for_review: false,
+        })
+        .eq('workspace_id', workspaceId)
+        .eq('comment_id', item.comment_id);
 
       logger.info('Flagged comment resolved', { id, action, workspaceId });
       return NextResponse.json({ success: true, status: 'replied', replyId: result.replyId });

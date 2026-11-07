@@ -2,6 +2,15 @@ import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { GroqProvider } from '@/lib/ai/providers/GroqProvider';
 import { fetchWithRetry } from '@/lib/utils/retry';
+import { API_VERSIONS, resolveInstagramApiHost } from '@/lib/platforms/apiVersions';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * The media comments edge always lives on graph.instagram.com regardless of auth method.
+ * This is used as the fallback when the comment-level reply endpoint fails.
+ */
+const INSTAGRAM_MEDIA_HOST = 'https://graph.instagram.com';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -464,8 +473,19 @@ Return ONLY valid JSON:
 
   /**
    * Posts a public reply to an Instagram comment.
-   * Targets the comment's replies edge: POST /{commentId}/replies
-   * Falls back to Facebook Graph API, and then to media comments edge.
+   *
+   * Selects the Graph API host based on the access token's authentication method:
+   *   - Instagram Login tokens (IGqx…) → graph.instagram.com
+   *   - Facebook Business Login tokens → graph.facebook.com
+   *
+   * Does NOT fall back across hosts — using the wrong host for a given token type
+   * returns a persistent 400/OAuthException that retrying on the other host cannot fix.
+   *
+   * Endpoint: POST /{commentId}/replies
+   * Falls back to the media comments edge only when the comment-level endpoint fails.
+   *
+   * fetchWithRetry() throws on 4xx/5xx — all calls are wrapped in try/catch so the
+   * exception is converted to a structured log entry and null return, never a thrown error.
    */
   async postPublicReply(
     accessToken: string,
@@ -473,108 +493,103 @@ Return ONLY valid JSON:
     commentId: string,
     message: string
   ): Promise<{ replyId: string } | null> {
-    try {
-      // 1. Reply directly under the specific comment (nested reply)
-      if (commentId && !commentId.startsWith('test_')) {
-        const replyParams = new URLSearchParams({
-          message,
-          access_token: accessToken,
-        });
-
-        // 1a: Try graph.facebook.com/{commentId}/replies first — required for Business API OAuth
-        let response = await fetchWithRetry(
-          `https://graph.facebook.com/v20.0/${commentId}/replies`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: replyParams.toString(),
-          }
-        );
-
-        // 1b: Fall back to graph.instagram.com if Facebook endpoint fails
-        if (!response.ok) {
-          const fbError = await response.text();
-          logger.warn('graph.facebook.com comment reply failed, trying graph.instagram.com', {
-            commentId,
-            error: fbError,
-            status: response.status,
-          });
-
-          response = await fetchWithRetry(
-            `https://graph.instagram.com/v20.0/${commentId}/replies`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: replyParams.toString(),
-            }
-          );
-        }
-
-        if (response.ok) {
-          const data = await response.json();
-          logger.info('Instagram comment reply posted successfully via replies edge', {
-            commentId,
-            replyId: data.id,
-          });
-          return { replyId: data.id };
-        }
-
-        const replyErr = await response.text();
-        logger.warn('Direct reply to comment failed, attempting fallback to media comments', {
-          commentId,
-          error: replyErr,
-        });
-      }
-
-      // 2. Fallback: post to media comments edge
-      if (mediaId && !mediaId.startsWith('test_')) {
-        const mediaParams = new URLSearchParams({
-          message,
-          access_token: accessToken,
-        });
-
-        const mediaResponse = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${mediaId}/comments`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: mediaParams.toString(),
-          }
-        );
-
-        if (mediaResponse.ok) {
-          const data = await mediaResponse.json();
-          logger.info('Instagram comment posted via media fallback', {
-            mediaId,
-            commentId,
-            replyId: data.id,
-          });
-          return { replyId: data.id };
-        }
-
-        const mediaErr = await mediaResponse.text();
-        logger.error('Failed to post comment via media fallback', {
-          mediaId,
-          error: new Error(mediaErr),
-        });
-      }
-
-      return null;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Error posting Instagram reply', { commentId, mediaId, error: err });
+    if (!commentId && !mediaId) {
+      logger.warn('postPublicReply: both commentId and mediaId are empty — cannot post reply');
       return null;
     }
+
+    // Determine the correct API host from the token type (no cross-host fallback).
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+
+    // 1. Reply directly under the specific comment (nested reply).
+    if (commentId && !commentId.startsWith('test_')) {
+      const replyParams = new URLSearchParams({ message, access_token: accessToken });
+
+      try {
+        const replyUrl = `${apiHost}/${apiVersion}/${commentId}/replies`;
+        const data = await fetchWithRetry(replyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: replyParams.toString(),
+        });
+
+        // fetchWithRetry returns the Response object only on 2xx — it throws on error codes.
+        const responseData = await data.json();
+        logger.info('Instagram comment reply posted successfully via replies edge', {
+          commentId,
+          replyId: responseData.id,
+          apiHost,
+        });
+        return { replyId: responseData.id };
+      } catch (replyErr) {
+        const err = replyErr instanceof Error ? replyErr : new Error(String(replyErr));
+        // Extract structured Meta error info where possible.
+        const metaCode = (replyErr as any)?.statusCode;
+        logger.warn('Comment-level reply failed — falling back to media comments edge', {
+          commentId,
+          apiHost,
+          errorType: err.name,
+          errorMessage: err.message,
+          httpStatus: metaCode,
+        });
+        // Do NOT try the other host — wrong-host failures are persistent OAuth errors.
+        // Fall through to media comments edge below.
+      }
+    }
+
+    // 2. Fallback: post to the media comments edge.
+    // Uses graph.instagram.com unconditionally — this endpoint is only on the IG Graph.
+    if (mediaId && !mediaId.startsWith('test_')) {
+      const mediaParams = new URLSearchParams({ message, access_token: accessToken });
+      const mediaUrl = `${INSTAGRAM_MEDIA_HOST}/${apiVersion}/${mediaId}/comments`;
+
+      try {
+        const mediaData = await fetchWithRetry(mediaUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: mediaParams.toString(),
+        });
+
+        const responseData = await mediaData.json();
+        logger.info('Instagram comment posted via media comments edge fallback', {
+          mediaId,
+          commentId,
+          replyId: responseData.id,
+        });
+        return { replyId: responseData.id };
+      } catch (mediaErr) {
+        const err = mediaErr instanceof Error ? mediaErr : new Error(String(mediaErr));
+        const metaCode = (mediaErr as any)?.statusCode;
+        logger.error('Failed to post comment via media comments edge', {
+          mediaId,
+          commentId,
+          errorType: err.name,
+          errorMessage: err.message,
+          httpStatus: metaCode,
+        });
+      }
+    }
+
+    logger.error('All comment reply endpoints failed — reply not posted', { commentId, mediaId, apiHost });
+    return null;
   }
 
   /**
    * Sends a private DM to a user (commenter or inbound DM sender).
-   * Uses the Instagram Messaging API.
    *
-   * For inbound DMs (user already in conversation), this works directly.
-   * For comment-triggered DMs, this may fail if the user hasn't messaged
-   * the account before (24-hour window rule). In that case, the caller
-   * should use sendPrivateReplyToComment() instead.
+   * Uses the correct Instagram Messaging API host based on the token's authentication method:
+   *   - Instagram Login tokens → graph.instagram.com/{igUserId}/messages
+   *   - Facebook Business Login tokens → graph.facebook.com/{igUserId}/messages
+   *
+   * The access_token is transported in the JSON body (not Authorization header) per Meta docs.
+   *
+   * IMPORTANT: This endpoint requires the recipient to be inside the 24-hour standard
+   * messaging window (they must have messaged the account first).  For comment-triggered DMs
+   * use sendPrivateReplyToComment() instead — that uses the Private Replies API which
+   * covers any commenter within 7 days without a prior conversation.
+   *
+   * fetchWithRetry() throws on 4xx/5xx; the outer catch converts that to null + structured log.
    */
   async sendPrivateMessage(
     accessToken: string,
@@ -582,10 +597,13 @@ Return ONLY valid JSON:
     recipientIgScopedId: string,
     message: string
   ): Promise<{ messageId: string } | null> {
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+
     try {
-      // Instagram Messaging API requires access_token in the body, not Authorization: Bearer
-      const response = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/${igUserId}/messages`,
+      // access_token must be in the JSON body for the Messaging API (not Authorization header).
+      const data = await (await fetchWithRetry(
+        `${apiHost}/${apiVersion}/${igUserId}/messages`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -595,65 +613,60 @@ Return ONLY valid JSON:
             access_token: accessToken,
           }),
         }
-      );
+      )).json();
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('Failed to send Instagram DM via Messaging API', {
-          recipientIgScopedId,
-          error: new Error(errorText),
-          status: response.status,
-        });
-        return null;
-      }
-
-      const data = await response.json();
-      logger.info('Instagram DM sent via Messaging API', { recipientIgScopedId, messageId: data.message_id });
+      logger.info('Instagram DM sent via Messaging API', {
+        recipientIgScopedId,
+        messageId: data.message_id,
+        apiHost,
+      });
       return { messageId: data.message_id };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Error sending Instagram DM', { recipientIgScopedId, error: err });
+      const metaCode = (error as any)?.statusCode;
+      logger.error('Failed to send Instagram DM via Messaging API', {
+        recipientIgScopedId,
+        apiHost,
+        errorType: err.name,
+        errorMessage: err.message,
+        httpStatus: metaCode,
+      });
       return null;
     }
   }
 
   /**
    * Checks if an Instagram user (IGSID) follows the business account.
-   * Queries Meta's `is_user_follow_business` field on the user node.
+   * Uses the correct API host based on the token type.
+   * Best-effort: returns false on any error rather than blocking the caller.
    */
   async checkUserFollowsBusiness(
     accessToken: string,
     recipientIgScopedId: string
   ): Promise<boolean> {
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
     try {
-      // 1. Try graph.instagram.com first
-      let res = await fetch(
-        `https://graph.instagram.com/v20.0/${recipientIgScopedId}?fields=name,username,is_user_follow_business&access_token=${accessToken}`
+      const res = await fetch(
+        `${apiHost}/${apiVersion}/${recipientIgScopedId}?fields=name,username,is_user_follow_business&access_token=${accessToken}`
       );
       if (res.ok) {
         const data = await res.json();
-        logger.info('Follow verification result from graph.instagram.com', {
+        logger.info('Follow verification result', {
           recipientIgScopedId,
-          isFollowing: data.is_user_follow_business,
-        });
-        return !!data.is_user_follow_business;
-      }
-
-      // 2. Fall back to graph.facebook.com
-      res = await fetch(
-        `https://graph.facebook.com/v20.0/${recipientIgScopedId}?fields=name,username,is_user_follow_business&access_token=${accessToken}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        logger.info('Follow verification result from graph.facebook.com', {
-          recipientIgScopedId,
+          apiHost,
           isFollowing: data.is_user_follow_business,
         });
         return !!data.is_user_follow_business;
       }
 
       const errText = await res.text();
-      logger.warn('Could not query is_user_follow_business from Meta', { recipientIgScopedId, error: errText });
+      logger.warn('Could not query is_user_follow_business from Meta', {
+        recipientIgScopedId,
+        apiHost,
+        status: res.status,
+        error: errText.substring(0, 300),
+      });
       return false;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -664,6 +677,10 @@ Return ONLY valid JSON:
 
   /**
    * Sends an interactive DM with Instagram Quick Reply buttons.
+   *
+   * Uses the correct Messaging API host based on the token type.
+   * Falls back to plain text DM via sendPrivateMessage() if Quick Replies are rejected
+   * (e.g., account not eligible). Does NOT fall back across API hosts.
    */
   async sendQuickReplyMessage(
     accessToken: string,
@@ -672,54 +689,48 @@ Return ONLY valid JSON:
     text: string,
     quickReplies: Array<{ title: string; payload: string }>
   ): Promise<{ messageId: string } | null> {
-    try {
-      const payload = {
-        recipient: { id: recipientIgScopedId },
-        message: {
-          text,
-          quick_replies: quickReplies.map(qr => ({
-            content_type: 'text',
-            title: qr.title,
-            payload: qr.payload,
-          })),
-        },
-        access_token: accessToken,
-      };
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
 
-      // Try graph.facebook.com first
-      let response = await fetchWithRetry(
-        `https://graph.facebook.com/v20.0/${igUserId}/messages`,
+    const body = JSON.stringify({
+      recipient: { id: recipientIgScopedId },
+      message: {
+        text,
+        quick_replies: quickReplies.map(qr => ({
+          content_type: 'text',
+          title: qr.title,
+          payload: qr.payload,
+        })),
+      },
+      access_token: accessToken,
+    });
+
+    try {
+      const data = await (await fetchWithRetry(
+        `${apiHost}/${apiVersion}/${igUserId}/messages`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body,
         }
-      );
+      )).json();
 
-      // Fall back to graph.instagram.com
-      if (!response.ok) {
-        response = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${igUserId}/messages`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          }
-        );
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        logger.info('Instagram Quick Reply DM sent successfully', { recipientIgScopedId, messageId: data.message_id });
-        return { messageId: data.message_id || 'sent' };
-      }
-
-      const errText = await response.text();
-      logger.warn('Quick reply API call failed, falling back to plain text DM', { error: errText });
-      return await this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, text);
+      logger.info('Instagram Quick Reply DM sent successfully', {
+        recipientIgScopedId,
+        messageId: data.message_id,
+        apiHost,
+      });
+      return { messageId: data.message_id || 'sent' };
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error(String(err));
-      logger.error('Error sending quick reply DM', { error: errorObj });
+      const metaCode = (err as any)?.statusCode;
+      logger.warn('Quick reply send failed — falling back to plain text DM', {
+        recipientIgScopedId,
+        apiHost,
+        errorType: errorObj.name,
+        errorMessage: errorObj.message,
+        httpStatus: metaCode,
+      });
       return await this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, text);
     }
   }
@@ -736,6 +747,11 @@ Return ONLY valid JSON:
    * - Works for comments made within the last 7 days.
    * - Only one private reply per comment is allowed by Meta.
    * - Requires `instagram_business_manage_messages` permission.
+   *
+   * Uses the correct API host based on the token type. Does NOT fall back
+   * across hosts — a wrong-host error is a persistent OAuth mismatch.
+   *
+   * fetchWithRetry() throws on 4xx/5xx; the outer catch converts to null + log.
    */
   async sendPrivateReplyToComment(
     accessToken: string,
@@ -747,89 +763,70 @@ Return ONLY valid JSON:
       return null;
     }
 
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+    const body = new URLSearchParams({ message, access_token: accessToken }).toString();
+
     try {
-      // Try graph.facebook.com first (standard for Business API)
-      let response = await fetchWithRetry(
-        `https://graph.facebook.com/v20.0/${commentId}/private_replies`,
+      const data = await (await fetchWithRetry(
+        `${apiHost}/${apiVersion}/${commentId}/private_replies`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            message,
-            access_token: accessToken,
-          }).toString(),
+          body,
         }
-      );
+      )).json();
 
-      // Fall back to graph.instagram.com
-      if (!response.ok) {
-        const fbErr = await response.text();
-        logger.warn('Private reply via graph.facebook.com failed, trying graph.instagram.com', {
-          commentId,
-          error: fbErr,
-          status: response.status,
-        });
-
-        response = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${commentId}/private_replies`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              message,
-              access_token: accessToken,
-            }).toString(),
-          }
-        );
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('Failed to send private reply to comment', {
-          commentId,
-          error: new Error(errorText),
-          status: response.status,
-        });
-        return null;
-      }
-
-      const data = await response.json();
       const messageId = data.id || data.message_id || 'sent';
-      logger.info('Private reply sent to comment', { commentId, messageId });
+      logger.info('Private reply sent to comment via Private Replies API', {
+        commentId,
+        messageId,
+        apiHost,
+      });
       return { messageId };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Error sending private reply to comment', { commentId, error: err });
+      const metaCode = (error as any)?.statusCode;
+      logger.error('Failed to send private reply to comment', {
+        commentId,
+        apiHost,
+        errorType: err.name,
+        errorMessage: err.message,
+        httpStatus: metaCode,
+      });
       return null;
     }
   }
 
   /**
-   * Smart DM dispatcher: attempts the Private Replies API first (for comment-
-   * triggered DMs), then falls back to the standard Messaging API.
+   * DM dispatcher for comment-triggered private messages.
    *
-   * This is the method callers should use for comment-triggered DMs to ensure
-   * DMs get delivered regardless of the 24-hour messaging window.
+   * Uses ONLY the Private Replies API (POST /{commentId}/private_replies).
+   * This is the only Meta-supported way to DM a commenter who may not be
+   * inside the 24-hour standard messaging window.
+   *
+   * Does NOT fall back to the ordinary Messaging API if the private reply is
+   * rejected — that would violate Meta's messaging policies and produce
+   * unexpected DMs outside the private-reply context.  Callers must handle
+   * the null return and log/flag the failure.
    */
   async sendDmForComment(
     accessToken: string,
-    igUserId: string,
+    _igUserId: string,
     commentId: string,
-    recipientIgScopedId: string | undefined,
+    _recipientIgScopedId: string | undefined,
     message: string
   ): Promise<{ messageId: string } | null> {
-    // 1. Try Private Replies API first (works for any commenter within 7 days)
-    const privateResult = await this.sendPrivateReplyToComment(accessToken, commentId, message);
-    if (privateResult) return privateResult;
-
-    // 2. Fall back to standard Messaging API (works if user is in 24h window)
-    if (recipientIgScopedId) {
-      const msgResult = await this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, message);
-      if (msgResult) return msgResult;
+    // Private Replies API is the only supported path for comment-triggered DMs.
+    // The 7-day eligibility window is enforced by Meta — if rejected, we do not
+    // fall back to ordinary messaging which would bypass the window check.
+    const result = await this.sendPrivateReplyToComment(accessToken, commentId, message);
+    if (!result) {
+      logger.warn('Private reply rejected — not falling back to ordinary DM (policy)', {
+        commentId,
+      });
     }
-
-    logger.warn('All DM delivery methods failed for comment', { commentId, recipientIgScopedId });
-    return null;
+    return result;
   }
 
   /**
@@ -846,14 +843,15 @@ Return ONLY valid JSON:
         access_token: accessToken,
       });
 
-      // Priority list of subscription endpoints:
-      // Instagram Login tokens (IG...) work on graph.instagram.com.
-      // Facebook Page tokens (EA...) work on graph.facebook.com.
+      // Priority list of subscription endpoints — ordered by token type likelihood.
+      // Instagram Login tokens (IGqx…) work on graph.instagram.com.
+      // Facebook Business Login tokens (EAA…) work on graph.facebook.com.
+      const apiVersion = API_VERSIONS.instagram;
       const endpointsToTry = [
-        `https://graph.instagram.com/v20.0/me/subscribed_apps?${params.toString()}`,
-        `https://graph.instagram.com/v20.0/${igUserId}/subscribed_apps?${params.toString()}`,
-        `https://graph.facebook.com/v20.0/${igUserId}/subscribed_apps?${params.toString()}`,
-        `https://graph.facebook.com/v20.0/me/subscribed_apps?${params.toString()}`,
+        `https://graph.instagram.com/${apiVersion}/me/subscribed_apps?${params.toString()}`,
+        `https://graph.instagram.com/${apiVersion}/${igUserId}/subscribed_apps?${params.toString()}`,
+        `https://graph.facebook.com/${apiVersion}/${igUserId}/subscribed_apps?${params.toString()}`,
+        `https://graph.facebook.com/${apiVersion}/me/subscribed_apps?${params.toString()}`,
       ];
 
       for (const endpoint of endpointsToTry) {
