@@ -76,6 +76,9 @@ const TEMPLATE_NAMES: Record<string, string> = {
   'the-voice': 'The Voice',
   'the-studio': 'The Studio',
   'the-stack': 'The Stack',
+  'the-bookshelf': 'The Bookshelf',
+  'the-cube': 'The Cube',
+  'the-monolith': 'The Monolith',
 };
 
 const formatNumber = (num: number) => {

@@ -1,0 +1,64 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="mono-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="-4" dy="0" stdDeviation="6" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Deep Obsidian Frame -->
+  <rect width="400" height="600" fill="#141412"/>
+
+  <!-- Slabs Container (Full Height Monolithic Slabs) -->
+  <g transform="translate(16, 20)">
+    
+    <!-- Slab 1: Profile (Expanded) -->
+    <g>
+      <rect x="0" y="0" width="206" height="560" rx="16" fill="#ece8de"/>
+
+      <!-- Inner Content -->
+      <g transform="translate(20, 36)">
+        <!-- Portrait -->
+        <rect x="0" y="0" width="80" height="100" rx="12" fill="#cfc8b5"/>
+        <text x="40" y="60" font-family="'Iowan Old Style', serif" font-size="28" fill="#1d3b2f" text-anchor="middle">AR</text>
+
+        <!-- Identity -->
+        <text x="0" y="142" font-family="'Iowan Old Style', serif" font-size="26" font-weight="400" fill="#1a1a17" letter-spacing="-0.5">Aarav Rao</text>
+        <text x="0" y="166" font-family="'Avenir Next', sans-serif" font-size="12" font-weight="700" fill="#8a5a00">Creative Director</text>
+
+        <rect x="0" y="184" width="166" height="6" rx="3" fill="#1a1a17" opacity="0.2"/>
+        <rect x="0" y="196" width="140" height="6" rx="3" fill="#1a1a17" opacity="0.2"/>
+        <rect x="0" y="208" width="110" height="6" rx="3" fill="#1a1a17" opacity="0.2"/>
+
+        <g transform="translate(0, 236)">
+          <rect x="0" y="0" width="70" height="20" rx="10" fill="#1a1a17" opacity="0.08"/>
+          <text x="35" y="14" font-family="'Avenir Next', sans-serif" font-size="9" font-weight="700" fill="#1a1a17" text-anchor="middle">BRAND</text>
+
+          <rect x="76" y="0" width="76" height="20" rx="10" fill="#1a1a17" opacity="0.08"/>
+          <text x="114" y="14" font-family="'Avenir Next', sans-serif" font-size="9" font-weight="700" fill="#1a1a17" text-anchor="middle">SPATIAL</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Slab 2: Links (Collapsed) -->
+    <g transform="translate(212, 0)" filter="url(#mono-shadow)">
+      <rect x="0" y="0" width="48" height="560" rx="14" fill="#1d3b2f"/>
+      <text x="24" y="44" font-family="'Avenir Next', sans-serif" font-size="11" font-weight="700" fill="#e8e4d8" opacity="0.6" text-anchor="middle">02</text>
+      <text x="25" y="300" font-family="'Iowan Old Style', serif" font-size="20" fill="#e8e4d8" transform="rotate(-90, 25, 300)" text-anchor="middle" letter-spacing="1">Links</text>
+    </g>
+
+    <!-- Slab 3: Services (Collapsed) -->
+    <g transform="translate(266, 0)" filter="url(#mono-shadow)">
+      <rect x="0" y="0" width="48" height="560" rx="14" fill="#d9a441"/>
+      <text x="24" y="44" font-family="'Avenir Next', sans-serif" font-size="11" font-weight="700" fill="#1a1a17" opacity="0.6" text-anchor="middle">03</text>
+      <text x="25" y="300" font-family="'Iowan Old Style', serif" font-size="20" fill="#1a1a17" transform="rotate(-90, 25, 300)" text-anchor="middle" letter-spacing="1">Services</text>
+    </g>
+
+    <!-- Slab 4: Contact (Collapsed) -->
+    <g transform="translate(320, 0)" filter="url(#mono-shadow)">
+      <rect x="0" y="0" width="48" height="560" rx="14" fill="#262624"/>
+      <text x="24" y="44" font-family="'Avenir Next', sans-serif" font-size="11" font-weight="700" fill="#e8e4d8" opacity="0.6" text-anchor="middle">04</text>
+      <text x="25" y="300" font-family="'Iowan Old Style', serif" font-size="20" fill="#e8e4d8" transform="rotate(-90, 25, 300)" text-anchor="middle" letter-spacing="1">Contact</text>
+    </g>
+
+  </g>
+</svg>

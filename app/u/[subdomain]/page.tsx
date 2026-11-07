@@ -252,6 +252,13 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     'stack': 'the-stack',
     'craftsman': 'the-stack',
     'the-craftsman': 'the-stack',
+    'bookshelf': 'the-bookshelf',
+    'the-bookshelf': 'the-bookshelf',
+    'cube': 'the-cube',
+    'the-cube': 'the-cube',
+    'monolith': 'the-monolith',
+    'the-monolith': 'the-monolith',
+    'expanding-panels': 'the-monolith',
     // Old essential templates
     'essential-minimal': 'lone',
     'essential-light': 'lone',

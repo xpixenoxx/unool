@@ -5,8 +5,8 @@
     </filter>
   </defs>
 
-  <!-- Deep Slate Background -->
-  <rect width="400" height="600" fill="#121212"/>
+  <!-- Warm Linen Gallery Canvas -->
+  <rect width="400" height="600" fill="#f4f0e8"/>
 
   <!-- Card 1: Ivory Linen (Hero) -->
   <g filter="url(#shadow)">

@@ -40,6 +40,12 @@ export interface RecentActivitySectionProps {
     | 'voice'
     | 'stack'
     | 'the-stack'
+    | 'the-bookshelf'
+    | 'bookshelf'
+    | 'the-cube'
+    | 'cube'
+    | 'the-monolith'
+    | 'monolith'
     | 'default';
   /** Whether the parent template has a dark background */
   isDark?: boolean;

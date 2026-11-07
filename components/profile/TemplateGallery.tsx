@@ -38,6 +38,12 @@ const PERSONA_INFO: Record<string, { label: string; desc: string }> = {
   'the-voice':    { label: 'The Voice', desc: 'Authoritative, articulate, clean' },
   'the-stack':    { label: 'The Stack', desc: 'Tactile stacking cards dossier with services & direct contact' },
   'stack':        { label: 'The Stack', desc: 'Tactile stacking cards dossier with services & direct contact' },
+  'the-bookshelf':{ label: 'The Bookshelf', desc: 'Literary archival library with pull-out spines & services bookplate' },
+  'bookshelf':    { label: 'The Bookshelf', desc: 'Literary archival library with pull-out spines & services bookplate' },
+  'the-cube':     { label: 'The Cube', desc: '3D kinetic spatial cube with 4 rotating interactive faces' },
+  'cube':         { label: 'The Cube', desc: '3D kinetic spatial cube with 4 rotating interactive faces' },
+  'the-monolith': { label: 'The Monolith', desc: 'Architectural expanding monolithic slabs with fluid transitions' },
+  'monolith':     { label: 'The Monolith', desc: 'Architectural expanding monolithic slabs with fluid transitions' },
 };
 
 /* ═══════════════════════════════════════════════════════════════

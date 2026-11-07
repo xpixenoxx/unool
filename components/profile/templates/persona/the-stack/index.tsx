@@ -185,7 +185,7 @@ export function StackTemplate({
       {/* Scoped High-Performance CSS (Zero layout-thrashing, GPU accelerated) */}
       <style>{`
         .stack-wrap {
-          --stack-bg: #121212;
+          --stack-bg: #f4f0e8;
           --stack-text-dark: #171714;
           --stack-text-light: #ece6d8;
           --c1-bg: #ece6d8;
@@ -214,9 +214,9 @@ export function StackTemplate({
         .stack-card {
           position: sticky;
           border-radius: 26px;
-          padding: clamp(20px, 3.5vw, 28px);
+          padding: clamp(16px, 2.8vw, 24px);
           margin-bottom: 28px;
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
+          box-shadow: 0 14px 40px rgba(42, 42, 39, 0.14), 0 2px 10px rgba(0, 0, 0, 0.05);
           transform: translate3d(0, 0, 0);
           will-change: transform;
           contain: paint layout;
@@ -224,6 +224,8 @@ export function StackTemplate({
           min-height: calc(100dvh - 44px);
           max-height: calc(100dvh - 44px);
           overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
           -webkit-overflow-scrolling: touch;
           display: flex;
           flex-direction: column;
@@ -281,17 +283,18 @@ export function StackTemplate({
         /* Responsive Mobile Clearance (Guaranteed 5-6mm breathing room top and bottom) */
         @media (max-width: 640px) {
           .stack-wrap {
-            padding: 20px 10px 80px;
+            padding: 16px 8px 80px;
           }
           .stack-card {
-            padding: 18px 16px;
-            border-radius: 22px;
-            min-height: calc(100dvh - 40px);
-            max-height: calc(100dvh - 40px);
+            padding: 14px 14px;
+            border-radius: 20px;
+            min-height: calc(100dvh - 36px);
+            max-height: calc(100dvh - 36px);
           }
           .stack-portrait {
-            max-height: min(32dvh, 220px) !important;
-            margin-bottom: 12px !important;
+            max-height: min(22dvh, 160px) !important;
+            max-width: 240px !important;
+            margin-bottom: 8px !important;
           }
         }
 
@@ -334,10 +337,10 @@ export function StackTemplate({
         /* Card 1 Hero Portrait - Authentic aspect ratio that preserves logos & photos */
         .stack-portrait {
           width: 100%;
-          aspect-ratio: 5 / 4;
-          max-height: min(36dvh, 270px);
-          max-width: 360px;
-          margin: 0 auto 16px;
+          aspect-ratio: 16 / 10;
+          max-height: min(26dvh, 200px);
+          max-width: 290px;
+          margin: 0 auto 12px;
           border-radius: 18px;
           background: #ffffff;
           overflow: hidden;
