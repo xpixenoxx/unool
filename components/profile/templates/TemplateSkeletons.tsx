@@ -111,10 +111,10 @@ export function TemplateSkeleton({ category, className }: TemplateSkeletonProps)
  * Get skeleton category from template ID
  */
 export function getSkeletonCategory(templateId: string): TemplateSkeletonProps['category'] {
-  const individualTemplates = ['lover', 'lone', 'energy'];
+  const individualTemplates = ['lover', 'lone', 'energy', 'the-stack', 'stack'];
   const startupTemplates = ['rebellion', 'vision', 'human'];
   const agencyTemplates = ['the-studio', 'the-machine', 'the-club'];
-  const entrepreneurTemplates = ['the-builder', 'the-visionary', 'the-hustler', 'the-stack', 'stack'];
+  const entrepreneurTemplates = ['the-builder', 'the-visionary', 'the-hustler'];
   const influencerTemplates = ['the-aesthete', 'the-creator', 'the-voice'];
 
   if (individualTemplates.includes(templateId)) return 'individual';

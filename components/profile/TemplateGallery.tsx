@@ -36,6 +36,8 @@ const PERSONA_INFO: Record<string, { label: string; desc: string }> = {
   'the-aesthete': { label: 'The Aesthete', desc: 'Luxurious, elegant, tasteful' },
   'the-creator':  { label: 'The Creator', desc: 'Creative, visual, content-first' },
   'the-voice':    { label: 'The Voice', desc: 'Authoritative, articulate, clean' },
+  'the-stack':    { label: 'The Stack', desc: 'Tactile stacking cards dossier with services & direct contact' },
+  'stack':        { label: 'The Stack', desc: 'Tactile stacking cards dossier with services & direct contact' },
 };
 
 /* ═══════════════════════════════════════════════════════════════

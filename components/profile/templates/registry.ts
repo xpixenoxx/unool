@@ -268,11 +268,11 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     persona: 'the-studio',
   },
 
-  // 07 — ENTREPRENEUR / CRAFTSMAN (STACKING DOSSIER)
+  // 07 — INDIVIDUAL / CRAFTSMAN (STACKING DOSSIER)
   {
     id: 'the-stack',
     name: 'The Stack',
-    category: 'entrepreneur',
+    category: 'individual',
     intensity: 'standard',
     preset: 'creative',
     icon: '🗂️',
