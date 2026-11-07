@@ -11,9 +11,9 @@ import {
 } from './adapter';
 import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
 
-const META_AUTH_URL = 'https://www.facebook.com/v20.0/dialog/oauth';
+const META_AUTH_URL = `https://www.facebook.com/${API_VERSIONS.facebook}/dialog/oauth`;
 const META_TOKEN_URL = `https://graph.facebook.com/${API_VERSIONS.facebook}/oauth/access_token`;
-const FACEBOOK_API_BASE = 'https://graph.facebook.com/v20.0';
+const FACEBOOK_API_BASE = `https://graph.facebook.com/${API_VERSIONS.facebook}`;
 
 export class FacebookAdapter implements PlatformAdapter {
   readonly platform = 'facebook' as const;

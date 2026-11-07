@@ -6,6 +6,7 @@ import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutom
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 
 
 
@@ -56,11 +57,11 @@ export async function POST(request: NextRequest) {
     let subscribedFields: string[] = [];
     try {
       let verifyRes = await fetch(
-        `https://graph.instagram.com/v20.0/me/subscribed_apps?access_token=${accessToken}`
+        `https://graph.instagram.com/${API_VERSIONS.instagram}/me/subscribed_apps?access_token=${accessToken}`
       );
       if (!verifyRes.ok) {
         verifyRes = await fetch(
-          `https://graph.instagram.com/v20.0/${connection.platform_user_id}/subscribed_apps?access_token=${accessToken}`
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/${connection.platform_user_id}/subscribed_apps?access_token=${accessToken}`
         );
       }
       if (verifyRes.ok) {

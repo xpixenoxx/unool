@@ -9,6 +9,8 @@
  * 1. Strict multi-tenant isolation — no cross-tenant fallback or wildcards.
  * 2. Self-healing dynamic introspection — discovers and links unmapped IGIDs on first event.
  * 3. O(1) indexed persistence via metadata and scoped alias tags.
+ * 4. Context resolution strictly from authoritative platform_posts — never historical comment logs.
+ * 5. Reassignment safety — stripping stale aliases when an IGID is linked to a new connection.
  */
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -26,8 +28,24 @@ export interface ResolveInstagramConnectionOptions {
 const negativeCache = new Map<string, number>();
 const NEGATIVE_CACHE_TTL_MS = 5 * 60 * 1000;
 
+/**
+ * Invalidates the in-memory identity negative cache.
+ * If igUserId is provided, invalidates only that entry.
+ * Otherwise, clears the entire cache.
+ */
+export function invalidateIdentityCache(igUserId?: string): void {
+  if (igUserId) {
+    negativeCache.delete(igUserId);
+  } else {
+    negativeCache.clear();
+  }
+}
+
+/**
+ * Backwards-compatible alias for invalidateIdentityCache.
+ */
 export function clearIdentityCache(): void {
-  negativeCache.clear();
+  invalidateIdentityCache();
 }
 
 /**
@@ -89,21 +107,22 @@ export async function resolveInstagramConnection(
     logger.debug('Metadata filter query not supported or failed', { error: err });
   }
 
-  // 4. Context-assisted resolution: Check if mediaId belongs to a known post or comment log
+  // 4. Context-assisted resolution: Check if mediaId belongs to a known post published by UNOOL
+  // NOTE: Historical comment logs are INTENTIONALLY NOT queried here, to prevent inheriting past misrouted events.
   if (options.mediaId) {
     try {
-      // Check platform_posts
       const { data: postData } = await supabaseAdmin
         .from('platform_posts')
         .select('platform_connection_id')
-        .eq('platform_post_id', options.mediaId)
-        .limit(1);
+        .eq('platform_post_id', options.mediaId);
 
-      if (postData && postData.length > 0 && postData[0].platform_connection_id) {
+      // Only proceed if exactly one post record matches to prevent ambiguous cross-workspace collisions
+      if (postData && postData.length === 1 && postData[0].platform_connection_id) {
         const { data: conn } = await supabaseAdmin
           .from('platform_connections')
           .select('*')
           .eq('id', postData[0].platform_connection_id)
+          .eq('platform', 'instagram')
           .eq('status', 'connected')
           .maybeSingle();
 
@@ -119,40 +138,12 @@ export async function resolveInstagramConnection(
           return conn;
         }
       }
-
-      // Check instagram_comment_logs
-      const { data: logData } = await supabaseAdmin
-        .from('instagram_comment_logs')
-        .select('workspace_id')
-        .eq('media_id', options.mediaId)
-        .limit(1);
-
-      if (logData && logData.length > 0 && logData[0].workspace_id) {
-        const { data: conn } = await supabaseAdmin
-          .from('platform_connections')
-          .select('*')
-          .eq('workspace_id', logData[0].workspace_id)
-          .eq('platform', 'instagram')
-          .eq('status', 'connected')
-          .maybeSingle();
-
-        if (conn) {
-          logger.info('Resolved Instagram connection via instagram_comment_logs context', {
-            igUserId,
-            mediaId: options.mediaId,
-            connectionId: conn.id,
-            username: conn.username,
-          });
-          await linkInstagramBusinessAccount(conn.id, igUserId);
-          return conn;
-        }
-      }
     } catch (ctxErr) {
       logger.debug('Context-assisted lookup encountered error', { error: ctxErr });
     }
   }
 
-  // 5. Negative cache check before introspection
+  // 5. Negative cache check before introspection to prevent hammering Meta API
   const cachedNegativeAt = negativeCache.get(igUserId);
   if (cachedNegativeAt && Date.now() - cachedNegativeAt < NEGATIVE_CACHE_TTL_MS) {
     logger.debug('Identity resolver: igUserId recently rejected (negative cache hit)', { igUserId });
@@ -218,6 +209,7 @@ export async function resolveInstagramConnection(
 /**
  * Persists an Instagram Business/Professional Account ID alias to a connection
  * so subsequent lookups are O(1).
+ * Also cleans up stale/conflicting alias references from any other connection.
  */
 export async function linkInstagramBusinessAccount(
   connectionId: string,
@@ -226,6 +218,7 @@ export async function linkInstagramBusinessAccount(
   if (!connectionId || !igBusinessId) return;
 
   try {
+    // 1. Fetch target connection first
     const { data: conn } = await supabaseAdmin
       .from('platform_connections')
       .select('scopes, metadata')
@@ -235,6 +228,47 @@ export async function linkInstagramBusinessAccount(
     if (!conn) return;
 
     const aliasTag = `ig_business_id:${igBusinessId}`;
+
+    // 2. Clean up stale/conflicting alias references from other connections
+    try {
+      const { data: allConns } = await supabaseAdmin
+        .from('platform_connections')
+        .select('id, scopes, metadata')
+        .eq('platform', 'instagram');
+
+      if (allConns && allConns.length > 0) {
+        for (const other of allConns) {
+          if (other.id === connectionId) continue;
+
+          let changed = false;
+          const otherScopes = Array.isArray(other.scopes) ? [...other.scopes] : [];
+          const scopeIdx = otherScopes.indexOf(aliasTag);
+          if (scopeIdx >= 0) {
+            otherScopes.splice(scopeIdx, 1);
+            changed = true;
+          }
+
+          const otherMeta = (other.metadata && typeof other.metadata === 'object')
+            ? { ...other.metadata }
+            : {};
+          if (otherMeta.instagram_business_account_id === igBusinessId) {
+            delete otherMeta.instagram_business_account_id;
+            changed = true;
+          }
+
+          if (changed) {
+            await supabaseAdmin
+              .from('platform_connections')
+              .update({ scopes: otherScopes, metadata: otherMeta, updated_at: new Date().toISOString() })
+              .eq('id', other.id);
+          }
+        }
+      }
+    } catch (cleanupErr) {
+      logger.debug('Alias cleanup across other connections skipped or failed', { error: cleanupErr });
+    }
+
+    // 3. Update target connection
     const scopesList = Array.isArray(conn.scopes) ? [...conn.scopes] : [];
     let updated = false;
 
@@ -253,7 +287,6 @@ export async function linkInstagramBusinessAccount(
     }
 
     if (updated) {
-      // Update scopes (safe on all DB versions) and metadata (if column exists)
       const updatePayload: Record<string, unknown> = {
         scopes: scopesList,
         updated_at: new Date().toISOString(),
@@ -271,6 +304,9 @@ export async function linkInstagramBusinessAccount(
           .update(updatePayload)
           .eq('id', connectionId);
       }
+
+      // Invalidate negative cache for this ID in case it was previously marked negative
+      invalidateIdentityCache(igBusinessId);
 
       logger.info('Successfully linked Instagram business ID to connection', {
         connectionId,

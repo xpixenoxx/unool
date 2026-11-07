@@ -48,6 +48,90 @@ function getLayerTransform(
   };
 }
 
+interface ParallaxLayerItemProps {
+  layer: ParallaxLayer;
+  smoothMouseX: MotionValue<number>;
+  smoothMouseY: MotionValue<number>;
+  smoothScrollY: MotionValue<number>;
+  effectiveMouseStrength: number;
+  effectiveScrollStrength: number;
+  reducedMotion: boolean | null;
+}
+
+function ParallaxLayerItem({
+  layer,
+  smoothMouseX,
+  smoothMouseY,
+  smoothScrollY,
+  effectiveMouseStrength,
+  effectiveScrollStrength,
+  reducedMotion,
+}: ParallaxLayerItemProps) {
+  const depth = Math.max(0, Math.min(1, layer.depth));
+  const scale = layer.scale ?? DEFAULT_SCALE_BASE + depth * 0.1;
+  const baseZ = -depth * 100;
+
+  const xTransform = useTransform(
+    [smoothMouseX, smoothScrollY],
+    (values: number[]): number => values[0] * effectiveMouseStrength * depth + values[1] * effectiveScrollStrength * depth * 0.01
+  );
+
+  const yTransform = useTransform(
+    [smoothMouseY, smoothScrollY],
+    (values: number[]): number => values[0] * effectiveMouseStrength * depth + values[1] * effectiveScrollStrength * depth * 0.01
+  );
+
+  const x = reducedMotion ? 0 : xTransform;
+  const y = reducedMotion ? 0 : yTransform;
+  const z = reducedMotion ? 0 : baseZ;
+  const layerScale = reducedMotion ? 1 : scale;
+
+  const style = getLayerTransform(x, y, z, layerScale);
+
+  return (
+    <motion.div
+      className={cn('absolute inset-0', layer.className)}
+      style={style}
+    >
+      {layer.children}
+    </motion.div>
+  );
+}
+
+interface CustomParallaxLayerItemProps {
+  layer: ParallaxLayer;
+  smoothY: MotionValue<number>;
+  strength: number;
+  reducedMotion: boolean | null;
+}
+
+function CustomParallaxLayerItem({
+  layer,
+  smoothY,
+  strength,
+  reducedMotion,
+}: CustomParallaxLayerItemProps) {
+  const depth = Math.max(0, Math.min(1, layer.depth));
+  const scale = layer.scale ?? 1 + depth * 0.1;
+  const baseZ = -depth * 100;
+
+  const yTransform = useTransform(smoothY, (y) => y * strength * depth * 0.01);
+  const y = reducedMotion ? 0 : yTransform;
+  const z = reducedMotion ? 0 : baseZ;
+  const layerScale = reducedMotion ? 1 : scale;
+
+  const style = getLayerTransform(0, y, z, layerScale);
+
+  return (
+    <motion.div
+      className={cn('absolute inset-0', layer.className)}
+      style={style}
+    >
+      {layer.children}
+    </motion.div>
+  );
+}
+
 export function ParallaxLayers({
   layers,
   children,
@@ -139,41 +223,18 @@ export function ParallaxLayers({
   }, [reducedMotion, scrollFollow, scrollY]);
 
   // Render layers with parallax transforms
-  const layerElements = normalizedLayers.map((layer, index) => {
-    const depth = Math.max(0, Math.min(1, layer.depth));
-    const scale = layer.scale ?? DEFAULT_SCALE_BASE + depth * 0.1;
-    const baseZ = -depth * 100;
-
-    // Parallax transforms - use spring-smoothed values with expo easing feel
-    const x = reducedMotion
-      ? 0
-      : useTransform(
-          [smoothMouseX, smoothScrollY],
-          (values: number[]): number => values[0] * effectiveMouseStrength * depth + values[1] * effectiveScrollStrength * depth * 0.01
-        );
-
-    const y = reducedMotion
-      ? 0
-      : useTransform(
-          [smoothMouseY, smoothScrollY],
-          (values: number[]): number => values[0] * effectiveMouseStrength * depth + values[1] * effectiveScrollStrength * depth * 0.01
-        );
-
-    const z = reducedMotion ? 0 : baseZ;
-    const layerScale = reducedMotion ? 1 : scale;
-
-    const style = getLayerTransform(x, y, z, layerScale);
-
-    return (
-      <motion.div
-        key={index}
-        className={cn('absolute inset-0', layer.className)}
-        style={style}
-      >
-        {layer.children}
-      </motion.div>
-    );
-  });
+  const layerElements = normalizedLayers.map((layer, index) => (
+    <ParallaxLayerItem
+      key={index}
+      layer={layer}
+      smoothMouseX={smoothMouseX}
+      smoothMouseY={smoothMouseY}
+      smoothScrollY={smoothScrollY}
+      effectiveMouseStrength={effectiveMouseStrength}
+      effectiveScrollStrength={effectiveScrollStrength}
+      reducedMotion={reducedMotion}
+    />
+  ));
 
   const containerStyles: React.CSSProperties = reducedMotion
     ? { ...effectiveContainerStyle, position: 'relative', width: '100%', height: '100%', transform: 'none', willChange: 'auto' }
@@ -277,30 +338,15 @@ export function ParallaxSection({
       style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
     >
       {/* Custom parallax layers */}
-      {layers.map((layer, index) => {
-        const depth = Math.max(0, Math.min(1, layer.depth));
-        const scale = layer.scale ?? 1 + depth * 0.1;
-        const baseZ = -depth * 100;
-
-        const y = reducedMotion
-          ? 0
-          : useTransform(smoothY, (y) => y * strength * depth * 0.01);
-
-        const z = reducedMotion ? 0 : baseZ;
-        const layerScale = reducedMotion ? 1 : scale;
-
-        const style = getLayerTransform(0, y, z, layerScale);
-
-        return (
-          <motion.div
-            key={index}
-            className={cn('absolute inset-0', layer.className)}
-            style={style}
-          >
-            {layer.children}
-          </motion.div>
-        );
-      })}
+      {layers.map((layer, index) => (
+        <CustomParallaxLayerItem
+          key={index}
+          layer={layer}
+          smoothY={smoothY}
+          strength={strength}
+          reducedMotion={reducedMotion}
+        />
+      ))}
 
       {/* Main content */}
       <div className="relative z-10">

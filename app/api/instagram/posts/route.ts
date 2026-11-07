@@ -5,6 +5,7 @@ import { decryptToken } from '@/lib/crypto/encryption';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
         
         // Fetch recent media from Instagram Graph API
         const igRes = await fetch(
-          `https://graph.instagram.com/v20.0/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count&limit=50&access_token=${accessToken}`
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count&limit=50&access_token=${accessToken}`
         );
 
         if (igRes.ok) {
@@ -91,7 +92,7 @@ export async function GET(request: NextRequest) {
           // Fallback to platform user ID endpoint if me/media fails
           if (connection.platform_user_id) {
             const fallbackRes = await fetch(
-              `https://graph.facebook.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count&limit=50&access_token=${accessToken}`
+              `https://graph.facebook.com/${API_VERSIONS.facebook}/${connection.platform_user_id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count&limit=50&access_token=${accessToken}`
             );
             if (fallbackRes.ok) {
               const fbData = await fallbackRes.json();

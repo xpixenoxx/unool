@@ -225,7 +225,7 @@ vi.mock('@supabase/supabase-js', () => ({
           },
           limit: () => Promise.resolve({ data: controlState.existingDmLogs, error: null }),
           single: () => Promise.resolve({ data: null, error: null }),
-          then: (resolve: Function, reject: Function) => {
+          then: (resolve: (val: any) => any, reject?: (reason: any) => any) => {
             Promise.resolve({ data: controlState.existingDmLogs, error: null }).then(resolve as any, reject as any);
           },
         };
@@ -248,7 +248,7 @@ vi.mock('@supabase/supabase-js', () => ({
           },
           limit: () => Promise.resolve({ data: controlState.existingCommentLogs, error: null }),
           single: () => Promise.resolve({ data: null, error: null }),
-          then: (resolve: Function, reject: Function) => {
+          then: (resolve: (val: any) => any, reject?: (reason: any) => any) => {
             Promise.resolve({ data: controlState.existingCommentLogs, error: null }).then(resolve as any, reject as any);
           },
         };
@@ -269,7 +269,7 @@ vi.mock('@supabase/supabase-js', () => ({
             return Promise.resolve({ error: null });
           },
           single: () => Promise.resolve({ data: null, error: null }),
-          then: (resolve: Function, reject: Function) => {
+          then: (resolve: (val: any) => any, reject?: (reason: any) => any) => {
             Promise.resolve({ data: null, error: null }).then(resolve as any, reject as any);
           },
         };

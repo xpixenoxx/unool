@@ -19,7 +19,10 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId') || '1cd222a9-0147-4da6-a7d9-ab7e42462fcb';
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      return NextResponse.json({ ok: false, error: 'workspaceId is required' }, { status: 400 });
+    }
 
     // 1. Connection check
     const { data: connections, error: connErr } = await supabaseAdmin
@@ -57,20 +60,20 @@ export async function GET(request: NextRequest) {
     let recentMedia: any[] = [];
     let subscribedApps: any = null;
     try {
-      const res = await fetch(`https://graph.instagram.com/v20.0/me?fields=id,username,name&access_token=${accessToken}`);
+      const res = await fetch(`https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name&access_token=${accessToken}`);
       const data = await res.json();
       if (res.ok) {
         metaProfile = data;
 
         // Fetch recent media with comments
-        const mediaRes = await fetch(`https://graph.instagram.com/v20.0/me/media?fields=id,caption,permalink,comments{id,text,username,timestamp}&limit=10&access_token=${accessToken}`);
+        const mediaRes = await fetch(`https://graph.instagram.com/${API_VERSIONS.instagram}/me/media?fields=id,caption,permalink,comments{id,text,username,timestamp}&limit=10&access_token=${accessToken}`);
         if (mediaRes.ok) {
           const mediaData = await mediaRes.json();
           recentMedia = mediaData.data || [];
         }
 
         // Check subscribed_apps
-        const subRes = await fetch(`https://graph.instagram.com/v20.0/${conn.platform_user_id}/subscribed_apps?access_token=${accessToken}`);
+        const subRes = await fetch(`https://graph.instagram.com/${API_VERSIONS.instagram}/${conn.platform_user_id}/subscribed_apps?access_token=${accessToken}`);
         if (subRes.ok) {
           subscribedApps = await subRes.json();
         }
@@ -119,7 +122,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const workspaceId = body.workspaceId || '1cd222a9-0147-4da6-a7d9-ab7e42462fcb';
+    const workspaceId = body.workspaceId;
+    if (!workspaceId) {
+      return NextResponse.json({ ok: false, error: 'workspaceId is required' }, { status: 400 });
+    }
     const text = body.text || 'Hi';
     const commenterUsername = body.username || 'shrut_hi3878';
     const postLive = body.postLive === true;

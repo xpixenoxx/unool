@@ -133,7 +133,7 @@ vi.mock('@supabase/supabase-js', () => ({
           },
           single: () => Promise.resolve(result),
           maybeSingle: () => Promise.resolve(result),
-          then: (res: Function, rej: Function) => Promise.resolve(result).then(res as any, rej as any),
+          then: (res: (val: any) => any, rej?: (reason: any) => any) => Promise.resolve(result).then(res, rej),
         };
         return chain;
       }
