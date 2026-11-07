@@ -911,12 +911,21 @@ export function BookshelfTemplate({
                     rel="noopener noreferrer"
                     className="bs-spine"
                     onClick={() => {
-                      if (vol.url && vol.type === 'link') {
-                        onLinkClick?.({
-                          id: vol.id,
-                          label: vol.title,
-                          url: vol.url,
-                        });
+                      if (vol.url && vol.iconType === 'link') {
+                        const original = links.find((l) => l.id === vol.id);
+                        if (original) {
+                          onLinkClick?.(original);
+                        } else {
+                          onLinkClick?.({
+                            id: vol.id,
+                            label: vol.title,
+                            url: vol.url,
+                            icon: vol.customIcon,
+                            clicks: 0,
+                            order: 0,
+                            isVisible: true,
+                          });
+                        }
                       }
                     }}
                     style={{
@@ -933,7 +942,7 @@ export function BookshelfTemplate({
 
                     <div className="bs-spine-icon">
                       {vol.iconType === 'social' ? (
-                        <SocialIcon label={vol.title} platform={vol.platform} url={vol.url || ''} className="w-4 h-4 fill-current" />
+                        <SocialIcon label={vol.title} url={vol.url || ''} className="w-4 h-4 fill-current" />
                       ) : vol.iconType === 'email' ? (
                         <Mail size={15} />
                       ) : vol.iconType === 'chat' ? (
@@ -1112,7 +1121,7 @@ export function BookshelfTemplate({
                 rel="noopener noreferrer"
                 className="bs-social-link"
               >
-                <SocialIcon label={soc.label} platform={soc.platform} url={soc.url} className="w-3.5 h-3.5 fill-current" />
+                <SocialIcon label={soc.label} url={soc.url} className="w-3.5 h-3.5 fill-current" />
                 <span>{soc.label}</span>
               </a>
             ))}
