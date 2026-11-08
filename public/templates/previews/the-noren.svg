@@ -1,0 +1,75 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="noren-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Deep Indigo Background with Pattern -->
+  <rect width="400" height="600" fill="#123432"/>
+
+  <!-- Content -->
+  <g transform="translate(24, 28)">
+    <!-- Header -->
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="76" height="76" rx="8" fill="#1d4f4b" stroke="#f3ecdc" stroke-width="4"/>
+      <text x="38" y="46" font-family="'Shippori Mincho', serif" font-weight="800" font-size="20" fill="#f3ecdc" text-anchor="middle">暖</text>
+
+      <g transform="translate(92, 4)">
+        <text x="0" y="16" font-family="'Shippori Mincho', serif" font-weight="800" font-size="14" fill="#e0734f" letter-spacing="4">暖簾</text>
+        <text x="0" y="44" font-family="'Shippori Mincho', serif" font-weight="800" font-size="24" fill="#f3ecdc">Pixenox</text>
+        <text x="0" y="62" font-family="'Shippori Mincho', serif" font-weight="500" font-size="12" fill="#f3ecdc" opacity="0.8">Atelier &amp; Craft</text>
+      </g>
+    </g>
+
+    <!-- Wooden Rod Beam -->
+    <g transform="translate(0, 110)">
+      <rect x="0" y="0" width="352" height="12" rx="6" fill="#6b4a2f"/>
+
+      <!-- Noren Hanging Panels -->
+      <!-- Panel 1: Indigo -->
+      <g transform="translate(14, 12)" filter="url(#noren-shadow)">
+        <path d="M 0,0 L 72,0 L 72,250 L 36,236 L 0,250 Z" fill="#1d3b53"/>
+        <text x="36" y="28" font-family="monospace" font-size="10" fill="#f3ecdc" opacity="0.7" text-anchor="middle">01</text>
+        <text x="36" y="110" font-family="'Shippori Mincho', serif" font-weight="800" font-size="16" fill="#f3ecdc" text-anchor="middle">主頁</text>
+        <text x="36" y="210" font-size="14" fill="#f3ecdc" opacity="0.8" text-anchor="middle">↓</text>
+      </g>
+
+      <!-- Panel 2: Terracotta -->
+      <g transform="translate(98, 12)" filter="url(#noren-shadow)">
+        <path d="M 0,0 L 72,0 L 72,250 L 36,236 L 0,250 Z" fill="#e0734f"/>
+        <text x="36" y="28" font-family="monospace" font-size="10" fill="#f3ecdc" opacity="0.7" text-anchor="middle">02</text>
+        <text x="36" y="110" font-family="'Shippori Mincho', serif" font-weight="800" font-size="16" fill="#f3ecdc" text-anchor="middle">作品</text>
+        <text x="36" y="210" font-size="14" fill="#f3ecdc" opacity="0.8" text-anchor="middle">↓</text>
+      </g>
+
+      <!-- Panel 3: Matcha -->
+      <g transform="translate(182, 12)" filter="url(#noren-shadow)">
+        <path d="M 0,0 L 72,0 L 72,250 L 36,236 L 0,250 Z" fill="#8fa86a"/>
+        <text x="36" y="28" font-family="monospace" font-size="10" fill="#123432" opacity="0.7" text-anchor="middle">03</text>
+        <text x="36" y="110" font-family="'Shippori Mincho', serif" font-weight="800" font-size="16" fill="#123432" text-anchor="middle">連絡</text>
+        <text x="36" y="210" font-size="14" fill="#123432" opacity="0.8" text-anchor="middle">↓</text>
+      </g>
+
+      <!-- Panel 4: Vermilion -->
+      <g transform="translate(266, 12)" filter="url(#noren-shadow)">
+        <path d="M 0,0 L 72,0 L 72,250 L 36,236 L 0,250 Z" fill="#c9552f"/>
+        <text x="36" y="28" font-family="monospace" font-size="10" fill="#f3ecdc" opacity="0.7" text-anchor="middle">04</text>
+        <text x="36" y="110" font-family="'Shippori Mincho', serif" font-weight="800" font-size="16" fill="#f3ecdc" text-anchor="middle">手帳</text>
+        <text x="36" y="210" font-size="14" fill="#f3ecdc" opacity="0.8" text-anchor="middle">↓</text>
+      </g>
+    </g>
+
+    <!-- Notes & Services Rice Paper -->
+    <g transform="translate(0, 420)" filter="url(#noren-shadow)">
+      <rect x="0" y="0" width="352" height="110" rx="8" fill="#f3ecdc"/>
+      <text x="18" y="28" font-family="'Shippori Mincho', serif" font-weight="800" font-size="11" fill="#123432" letter-spacing="3">NOTES &amp; SERVICES · 業務案内</text>
+      <line x1="18" y1="38" x2="334" y2="38" stroke="#123432" stroke-opacity="0.15"/>
+      <text x="18" y="62" font-family="'Shippori Mincho', serif" font-weight="800" font-size="13" fill="#123432">• Brand Identity</text>
+      <text x="18" y="86" font-family="'Shippori Mincho', serif" font-weight="800" font-size="13" fill="#123432">• Architectural Spatial Craft</text>
+      <text x="190" y="62" font-family="'Shippori Mincho', serif" font-weight="800" font-size="13" fill="#123432">• Atelier Advisory</text>
+      <text x="190" y="86" font-family="'Shippori Mincho', serif" font-weight="800" font-size="13" fill="#123432">• Editorial Design</text>
+    </g>
+  </g>
+</svg>
+

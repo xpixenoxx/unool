@@ -27,7 +27,7 @@ export interface TemplateMeta {
   features: TemplateFeatures & {
     performanceBudget?: 'ultra-light' | 'light' | 'medium' | 'heavy';
   };
-  persona?: 'lover' | 'lone' | 'energy' | 'rebellion' | 'vision' | 'human' | 'the-studio' | 'the-machine' | 'the-club' | 'the-builder' | 'the-visionary' | 'the-hustler' | 'the-aesthete' | 'the-creator' | 'the-voice' | 'the-stack' | 'the-bookshelf' | 'the-cube' | 'the-monolith';
+  persona?: 'lover' | 'lone' | 'energy' | 'rebellion' | 'vision' | 'human' | 'the-studio' | 'the-machine' | 'the-club' | 'the-builder' | 'the-visionary' | 'the-hustler' | 'the-aesthete' | 'the-creator' | 'the-voice' | 'the-stack' | 'the-bookshelf' | 'the-cube' | 'the-monolith' | 'the-metro' | 'the-noren' | 'the-desktop' | 'the-calendar';
 }
 
 export interface TemplateProps {

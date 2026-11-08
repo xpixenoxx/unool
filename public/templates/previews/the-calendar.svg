@@ -1,0 +1,110 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="cal-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Desk Dark Slate Hunter Background -->
+  <rect width="400" height="600" fill="#2d3a35"/>
+
+  <!-- Calendar Page Sheet -->
+  <g transform="translate(24, 28)" filter="url(#cal-shadow)">
+    <!-- Sheet Body -->
+    <rect x="0" y="0" width="352" height="544" rx="14" fill="#fbf7ee"/>
+
+    <!-- Red Perforated Binder Top with Hole Cutouts -->
+    <rect x="0" y="0" width="352" height="56" rx="14" fill="#d94a38"/>
+    <rect x="0" y="42" width="352" height="14" fill="#d94a38"/>
+    <!-- Binder Holes -->
+    <circle cx="88" cy="28" r="7" fill="#2d3a35"/>
+    <circle cx="264" cy="28" r="7" fill="#2d3a35"/>
+    <text x="176" y="32" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="11" fill="#fbf7ee" letter-spacing="4" text-anchor="middle">予定表 · SCHEDULE</text>
+
+    <!-- Content Inside Calendar Sheet -->
+    <g transform="translate(20, 72)">
+      <!-- Giant Date Number in Top Right Corner -->
+      <text x="312" y="70" font-family="'Rozha One', serif" font-size="78" fill="#d94a38" opacity="0.85" text-anchor="end">08</text>
+
+      <!-- Polaroid Avatar Tilted -->
+      <g transform="rotate(-3, 40, 48)">
+        <rect x="0" y="0" width="76" height="96" rx="2" fill="#ffffff" stroke="#e9dfc8" stroke-width="1"/>
+        <rect x="6" y="6" width="64" height="68" fill="#e9dfc8"/>
+        <text x="38" y="48" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="20" fill="#2a2420" text-anchor="middle">PX</text>
+      </g>
+
+      <!-- Identity Text -->
+      <g transform="translate(90, 20)">
+        <text x="0" y="24" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="22" fill="#2a2420">Pixenox</text>
+        <text x="0" y="42" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="11" fill="#d94a38">Creator &amp; Architect</text>
+      </g>
+
+      <!-- Action Buttons -->
+      <g transform="translate(0, 114)">
+        <rect x="0" y="0" width="58" height="22" rx="11" fill="#2a2420"/>
+        <text x="29" y="15" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="9" fill="#fbf7ee" text-anchor="middle">CALL</text>
+
+        <rect x="66" y="0" width="62" height="22" rx="11" fill="#2a2420"/>
+        <text x="97" y="15" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="9" fill="#fbf7ee" text-anchor="middle">EMAIL</text>
+
+        <rect x="136" y="0" width="100" height="22" rx="11" fill="#d94a38"/>
+        <text x="186" y="15" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="9" fill="#fbf7ee" text-anchor="middle">SAVE CONTACT</text>
+      </g>
+
+      <!-- Section Title: Schedule -->
+      <text x="0" y="162" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="10" fill="#2a2420" letter-spacing="3">SCHEDULE &amp; ENGAGEMENTS</text>
+      <line x1="0" y1="168" x2="312" y2="168" stroke="#2a2420" stroke-width="1.5"/>
+
+      <!-- Ruled Schedule Rows -->
+      <!-- Row 1 -->
+      <g transform="translate(0, 176)">
+        <rect x="0" y="10" width="312" height="12" fill="#f7e08a" opacity="0.6"/>
+        <text x="0" y="18" font-family="monospace" font-weight="700" font-size="11" fill="#d94a38">09:00</text>
+        <text x="56" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420">Official Website &amp; Atelier</text>
+        <text x="306" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420" opacity="0.4" text-anchor="end">→</text>
+        <line x1="0" y1="28" x2="312" y2="28" stroke="#2a2420" stroke-opacity="0.2" stroke-dasharray="2,2"/>
+      </g>
+
+      <!-- Row 2 -->
+      <g transform="translate(0, 214)">
+        <text x="0" y="18" font-family="monospace" font-weight="700" font-size="11" fill="#d94a38">11:30</text>
+        <text x="56" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420">Selected Works Portfolio</text>
+        <text x="306" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420" opacity="0.4" text-anchor="end">→</text>
+        <line x1="0" y1="28" x2="312" y2="28" stroke="#2a2420" stroke-opacity="0.2" stroke-dasharray="2,2"/>
+      </g>
+
+      <!-- Row 3 -->
+      <g transform="translate(0, 252)">
+        <text x="0" y="18" font-family="monospace" font-weight="700" font-size="11" fill="#d94a38">14:00</text>
+        <text x="56" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420">Schedule Strategic Consultation</text>
+        <text x="306" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420" opacity="0.4" text-anchor="end">→</text>
+        <line x1="0" y1="28" x2="312" y2="28" stroke="#2a2420" stroke-opacity="0.2" stroke-dasharray="2,2"/>
+      </g>
+
+      <!-- Row 4 -->
+      <g transform="translate(0, 290)">
+        <text x="0" y="18" font-family="monospace" font-weight="700" font-size="11" fill="#d94a38">16:30</text>
+        <text x="56" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420">Direct Dispatch &amp; Dossier</text>
+        <text x="306" y="18" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="12" fill="#2a2420" opacity="0.4" text-anchor="end">→</text>
+        <line x1="0" y1="28" x2="312" y2="28" stroke="#2a2420" stroke-opacity="0.2" stroke-dasharray="2,2"/>
+      </g>
+
+      <!-- Section Title: Notes -->
+      <text x="0" y="348" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="10" fill="#2a2420" letter-spacing="3">NOTES &amp; FOCUS AREAS</text>
+      <line x1="0" y1="354" x2="312" y2="354" stroke="#2a2420" stroke-width="1.5"/>
+
+      <!-- Memo Badges -->
+      <g transform="translate(0, 366)">
+        <rect x="0" y="0" width="94" height="22" rx="4" fill="#e9dfc8"/>
+        <text x="47" y="15" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="9" fill="#2a2420" text-anchor="middle">• Brand Craft</text>
+
+        <rect x="102" y="0" width="94" height="22" rx="4" fill="#e9dfc8"/>
+        <text x="149" y="15" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="9" fill="#2a2420" text-anchor="middle">• Daily Editorial</text>
+
+        <rect x="204" y="0" width="104" height="22" rx="4" fill="#e9dfc8"/>
+        <text x="256" y="15" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="9" fill="#2a2420" text-anchor="middle">• Spatial Design</text>
+      </g>
+    </g>
+  </g>
+</svg>
+

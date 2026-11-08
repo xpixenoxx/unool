@@ -34,6 +34,15 @@ const templateComponents: Record<string, React.LazyExoticComponent<React.Compone
   'the-aesthete': React.lazy(() => import('@/components/profile/templates/persona/the-aesthete').then(m => ({ default: m.AestheteTemplate }))),
   'the-creator': React.lazy(() => import('@/components/profile/templates/persona/the-creator').then(m => ({ default: m.CreatorTemplate }))),
   'the-voice': React.lazy(() => import('@/components/profile/templates/persona/the-voice').then(m => ({ default: m.VoiceTemplate }))),
+  // Bespoke Editions
+  'the-metro': React.lazy(() => import('@/components/profile/templates/persona/the-metro').then(m => ({ default: m.MetroTemplate }))),
+  'metro': React.lazy(() => import('@/components/profile/templates/persona/the-metro').then(m => ({ default: m.MetroTemplate }))),
+  'the-noren': React.lazy(() => import('@/components/profile/templates/persona/the-noren').then(m => ({ default: m.NorenTemplate }))),
+  'noren': React.lazy(() => import('@/components/profile/templates/persona/the-noren').then(m => ({ default: m.NorenTemplate }))),
+  'the-desktop': React.lazy(() => import('@/components/profile/templates/persona/the-desktop').then(m => ({ default: m.DesktopTemplate }))),
+  'desktop': React.lazy(() => import('@/components/profile/templates/persona/the-desktop').then(m => ({ default: m.DesktopTemplate }))),
+  'the-calendar': React.lazy(() => import('@/components/profile/templates/persona/the-calendar').then(m => ({ default: m.CalendarTemplate }))),
+  'calendar': React.lazy(() => import('@/components/profile/templates/persona/the-calendar').then(m => ({ default: m.CalendarTemplate }))),
 };
 
 interface ProfilePreviewProps {

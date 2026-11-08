@@ -44,6 +44,14 @@ const PERSONA_INFO: Record<string, { label: string; desc: string }> = {
   'cube':         { label: 'The Cube', desc: '3D kinetic spatial cube with 4 rotating interactive faces' },
   'the-monolith': { label: 'The Monolith', desc: 'Architectural expanding monolithic slabs with fluid transitions' },
   'monolith':     { label: 'The Monolith', desc: 'Architectural expanding monolithic slabs with fluid transitions' },
+  'the-metro':    { label: 'The Metro', desc: 'Japanese transit route map with interactive station stops' },
+  'metro':        { label: 'The Metro', desc: 'Japanese transit route map with interactive station stops' },
+  'the-noren':    { label: 'The Noren', desc: 'Traditional Japanese hanging fabric curtain dividers' },
+  'noren':        { label: 'The Noren', desc: 'Traditional Japanese hanging fabric curtain dividers' },
+  'the-desktop':  { label: 'The Desktop', desc: 'Nostalgic 90s OS workstation with pixel windows and desktop icons' },
+  'desktop':      { label: 'The Desktop', desc: 'Nostalgic 90s OS workstation with pixel windows and desktop icons' },
+  'the-calendar': { label: 'The Calendar', desc: 'Daily tear-off calendar pad with perforated binding' },
+  'calendar':     { label: 'The Calendar', desc: 'Daily tear-off calendar pad with perforated binding' },
 };
 
 /* ═══════════════════════════════════════════════════════════════

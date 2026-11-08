@@ -46,6 +46,14 @@ export interface RecentActivitySectionProps {
     | 'cube'
     | 'the-monolith'
     | 'monolith'
+    | 'the-metro'
+    | 'metro'
+    | 'the-noren'
+    | 'noren'
+    | 'the-desktop'
+    | 'desktop'
+    | 'the-calendar'
+    | 'calendar'
     | 'default';
   /** Whether the parent template has a dark background */
   isDark?: boolean;

@@ -20,6 +20,10 @@ import { MonolithTemplate } from './the-monolith';
 import { AestheteTemplate } from './the-aesthete';
 import { CreatorTemplate } from './the-creator';
 import { VoiceTemplate } from './the-voice';
+import { MetroTemplate } from './the-metro';
+import { NorenTemplate } from './the-noren';
+import { DesktopTemplate } from './the-desktop';
+import { CalendarTemplate } from './the-calendar';
 
 export {
   LoverTemplate,
@@ -41,6 +45,10 @@ export {
   AestheteTemplate,
   CreatorTemplate,
   VoiceTemplate,
+  MetroTemplate,
+  NorenTemplate,
+  DesktopTemplate,
+  CalendarTemplate,
 };
 
 // Template mapping for dynamic loading
@@ -64,6 +72,10 @@ export const TEMPLATE_COMPONENTS = {
   'the-aesthete': AestheteTemplate,
   'the-creator': CreatorTemplate,
   'the-voice': VoiceTemplate,
+  'the-metro': MetroTemplate,
+  'the-noren': NorenTemplate,
+  'the-desktop': DesktopTemplate,
+  'the-calendar': CalendarTemplate,
 } as const;
 
 export type TemplateKey = keyof typeof TEMPLATE_COMPONENTS;

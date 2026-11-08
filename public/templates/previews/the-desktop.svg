@@ -1,0 +1,101 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="desktop-grid" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.75" fill="#000000" opacity="0.15"/>
+    </pattern>
+  </defs>
+
+  <!-- Desktop Teal Background -->
+  <rect width="400" height="600" fill="#4f8f8a"/>
+  <rect width="400" height="600" fill="url(#desktop-grid)"/>
+
+  <!-- Window 1: profile.exe -->
+  <g transform="translate(20, 24)">
+    <!-- Window Body -->
+    <rect x="0" y="0" width="360" height="200" fill="#d8d2c2" stroke="#111111" stroke-width="2"/>
+    <rect x="2" y="2" width="356" height="196" fill="none" stroke="#ffffff" stroke-width="1"/>
+
+    <!-- Titlebar -->
+    <rect x="3" y="3" width="354" height="22" fill="#1d2d5c"/>
+    <text x="10" y="18" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="12" fill="#ffffff">■ profile.exe</text>
+    <rect x="340" y="5" width="14" height="14" fill="#d8d2c2" stroke="#111111" stroke-width="1"/>
+    <text x="347" y="16" font-family="monospace" font-weight="700" font-size="10" fill="#111111" text-anchor="middle">×</text>
+
+    <!-- Avatar Box -->
+    <g transform="translate(16, 40)">
+      <rect x="0" y="0" width="70" height="70" fill="#c2bcab" stroke="#111111" stroke-width="2"/>
+      <text x="35" y="44" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="22" fill="#111111" text-anchor="middle">PX</text>
+    </g>
+
+    <!-- Identity -->
+    <g transform="translate(98, 44)">
+      <text x="0" y="14" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="11" fill="#1d2d5c">窓 OS 95</text>
+      <text x="0" y="36" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="20" fill="#111111">Pixenox</text>
+      <text x="0" y="52" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="11" fill="#111111" opacity="0.75">Systems &amp; Design</text>
+    </g>
+
+    <!-- 3D Beveled Buttons -->
+    <g transform="translate(16, 136)">
+      <rect x="0" y="0" width="72" height="26" fill="#d8d2c2" stroke="#111111" stroke-width="2"/>
+      <text x="36" y="17" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="10" fill="#111111" text-anchor="middle">Call.exe</text>
+
+      <rect x="80" y="0" width="72" height="26" fill="#d8d2c2" stroke="#111111" stroke-width="2"/>
+      <text x="116" y="17" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="10" fill="#111111" text-anchor="middle">Mail.exe</text>
+
+      <rect x="160" y="0" width="100" height="26" fill="#1d2d5c" stroke="#111111" stroke-width="2"/>
+      <text x="210" y="17" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="10" fill="#ffffff" text-anchor="middle">Save_Card.vcf</text>
+    </g>
+  </g>
+
+  <!-- Window 2: my_links (Desktop Folders Grid) -->
+  <g transform="translate(20, 246)">
+    <rect x="0" y="0" width="360" height="190" fill="#d8d2c2" stroke="#111111" stroke-width="2"/>
+    <rect x="2" y="2" width="356" height="186" fill="none" stroke="#ffffff" stroke-width="1"/>
+
+    <!-- Titlebar -->
+    <rect x="3" y="3" width="354" height="22" fill="#1d2d5c"/>
+    <text x="10" y="18" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="12" fill="#ffffff">■ C:\DESKTOP\my_links</text>
+
+    <!-- Folders Grid -->
+    <g transform="translate(20, 44)">
+      <!-- Folder 1 -->
+      <g transform="translate(0, 0)">
+        <path d="M 0,0 L 22,0 L 28,6 L 54,6 L 54,42 L 0,42 Z" fill="#f2c14e" stroke="#111111" stroke-width="2"/>
+        <text x="27" y="60" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="10" fill="#111111" text-anchor="middle">Website</text>
+      </g>
+
+      <!-- Folder 2 -->
+      <g transform="translate(80, 0)">
+        <path d="M 0,0 L 22,0 L 28,6 L 54,6 L 54,42 L 0,42 Z" fill="#f2c14e" stroke="#111111" stroke-width="2"/>
+        <rect x="4" y="48" width="46" height="18" fill="#1d2d5c"/>
+        <text x="27" y="60" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="10" fill="#ffffff" text-anchor="middle">GitHub</text>
+      </g>
+
+      <!-- Folder 3 -->
+      <g transform="translate(160, 0)">
+        <path d="M 0,0 L 22,0 L 28,6 L 54,6 L 54,42 L 0,42 Z" fill="#f2c14e" stroke="#111111" stroke-width="2"/>
+        <text x="27" y="60" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="10" fill="#111111" text-anchor="middle">Portfolio</text>
+      </g>
+
+      <!-- Folder 4 -->
+      <g transform="translate(240, 0)">
+        <path d="M 0,0 L 22,0 L 28,6 L 54,6 L 54,42 L 0,42 Z" fill="#f2c14e" stroke="#111111" stroke-width="2"/>
+        <text x="27" y="60" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="10" fill="#111111" text-anchor="middle">LinkedIn</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Window 3: services.txt -->
+  <g transform="translate(20, 458)">
+    <rect x="0" y="0" width="360" height="114" fill="#d8d2c2" stroke="#111111" stroke-width="2"/>
+    <rect x="3" y="3" width="354" height="22" fill="#1d2d5c"/>
+    <text x="10" y="18" font-family="'Pixelify Sans', monospace" font-weight="700" font-size="12" fill="#ffffff">■ services.txt — Notepad</text>
+
+    <g transform="translate(12, 38)">
+      <rect x="0" y="0" width="336" height="60" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+      <text x="10" y="22" font-family="monospace" font-weight="700" font-size="11" fill="#111111">[✓] System Architecture</text>
+      <text x="10" y="42" font-family="monospace" font-weight="700" font-size="11" fill="#111111">[✓] UI/UX Engineering &amp; Design</text>
+    </g>
+  </g>
+</svg>
+
