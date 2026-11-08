@@ -13,12 +13,6 @@ import {
   ExternalLink,
   ArrowRight,
   ArrowUpRight,
-  Compass,
-  Layers,
-  Briefcase,
-  Sparkles,
-  ChevronRight,
-  Share2,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
@@ -375,17 +369,17 @@ export function MonolithTemplate({
       <style>{`
         /* ── Sculptural Gallery Canvas Stage ── */
         .monolith-wrap {
-          --mono-bg: #141412;
+          --mono-bg: #f4f0e8;
           --c1-bg: #ece8de;
           --c1-text: #1a1a17;
           --c2-bg: ${accentColor ? accentColor : '#1d3b2f'};
           --c2-text: #e8e4d8;
           --c3-bg: #d9a441;
           --c3-text: #1a1a17;
-          --c4-bg: #262624;
-          --c4-text: #e8e4d8;
+          --c4-bg: #3d342d;
+          --c4-text: #f5f1ea;
 
-          background: radial-gradient(circle at 50% 20%, #1e1e1a 0%, #11110f 100%);
+          background: var(--mono-bg);
           font-family: 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           min-height: 100svh;
           width: 100%;
@@ -405,71 +399,13 @@ export function MonolithTemplate({
           max-width: 1220px;
           height: min(840px, calc(100svh - 48px));
           border-radius: 28px;
-          box-shadow: 0 30px 90px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+          box-shadow: 0 18px 50px rgba(42, 42, 39, 0.12), 0 2px 10px rgba(0, 0, 0, 0.04);
+          border: 1px solid rgba(26, 26, 23, 0.1);
           overflow: hidden;
           display: flex;
           position: relative;
-          background: var(--mono-bg);
+          background: var(--c1-bg);
           transform: translateZ(0);
-        }
-
-        /* ── Top Floating Breadcrumb Navigation Pill ── */
-        .mono-nav-pill {
-          position: absolute;
-          top: 20px;
-          right: clamp(20px, 3vw, 36px);
-          z-index: 40;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 5px 8px;
-          background: rgba(26, 26, 23, 0.12);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(26, 26, 23, 0.18);
-          border-radius: 999px;
-          transition: background 0.2s ease, border-color 0.2s ease;
-        }
-
-        .mono-slab.active.slab-2 ~ .mono-nav-pill,
-        .mono-slab.active.slab-4 ~ .mono-nav-pill {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: rgba(255, 255, 255, 0.18);
-        }
-
-        .mono-nav-item {
-          border: none;
-          background: transparent;
-          color: inherit;
-          font-family: 'Avenir Next', -apple-system, sans-serif;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          padding: 6px 12px;
-          border-radius: 999px;
-          cursor: pointer;
-          opacity: 0.65;
-          transition: opacity 0.2s ease, background 0.2s ease, color 0.2s ease;
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-        }
-
-        .mono-nav-item:hover {
-          opacity: 1;
-        }
-
-        .mono-nav-item.active {
-          opacity: 1;
-          background: rgba(26, 26, 23, 0.85);
-          color: #ece8de;
-        }
-
-        .mono-slab.active.slab-2 ~ .mono-nav-pill .mono-nav-item.active,
-        .mono-slab.active.slab-4 ~ .mono-nav-pill .mono-nav-item.active {
-          background: rgba(255, 255, 255, 0.9);
-          color: #1a1a17;
         }
 
         /* ── Monolith Slab Dynamics ── */
@@ -686,10 +622,10 @@ export function MonolithTemplate({
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          padding: 12px 20px;
+          padding: 12px 22px;
           border-radius: 12px;
-          background: #1a1a17;
-          color: #ece8de;
+          background: #2b2621;
+          color: #f7f5f0;
           font-size: 13px;
           font-weight: 600;
           text-decoration: none;
@@ -700,7 +636,7 @@ export function MonolithTemplate({
 
         .mono-btn-primary:hover {
           transform: translateY(-2px);
-          background: #000000;
+          background: #191613;
         }
 
         .mono-btn-ghost {
@@ -724,131 +660,12 @@ export function MonolithTemplate({
           border-color: #1a1a17;
         }
 
-        /* Right Wing Showcase (Featured Venture, Dispatch, Jump Cards) */
+        /* Right Wing Showcase (Most Recent Post / Dispatch) */
         .mono-showcase-wing {
           display: flex;
           flex-direction: column;
           gap: 18px;
-        }
-
-        /* ── Featured Active Project Dossier ── */
-        .mono-project-card {
-          background: #1a1a17;
-          color: #ece8de;
-          border-radius: 18px;
-          padding: 20px 24px;
-          box-shadow: 0 10px 28px rgba(0,0,0,0.18);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          transition: transform 0.2s ease, border-color 0.2s ease;
-        }
-
-        .mono-project-card:hover {
-          transform: translateY(-2px);
-          border-color: rgba(255, 255, 255, 0.25);
-        }
-
-        .mono-project-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 10px;
-        }
-
-        .mono-project-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: #d9a441;
-        }
-
-        .mono-project-tag {
-          font-size: 10.5px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          opacity: 0.6;
-        }
-
-        .mono-project-bottom {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-        }
-
-        .mono-project-domain {
-          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-          font-size: 26px;
-          font-weight: 500;
-          color: #ffffff;
-          line-height: 1.1;
-        }
-
-        .mono-project-cta {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          border-radius: 999px;
-          background: #d9a441;
-          color: #1a1a17;
-          font-size: 12px;
-          font-weight: 700;
-          text-decoration: none;
-          white-space: nowrap;
-          transition: transform 0.18s ease, filter 0.18s ease;
-        }
-
-        .mono-project-cta:hover {
-          transform: scale(1.05);
-          filter: brightness(1.1);
-        }
-
-        /* ── Monolith Cross-Slab Jump Directory ── */
-        .mono-jump-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-          gap: 10px;
-        }
-
-        .mono-jump-card {
-          background: rgba(26, 26, 23, 0.05);
-          border: 1px solid rgba(26, 26, 23, 0.12);
-          border-radius: 14px;
-          padding: 14px 16px;
-          text-align: left;
-          cursor: pointer;
-          transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-
-        .mono-jump-card:hover {
-          background: rgba(26, 26, 23, 0.1);
-          transform: translateY(-2px);
-          border-color: rgba(26, 26, 23, 0.25);
-        }
-
-        .mono-jump-num {
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.1em;
-          opacity: 0.5;
-          margin-bottom: 6px;
-        }
-
-        .mono-jump-title {
-          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-          font-size: 16px;
-          font-weight: 600;
-          color: #1a1a17;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+          width: 100%;
         }
 
         /* ── Slab 2 Links Styling (Rich 2-Column Responsive Matrix) ── */
@@ -1161,10 +978,6 @@ export function MonolithTemplate({
             width: 110px;
             height: 135px;
           }
-
-          .mono-swipe-pill {
-            display: inline-flex;
-          }
         }
 
         .mono-toast {
@@ -1186,38 +999,6 @@ export function MonolithTemplate({
       {/* ── Monolithic Architectural Slab Stage ── */}
       <div className="monolith-stage" role="region" aria-label="Monolith Persona Portfolio">
         
-        {/* Floating Quick Tab Breadcrumb on Desktop */}
-        <nav className="mono-nav-pill" aria-label="Monolith panel switcher">
-          <button
-            type="button"
-            className={`mono-nav-item ${activePanel === 'profile' ? 'active' : ''}`}
-            onClick={() => setActivePanel('profile')}
-          >
-            <span>01</span> Profile
-          </button>
-          <button
-            type="button"
-            className={`mono-nav-item ${activePanel === 'links' ? 'active' : ''}`}
-            onClick={() => setActivePanel('links')}
-          >
-            <span>02</span> Links
-          </button>
-          <button
-            type="button"
-            className={`mono-nav-item ${activePanel === 'services' ? 'active' : ''}`}
-            onClick={() => setActivePanel('services')}
-          >
-            <span>03</span> Services
-          </button>
-          <button
-            type="button"
-            className={`mono-nav-item ${activePanel === 'contact' ? 'active' : ''}`}
-            onClick={() => setActivePanel('contact')}
-          >
-            <span>04</span> Contact
-          </button>
-        </nav>
-
         {/* ── PANEL 01: PROFILE ── */}
         <section
           className={`mono-slab slab-1 ${activePanel === 'profile' ? 'active' : ''}`}
@@ -1295,104 +1076,18 @@ export function MonolithTemplate({
                 </div>
               </div>
 
-              {/* Right Wing Showcase (Featured Venture, Dispatch, Jump Cards) */}
-              <div className="mono-showcase-wing">
-                
-                {/* Featured Active Venture Dossier */}
-                {featuredProject && (
-                  <div className="mono-project-card">
-                    <div className="mono-project-top">
-                      <div className="mono-project-badge">
-                        <span className="mono-pulse-beacon" />
-                        <span>Active Project</span>
-                      </div>
-                      <span className="mono-project-tag">Featured Venture</span>
-                    </div>
-
-                    <div className="mono-project-bottom">
-                      <span className="mono-project-domain">{featuredProject.domain}</span>
-                      <a
-                        href={featuredProject.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mono-project-cta"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span>Explore</span>
-                        <ExternalLink size={13} />
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {/* Latest Signal // Archival Dispatch */}
-                {profile?.recentActivity && (
-                  <div className="mono-dispatch-box" onClick={(e) => e.stopPropagation()}>
-                    <RecentActivitySection
-                      activity={profile.recentActivity}
-                      variant="the-monolith"
-                      isDark={false}
-                      accentColor="#1a1a17"
-                      autoScroll={profile.autoScroll}
-                    />
-                  </div>
-                )}
-
-                {/* Monolith Cross-Slab Jump Directory */}
-                <div className="mono-jump-grid">
-                  <div
-                    className="mono-jump-card"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActivePanel('links');
-                    }}
-                  >
-                    <div>
-                      <span className="mono-jump-num">02 // DIRECTORY</span>
-                      <strong className="mono-jump-title">
-                        <span>Curated Links</span>
-                        <ChevronRight size={15} />
-                      </strong>
-                    </div>
-                    <span className="text-[11px] opacity-65 mt-2 block">{allMonolithLinks.length} Channels</span>
-                  </div>
-
-                  <div
-                    className="mono-jump-card"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActivePanel('services');
-                    }}
-                  >
-                    <div>
-                      <span className="mono-jump-num">03 // PRACTICE</span>
-                      <strong className="mono-jump-title">
-                        <span>Services</span>
-                        <ChevronRight size={15} />
-                      </strong>
-                    </div>
-                    <span className="text-[11px] opacity-65 mt-2 block">Offerings & Rates</span>
-                  </div>
-
-                  <div
-                    className="mono-jump-card"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActivePanel('contact');
-                    }}
-                  >
-                    <div>
-                      <span className="mono-jump-num">04 // WIRE</span>
-                      <strong className="mono-jump-title">
-                        <span>Contact</span>
-                        <ChevronRight size={15} />
-                      </strong>
-                    </div>
-                    <span className="text-[11px] opacity-65 mt-2 block">Direct Reach</span>
-                  </div>
+              {/* Right Wing: Most Recent Post */}
+              {profile?.recentActivity && (
+                <div className="mono-showcase-wing" onClick={(e) => e.stopPropagation()}>
+                  <RecentActivitySection
+                    activity={profile.recentActivity}
+                    variant="the-monolith"
+                    isDark={false}
+                    accentColor="#8a5a00"
+                    autoScroll={profile.autoScroll}
+                  />
                 </div>
-
-              </div>
+              )}
 
             </div>
           </div>
@@ -1690,11 +1385,6 @@ export function MonolithTemplate({
           </div>
         </section>
 
-      </div>
-
-      {/* Swipe Indicator for Mobile */}
-      <div className="mono-swipe-pill">
-        <span>▲ Swipe to navigate slabs</span>
       </div>
 
       {toastMessage && (
