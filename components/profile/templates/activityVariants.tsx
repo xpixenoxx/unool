@@ -652,7 +652,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     pulseAnimationColor: '#1c1c1a',
   },
   'the-monolith': {
-    containerClassName: 'my-4 space-y-2.5',
+    containerClassName: 'my-3 space-y-2.5',
     headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.2em] text-[#1a1a17]/70 px-1',
     pulseColor: '#1a1a17',
     pulseSize: 'w-2 h-2',
@@ -660,6 +660,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     titleClassName: 'flex items-center gap-2 font-bold text-[#1a1a17]',
     timestampClassName: 'text-[10px] text-[#1a1a17]/60 font-mono',
     contentClassName: 'p-4 rounded-xl bg-black/5 border border-[#1a1a17]/15 shadow-sm space-y-3 transition-all hover:bg-black/10',
+    contentStyle: () => ({ color: '#1a1a17', fontSize: '14.5px', lineHeight: '1.6', fontFamily: "'Iowan Old Style', Georgia, serif" }),
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#1a1a17]/10',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:scale-105 transition-all text-white no-underline',
@@ -669,7 +670,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     pulseAnimationColor: '#1a1a17',
   },
   'monolith': {
-    containerClassName: 'my-4 space-y-2.5',
+    containerClassName: 'my-3 space-y-2.5',
     headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.2em] text-[#1a1a17]/70 px-1',
     pulseColor: '#1a1a17',
     pulseSize: 'w-2 h-2',
@@ -677,6 +678,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     titleClassName: 'flex items-center gap-2 font-bold text-[#1a1a17]',
     timestampClassName: 'text-[10px] text-[#1a1a17]/60 font-mono',
     contentClassName: 'p-4 rounded-xl bg-black/5 border border-[#1a1a17]/15 shadow-sm space-y-3 transition-all hover:bg-black/10',
+    contentStyle: () => ({ color: '#1a1a17', fontSize: '14.5px', lineHeight: '1.6', fontFamily: "'Iowan Old Style', Georgia, serif" }),
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#1a1a17]/10',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:scale-105 transition-all text-white no-underline',

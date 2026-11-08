@@ -1,10 +1,25 @@
 'use client';
 
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
-import { SocialIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
+import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
-import { Phone, Mail, MessageCircle, Download, MapPin, ExternalLink } from 'lucide-react';
+import {
+  Phone,
+  Mail,
+  MessageCircle,
+  Download,
+  MapPin,
+  ExternalLink,
+  ArrowRight,
+  ArrowUpRight,
+  Compass,
+  Layers,
+  Briefcase,
+  Sparkles,
+  ChevronRight,
+  Share2,
+} from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
    Contextual CTA Action Verbs for Monolithic Slabs
@@ -41,6 +56,17 @@ function cleanDisplayUrl(rawUrl: string): string {
 
 type PanelKey = 'profile' | 'links' | 'services' | 'contact';
 
+interface SynthesizedMonolithLink {
+  id: string;
+  label: string;
+  url: string;
+  icon?: string | null;
+  verb: string;
+  category?: string;
+  isCustom?: boolean;
+  action?: () => void;
+}
+
 export function MonolithTemplate({
   profile,
   accentColor,
@@ -49,6 +75,10 @@ export function MonolithTemplate({
 }: TemplateProps) {
   const [activePanel, setActivePanel] = useState<PanelKey>('profile');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Touch Swipe Gesture State
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -78,8 +108,57 @@ export function MonolithTemplate({
       .toUpperCase();
   }, [name]);
 
-  const handleSaveContact = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  // Featured Project Detection
+  const featuredProject = useMemo(() => {
+    for (const proof of proofs) {
+      const pTitle = (proof.title || '').trim();
+      const pVal = (proof.value || '').trim();
+      const combined = `${pTitle} ${pVal}`.toLowerCase();
+      if (
+        combined.includes('project') ||
+        combined.includes('venture') ||
+        /^https?:\/\//i.test(pVal) ||
+        /\.[a-z]{2,}/i.test(pVal)
+      ) {
+        let domain = pVal;
+        let url = pVal;
+        if (pVal.includes(':')) {
+          const parts = pVal.split(':');
+          domain = parts[parts.length - 1].trim();
+          url = domain;
+        }
+        if (!domain && pTitle) {
+          domain = pTitle;
+          url = pTitle;
+        }
+        if (!url.startsWith('http')) {
+          url = `https://${url}`;
+        }
+        return {
+          title: pTitle && !pTitle.includes('http') ? pTitle : 'Active Project',
+          domain: cleanDisplayUrl(domain) || 'pixenox.com',
+          url,
+        };
+      }
+    }
+
+    // Fallback: check links if website is present
+    const websiteLink = links.find(
+      (l) => l.label.toLowerCase().includes('website') || l.url.includes('pixenox.com')
+    );
+    if (websiteLink) {
+      return {
+        title: 'Active Project',
+        domain: cleanDisplayUrl(websiteLink.url),
+        url: websiteLink.url,
+      };
+    }
+
+    return null;
+  }, [proofs, links]);
+
+  const handleSaveContact = useCallback((e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     try {
       const vcard = [
         'BEGIN:VCARD',
@@ -138,6 +217,82 @@ export function MonolithTemplate({
     return entries;
   }, [profile?.socialHandles]);
 
+  // Smart Multi-Channel Synthesis: Guarantees balanced links without empty voids
+  const allMonolithLinks = useMemo<SynthesizedMonolithLink[]>(() => {
+    const list: SynthesizedMonolithLink[] = [];
+
+    // 1. User custom links
+    links.forEach((l) => {
+      list.push({
+        id: l.id,
+        label: l.label,
+        url: l.url,
+        icon: l.icon,
+        verb: getMonolithActionVerb(l.url, l.label),
+        category: 'Primary Link',
+        isCustom: true,
+      });
+    });
+
+    // 2. Connected social handles
+    socialEntries.forEach((s) => {
+      const already = list.some((item) => item.url.toLowerCase() === s.url.toLowerCase());
+      if (!already) {
+        list.push({
+          id: `social-${s.platform}`,
+          label: s.label,
+          url: s.url,
+          verb: getMonolithActionVerb(s.url, s.label),
+          category: 'Connected Channel',
+        });
+      }
+    });
+
+    // 3. Essential companion channels (if total items < 4)
+    if (list.length < 4 && featuredProject && !list.some((i) => i.url === featuredProject.url)) {
+      list.push({
+        id: 'companion-project',
+        label: featuredProject.title,
+        url: featuredProject.url,
+        verb: 'EXPLORE',
+        category: 'Featured Venture',
+      });
+    }
+
+    if (list.length < 4 && cleanWaNumber) {
+      list.push({
+        id: 'companion-wa',
+        label: 'Direct WhatsApp',
+        url: `https://wa.me/${cleanWaNumber}`,
+        verb: 'CHAT',
+        category: 'Private Wire',
+      });
+    }
+
+    if (list.length < 4 && email) {
+      list.push({
+        id: 'companion-mail',
+        label: 'Executive Dispatch',
+        url: `mailto:${email}`,
+        verb: 'EMAIL',
+        category: 'Direct Inquiries',
+      });
+    }
+
+    if (list.length < 4) {
+      list.push({
+        id: 'companion-vcard',
+        label: 'Monolith Dossier',
+        url: '#',
+        verb: 'SAVE',
+        category: 'Contact Card',
+        action: () => handleSaveContact(),
+      });
+    }
+
+    return list;
+  }, [links, socialEntries, featuredProject, cleanWaNumber, email, handleSaveContact]);
+
   const structuredData = useMemo(() => {
     return {
       '@context': 'https://schema.org',
@@ -155,6 +310,35 @@ export function MonolithTemplate({
       ].filter(Boolean),
     };
   }, [name, role, bio, avatarUrl, email, numericPhone, links, socialEntries]);
+
+  // Touch Swipe Gesture Handling
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const diffX = e.changedTouches[0].clientX - touchStartX.current;
+    const diffY = e.changedTouches[0].clientY - touchStartY.current;
+
+    const panels: PanelKey[] = ['profile', 'links', 'services', 'contact'];
+    const curIdx = panels.indexOf(activePanel);
+
+    // Horizontal swipe detected
+    if (Math.abs(diffX) > 48 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX < 0) {
+        // Swiped left -> Next slab
+        setActivePanel(panels[(curIdx + 1) % panels.length]);
+      } else {
+        // Swiped right -> Previous slab
+        setActivePanel(panels[(curIdx + 3) % panels.length]);
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
 
   // Keyboard navigation for panels
   useEffect(() => {
@@ -182,13 +366,14 @@ export function MonolithTemplate({
   }, []);
 
   return (
-    <div className="monolith-wrap">
+    <div className="monolith-wrap" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
       <style>{`
+        /* ── Sculptural Gallery Canvas Stage ── */
         .monolith-wrap {
           --mono-bg: #141412;
           --c1-bg: #ece8de;
@@ -200,24 +385,94 @@ export function MonolithTemplate({
           --c4-bg: #262624;
           --c4-text: #e8e4d8;
 
-          background: var(--mono-bg);
+          background: radial-gradient(circle at 50% 20%, #1e1e1a 0%, #11110f 100%);
           font-family: 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           min-height: 100svh;
           width: 100%;
-          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: clamp(14px, 2.8vh, 28px) clamp(12px, 2.8vw, 28px);
           position: relative;
+          box-sizing: border-box;
           -webkit-font-smoothing: antialiased;
         }
 
-        /* ── Main Layout: Horizontal Flex on Desktop ── */
-        .monolith-container {
-          display: flex;
-          height: 100svh;
+        /* ── Architectural Monolith Stage Frame (Guarantees 5-6mm Margin & Architectural Poise) ── */
+        .monolith-stage {
           width: 100%;
+          max-width: 1220px;
+          height: min(840px, calc(100svh - 48px));
+          border-radius: 28px;
+          box-shadow: 0 30px 90px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
           overflow: hidden;
+          display: flex;
+          position: relative;
+          background: var(--mono-bg);
+          transform: translateZ(0);
         }
 
-        /* Monolith Slab */
+        /* ── Top Floating Breadcrumb Navigation Pill ── */
+        .mono-nav-pill {
+          position: absolute;
+          top: 20px;
+          right: clamp(20px, 3vw, 36px);
+          z-index: 40;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 5px 8px;
+          background: rgba(26, 26, 23, 0.12);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(26, 26, 23, 0.18);
+          border-radius: 999px;
+          transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .mono-slab.active.slab-2 ~ .mono-nav-pill,
+        .mono-slab.active.slab-4 ~ .mono-nav-pill {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .mono-nav-item {
+          border: none;
+          background: transparent;
+          color: inherit;
+          font-family: 'Avenir Next', -apple-system, sans-serif;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          padding: 6px 12px;
+          border-radius: 999px;
+          cursor: pointer;
+          opacity: 0.65;
+          transition: opacity 0.2s ease, background 0.2s ease, color 0.2s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+
+        .mono-nav-item:hover {
+          opacity: 1;
+        }
+
+        .mono-nav-item.active {
+          opacity: 1;
+          background: rgba(26, 26, 23, 0.85);
+          color: #ece8de;
+        }
+
+        .mono-slab.active.slab-2 ~ .mono-nav-pill .mono-nav-item.active,
+        .mono-slab.active.slab-4 ~ .mono-nav-pill .mono-nav-item.active {
+          background: rgba(255, 255, 255, 0.9);
+          color: #1a1a17;
+        }
+
+        /* ── Monolith Slab Dynamics ── */
         .mono-slab {
           position: relative;
           flex: 0.0001 0 74px;
@@ -237,7 +492,7 @@ export function MonolithTemplate({
         .slab-3 { background: var(--c3-bg); color: var(--c3-text); }
         .slab-4 { background: var(--c4-bg); color: var(--c4-text); }
 
-        /* Collapsed Vertical Label */
+        /* Collapsed Vertical Label with Refined Typography */
         .mono-label {
           position: absolute;
           inset: 0;
@@ -246,7 +501,7 @@ export function MonolithTemplate({
           flex-direction: column;
           align-items: center;
           justify-content: space-between;
-          padding: 34px 0;
+          padding: 38px 0;
           transition: opacity 0.25s ease;
           user-select: none;
         }
@@ -273,20 +528,18 @@ export function MonolithTemplate({
           pointer-events: none;
         }
 
-        /* Expanded Slab Interior Content */
+        /* Expanded Slab Interior Content (Full Width, Zero Dead Space) */
         .mono-content {
           position: absolute;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          width: min(720px, calc(100vw - 230px));
-          padding: 56px clamp(24px, 4.5vw, 64px) 60px;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          padding: 50px clamp(24px, 3.8vw, 54px) 44px;
           overflow-y: auto;
           overflow-x: hidden;
           -webkit-overflow-scrolling: touch;
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.2s ease;
           display: flex;
           flex-direction: column;
         }
@@ -295,34 +548,53 @@ export function MonolithTemplate({
           width: 4px;
         }
         .mono-content::-webkit-scrollbar-thumb {
-          background: rgba(0,0,0,0.15);
+          background: rgba(0,0,0,0.18);
           border-radius: 4px;
         }
         .slab-2 .mono-content::-webkit-scrollbar-thumb,
         .slab-4 .mono-content::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.22);
         }
 
         .mono-slab.active .mono-content {
           opacity: 1;
           pointer-events: auto;
-          transition: opacity 0.35s 0.25s ease;
+          transition: opacity 0.35s 0.2s ease;
         }
 
-        /* ── Slab 1 Profile Styling ── */
+        /* ── Dual-Wing Editorial Grid for Slab 01 (Profile) ── */
+        .mono-profile-grid {
+          display: grid;
+          grid-template-columns: minmax(320px, 1.12fr) minmax(300px, 0.98fr);
+          gap: clamp(28px, 4vw, 52px);
+          align-items: start;
+        }
+
+        /* Left Wing Identity */
+        .mono-identity-wing {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .mono-avatar-header {
+          display: flex;
+          align-items: flex-end;
+          gap: 20px;
+          margin-bottom: 24px;
+        }
+
         .mono-avatar {
-          width: min(200px, 50%);
-          aspect-ratio: 4 / 5;
-          border-radius: 16px;
+          width: 135px;
+          height: 165px;
+          border-radius: 18px;
           background: #cfc8b5;
           color: #1d3b2f;
           display: grid;
           place-items: center;
           font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-          font-size: 52px;
-          margin-bottom: 22px;
+          font-size: 46px;
           overflow: hidden;
-          box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+          box-shadow: 0 10px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
           flex-shrink: 0;
         }
 
@@ -333,18 +605,43 @@ export function MonolithTemplate({
           display: block;
         }
 
+        .mono-status-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 6px 14px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          background: rgba(26, 26, 23, 0.07);
+          color: #1a1a17;
+          border: 1px solid rgba(26, 26, 23, 0.12);
+          margin-bottom: 8px;
+        }
+
+        .mono-pulse-beacon {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #10b981;
+          box-shadow: 0 0 8px #10b981;
+        }
+
         .mono-name {
           font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-          font-size: clamp(38px, 6vw, 68px);
+          font-size: clamp(38px, 5.2vw, 58px);
           line-height: 0.98;
           letter-spacing: -0.025em;
           font-weight: 400;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
+          color: var(--c1-text);
         }
 
         .mono-role {
           font-weight: 700;
-          font-size: 17px;
+          font-size: 16px;
           color: #8a5a00;
           margin-bottom: 14px;
           display: flex;
@@ -354,17 +651,17 @@ export function MonolithTemplate({
         }
 
         .mono-bio {
-          font-size: 16px;
-          line-height: 1.6;
-          max-width: 44ch;
-          opacity: 0.9;
+          font-size: 15.5px;
+          line-height: 1.62;
+          color: rgba(26, 26, 23, 0.9);
+          margin-bottom: 18px;
         }
 
         .mono-chips {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
-          margin-top: 18px;
+          margin-bottom: 24px;
         }
 
         .mono-chip {
@@ -372,44 +669,221 @@ export function MonolithTemplate({
           border-radius: 999px;
           font-size: 11px;
           font-weight: 700;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           background: rgba(26, 26, 23, 0.08);
           color: #1a1a17;
+          border: 1px solid rgba(26, 26, 23, 0.12);
         }
 
-        /* ── Slab 2 Links Styling ── */
-        .mono-section-heading {
+        .mono-profile-actions {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .mono-btn-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 20px;
+          border-radius: 12px;
+          background: #1a1a17;
+          color: #ece8de;
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: none;
+          border: none;
+          cursor: pointer;
+          transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .mono-btn-primary:hover {
+          transform: translateY(-2px);
+          background: #000000;
+        }
+
+        .mono-btn-ghost {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 18px;
+          border-radius: 12px;
+          background: transparent;
+          color: #1a1a17;
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: none;
+          border: 1px solid rgba(26, 26, 23, 0.3);
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .mono-btn-ghost:hover {
+          background: rgba(26, 26, 23, 0.06);
+          border-color: #1a1a17;
+        }
+
+        /* Right Wing Showcase (Featured Venture, Dispatch, Jump Cards) */
+        .mono-showcase-wing {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        /* ── Featured Active Project Dossier ── */
+        .mono-project-card {
+          background: #1a1a17;
+          color: #ece8de;
+          border-radius: 18px;
+          padding: 20px 24px;
+          box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .mono-project-card:hover {
+          transform: translateY(-2px);
+          border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .mono-project-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 10px;
+        }
+
+        .mono-project-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #d9a441;
+        }
+
+        .mono-project-tag {
+          font-size: 10.5px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          opacity: 0.6;
+        }
+
+        .mono-project-bottom {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .mono-project-domain {
           font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-          font-size: 32px;
-          letter-spacing: -0.02em;
-          margin-bottom: 20px;
-          font-weight: 400;
+          font-size: 26px;
+          font-weight: 500;
+          color: #ffffff;
+          line-height: 1.1;
         }
 
-        .mono-link-item {
+        .mono-project-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 999px;
+          background: #d9a441;
+          color: #1a1a17;
+          font-size: 12px;
+          font-weight: 700;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: transform 0.18s ease, filter 0.18s ease;
+        }
+
+        .mono-project-cta:hover {
+          transform: scale(1.05);
+          filter: brightness(1.1);
+        }
+
+        /* ── Monolith Cross-Slab Jump Directory ── */
+        .mono-jump-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+          gap: 10px;
+        }
+
+        .mono-jump-card {
+          background: rgba(26, 26, 23, 0.05);
+          border: 1px solid rgba(26, 26, 23, 0.12);
+          border-radius: 14px;
+          padding: 14px 16px;
+          text-align: left;
+          cursor: pointer;
+          transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .mono-jump-card:hover {
+          background: rgba(26, 26, 23, 0.1);
+          transform: translateY(-2px);
+          border-color: rgba(26, 26, 23, 0.25);
+        }
+
+        .mono-jump-num {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          opacity: 0.5;
+          margin-bottom: 6px;
+        }
+
+        .mono-jump-title {
+          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+          font-size: 16px;
+          font-weight: 600;
+          color: #1a1a17;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        /* ── Slab 2 Links Styling (Rich 2-Column Responsive Matrix) ── */
+        .mono-links-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          gap: 12px;
+        }
+
+        .mono-link-card {
           display: grid;
           grid-template-columns: auto 1fr auto;
           align-items: center;
           gap: 16px;
-          padding: 16px 4px;
-          border-bottom: 1px solid rgba(232, 228, 216, 0.2);
+          padding: 16px 18px;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           text-decoration: none;
           color: inherit;
-          transition: transform 0.2s ease, opacity 0.2s ease;
+          transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
         }
 
-        .mono-link-item:hover {
-          transform: translateX(8px);
-          opacity: 0.95;
+        .mono-link-card:hover {
+          transform: translateY(-2px);
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.25);
         }
 
-        .mono-link-icon {
+        .mono-link-icon-wrap {
           width: 44px;
           height: 44px;
-          border-radius: 50%;
-          background: #e8e4d8;
-          color: #1d3b2f;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.15);
+          color: #ffffff;
           display: grid;
           place-items: center;
           flex-shrink: 0;
@@ -421,83 +895,121 @@ export function MonolithTemplate({
           min-width: 0;
         }
 
+        .mono-link-category {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          opacity: 0.6;
+          margin-bottom: 2px;
+        }
+
         .mono-link-title {
           font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-          font-size: 21px;
-          font-weight: 400;
+          font-size: 19px;
+          font-weight: 500;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .mono-link-url {
-          font-size: 12.5px;
+        .mono-link-domain {
+          font-size: 12px;
           opacity: 0.65;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .mono-link-verb {
+        .mono-link-verb-badge {
           font-size: 11px;
           font-weight: 700;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           color: #d9a441;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
           white-space: nowrap;
         }
 
         /* ── Slab 3 Services Styling ── */
+        .mono-services-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
         .mono-service-row {
           display: flex;
           justify-content: space-between;
-          align-items: baseline;
+          align-items: center;
           gap: 16px;
-          padding: 20px 0;
-          border-bottom: 1px solid rgba(26, 26, 23, 0.25);
-          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-          font-size: clamp(20px, 3.2vw, 32px);
-          font-weight: 400;
+          padding: 18px 22px;
+          border-radius: 14px;
+          background: rgba(26, 26, 23, 0.06);
+          border: 1px solid rgba(26, 26, 23, 0.15);
         }
 
-        .mono-service-row span {
+        .mono-service-main b {
+          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+          font-size: clamp(20px, 2.6vw, 26px);
+          font-weight: 500;
+          color: #1a1a17;
+          display: block;
+        }
+
+        .mono-service-val {
           font-family: 'Avenir Next', -apple-system, sans-serif;
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 700;
-          opacity: 0.85;
+          color: #1a1a17;
           white-space: nowrap;
         }
 
         /* ── Slab 4 Contact Styling ── */
+        .mono-contact-layout {
+          display: grid;
+          grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+          gap: 32px;
+        }
+
         .mono-action-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          margin-bottom: 22px;
+          gap: 12px;
         }
 
         .mono-action-btn {
-          border: 1px solid rgba(232, 228, 216, 0.35);
+          border: 1px solid rgba(232, 228, 216, 0.25);
           border-radius: 14px;
-          padding: 16px 8px;
+          padding: 18px 12px;
           text-align: center;
           font-weight: 600;
           font-size: 13px;
           color: #e8e4d8;
-          background: transparent;
+          background: rgba(255, 255, 255, 0.04);
           text-decoration: none;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          transition: background 0.18s ease, color 0.18s ease;
+          gap: 8px;
+          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
           cursor: pointer;
         }
 
         .mono-action-btn:hover {
           background: #e8e4d8;
           color: #262624;
+          transform: translateY(-2px);
+        }
+
+        .mono-details-card {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(232, 228, 216, 0.15);
+          border-radius: 16px;
+          padding: 20px 24px;
         }
 
         .mono-dt-item {
@@ -505,8 +1017,12 @@ export function MonolithTemplate({
           justify-content: space-between;
           gap: 12px;
           padding: 12px 0;
-          border-bottom: 1px solid rgba(232, 228, 216, 0.2);
+          border-bottom: 1px solid rgba(232, 228, 216, 0.12);
           font-size: 14px;
+        }
+
+        .mono-dt-item:last-child {
+          border-bottom: none;
         }
 
         .mono-dt-item span {
@@ -520,10 +1036,10 @@ export function MonolithTemplate({
         .mono-socials {
           display: flex;
           flex-wrap: wrap;
-          gap: 8px 18px;
-          margin-top: 22px;
+          gap: 10px 18px;
+          margin-top: 18px;
           padding-top: 14px;
-          border-top: 1px solid rgba(232, 228, 216, 0.2);
+          border-top: 1px solid rgba(232, 228, 216, 0.15);
         }
 
         .mono-social-link {
@@ -541,28 +1057,60 @@ export function MonolithTemplate({
           text-decoration: underline;
         }
 
-        /* ── Responsive Mobile Accordion Stack ── */
-        @media (max-width: 760px) {
+        /* ── Section Titles ── */
+        .mono-section-heading {
+          font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+          font-size: clamp(26px, 3.6vw, 36px);
+          letter-spacing: -0.02em;
+          margin-bottom: 22px;
+          font-weight: 400;
+        }
+
+        /* Mobile Swipe Pill */
+        .mono-swipe-pill {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          margin-top: 12px;
+          user-select: none;
+        }
+
+        /* ── Responsive Mobile Viewport Stack ── */
+        @media (max-width: 820px) {
           .monolith-wrap {
-            overflow-y: auto;
-            overflow-x: hidden;
+            padding: 10px 8px;
+            justify-content: flex-start;
           }
 
-          .monolith-container {
+          .monolith-stage {
             flex-direction: column;
             height: auto;
-            min-height: 100svh;
+            min-height: calc(100svh - 20px);
+            border-radius: 20px;
+          }
+
+          .mono-nav-pill {
+            display: none;
           }
 
           .mono-slab {
-            flex-basis: 64px;
+            flex-basis: 58px;
             flex-grow: 0;
-            min-height: 64px;
-            transition: min-height 0.5s cubic-bezier(0.7, 0, 0.2, 1);
+            min-height: 58px;
+            transition: min-height 0.45s cubic-bezier(0.7, 0, 0.2, 1);
           }
 
           .mono-slab.active {
-            min-height: calc(100svh - 192px);
+            min-height: calc(100svh - 194px);
             flex-grow: 1;
           }
 
@@ -570,14 +1118,14 @@ export function MonolithTemplate({
             flex-direction: row;
             padding: 0 20px;
             align-items: center;
-            height: 64px;
+            height: 58px;
             bottom: auto;
           }
 
           .mono-label b {
             writing-mode: horizontal-tb;
             transform: none;
-            font-size: 20px;
+            font-size: 19px;
           }
 
           .mono-slab.active .mono-label {
@@ -588,19 +1136,34 @@ export function MonolithTemplate({
           .mono-content {
             position: relative;
             width: 100%;
-            top: 64px;
-            left: 0;
-            padding: 14px 20px 48px;
+            height: auto;
+            top: 58px;
+            padding: 12px 18px 48px;
             opacity: 0;
           }
 
           .mono-slab.active .mono-content {
             opacity: 1;
-            transition: opacity 0.3s 0.15s ease;
+            transition: opacity 0.3s 0.12s ease;
+          }
+
+          .mono-profile-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+
+          .mono-contact-layout {
+            grid-template-columns: 1fr;
+            gap: 20px;
           }
 
           .mono-avatar {
-            width: 140px;
+            width: 110px;
+            height: 135px;
+          }
+
+          .mono-swipe-pill {
+            display: inline-flex;
           }
         }
 
@@ -611,18 +1174,50 @@ export function MonolithTemplate({
           transform: translateX(-50%);
           background: #e8e4d8;
           color: #1a1a17;
-          padding: 10px 18px;
+          padding: 10px 20px;
           border-radius: 999px;
           font-size: 13px;
           font-weight: 700;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.45);
           z-index: 100;
         }
       `}</style>
 
-      {/* Monolithic Expanding Slabs */}
-      <main className="monolith-container" role="tablist">
+      {/* ── Monolithic Architectural Slab Stage ── */}
+      <div className="monolith-stage" role="region" aria-label="Monolith Persona Portfolio">
         
+        {/* Floating Quick Tab Breadcrumb on Desktop */}
+        <nav className="mono-nav-pill" aria-label="Monolith panel switcher">
+          <button
+            type="button"
+            className={`mono-nav-item ${activePanel === 'profile' ? 'active' : ''}`}
+            onClick={() => setActivePanel('profile')}
+          >
+            <span>01</span> Profile
+          </button>
+          <button
+            type="button"
+            className={`mono-nav-item ${activePanel === 'links' ? 'active' : ''}`}
+            onClick={() => setActivePanel('links')}
+          >
+            <span>02</span> Links
+          </button>
+          <button
+            type="button"
+            className={`mono-nav-item ${activePanel === 'services' ? 'active' : ''}`}
+            onClick={() => setActivePanel('services')}
+          >
+            <span>03</span> Services
+          </button>
+          <button
+            type="button"
+            className={`mono-nav-item ${activePanel === 'contact' ? 'active' : ''}`}
+            onClick={() => setActivePanel('contact')}
+          >
+            <span>04</span> Contact
+          </button>
+        </nav>
+
         {/* ── PANEL 01: PROFILE ── */}
         <section
           className={`mono-slab slab-1 ${activePanel === 'profile' ? 'active' : ''}`}
@@ -637,37 +1232,169 @@ export function MonolithTemplate({
           </div>
 
           <div className="mono-content">
-            <div className="mono-avatar">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={name} loading="eager" />
-              ) : (
-                <span>{initials}</span>
-              )}
-            </div>
+            <div className="mono-profile-grid">
+              
+              {/* Left Wing Identity */}
+              <div className="mono-identity-wing">
+                <div className="mono-avatar-header">
+                  <div className="mono-avatar">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={name} loading="eager" />
+                    ) : (
+                      <span>{initials}</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className="mono-status-badge">
+                      <span className="mono-pulse-beacon" />
+                      <span>Available for Advisory</span>
+                    </div>
+                    {location && (
+                      <div className="inline-flex items-center gap-1.5 opacity-75 text-xs text-[#1a1a17]">
+                        <MapPin size={13} />
+                        <span>{location}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-            <h1 className="mono-name">{name}</h1>
+                <h1 className="mono-name">{name}</h1>
 
-            <div className="mono-role">
-              <span>{role}</span>
-              {location && (
-                <span className="inline-flex items-center gap-1 opacity-70 text-xs ml-1">
-                  <MapPin size={12} />
-                  {location}
-                </span>
-              )}
-            </div>
+                <div className="mono-role">
+                  <span>{role}</span>
+                </div>
 
-            <p className="mono-bio">{bio}</p>
+                <p className="mono-bio">{bio}</p>
 
-            {profile?.openTo && profile.openTo.length > 0 && (
-              <div className="mono-chips">
-                {profile.openTo.map((intent: string) => (
-                  <span key={intent} className="mono-chip">
-                    {intent.replace(/-/g, ' ')}
-                  </span>
-                ))}
+                {profile?.openTo && profile.openTo.length > 0 && (
+                  <div className="mono-chips">
+                    {profile.openTo.map((intent: string) => (
+                      <span key={intent} className="mono-chip">
+                        {intent.replace(/-/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mono-profile-actions">
+                  <button type="button" className="mono-btn-primary" onClick={handleSaveContact}>
+                    <Download size={15} />
+                    <span>Save Contact</span>
+                  </button>
+                  {email ? (
+                    <a href={`mailto:${email}`} className="mono-btn-ghost">
+                      <Mail size={15} />
+                      <span>Direct Wire</span>
+                    </a>
+                  ) : cleanWaNumber ? (
+                    <a href={`https://wa.me/${cleanWaNumber}`} target="_blank" rel="noopener noreferrer" className="mono-btn-ghost">
+                      <MessageCircle size={15} />
+                      <span>WhatsApp</span>
+                    </a>
+                  ) : null}
+                </div>
               </div>
-            )}
+
+              {/* Right Wing Showcase (Featured Venture, Dispatch, Jump Cards) */}
+              <div className="mono-showcase-wing">
+                
+                {/* Featured Active Venture Dossier */}
+                {featuredProject && (
+                  <div className="mono-project-card">
+                    <div className="mono-project-top">
+                      <div className="mono-project-badge">
+                        <span className="mono-pulse-beacon" />
+                        <span>Active Project</span>
+                      </div>
+                      <span className="mono-project-tag">Featured Venture</span>
+                    </div>
+
+                    <div className="mono-project-bottom">
+                      <span className="mono-project-domain">{featuredProject.domain}</span>
+                      <a
+                        href={featuredProject.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mono-project-cta"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span>Explore</span>
+                        <ExternalLink size={13} />
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Latest Signal // Archival Dispatch */}
+                {profile?.recentActivity && (
+                  <div className="mono-dispatch-box" onClick={(e) => e.stopPropagation()}>
+                    <RecentActivitySection
+                      activity={profile.recentActivity}
+                      variant="the-monolith"
+                      isDark={false}
+                      accentColor="#1a1a17"
+                      autoScroll={profile.autoScroll}
+                    />
+                  </div>
+                )}
+
+                {/* Monolith Cross-Slab Jump Directory */}
+                <div className="mono-jump-grid">
+                  <div
+                    className="mono-jump-card"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePanel('links');
+                    }}
+                  >
+                    <div>
+                      <span className="mono-jump-num">02 // DIRECTORY</span>
+                      <strong className="mono-jump-title">
+                        <span>Curated Links</span>
+                        <ChevronRight size={15} />
+                      </strong>
+                    </div>
+                    <span className="text-[11px] opacity-65 mt-2 block">{allMonolithLinks.length} Channels</span>
+                  </div>
+
+                  <div
+                    className="mono-jump-card"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePanel('services');
+                    }}
+                  >
+                    <div>
+                      <span className="mono-jump-num">03 // PRACTICE</span>
+                      <strong className="mono-jump-title">
+                        <span>Services</span>
+                        <ChevronRight size={15} />
+                      </strong>
+                    </div>
+                    <span className="text-[11px] opacity-65 mt-2 block">Offerings & Rates</span>
+                  </div>
+
+                  <div
+                    className="mono-jump-card"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePanel('contact');
+                    }}
+                  >
+                    <div>
+                      <span className="mono-jump-num">04 // WIRE</span>
+                      <strong className="mono-jump-title">
+                        <span>Contact</span>
+                        <ChevronRight size={15} />
+                      </strong>
+                    </div>
+                    <span className="text-[11px] opacity-65 mt-2 block">Direct Reach</span>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
           </div>
         </section>
 
@@ -685,29 +1412,43 @@ export function MonolithTemplate({
           </div>
 
           <div className="mono-content">
-            <h2 className="mono-section-heading">Curated Links</h2>
+            <h2 className="mono-section-heading">Curated Links & Channels</h2>
 
-            {links && links.length > 0 ? (
-              <div>
-                {links.map((link, idx) => {
-                  const verb = getMonolithActionVerb(link.url, link.label);
+            {allMonolithLinks && allMonolithLinks.length > 0 ? (
+              <div className="mono-links-grid">
+                {allMonolithLinks.map((item, idx) => {
                   return (
                     <a
-                      key={link.id || idx}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mono-link-item"
-                      onClick={() => onLinkClick?.(link)}
+                      key={item.id || idx}
+                      href={item.url}
+                      target={item.url.startsWith('http') ? '_blank' : undefined}
+                      rel={item.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      className="mono-link-card"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (item.action) {
+                          e.preventDefault();
+                          item.action();
+                          return;
+                        }
+                        if (item.isCustom) {
+                          const original = links.find((l) => l.id === item.id);
+                          if (original) onLinkClick?.(original);
+                        }
+                      }}
                     >
-                      <div className="mono-link-icon">
-                        <SocialIcon label={link.label} url={link.url} icon={link.icon || undefined} className="w-5 h-5 fill-current" />
+                      <div className="mono-link-icon-wrap">
+                        <SocialIcon label={item.label} url={item.url} icon={item.icon || undefined} className="w-5 h-5 fill-current" />
                       </div>
                       <div className="mono-link-text">
-                        <strong className="mono-link-title">{link.label}</strong>
-                        <span className="mono-link-url">{cleanDisplayUrl(link.url)}</span>
+                        <span className="mono-link-category">{item.category || 'Link'}</span>
+                        <strong className="mono-link-title">{item.label}</strong>
+                        <span className="mono-link-domain">{cleanDisplayUrl(item.url)}</span>
                       </div>
-                      <span className="mono-link-verb">{verb} &rarr;</span>
+                      <span className="mono-link-verb-badge">
+                        <span>{item.verb}</span>
+                        <ArrowUpRight size={13} />
+                      </span>
                     </a>
                   );
                 })}
@@ -736,44 +1477,65 @@ export function MonolithTemplate({
           <div className="mono-content">
             <h2 className="mono-section-heading">Services & Offerings</h2>
 
-            {proofs && proofs.length > 0 ? (
-              <div>
-                {proofs.map((proof, idx) => (
+            <div className="mono-services-stack">
+              {proofs && proofs.length > 0 ? (
+                proofs.map((proof, idx) => (
                   <div key={proof.id || idx} className="mono-service-row">
-                    <b>{proof.title}</b>
-                    <span>{proof.value}</span>
+                    <div className="mono-service-main">
+                      <b>{proof.title || 'Brand Advisory'}</b>
+                    </div>
+                    <span className="mono-service-val">{proof.value || 'Inquire'}</span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div>
-                <div className="mono-service-row">
-                  <b>Architectural Systems</b>
-                  <span>From $2,000</span>
-                </div>
-                <div className="mono-service-row">
-                  <b>Digital Identity Systems</b>
-                  <span>From $1,500</span>
-                </div>
-                <div className="mono-service-row">
-                  <b>Spatial Direction</b>
-                  <span>From $900</span>
-                </div>
-              </div>
-            )}
+                ))
+              ) : (
+                <>
+                  <div className="mono-service-row">
+                    <div className="mono-service-main">
+                      <b>Brand Identity & Systems</b>
+                    </div>
+                    <span className="mono-service-val">From $800</span>
+                  </div>
+                  <div className="mono-service-row">
+                    <div className="mono-service-main">
+                      <b>Digital Systems Architecture</b>
+                    </div>
+                    <span className="mono-service-val">From $1,500</span>
+                  </div>
+                  <div className="mono-service-row">
+                    <div className="mono-service-main">
+                      <b>Spatial & Creative Direction</b>
+                    </div>
+                    <span className="mono-service-val">From $1,200</span>
+                  </div>
+                </>
+              )}
+            </div>
 
-            {/* Activity Section */}
-            {profile?.recentActivity && (
-              <div className="mt-6 pt-4 border-t border-[#1a1a17]/25">
-                <RecentActivitySection
-                  activity={profile.recentActivity}
-                  variant="stack"
-                  isDark={false}
-                  accentColor="#1a1a17"
-                  autoScroll={profile.autoScroll}
-                />
-              </div>
-            )}
+            {/* Inquire Action Button */}
+            <div className="mt-8 flex items-center gap-4">
+              {email ? (
+                <a
+                  href={`mailto:${email}?subject=${encodeURIComponent('Advisory Inquiry via Monolith')}`}
+                  className="mono-btn-primary"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Mail size={15} />
+                  <span>Inquire for Project</span>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className="mono-btn-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePanel('contact');
+                  }}
+                >
+                  <ArrowRight size={15} />
+                  <span>Contact for Rates</span>
+                </button>
+              )}
+            </div>
           </div>
         </section>
 
@@ -793,94 +1555,147 @@ export function MonolithTemplate({
           <div className="mono-content">
             <h2 className="mono-section-heading">Direct Reach</h2>
 
-            <nav className="mono-action-grid" aria-label="Direct contact actions">
-              {numericPhone ? (
-                <a href={`tel:${numericPhone}`} className="mono-action-btn">
-                  <Phone size={16} />
-                  <span>Call</span>
-                </a>
-              ) : (
-                <button type="button" className="mono-action-btn" onClick={() => showToast('Phone number not listed')}>
-                  <Phone size={16} />
-                  <span>Call</span>
-                </button>
-              )}
+            <div className="mono-contact-layout">
+              {/* Direct Action Grid */}
+              <div>
+                <nav className="mono-action-grid" aria-label="Direct contact actions">
+                  {numericPhone ? (
+                    <a href={`tel:${numericPhone}`} className="mono-action-btn" onClick={(e) => e.stopPropagation()}>
+                      <Phone size={18} />
+                      <span>Call</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      className="mono-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showToast('Phone number not listed');
+                      }}
+                    >
+                      <Phone size={18} />
+                      <span>Call</span>
+                    </button>
+                  )}
 
-              {email ? (
-                <a href={`mailto:${email}`} className="mono-action-btn">
-                  <Mail size={16} />
-                  <span>Email</span>
-                </a>
-              ) : (
-                <button type="button" className="mono-action-btn" onClick={() => showToast('Email not listed')}>
-                  <Mail size={16} />
-                  <span>Email</span>
-                </button>
-              )}
+                  {email ? (
+                    <a href={`mailto:${email}`} className="mono-action-btn" onClick={(e) => e.stopPropagation()}>
+                      <Mail size={18} />
+                      <span>Email</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      className="mono-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showToast('Email not listed');
+                      }}
+                    >
+                      <Mail size={18} />
+                      <span>Email</span>
+                    </button>
+                  )}
 
-              {cleanWaNumber ? (
-                <a href={`https://wa.me/${cleanWaNumber}`} target="_blank" rel="noopener noreferrer" className="mono-action-btn">
-                  <MessageCircle size={16} />
-                  <span>WhatsApp</span>
-                </a>
-              ) : (
-                <button type="button" className="mono-action-btn" onClick={() => showToast('WhatsApp unavailable')}>
-                  <MessageCircle size={16} />
-                  <span>WhatsApp</span>
-                </button>
-              )}
+                  {cleanWaNumber ? (
+                    <a
+                      href={`https://wa.me/${cleanWaNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mono-action-btn"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MessageCircle size={18} />
+                      <span>WhatsApp</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      className="mono-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showToast('WhatsApp unavailable');
+                      }}
+                    >
+                      <MessageCircle size={18} />
+                      <span>WhatsApp</span>
+                    </button>
+                  )}
 
-              <button type="button" className="mono-action-btn" onClick={handleSaveContact}>
-                <Download size={16} />
-                <span>vCard</span>
-              </button>
-            </nav>
-
-            {phone && (
-              <div className="mono-dt-item">
-                <span>Phone</span>
-                <b>{phone}</b>
-              </div>
-            )}
-
-            {email && (
-              <div className="mono-dt-item">
-                <span>Email</span>
-                <b>{email}</b>
-              </div>
-            )}
-
-            {location && (
-              <div className="mono-dt-item">
-                <span>Location</span>
-                <b>{location}</b>
-              </div>
-            )}
-
-            {socialEntries.length > 0 && (
-              <div className="mono-socials">
-                {socialEntries.map((soc) => (
-                  <a
-                    key={soc.platform}
-                    href={soc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mono-social-link"
+                  <button
+                    type="button"
+                    className="mono-action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSaveContact();
+                    }}
                   >
-                    <SocialIcon label={soc.label} url={soc.url} className="w-3.5 h-3.5 fill-current" />
-                    <span>{soc.label}</span>
-                  </a>
-                ))}
+                    <Download size={18} />
+                    <span>vCard</span>
+                  </button>
+                </nav>
               </div>
-            )}
 
-            <div className="mt-auto pt-6 opacity-60 text-xs">
-              <p>&copy; {new Date().getFullYear()} {name}</p>
+              {/* Detail Items & Socials */}
+              <div className="mono-details-card">
+                {phone && (
+                  <div className="mono-dt-item">
+                    <span>Phone</span>
+                    <b>{phone}</b>
+                  </div>
+                )}
+
+                {email && (
+                  <div className="mono-dt-item">
+                    <span>Email</span>
+                    <b>{email}</b>
+                  </div>
+                )}
+
+                {location && (
+                  <div className="mono-dt-item">
+                    <span>Location</span>
+                    <b>{location}</b>
+                  </div>
+                )}
+
+                <div className="mono-dt-item">
+                  <span>Availability</span>
+                  <b>Direct Bookings Open</b>
+                </div>
+
+                {socialEntries.length > 0 && (
+                  <div className="mono-socials">
+                    {socialEntries.map((soc) => (
+                      <a
+                        key={soc.platform}
+                        href={soc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mono-social-link"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <SocialIcon label={soc.label} url={soc.url} className="w-3.5 h-3.5 fill-current" />
+                        <span>{soc.label}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-6 pt-4 border-t border-white/10 opacity-60 text-xs">
+                  <p>&copy; {new Date().getFullYear()} {name}. All rights reserved.</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-      </main>
+      </div>
+
+      {/* Swipe Indicator for Mobile */}
+      <div className="mono-swipe-pill">
+        <span>▲ Swipe to navigate slabs</span>
+      </div>
 
       {toastMessage && (
         <div className="mono-toast" role="status">
@@ -892,4 +1707,3 @@ export function MonolithTemplate({
 }
 
 export default MonolithTemplate;
-
