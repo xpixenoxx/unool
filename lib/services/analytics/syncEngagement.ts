@@ -46,11 +46,11 @@ export async function syncWorkspaceEngagement(
     }
 
     // Map connections by ID and platform
-    const connectionMap = new Map<string, { platform: string; token: string }>();
+    const connectionMap = new Map<string, { id: string; platform: string; token: string }>();
     for (const conn of connections) {
       try {
         const decrypted = await decryptToken(conn.access_token_encrypted);
-        connectionMap.set(conn.id, { platform: conn.platform, token: decrypted });
+        connectionMap.set(conn.id, { id: conn.id, platform: conn.platform, token: decrypted });
       } catch (err) {
         logger.warn('Failed to decrypt connection token for engagement sync', { connectionId: conn.id, platform: conn.platform });
       }
@@ -141,22 +141,44 @@ export async function syncWorkspaceEngagement(
           );
 
           const rawEngagement = await Promise.race([fetchPromise, timeoutPromise]);
-          const normalized = extractNormalizedEngagement({
-            ...rawEngagement,
+          const rawObj = rawEngagement && typeof rawEngagement === 'object' ? rawEngagement : {};
+          const hasFreshMetrics =
+            Object.keys(rawObj).length > 0 &&
+            (Number(rawObj.likes ?? rawObj.like_count ?? 0) > 0 ||
+              Number(rawObj.comments ?? rawObj.comments_count ?? rawObj.replies ?? 0) > 0 ||
+              Number(rawObj.shares ?? rawObj.reposts ?? 0) > 0 ||
+              Number(rawObj.views ?? 0) > 0 ||
+              rawObj.hasRealData === true);
+
+          const prevNormalized = extractNormalizedEngagement(pp.engagement);
+          const freshNormalized = extractNormalizedEngagement({
+            ...rawObj,
             syncedAt: new Date().toISOString(),
           });
+
+          // If fresh fetch has positive metrics, update; otherwise preserve valid historical metrics
+          const normalized = hasFreshMetrics
+            ? freshNormalized
+            : prevNormalized.hasRealData
+            ? prevNormalized
+            : freshNormalized;
 
           // Persist to Supabase
           const updatedPayload = {
             ...(pp.engagement || {}),
-            ...rawEngagement,
+            ...(hasFreshMetrics ? rawObj : {}),
             syncedAt: new Date().toISOString(),
             _normalized: normalized,
           };
 
+          const updateFields: Record<string, unknown> = { engagement: updatedPayload };
+          if (connInfo.id && pp.platform_connection_id !== connInfo.id) {
+            updateFields.platform_connection_id = connInfo.id;
+          }
+
           await supabaseAdmin
             .from('platform_posts')
-            .update({ engagement: updatedPayload })
+            .update(updateFields)
             .eq('id', pp.id);
 
           result.syncedCount++;

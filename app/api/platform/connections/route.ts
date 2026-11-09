@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
@@ -190,8 +190,9 @@ export async function GET(request: NextRequest) {
         let status: string;
 
         if (dbStatus === 'error' || dbStatus === 'revoked') {
-          // PublishService marked this connection as broken — user must reconnect
-          status = 'expired';
+          // If voluntarily disconnected (revoked), show as not_connected so UI displays clean Connect state;
+          // error indicates a publishing auth failure requiring reconnect.
+          status = dbStatus === 'revoked' ? 'not_connected' : 'expired';
         } else if (accessTokenExpired && !hasRefreshToken) {
           // Access token expired and no refresh token — truly expired
           status = 'expired';

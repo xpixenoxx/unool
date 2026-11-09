@@ -116,4 +116,26 @@ describe('Universal Social Engagement Normalizer', () => {
     expect(extractNormalizedEngagement({ plays: 480 }).views).toBe(480);
     expect(extractNormalizedEngagement({ pageViews: 1200 }).views).toBe(1200);
   });
+
+  it('correctly identifies valid historical data for non-destructive retention', () => {
+    const historicalPayload = {
+      likes: 8,
+      comments: 3,
+      views: 120,
+      syncedAt: '2026-11-08T12:00:00.000Z',
+    };
+    const prevNormalized = extractNormalizedEngagement(historicalPayload);
+    expect(prevNormalized.hasRealData).toBe(true);
+    expect(prevNormalized.totalInteractions).toBe(11);
+
+    // Empty/zero sync result from disconnected account or failed API call
+    const failedSyncRaw = {};
+    const failedNormalized = extractNormalizedEngagement(failedSyncRaw);
+    expect(failedNormalized.hasRealData).toBe(false);
+
+    // Retention policy: preserve prevNormalized when fresh sync has no metrics
+    const preserved = failedNormalized.hasRealData ? failedNormalized : prevNormalized;
+    expect(preserved.totalInteractions).toBe(11);
+    expect(preserved.hasRealData).toBe(true);
+  });
 });

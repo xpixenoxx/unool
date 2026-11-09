@@ -51,6 +51,7 @@ export interface IPlatformRepository {
   create(input: CreatePlatformConnectionInput): Promise<PlatformConnection>;
   update(id: string, data: Partial<PlatformConnection>): Promise<PlatformConnection>;
   updateStatus(id: string, status: PlatformConnectionStatus): Promise<PlatformConnection>;
+  disconnect(id: string): Promise<void>;
   delete(id: string): Promise<void>;
 
   // Platform posts

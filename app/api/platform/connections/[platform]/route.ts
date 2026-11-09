@@ -31,7 +31,7 @@ export async function DELETE(
     }
 
     for (const conn of matchingConns) {
-      await platformRepository.delete(conn.id);
+      await platformRepository.disconnect(conn.id);
     }
 
     logger.info('Platform disconnected', { traceId, workspaceId: auth.workspaceId, platform });

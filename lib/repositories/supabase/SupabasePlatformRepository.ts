@@ -1,4 +1,4 @@
-﻿import { config } from '@/lib/config/schema';
+import { config } from '@/lib/config/schema';
 import type { IPlatformRepository } from '../interfaces/IPlatformRepository';
 import type {
   PlatformConnection,
@@ -177,7 +177,35 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       }
     }
     if (error) throw error;
-    return this.mapConnectionRow(data);
+    const mapped = this.mapConnectionRow(data);
+
+    // Reconcile and preserve past posts: ensure existing platform_posts for this workspace & platform
+    // are re-linked to this connection ID so historical analytics remain seamlessly connected.
+    try {
+      const { data: wsPosts } = await this.supabase
+        .from('posts')
+        .select('id')
+        .eq('workspace_id', input.workspaceId);
+      const postIds = (wsPosts || []).map((p: any) => p.id);
+      if (postIds.length > 0) {
+        const { data: wsVariants } = await this.supabase
+          .from('post_variants')
+          .select('id')
+          .eq('platform', input.platform)
+          .in('post_id', postIds);
+        const variantIds = (wsVariants || []).map((v: any) => v.id);
+        if (variantIds.length > 0) {
+          await this.supabase
+            .from('platform_posts')
+            .update({ platform_connection_id: mapped.id })
+            .in('post_variant_id', variantIds);
+        }
+      }
+    } catch {
+      // Non-blocking post-reconciliation
+    }
+
+    return mapped;
   }
 
   async update(id: string, data: Partial<PlatformConnection>): Promise<PlatformConnection> {
@@ -196,6 +224,20 @@ export class SupabasePlatformRepository implements IPlatformRepository {
 
   async updateStatus(id: string, status: 'connected' | 'expired' | 'revoked' | 'error'): Promise<PlatformConnection> {
     return this.update(id, { status });
+  }
+
+  async disconnect(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('platform_connections')
+      .update({
+        status: 'revoked',
+        access_token_encrypted: '',
+        refresh_token_encrypted: null,
+        expires_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    if (error) throw error;
   }
 
   async delete(id: string): Promise<void> {
