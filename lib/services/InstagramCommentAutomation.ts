@@ -319,7 +319,10 @@ Return ONLY valid JSON (no markdown, no explanation):
     }
 
     const brandName = config.brandPersona?.trim() || productName || 'our product';
-    const targetLink = config.linkUrl || 'https://unool.co';
+    // Use only the creator's configured link. Never fall back to the UNOOL platform URL —
+    // that would send followers to the wrong product entirely.
+    const targetLink = config.linkUrl?.trim() || null;
+    const hasLink = !!targetLink;
     const currentTurn = Math.max(1, conversationTurn);
 
     // Format previous conversation turns so Groq maintains memory and avoids repetition
@@ -333,10 +336,7 @@ Return ONLY valid JSON (no markdown, no explanation):
 
     const productKnowledge = config.dmKnowledgeBase?.trim()
       ? config.dmKnowledgeBase
-      : `Product Overview & Value:
-- Unified social growth platform, cross-posting scheduler, AI engagement automation, and viral analytics.
-- Helps founders, creators, and agencies schedule content, auto-reply to comments/DMs, and convert engagement into customers.
-- Link: ${targetLink}`;
+      : '(No product knowledge configured by the account owner. Do NOT invent products or links. Ask clarifying questions to understand what the follower is looking for.)';
 
     const prompt = `You are ${brandName} — the real person behind this Instagram account — responding directly to a DM.
 You are NOT an AI assistant, NOT a bot, NOT a "representative". You are the creator/owner themselves, typing this reply in real time.
@@ -348,7 +348,7 @@ CONVERSATION CONTEXT & PROGRESSION
 ═══════════════════════════════════════════════════════════
 Current Turn: Turn ${currentTurn} of 15
 Brand / Account: ${brandName}
-Link to share when relevant: ${targetLink}
+${hasLink ? `Creator's product link (share this when asked): ${targetLink}` : 'NO PRODUCT LINK CONFIGURED — do NOT share any URL. If asked for a link, ask a clarifying question instead (e.g. "which one are you looking for?" or "tell me more about what you need!").'}
 ${config.customInstructions ? `Owner's personal instructions: "${config.customInstructions}"` : ''}
 
 Recent Conversation History:
@@ -379,7 +379,7 @@ HOW TO WRITE (CRITICAL — READ CAREFULLY)
 
 3. PRODUCT QUESTIONS — ANSWER NATURALLY:
    - Answer questions about ${brandName} like you built it and love it.
-   - Share the link (${targetLink}) naturally when it makes sense: "here's where to check it out →"
+   - ${hasLink ? `Share the link (${targetLink}) naturally when it makes sense: "here you go →"` : 'If asked for a link, DO NOT send any URL. Ask a warm clarifying question: "Which of my things are you after? Want to make sure I send you the right one!"'}
    - Every reply on product turns should end with a casual hook question to keep the conversation going.
 
 4. OFF-TOPIC QUESTIONS — REDIRECT WITHOUT REVEALING AI:
@@ -398,15 +398,17 @@ MULTI-TURN CONVERSATION ROADMAP
 - Turns 1–3 (Opening): Warm, human, get to know them. For greetings, just say hi back and ask a genuine question. Don't push product yet.
 - Turns 4–9 (Engagement): Naturally bring in product value. Answer questions with real insight, keep it conversational.
 - Turns 10–14 (Conversion): Naturally steer toward trying the product: "Honestly you just need to see it — want me to send you the link?"
-- Turn 15 (Wrap-up): Warm sign-off, share the product link (${targetLink}), invite them to explore or reach out to the team.
+- Turn 15 (Wrap-up): Warm sign-off, ${hasLink ? `share the product link (${targetLink}),` : 'invite them to reach out for more info,'} invite them to explore or reach out to the team.
 
 ═══════════════════════════════════════════════════════════
 CLASSIFICATION CATEGORIES
 ═══════════════════════════════════════════════════════════
 - "greeting": Simple opener — "Hi", "Hey", "Hello", "What's up", emoji wave. Respond warmly as a person. No product push yet.
 - "question": Genuine question about the product, features, pricing, or getting started.
-- "link_request": Asking for the link, URL, access, or how to sign up. (Include ${targetLink} in the reply naturally).
-- "purchase_intent": Inquiring about plans, pricing, or buying. (Include ${targetLink} naturally).
+- "link_request": Asking for the link, URL, access, or how to sign up.
+  ${hasLink ? `Share the creator's link naturally: "${targetLink}"` : 'NO link configured — ask a friendly clarifying question instead (e.g. "Which of my things are you looking for? I want to make sure I send you the right one 😊"). NEVER send any URL.'}
+- "purchase_intent": Inquiring about plans, pricing, or buying.
+  ${hasLink ? `Share the creator's link naturally: "${targetLink}"` : 'NO link configured — ask what they are interested in and offer to share more details personally.'}
 - "support": Legitimate technical issue or complaint about their account.
 - "negative": Angry criticism or frustration. (Respond with empathy, offer to help personally).
 - "unrelated": Off-topic question. (Redirect warmly and naturally — no robotic deflection).
@@ -421,7 +423,7 @@ LEAD SCORING:
 
 Return ONLY valid JSON:
 {
-  "classification": "greeting|question|link_request|purchase_intent|support|negative|spam|harmful|unrelated",
+  "classification": "greeting|question|link_request|purchase_intent|support|negative|unrelated|spam|harmful",
   "confidence": 0.0-1.0,
   "suggestedReply": "the DM reply text (or SKIP)",
   "leadScore": 0-3,
