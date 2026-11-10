@@ -281,16 +281,20 @@ async function handleJob(params: InstagramOutboundJobParams) {
       let sentDmText = '';
       if (classified.shouldSendDM && classified.suggestedDM) {
         try {
+          const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
+          const dmTextToSend = cfg?.require_follow_for_dm
+            ? `Hey ${commenterUsername ? `@${commenterUsername}` : 'there'}! 👋 Make sure to follow ${brandHandle} and reply "link" here to unlock your access! 🚀`
+            : classified.suggestedDM;
           const dmRes = await automation.sendDmForComment(
             accessToken,
             connection.platform_user_id,
             commentId,
             undefined,
-            classified.suggestedDM
+            dmTextToSend
           );
           if (dmRes) {
             didSendDm = true;
-            sentDmText = classified.suggestedDM;
+            sentDmText = dmTextToSend;
             logger.info('Comment-triggered private reply sent via outbound worker', { commentId, msgId: dmRes.messageId });
           }
         } catch (dmErr) {
@@ -362,9 +366,81 @@ async function handleJob(params: InstagramOutboundJobParams) {
         .order('created_at', { ascending: true })
         .limit(30);
 
+      // Count prior AI turns for ceiling check (prevents endless DM loops)
+      const priorTurnCount = (previousLogs || []).filter(l => l.ai_reply && l.ai_reply !== 'SKIP').length;
+      const DM_TURN_LIMIT = 15;
+      if (priorTurnCount >= DM_TURN_LIMIT) {
+        logger.info('QStash outbound worker: DM conversation turn limit reached — skipping reply', {
+          workspaceId,
+          senderId,
+          priorTurnCount,
+        });
+        await markJobSent(workspaceId, jobType, targetId);
+        return NextResponse.json(
+          { success: true, skipped: true, reason: 'turn_limit_reached', priorTurnCount },
+          { status: 200 }
+        );
+      }
+
       const conversationHistory = (previousLogs || [])
         .filter(l => l.message_text)
         .map(l => ({ role: 'user' as const, text: l.message_text }));
+
+      // ── Follow-to-Unlock Gate Enforcement ──────────────────────────────────
+      if (cfg?.require_follow_for_dm) {
+        const followGateResult = await automation.processDmFollowGate({
+          dmEvent: {
+            messageId,
+            senderId,
+            senderUsername: params.senderUsername,
+            text: dmText,
+            timestamp: new Date().toISOString(),
+          },
+          config: {
+            enabled: cfg?.enabled ?? true,
+            autoReplyPositive: cfg?.auto_reply_positive ?? true,
+            autoReplyQuestions: cfg?.auto_reply_questions ?? true,
+            autoReplyLinkRequests: cfg?.auto_reply_link_requests ?? true,
+            autoReplyPurchaseIntent: cfg?.auto_reply_purchase_intent ?? true,
+            flagNegative: cfg?.flag_negative ?? true,
+            flagSpam: cfg?.flag_spam ?? true,
+            requireFollowForDm: true,
+            followAskMessage: cfg?.follow_ask_message || undefined,
+            followVerifiedMessage: cfg?.follow_verified_message || undefined,
+            linkUrl: cfg?.link_url || undefined,
+          },
+          accessToken,
+          igUserId: connection.platform_user_id,
+          brandUsername: connection.username || 'creator',
+          previousLogs: previousLogs || [],
+        });
+
+        if (followGateResult.handled) {
+          await markJobSent(workspaceId, jobType, targetId);
+          await supabaseAdmin
+            .from('instagram_dm_logs')
+            .update({
+              classification: followGateResult.action === 'follow_confirmed' ? 'positive' : 'question',
+              confidence: 1.0,
+              auto_replied: true,
+              delivery_status: 'sent',
+              reply_sent_at: new Date().toISOString(),
+              ai_reply: followGateResult.replyText,
+              reasoning: `Follow gate ${followGateResult.action}: isFollowing=${followGateResult.isFollowing}`,
+              follow_verified: followGateResult.isFollowing,
+              follow_status: followGateResult.isFollowing ? 'following' : 'not_following',
+            })
+            .eq('message_id', messageId);
+
+          await velocityThrottle.recordReply(`dm:${workspaceId}`);
+          logger.info('QStash outbound worker: follow gate handled DM', {
+            messageId,
+            action: followGateResult.action,
+            isFollowing: followGateResult.isFollowing,
+          });
+          return NextResponse.json({ success: true, followGateAction: followGateResult.action }, { status: 200 });
+        }
+      }
 
       const classified = await automation.classifyAndReplyDM(
         {
@@ -376,13 +452,13 @@ async function handleJob(params: InstagramOutboundJobParams) {
         },
         {
           enabled: cfg?.enabled ?? true,
-          autoReplyPositive: true,
-          autoReplyQuestions: true,
-          autoReplyLinkRequests: true,
-          autoReplyPurchaseIntent: true,
-          flagNegative: true,
-          flagSpam: true,
-          maxRepliesPerHour: 30,
+          autoReplyPositive: cfg?.auto_reply_positive ?? true,
+          autoReplyQuestions: cfg?.auto_reply_questions ?? true,
+          autoReplyLinkRequests: cfg?.auto_reply_link_requests ?? true,
+          autoReplyPurchaseIntent: cfg?.auto_reply_purchase_intent ?? true,
+          flagNegative: cfg?.flag_negative ?? true,
+          flagSpam: cfg?.flag_spam ?? true,
+          maxRepliesPerHour: cfg?.max_replies_per_hour ?? 30,
           jitterMinSeconds: 2,
           jitterMaxSeconds: 4,
           threadChainingEnabled: true,
@@ -392,10 +468,14 @@ async function handleJob(params: InstagramOutboundJobParams) {
           dmKnowledgeBase: cfg?.dm_knowledge_base || undefined,
           dmEscalationEnabled: cfg?.dm_escalation_enabled ?? true,
           dmMaxRepliesPerHour: cfg?.dm_max_replies_per_hour ?? 20,
+          requireFollowForDm: cfg?.require_follow_for_dm ?? false,
+          followAskMessage: cfg?.follow_ask_message || undefined,
+          followVerifiedMessage: cfg?.follow_verified_message || undefined,
         },
         conversationHistory,
         conversationHistory.length + 1,
-        connection.username ? `@${connection.username}` : 'our product'
+        connection.username ? `@${connection.username}` : 'our product',
+        true
       );
 
       if (!classified.shouldAutoReply || !classified.suggestedReply || classified.suggestedReply === 'SKIP') {

@@ -329,13 +329,54 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   }
 
   // Self-reply guard: never reply to comments made by the brand's own account!
-  if (connection?.username && commentEvent.username && 
-      commentEvent.username.toLowerCase().trim() === connection.username.toLowerCase().trim()) {
+  // Guard 1: username string match (case-insensitive)
+  // Guard 2: numeric IG user ID match — catches cross-workspace loops and casing mismatches
+  const commenterFromId = (value.from as any)?.id as string | undefined;
+  const isSelfByUsername = connection?.username && commentEvent.username &&
+    commentEvent.username.toLowerCase().trim() === connection.username.toLowerCase().trim();
+  const isSelfByNumericId = commenterFromId && connection?.platform_user_id &&
+    commenterFromId === connection.platform_user_id;
+  if (isSelfByUsername || isSelfByNumericId) {
     logger.debug('Skipping comment made by the account itself (self-reply guard)', {
       username: commentEvent.username,
+      commenterFromId,
+      connectionPlatformUserId: connection?.platform_user_id,
       commentId: commentEvent.commentId,
     });
     return;
+  }
+
+  // ── Per-commenter flood protection ─────────────────────────────────────────────
+  // If a single user sends >5 comments in the last 60 minutes, flag without replying.
+  // Protects rate limits from troll floods and prevents unintended reply storms.
+  if (commentEvent.username && connection.workspace_id) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCommentCount } = await supabaseAdmin
+      .from('instagram_comment_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', connection.workspace_id)
+      .eq('commenter_username', commentEvent.username)
+      .gte('created_at', oneHourAgo);
+
+    const COMMENTER_HOURLY_CAP = 5;
+    if ((recentCommentCount ?? 0) >= COMMENTER_HOURLY_CAP) {
+      logger.info('Per-commenter rate limit reached — flagging without replying', {
+        username: commentEvent.username,
+        recentCommentCount,
+        workspaceId: connection.workspace_id,
+      });
+      await flagCommentForReview(
+        connection.workspace_id,
+        commentEvent,
+        {
+          classification: 'spam',
+          suggestedReply: 'SKIP',
+          reasoning: `Commenter @${commentEvent.username} exceeded ${COMMENTER_HOURLY_CAP} comments/hour — flagged for human review`,
+        },
+        0
+      );
+      return;
+    }
   }
 
   const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
@@ -612,23 +653,50 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     // ── Send DM for link_request / purchase_intent ──────────────────────
     if (result.shouldSendDM && activeLinkUrl) {
       const commenterIgScopedId = (value.from as any)?.id as string | undefined;
-      const dmText = result.suggestedDM 
-        ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl 
-            ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
-            : result.suggestedDM)
-        : `Hey @${commentEvent.username}! Here's the link you asked for: ${activeLinkUrl}`;
-      const dmRes = await automation.sendDmForComment(
-        accessToken,
-        connection.platform_user_id,
-        commentEvent.commentId,
-        commenterIgScopedId,
-        dmText
-      );
-      if (dmRes) {
-        await supabaseAdmin
-          .from('instagram_comment_logs')
-          .update({ dm_sent: true })
-          .eq('comment_id', commentEvent.commentId);
+      const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
+
+      if (automationConfig.requireFollowForDm) {
+        // Follow-gate is active: post a PUBLIC comment reply to preserve the private-reply
+        // slot (Meta allows only ONE private reply per comment). The private reply slot is
+        // saved for the actual link DM after the user confirms they followed.
+        const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
+        const publicReplyPosted = await automation.postPublicReply(
+          accessToken,
+          commentEvent.mediaId,
+          commentEvent.commentId,
+          followAskPublic,
+          commentEvent.username
+        );
+        if (publicReplyPosted) {
+          await supabaseAdmin
+            .from('instagram_comment_logs')
+            .update({ auto_replied: true })
+            .eq('comment_id', commentEvent.commentId);
+          logger.info('Follow-gate public comment reply posted (DM slot preserved)', {
+            commentId: commentEvent.commentId,
+            username: commentEvent.username,
+          });
+        }
+      } else {
+        // No follow gate: send via private reply (DM) as usual
+        const dmText = result.suggestedDM
+          ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl
+              ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
+              : result.suggestedDM)
+          : `Hey @${commentEvent.username}! Here's the link you asked for: ${activeLinkUrl}`;
+        const dmRes = await automation.sendDmForComment(
+          accessToken,
+          connection.platform_user_id,
+          commentEvent.commentId,
+          commenterIgScopedId,
+          dmText
+        );
+        if (dmRes) {
+          await supabaseAdmin
+            .from('instagram_comment_logs')
+            .update({ dm_sent: true })
+            .eq('comment_id', commentEvent.commentId);
+        }
       }
     }
   }
@@ -907,6 +975,49 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     return;
   }
 
+  // ── Follow-to-Unlock Gate Enforcement ──────────────────────────────────────
+  if (automationConfig.requireFollowForDm) {
+    const followGateResult = await automation.processDmFollowGate({
+      dmEvent,
+      config: automationConfig,
+      accessToken,
+      igUserId,
+      brandUsername: connection.username || 'creator',
+      previousLogs: previousLogs || [],
+    });
+
+    if (followGateResult.handled) {
+      await supabaseAdmin.from('instagram_dm_logs').upsert(
+        {
+          workspace_id: connection.workspace_id,
+          message_id: dmEvent.messageId,
+          sender_id: dmEvent.senderId,
+          sender_username: dmEvent.senderUsername,
+          message_text: dmEvent.text,
+          classification: followGateResult.action === 'follow_confirmed' ? 'positive' : 'question',
+          confidence: 1.0,
+          ai_reply: followGateResult.replyText,
+          auto_replied: true,
+          escalated: false,
+          lead_score: followGateResult.isFollowing ? 2 : 1,
+          reasoning: `Follow gate ${followGateResult.action}: isFollowing=${followGateResult.isFollowing}`,
+          follow_verified: followGateResult.isFollowing,
+          follow_status: followGateResult.isFollowing ? 'following' : 'not_following',
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: 'message_id', ignoreDuplicates: false }
+      );
+
+      await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
+      logger.info('Instagram DM follow gate handled message', {
+        messageId: dmEvent.messageId,
+        action: followGateResult.action,
+        isFollowing: followGateResult.isFollowing,
+      });
+      return;
+    }
+  }
+
   const currentTurn = conversationTurnCount + 1;
   const brandName = connection.username ? `@${connection.username}` : 'our product';
 
@@ -915,7 +1026,8 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     automationConfig,
     conversationHistory,
     currentTurn,
-    brandName
+    brandName,
+    true
   );
 
   // Log the DM (auto_replied starts as false, updated to true only after confirmed send)
@@ -1057,6 +1169,9 @@ async function loadAutomationConfig(workspaceId: string): Promise<AutomationConf
         dmKnowledgeBase: data.dm_knowledge_base || undefined,
         dmEscalationEnabled: data.dm_escalation_enabled ?? true,
         dmMaxRepliesPerHour: data.dm_max_replies_per_hour ?? 20,
+        requireFollowForDm: data.require_follow_for_dm ?? false,
+        followAskMessage: data.follow_ask_message || undefined,
+        followVerifiedMessage: data.follow_verified_message || undefined,
       };
     }
   } catch {

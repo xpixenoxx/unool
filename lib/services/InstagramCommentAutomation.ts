@@ -104,7 +104,33 @@ export interface AutomationConfig {
   dmKnowledgeBase?: string;
   dmEscalationEnabled?: boolean;
   dmMaxRepliesPerHour?: number;
+  // Follow-to-unlock gate automation
+  requireFollowForDm?: boolean;
+  followAskMessage?: string;
+  followVerifiedMessage?: string;
 }
+
+export interface DmFollowGateInput {
+  dmEvent: DmEvent;
+  config: AutomationConfig;
+  accessToken: string;
+  igUserId: string;
+  brandUsername: string;
+  previousLogs?: Array<{ message_text?: string | null; ai_reply?: string | null; auto_replied?: boolean | null }>;
+}
+
+export type DmFollowGateResult =
+  | {
+      handled: true;
+      action: 'prompt_follow' | 'remind_follow' | 'follow_confirmed';
+      replyText: string;
+      isFollowing: boolean;
+      messageId?: string;
+    }
+  | {
+      handled: false;
+      isFollowing: boolean;
+    };
 
 // Default config — safe defaults with owner review for risky categories
 export const DEFAULT_AUTOMATION_CONFIG: AutomationConfig = {
@@ -123,6 +149,7 @@ export const DEFAULT_AUTOMATION_CONFIG: AutomationConfig = {
   dmAutoReplyEnabled: false,
   dmEscalationEnabled: true,
   dmMaxRepliesPerHour: 20,
+  requireFollowForDm: false,
 };
 
 // ─── Upgraded Classification Schema ─────────────────────────────────────────
@@ -228,7 +255,24 @@ RULE 2: Every public reply for positive/question/link_request MUST end with a SH
 
 RULE 3: NEVER start with the same opening word as any of the recent replies listed above. NEVER use the same emoji placement pattern. Vary sentence length and tone.
 
-RULE 4: For "negative" — write a professional, empathetic, non-defensive response. Acknowledge frustration, offer to resolve in DMs. Never argue.
+RULE 4: For "negative" — write a professional, empathetic, non-defensive response. Acknowledge frustration, offer to resolve in DMs. Never argue. NEVER skip negative comments — a thoughtful de-escalation reply is always better than silence.
+
+RULE 5: PSYCHOLOGICAL ENGAGEMENT (CIALDINI PRINCIPLES):
+- Social Proof: Reference success/community ("Tons of creators are using this for exactly that—")
+- Reciprocity: Offer something first without asking ("Here’s a quick tip for you—")
+- Curiosity Gap: Leave one hook deliberately unanswered to pull them into DMs ("The answer to that one’s a bit wild—DM us and I’ll show you exactly how.")
+- Scarcity/Urgency (use sparingly): Only when genuinely relevant, never fake.
+
+RULE 6: EMOTION MIRRORING:
+- If the comment is excited/enthusiastic — match that energy with an energetic reply.
+- If the comment is calm/curious — match with a thoughtful, measured tone.
+- If the comment is frustrated/negative — open with empathy, lower the temperature, never escalate.
+- Never reply with generic enthusiasm to a frustrated commenter.
+
+RULE 7: PATTERN INTERRUPT OPENERS:
+- Never start with "Hey!", "Great!", "Thanks!", "Absolutely!", or any single-word filler opener.
+- Open with something that directly references what they said — make it feel like you read it, not templated it.
+- Good: "That sprint workflow tip is real—" / "Okay this question hits different—" / "Real talk—"
 
 RULE 5: For "spam" or "harmful" — set suggestedReply to "SKIP" and shouldFlagForReview to true.
 
@@ -304,7 +348,8 @@ Return ONLY valid JSON (no markdown, no explanation):
     config: AutomationConfig,
     conversationHistory: ConversationMessage[] = [],
     conversationTurn = 1,
-    productName = 'UNOOL'
+    productName = 'UNOOL',
+    isFollowing = true
   ): Promise<ClassifiedDM> {
     if (!config.dmAutoReplyEnabled) {
       return {
@@ -338,6 +383,11 @@ Return ONLY valid JSON (no markdown, no explanation):
       ? config.dmKnowledgeBase
       : '(No product knowledge configured by the account owner. Do NOT invent products or links. Ask clarifying questions to understand what the follower is looking for.)';
 
+    // dmTemplate: inject into prompt for Turn 1 or whenever set by workspace owner
+    const dmTemplateInstruction = (config.dmTemplate && config.dmTemplate.trim())
+      ? `TEMPLATE FOR FIRST MESSAGE (Turn 1): If this is the very first message (Turn 1), you MUST start your reply with this exact template text then continue naturally: "${config.dmTemplate.trim()}"`
+      : '';
+
     const prompt = `You are ${brandName} — the real person behind this Instagram account — responding directly to a DM.
 You are NOT an AI assistant, NOT a bot, NOT a "representative". You are the creator/owner themselves, typing this reply in real time.
 NEVER say you are "hardwired", "an AI", a "representative", or anything that reveals automation.
@@ -348,8 +398,10 @@ CONVERSATION CONTEXT & PROGRESSION
 ═══════════════════════════════════════════════════════════
 Current Turn: Turn ${currentTurn} of 15
 Brand / Account: ${brandName}
+Follower Relationship: ${isFollowing ? 'Confirmed Follower (follows our account)' : 'Visitor (not yet following)'}
 ${hasLink ? `Creator's product link (share this when asked): ${targetLink}` : 'NO PRODUCT LINK CONFIGURED — do NOT share any URL. If asked for a link, ask a clarifying question instead (e.g. "which one are you looking for?" or "tell me more about what you need!").'}
 ${config.customInstructions ? `Owner's personal instructions: "${config.customInstructions}"` : ''}
+${dmTemplateInstruction ? dmTemplateInstruction : ''}
 
 Recent Conversation History:
 ${formattedHistory}
@@ -377,12 +429,12 @@ HOW TO WRITE (CRITICAL — READ CAREFULLY)
      * "Hey hey! What's up?"
      * "Hi! Great to connect — what are you working on these days?"
 
-3. PRODUCT QUESTIONS — ANSWER NATURALLY:
+3. PRODUCT QUESTIONS — ANSWER NATURALLY WITH CURIOSITY LOOPS:
    - Answer questions about ${brandName} like you built it and love it.
    - ${hasLink ? `Share the link (${targetLink}) naturally when it makes sense: "here you go →"` : 'If asked for a link, DO NOT send any URL. Ask a warm clarifying question: "Which of my things are you after? Want to make sure I send you the right one!"'}
-   - Every reply on product turns should end with a casual hook question to keep the conversation going.
+   - Curiosity Loop / Hook: Unless it is the final 15th turn or spam/harmful, every reply on product turns should end with an engaging question or curiosity gap to keep the conversation going naturally.
 
-4. OFF-TOPIC QUESTIONS — REDIRECT WITHOUT REVEALING AI:
+4. OFF-TOPIC QUESTIONS & ANTI-LOOP RULE:
    - If they ask about something completely off-topic (weather, homework, sports, politics, random trivia):
    - DO NOT answer the off-topic question.
    - Redirect casually and warmly — like a human who just doesn't know that stuff: "Ha, not my department! But hey, while I have you..."
@@ -391,6 +443,21 @@ HOW TO WRITE (CRITICAL — READ CAREFULLY)
      * User: "What's the weather in New York?" → "Ha, I wish I had time to check the weather 😄 Been heads-down on [brandName] all day. What brought you here — something you're working on?"
      * User: "Help me with my homework" → "Ha not really my thing! I'm way more useful when it comes to [brandName] stuff 😄 What can I help you with there?"
      * User: "Who's winning the elections?" → "Honestly I've been so deep in building mode I'm the last person to ask 😅 What's going on with you though — something I can actually help with?"
+   - ANTI-LOOP DEFLECTION CAP: Check conversation history above. If you have already redirected them away from off-topic subjects 2 or more times in this conversation, DO NOT keep deflecting in circles!
+     After 2 redirections, warmly sign off: "Honestly, I'm heads-down focusing on [brandName] right now! If you ever have any questions on that, I'm here. Otherwise I'll let our team take it from here 😊"
+     Return classification="unrelated", shouldAutoReply=false, shouldEscalate=true.
+
+5. EMOTION MIRRORING (CRITICAL):
+   - READ the energy of the follower's message before replying.
+   - Excited/hype message → match with high energy, exclamation, enthusiasm.
+   - Calm/curious message → match with measured, thoughtful, slightly warmer tone.
+   - Frustrated/negative message → open with empathy first ("That sounds genuinely frustrating—"), lower temperature, never escalate.
+   - Confused message → be clear and reassuring, no jargon.
+   - NEVER reply with generic enthusiasm to a frustrated or confused user.
+
+6. EMOTIONAL HOOK RULE (Turn 1 only):
+   - On the VERY FIRST message (Turn 1), before anything else, acknowledge what the user is FEELING or trying to achieve, not just what they asked.
+   - Example: If they ask "How does pricing work?", don't start with "Great question!"—start with "Sounds like you're evaluating if this fits your budget—totally fair." Then answer.
 
 ═══════════════════════════════════════════════════════════
 MULTI-TURN CONVERSATION ROADMAP
@@ -768,6 +835,123 @@ Return ONLY valid JSON:
       });
       return await this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, text);
     }
+  }
+
+  /**
+   * Verifies whether an incoming DM sender follows the creator/brand Instagram account.
+   *
+   * Flow:
+   * 1. If requireFollowForDm is disabled, returns handled: false (bypass).
+   * 2. Checks Meta Graph API for live follower status using checkUserFollowsBusiness().
+   * 3. If NOT following:
+   *    - If they tapped "I Followed! ✅" or replied saying they followed, sends a friendly retry reminder.
+   *    - Otherwise sends the initial follow prompt with an "I Followed! ✅" Quick Reply button.
+   * 4. If FOLLOWED:
+   *    - If responding to a follow prompt / confirmation tap, delivers the celebratory unlocked message.
+   *    - If already an existing follower, returns handled: false so the normal conversational AI proceeds.
+   */
+  async processDmFollowGate(input: DmFollowGateInput): Promise<DmFollowGateResult> {
+    const { dmEvent, config, accessToken, igUserId, brandUsername, previousLogs } = input;
+
+    if (!config.requireFollowForDm) {
+      return { handled: false, isFollowing: true };
+    }
+
+    // Query Meta Graph API for live follow status
+    const isFollowing = await this.checkUserFollowsBusiness(accessToken, dmEvent.senderId);
+
+    const text = (dmEvent.text || '').trim();
+    const isConfirmationText =
+      /^(i\s*followed|confirm_follow|done\s*following|already\s*followed|followed\s*you|followed)/i.test(text) ||
+      text.toLowerCase().includes('i followed') ||
+      text === 'CONFIRM_FOLLOW';
+
+    const lastAiReply = previousLogs && previousLogs.length > 0 ? previousLogs[previousLogs.length - 1]?.ai_reply : '';
+    const wasAwaitingFollow =
+      !!lastAiReply &&
+      (lastAiReply.toLowerCase().includes('follow') ||
+        lastAiReply.includes('I Followed') ||
+        lastAiReply.includes('CONFIRM_FOLLOW'));
+
+    const cleanBrand = brandUsername.startsWith('@') ? brandUsername : `@${brandUsername}`;
+
+    // ── Case 1: User has NOT followed yet ──────────────────────────────────
+    if (!isFollowing) {
+      if (isConfirmationText || wasAwaitingFollow) {
+        // User claimed they followed or clicked confirmation, but Meta API reports false
+        const remindText =
+          `We couldn't verify your follow yet! 🧐 Make sure you hit "Follow" on ${cleanBrand}, then tap "I Followed! ✅" below!`;
+        const sendRes = await this.sendQuickReplyMessage(
+          accessToken,
+          igUserId,
+          dmEvent.senderId,
+          remindText,
+          [{ title: 'I Followed! ✅', payload: 'CONFIRM_FOLLOW' }]
+        );
+        return {
+          handled: true,
+          action: 'remind_follow',
+          replyText: remindText,
+          isFollowing: false,
+          messageId: sendRes?.messageId,
+        };
+      }
+
+      // Initial follow prompt
+      const promptTemplate =
+        config.followAskMessage?.trim() ||
+        `Hey ${dmEvent.senderUsername ? `@${dmEvent.senderUsername}` : 'there'}! 👋 To unlock this, make sure to follow ${cleanBrand}! Tap the button below once you've followed 👇`;
+      const promptText = promptTemplate
+        .replace(/{username}/g, dmEvent.senderUsername || 'friend')
+        .replace(/@?{brand}/g, cleanBrand);
+
+      const sendRes = await this.sendQuickReplyMessage(
+        accessToken,
+        igUserId,
+        dmEvent.senderId,
+        promptText,
+        [{ title: 'I Followed! ✅', payload: 'CONFIRM_FOLLOW' }]
+      );
+
+      return {
+        handled: true,
+        action: 'prompt_follow',
+        replyText: promptText,
+        isFollowing: false,
+        messageId: sendRes?.messageId,
+      };
+    }
+
+    // ── Case 2: User IS following ──────────────────────────────────────────
+    if (isConfirmationText || wasAwaitingFollow) {
+      // User followed and confirmed!
+      const defaultVerified = config.linkUrl
+        ? `Thanks for following ${cleanBrand}! 🎉 You're all set! Here is your exclusive access: ${config.linkUrl} ✨ Let me know if you need anything else!`
+        : `Thanks for following ${cleanBrand}! 🎉 You're officially in! What can I help you with today?`;
+
+      const verifiedText = (config.followVerifiedMessage?.trim() || defaultVerified)
+        .replace(/{username}/g, dmEvent.senderUsername || 'friend')
+        .replace(/@?{brand}/g, cleanBrand)
+        .replace(/{link}/g, config.linkUrl || '');
+
+      const sendRes = await this.sendPrivateMessage(
+        accessToken,
+        igUserId,
+        dmEvent.senderId,
+        verifiedText
+      );
+
+      return {
+        handled: true,
+        action: 'follow_confirmed',
+        replyText: verifiedText,
+        isFollowing: true,
+        messageId: sendRes ? 'sent' : undefined,
+      };
+    }
+
+    // Existing follower sending a normal message — proceed with full AI conversation
+    return { handled: false, isFollowing: true };
   }
 
   /**

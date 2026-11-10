@@ -25,11 +25,13 @@ const {
   const mockClassifyAndReplyDM = vi.fn();
   const mockSendPrivateMessage = vi.fn();
   const mockVerifyMetaSignature = vi.fn();
+  const mockProcessDmFollowGate = vi.fn();
   const supabaseCalls: Array<{ table: string; op: string; data?: unknown }> = [];
 
   // Control state for conditional mock responses
   const controlState = {
     dmAutoReplyEnabled: true,
+    requireFollowForDm: false,
     existingDmLogs: [] as unknown[],
     existingCommentLogs: [] as unknown[],
   };
@@ -38,6 +40,7 @@ const {
     mockClassifyAndReplyDM,
     mockSendPrivateMessage,
     mockVerifyMetaSignature,
+    mockProcessDmFollowGate,
     supabaseCalls,
     controlState,
   };
@@ -143,6 +146,9 @@ vi.mock('@/lib/services/InstagramCommentAutomation', async (importOriginal) => {
       async sendPrivateMessage(...args: unknown[]) { return mockSendPrivateMessage(...args); }
       async sendDmForComment() { return null; }
       async postPublicReply() { return null; }
+      async processDmFollowGate(...args: unknown[]) { return mockProcessDmFollowGate(...args); }
+      async checkUserFollowsBusiness() { return true; }
+      async sendQuickReplyMessage() { return { messageId: 'qr_mock_id' }; }
     },
   };
 });
@@ -204,6 +210,7 @@ vi.mock('@supabase/supabase-js', () => ({
             thread_chaining_enabled: true,
             dm_auto_reply_enabled: controlState.dmAutoReplyEnabled,
             dm_max_replies_per_hour: 20,
+            require_follow_for_dm: controlState.requireFollowForDm,
           },
           error: null,
         });
@@ -610,3 +617,72 @@ describe('Flagged DMs for human inbox', () => {
     expect(flaggedOps.length).toBeGreaterThan(0);
   });
 });
+
+// ─── Follow-to-Unlock Gate in Webhook ─────────────────────────────────────────
+
+describe('Follow-to-Unlock Gate in Inbound DM Webhook', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    supabaseCalls.length = 0;
+    controlState.dmAutoReplyEnabled = true;
+    controlState.requireFollowForDm = true;
+    controlState.existingDmLogs = [];
+    mockVerifyMetaSignature.mockResolvedValue(true);
+
+    const { isAutomationEnabledServer } = await import('@/lib/feature-flags-server');
+    vi.mocked(isAutomationEnabledServer).mockResolvedValue(true);
+    const { ContentGuard } = await import('@/lib/ai/ContentGuard');
+    vi.mocked(ContentGuard.validateComment).mockReturnValue({
+      safe: true,
+      violation: { level: 'none', code: '', message: '', internal: '' },
+    } as any);
+  });
+
+  it('intercepts unfollowed user, sends follow prompt, and logs without calling LLM', async () => {
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'prompt_follow',
+      replyText: 'Hey @user! Make sure to follow @testbrand to unlock your access! 👇',
+      isFollowing: false,
+      messageId: 'qr_prompt_123',
+    });
+
+    const res = await POST(makeSignedRequest(makeDmPayload('msg_unfollowed_001', 'Can I get the link?')));
+    expect(res.status).toBe(200);
+
+    expect(mockProcessDmFollowGate).toHaveBeenCalledTimes(1);
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+
+    const dmLogUpsert = supabaseCalls.find(
+      c => c.table === 'instagram_dm_logs' && c.op === 'upsert' && (c.data as any)?.message_id === 'msg_unfollowed_001'
+    );
+    expect(dmLogUpsert).toBeDefined();
+    expect((dmLogUpsert?.data as any)?.follow_verified).toBe(false);
+    expect((dmLogUpsert?.data as any)?.follow_status).toBe('not_following');
+    expect((dmLogUpsert?.data as any)?.ai_reply).toContain('Make sure to follow');
+  });
+
+  it('delivers confirmed access when user follows and confirms', async () => {
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'follow_confirmed',
+      replyText: 'Thanks for following @testbrand! 🎉 Here is your exclusive link: https://unool.co/link',
+      isFollowing: true,
+      messageId: 'sent',
+    });
+
+    const res = await POST(makeSignedRequest(makeDmPayload('msg_confirmed_002', 'I Followed! ✅')));
+    expect(res.status).toBe(200);
+
+    expect(mockProcessDmFollowGate).toHaveBeenCalledTimes(1);
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+
+    const dmLogUpsert = supabaseCalls.find(
+      c => c.table === 'instagram_dm_logs' && c.op === 'upsert' && (c.data as any)?.message_id === 'msg_confirmed_002'
+    );
+    expect(dmLogUpsert).toBeDefined();
+    expect((dmLogUpsert?.data as any)?.follow_verified).toBe(true);
+    expect((dmLogUpsert?.data as any)?.follow_status).toBe('following');
+  });
+});
+
