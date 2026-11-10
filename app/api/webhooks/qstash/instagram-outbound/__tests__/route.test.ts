@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 const {
   mockPostPublicReply,
   mockSendPrivateMessage,
+  mockSendDmForComment,
   mockClassifyAndGenerateReply,
   mockClassifyAndReplyDM,
   mockDecryptToken,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => {
   const mockPostPublicReply = vi.fn();
   const mockSendPrivateMessage = vi.fn();
+  const mockSendDmForComment = vi.fn();
   const mockClassifyAndGenerateReply = vi.fn();
   const mockClassifyAndReplyDM = vi.fn();
   const mockDecryptToken = vi.fn();
@@ -29,11 +31,15 @@ const {
     maxRetries: 3,
     commentLogsAutoReplied: false,
     dmLogsAutoReplied: false,
+    dmHistoryLogs: [] as any[],
+    dmEscalationEnabled: true,
+    requireFollowForDm: false,
   };
 
   return {
     mockPostPublicReply,
     mockSendPrivateMessage,
+    mockSendDmForComment,
     mockClassifyAndGenerateReply,
     mockClassifyAndReplyDM,
     mockDecryptToken,
@@ -95,6 +101,7 @@ vi.mock('@/lib/services/InstagramCommentAutomation', () => ({
   InstagramCommentAutomation: class {
     async postPublicReply(...args: unknown[]) { return mockPostPublicReply(...args); }
     async sendPrivateMessage(...args: unknown[]) { return mockSendPrivateMessage(...args); }
+    async sendDmForComment(...args: unknown[]) { return mockSendDmForComment(...args); }
     async classifyAndGenerateReply(...args: unknown[]) { return mockClassifyAndGenerateReply(...args); }
     async classifyAndReplyDM(...args: unknown[]) { return mockClassifyAndReplyDM(...args); }
   },
@@ -160,7 +167,10 @@ vi.mock('@supabase/supabase-js', () => ({
             enabled: true,
             max_replies_per_hour: 30,
             dm_auto_reply_enabled: true,
+            dm_escalation_enabled: jobControlState.dmEscalationEnabled,
             dm_max_replies_per_hour: 20,
+            require_follow_for_dm: jobControlState.requireFollowForDm,
+            link_url: 'https://unool.co/link',
           },
           error: null,
         });
@@ -174,10 +184,37 @@ vi.mock('@supabase/supabase-js', () => ({
       }
 
       if (table === 'instagram_dm_logs') {
-        return makeChain({
-          data: [{ auto_replied: jobControlState.dmLogsAutoReplied }],
-          error: null,
-        });
+        let requestedLimit = 1;
+        const chain: any = {
+          select: () => chain,
+          eq: () => chain,
+          order: () => chain,
+          limit: (n?: number) => {
+            if (typeof n === 'number') requestedLimit = n;
+            return chain;
+          },
+          update: (data: unknown) => {
+            supabaseCalls.push({ table, op: 'update', data });
+            return chain;
+          },
+          upsert: (data: unknown) => {
+            supabaseCalls.push({ table, op: 'upsert', data });
+            return Promise.resolve({ error: null });
+          },
+          insert: (data: unknown) => {
+            supabaseCalls.push({ table, op: 'insert', data });
+            return Promise.resolve({ error: null });
+          },
+          single: () => Promise.resolve({ data: [{ auto_replied: jobControlState.dmLogsAutoReplied }], error: null }),
+          maybeSingle: () => Promise.resolve({ data: [{ auto_replied: jobControlState.dmLogsAutoReplied }], error: null }),
+          then: (res: (val: any) => any, rej?: (reason: any) => any) => {
+            const payload = requestedLimit >= 10
+              ? { data: jobControlState.dmHistoryLogs, error: null }
+              : { data: [{ auto_replied: jobControlState.dmLogsAutoReplied }], error: null };
+            return Promise.resolve(payload).then(res, rej);
+          },
+        };
+        return chain;
       }
 
       return makeChain({ data: null, error: null });
@@ -204,6 +241,9 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
     jobControlState.maxRetries = 3;
     jobControlState.commentLogsAutoReplied = false;
     jobControlState.dmLogsAutoReplied = false;
+    jobControlState.dmHistoryLogs = [];
+    jobControlState.dmEscalationEnabled = true;
+    jobControlState.requireFollowForDm = false;
 
     mockDecryptToken.mockResolvedValue('IGqx_VALID_TOKEN');
     mockCanReply.mockResolvedValue(true);
@@ -379,6 +419,131 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
 
     const flagged = supabaseCalls.filter(c => c.table === 'instagram_flagged_comments' && c.op === 'upsert');
     expect(flagged.length).toBeGreaterThan(0);
+  });
+
+  it('enforces 15-turn DM ceiling with one-time handoff notice and prevents infinite loops', async () => {
+    jobControlState.dmHistoryLogs = Array.from({ length: 15 }, (_, idx) => ({
+      message_text: `Msg ${idx + 1}`,
+      ai_reply: `Reply ${idx + 1}`,
+      escalated: false,
+      created_at: new Date().toISOString(),
+    }));
+
+    const res16 = await POST(makeRequest({
+      jobId: 'job_turn16',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_turn16',
+      senderId: 'sender_loop_test',
+      dmText: 'One more question',
+    }));
+
+    expect(res16.status).toBe(200);
+    const json16 = await res16.json();
+    expect(json16.handoffSent).toBe(true);
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+    expect(mockSendPrivateMessage).toHaveBeenCalledTimes(1);
+
+    // Turn 17 when already escalated -> silent, no repeat handoff
+    vi.clearAllMocks();
+    supabaseCalls.length = 0;
+    jobControlState.dmHistoryLogs = [
+      ...jobControlState.dmHistoryLogs,
+      { message_text: 'One more question', ai_reply: 'Handoff', escalated: true, created_at: new Date().toISOString() },
+    ];
+
+    const res17 = await POST(makeRequest({
+      jobId: 'job_turn17',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_turn17',
+      senderId: 'sender_loop_test',
+      dmText: 'Hello again',
+    }));
+
+    expect(res17.status).toBe(200);
+    const json17 = await res17.json();
+    expect(json17.handoffSent).toBe(false);
+    expect(mockSendPrivateMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends one-time warm wind-down reply when AI escalates with shouldAutoReply=false', async () => {
+    jobControlState.dmHistoryLogs = [
+      { message_text: 'Whats the weather?', ai_reply: 'Ha not my department!', escalated: false },
+      { message_text: 'Who won the game?', ai_reply: 'Busy building!', escalated: false },
+    ];
+
+    mockClassifyAndReplyDM.mockResolvedValueOnce({
+      classification: 'unrelated',
+      confidence: 0.9,
+      suggestedReply: "Honestly, I'll let our team take it from here 😊",
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldEscalate: true,
+      reasoning: 'Off-topic deflection cap reached',
+    });
+
+    const res = await POST(makeRequest({
+      jobId: 'job_deflect_cap',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_deflect_cap',
+      senderId: 'sender_offtopic',
+      dmText: 'Tell me a joke',
+    }));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.action).toBe('escalated_with_handoff');
+    // Both user and assistant turns passed cleanly + turn count is priorTurnCount + 1 = 3
+    expect(mockClassifyAndReplyDM).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      [
+        { role: 'user', text: 'Whats the weather?' },
+        { role: 'assistant', text: 'Ha not my department!' },
+        { role: 'user', text: 'Who won the game?' },
+        { role: 'assistant', text: 'Busy building!' },
+      ],
+      3,
+      '@brand_account',
+      true
+    );
+    expect(mockSendPrivateMessage).toHaveBeenCalledTimes(1);
+    const flagged = supabaseCalls.filter(c => c.table === 'instagram_flagged_dms');
+    expect(flagged.length).toBeGreaterThan(0);
+  });
+
+  it('uses public comment reply for follow-gate in comment_reply job to preserve private reply slot', async () => {
+    jobControlState.requireFollowForDm = true;
+    mockClassifyAndGenerateReply.mockResolvedValueOnce({
+      classification: 'link_request',
+      suggestedReply: 'Just dropped it!',
+      suggestedDM: 'Here is your link!',
+      shouldAutoReply: true,
+      shouldSendDM: true,
+      shouldFlagForReview: false,
+      reasoning: 'User requested link',
+    });
+
+    const res = await POST(makeRequest({
+      jobId: 'job_cmt_follow_gate',
+      jobType: 'comment_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      commentId: 'cmt_fg_qstash',
+      mediaId: 'media_fg_1',
+      commentText: 'link please',
+      commenterUsername: 'follower_hopeful',
+    }));
+
+    expect(res.status).toBe(200);
+    // Called twice on postPublicReply (main reply + follow gate public ask) and NEVER on sendDmForComment
+    expect(mockPostPublicReply).toHaveBeenCalledTimes(2);
+    expect(mockSendDmForComment).not.toHaveBeenCalled();
   });
 });
 

@@ -279,26 +279,42 @@ async function handleJob(params: InstagramOutboundJobParams) {
 
       let didSendDm = false;
       let sentDmText = '';
-      if (classified.shouldSendDM && classified.suggestedDM) {
+      if (classified.shouldSendDM && (classified.suggestedDM || cfg?.link_url)) {
         try {
           const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
-          const dmTextToSend = cfg?.require_follow_for_dm
-            ? `Hey ${commenterUsername ? `@${commenterUsername}` : 'there'}! 👋 Make sure to follow ${brandHandle} and reply "link" here to unlock your access! 🚀`
-            : classified.suggestedDM;
-          const dmRes = await automation.sendDmForComment(
-            accessToken,
-            connection.platform_user_id,
-            commentId,
-            undefined,
-            dmTextToSend
-          );
-          if (dmRes) {
-            didSendDm = true;
-            sentDmText = dmTextToSend;
-            logger.info('Comment-triggered private reply sent via outbound worker', { commentId, msgId: dmRes.messageId });
+          if (cfg?.require_follow_for_dm) {
+            // Follow-gate is active: post a PUBLIC comment reply to preserve Meta's one-time
+            // private reply slot per comment until the user follows and DMs us.
+            const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
+            const pubGateRes = await automation.postPublicReply(
+              accessToken,
+              mediaId || '',
+              commentId,
+              followAskPublic,
+              commenterUsername
+            );
+            if (pubGateRes) {
+              logger.info('QStash worker posted follow-gate public reply (DM slot preserved)', { commentId });
+            }
+          } else {
+            const dmTextToSend =
+              classified.suggestedDM ||
+              `Hey ${commenterUsername ? `@${commenterUsername}` : 'there'}! Here's the link you asked for: ${cfg?.link_url}`;
+            const dmRes = await automation.sendDmForComment(
+              accessToken,
+              connection.platform_user_id,
+              commentId,
+              undefined,
+              dmTextToSend
+            );
+            if (dmRes) {
+              didSendDm = true;
+              sentDmText = dmTextToSend;
+              logger.info('Comment-triggered private reply sent via outbound worker', { commentId, msgId: dmRes.messageId });
+            }
           }
         } catch (dmErr) {
-          logger.warn('Failed to send comment-triggered private reply', { commentId, error: dmErr });
+          logger.warn('Failed to send comment-triggered follow-gate/private reply', { commentId, error: dmErr });
         }
       }
 
@@ -357,34 +373,79 @@ async function handleJob(params: InstagramOutboundJobParams) {
         return NextResponse.json({ error: errorMsg, deferred: true }, { status: 200 });
       }
 
-      // Multi-turn conversation history
+      // Multi-turn conversation history (includes both user messages and prior AI replies)
       const { data: previousLogs } = await supabaseAdmin
         .from('instagram_dm_logs')
-        .select('message_text, ai_reply, created_at')
+        .select('message_text, ai_reply, escalated, created_at')
         .eq('workspace_id', workspaceId)
         .eq('sender_id', senderId)
         .order('created_at', { ascending: true })
         .limit(30);
 
+      const conversationHistory: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+      let priorTurnCount = 0;
+      let alreadyEscalated = false;
+
+      if (previousLogs && previousLogs.length > 0) {
+        for (const l of previousLogs) {
+          if ((l as any).escalated === true) {
+            alreadyEscalated = true;
+          }
+          if (l.message_text) {
+            conversationHistory.push({ role: 'user', text: l.message_text });
+          }
+          if (l.ai_reply && l.ai_reply !== 'SKIP') {
+            conversationHistory.push({ role: 'assistant', text: l.ai_reply });
+            priorTurnCount++;
+          }
+        }
+      }
+
       // Count prior AI turns for ceiling check (prevents endless DM loops)
-      const priorTurnCount = (previousLogs || []).filter(l => l.ai_reply && l.ai_reply !== 'SKIP').length;
       const DM_TURN_LIMIT = 15;
       if (priorTurnCount >= DM_TURN_LIMIT) {
-        logger.info('QStash outbound worker: DM conversation turn limit reached — skipping reply', {
+        logger.info('QStash outbound worker: DM conversation turn limit reached — escalating', {
           workspaceId,
           senderId,
           priorTurnCount,
+          alreadyEscalated,
         });
+
+        let handoffSent = false;
+        const handoffText = "Hey! I'm passing your conversation directly over to our team so someone can give you a proper hand from here — they'll reply shortly 😊";
+        if (!alreadyEscalated && (cfg?.dm_escalation_enabled ?? true)) {
+          const handoffRes = await automation.sendPrivateMessage(
+            accessToken,
+            connection.platform_user_id,
+            senderId,
+            handoffText
+          );
+          handoffSent = !!handoffRes;
+        }
+
+        await flagDmForDeadLetter(
+          workspaceId,
+          params,
+          'Conversation turn limit reached (15 replies); escalated for human handling.',
+          handoffSent ? handoffText : 'SKIP'
+        );
+        await supabaseAdmin
+          .from('instagram_dm_logs')
+          .update({
+            delivery_status: 'needs_review',
+            escalated: true,
+            auto_replied: handoffSent,
+            ai_reply: handoffSent ? handoffText : 'SKIP',
+            reasoning: 'Conversation turn limit reached (15 replies); escalated for human handling.',
+          })
+          .eq('message_id', messageId);
+
         await markJobSent(workspaceId, jobType, targetId);
         return NextResponse.json(
-          { success: true, skipped: true, reason: 'turn_limit_reached', priorTurnCount },
+          { success: true, skipped: !handoffSent, handoffSent, reason: 'turn_limit_reached', priorTurnCount },
           { status: 200 }
         );
       }
-
-      const conversationHistory = (previousLogs || [])
-        .filter(l => l.message_text)
-        .map(l => ({ role: 'user' as const, text: l.message_text }));
 
       // ── Follow-to-Unlock Gate Enforcement ──────────────────────────────────
       if (cfg?.require_follow_for_dm) {
@@ -473,13 +534,42 @@ async function handleJob(params: InstagramOutboundJobParams) {
           followVerifiedMessage: cfg?.follow_verified_message || undefined,
         },
         conversationHistory,
-        conversationHistory.length + 1,
+        priorTurnCount + 1,
         connection.username ? `@${connection.username}` : 'our product',
         true
       );
 
       if (!classified.shouldAutoReply || !classified.suggestedReply || classified.suggestedReply === 'SKIP') {
-        logger.info('AI classified DM as not needing auto-reply', { messageId, classification: classified.classification });
+        logger.info('AI classified DM as not needing auto-reply', { messageId, classification: classified.classification, alreadyEscalated });
+
+        let handoffSent = false;
+        let handoffReply = classified.suggestedReply || '';
+        if (
+          classified.shouldEscalate &&
+          !alreadyEscalated &&
+          handoffReply &&
+          handoffReply !== 'SKIP' &&
+          classified.classification !== 'harmful' &&
+          classified.classification !== 'spam'
+        ) {
+          try {
+            const humanized = ContentHumanizer.humanize(handoffReply, 'instagram');
+            handoffReply = humanized.humanized || handoffReply;
+          } catch {
+            // use raw
+          }
+          const handoffRes = await automation.sendPrivateMessage(
+            accessToken,
+            connection.platform_user_id,
+            senderId,
+            handoffReply
+          );
+          handoffSent = !!handoffRes;
+          if (handoffSent) {
+            await velocityThrottle.recordReply(`dm:${workspaceId}`);
+          }
+        }
+
         if (classified.shouldEscalate) {
           await flagDmForDeadLetter(workspaceId, params, classified.reasoning, classified.suggestedReply);
         }
@@ -488,14 +578,16 @@ async function handleJob(params: InstagramOutboundJobParams) {
           .update({
             classification: classified.classification,
             confidence: classified.confidence,
+            auto_replied: handoffSent,
             delivery_status: classified.shouldEscalate ? 'needs_review' : 'sent',
             escalated: classified.shouldEscalate,
-            ai_reply: classified.suggestedReply || '',
+            ai_reply: handoffSent ? handoffReply : (classified.suggestedReply || ''),
             reasoning: classified.reasoning,
+            ...(handoffSent ? { reply_sent_at: new Date().toISOString() } : {}),
           })
           .eq('message_id', messageId);
         await markJobSent(workspaceId, jobType, targetId);
-        return NextResponse.json({ success: true, action: 'skipped_by_policy' }, { status: 200 });
+        return NextResponse.json({ success: true, action: handoffSent ? 'escalated_with_handoff' : 'skipped_by_policy' }, { status: 200 });
       }
 
       let finalReply = classified.suggestedReply;

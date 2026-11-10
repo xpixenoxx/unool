@@ -1,4 +1,4 @@
-﻿import { config } from '@/lib/config/schema';
+import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 

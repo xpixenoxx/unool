@@ -8,3 +8,4 @@ CREATE INDEX IF NOT EXISTS idx_ig_comment_logs_workspace_media
 
 CREATE INDEX IF NOT EXISTS idx_ig_comment_logs_commenter 
   ON instagram_comment_logs(workspace_id, commenter_username, created_at DESC);
+

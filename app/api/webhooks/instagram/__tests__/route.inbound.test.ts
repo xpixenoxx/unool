@@ -17,14 +17,20 @@ import { NextRequest } from 'next/server';
 
 const {
   mockClassifyAndReplyDM,
+  mockClassifyAndGenerateReply,
   mockSendPrivateMessage,
+  mockSendDmForComment,
+  mockPostPublicReply,
   mockVerifyMetaSignature,
   mockProcessDmFollowGate,
   supabaseCalls,
   controlState,
 } = vi.hoisted(() => {
   const mockClassifyAndReplyDM = vi.fn();
+  const mockClassifyAndGenerateReply = vi.fn();
   const mockSendPrivateMessage = vi.fn();
+  const mockSendDmForComment = vi.fn();
+  const mockPostPublicReply = vi.fn();
   const mockVerifyMetaSignature = vi.fn();
   const mockProcessDmFollowGate = vi.fn();
   const supabaseCalls: Array<{ table: string; op: string; data?: unknown }> = [];
@@ -34,12 +40,17 @@ const {
     dmAutoReplyEnabled: true,
     requireFollowForDm: false,
     existingDmLogs: [] as unknown[],
+    dmHistoryLogs: [] as unknown[],
     existingCommentLogs: [] as unknown[],
+    commenterHourlyCount: 0,
   };
 
   return {
     mockClassifyAndReplyDM,
+    mockClassifyAndGenerateReply,
     mockSendPrivateMessage,
+    mockSendDmForComment,
+    mockPostPublicReply,
     mockVerifyMetaSignature,
     mockProcessDmFollowGate,
     supabaseCalls,
@@ -137,7 +148,10 @@ vi.mock('@/lib/services/InstagramCommentAutomation', async (importOriginal) => {
     ...actual,
     InstagramCommentAutomation: class {
       async classifyAndReplyDM(...args: unknown[]) { return mockClassifyAndReplyDM(...args); }
-      async classifyAndGenerateReply() {
+      async classifyAndGenerateReply(...args: unknown[]) {
+        if (mockClassifyAndGenerateReply.getMockImplementation()) {
+          return mockClassifyAndGenerateReply(...args);
+        }
         return {
           classification: 'unrelated', confidence: 0, suggestedReply: '', suggestedDM: null,
           threadHook: null, leadScore: 0, shouldAutoReply: false, shouldSendDM: false,
@@ -145,8 +159,8 @@ vi.mock('@/lib/services/InstagramCommentAutomation', async (importOriginal) => {
         };
       }
       async sendPrivateMessage(...args: unknown[]) { return mockSendPrivateMessage(...args); }
-      async sendDmForComment() { return null; }
-      async postPublicReply() { return null; }
+      async sendDmForComment(...args: unknown[]) { return mockSendDmForComment(...args); }
+      async postPublicReply(...args: unknown[]) { return mockPostPublicReply(...args); }
       async processDmFollowGate(...args: unknown[]) { return mockProcessDmFollowGate(...args); }
       async checkUserFollowsBusiness() { return true; }
       async sendQuickReplyMessage() { return { messageId: 'qr_mock_id' }; }
@@ -168,6 +182,7 @@ vi.mock('@supabase/supabase-js', () => ({
         const chain: any = {
           select: () => chain,
           eq: () => chain,
+          gte: () => chain,
           limit: () => chain,
           order: () => chain,
           update: () => chain,
@@ -205,11 +220,13 @@ vi.mock('@supabase/supabase-js', () => ({
             auto_reply_purchase_intent: true,
             flag_negative: true,
             flag_spam: true,
+            link_url: 'https://unool.co/link',
             max_replies_per_hour: 30,
             jitter_min_seconds: 1,
             jitter_max_seconds: 2,
             thread_chaining_enabled: true,
             dm_auto_reply_enabled: controlState.dmAutoReplyEnabled,
+            dm_escalation_enabled: true,
             dm_max_replies_per_hour: 20,
             require_follow_for_dm: controlState.requireFollowForDm,
           },
@@ -218,11 +235,16 @@ vi.mock('@supabase/supabase-js', () => ({
       }
 
       if (table === 'instagram_dm_logs') {
+        let requestedLimit = 1;
         const chain: any = {
           select: () => chain,
           eq: () => chain,
+          gte: () => chain,
           order: () => chain,
-          update: () => chain,
+          update: (data: unknown) => {
+            supabaseCalls.push({ table, op: 'update', data });
+            return chain;
+          },
           insert: (data: unknown) => {
             supabaseCalls.push({ table, op: 'insert', data });
             return Promise.resolve({ error: null });
@@ -231,10 +253,14 @@ vi.mock('@supabase/supabase-js', () => ({
             supabaseCalls.push({ table, op: 'upsert', data });
             return Promise.resolve({ error: null });
           },
-          limit: () => Promise.resolve({ data: controlState.existingDmLogs, error: null }),
+          limit: (n?: number) => {
+            if (typeof n === 'number') requestedLimit = n;
+            return chain;
+          },
           single: () => Promise.resolve({ data: null, error: null }),
           then: (resolve: (val: any) => any, reject?: (reason: any) => any) => {
-            Promise.resolve({ data: controlState.existingDmLogs, error: null }).then(resolve as any, reject as any);
+            const data = requestedLimit >= 10 ? controlState.dmHistoryLogs : controlState.existingDmLogs;
+            return Promise.resolve({ data, error: null }).then(resolve as any, reject as any);
           },
         };
         return chain;
@@ -244,6 +270,7 @@ vi.mock('@supabase/supabase-js', () => ({
         const chain: any = {
           select: () => chain,
           eq: () => chain,
+          gte: () => Promise.resolve({ data: controlState.existingCommentLogs, count: controlState.commenterHourlyCount, error: null }),
           order: () => chain,
           update: () => chain,
           insert: (data: unknown) => {
@@ -257,7 +284,7 @@ vi.mock('@supabase/supabase-js', () => ({
           limit: () => Promise.resolve({ data: controlState.existingCommentLogs, error: null }),
           single: () => Promise.resolve({ data: null, error: null }),
           then: (resolve: (val: any) => any, reject?: (reason: any) => any) => {
-            Promise.resolve({ data: controlState.existingCommentLogs, error: null }).then(resolve as any, reject as any);
+            Promise.resolve({ data: controlState.existingCommentLogs, count: controlState.commenterHourlyCount, error: null }).then(resolve as any, reject as any);
           },
         };
         return chain;
@@ -334,7 +361,7 @@ function makeDmPayload(
   };
 }
 
-function makeCommentPayload(commentId = 'comment_001', username = 'test_user') {
+function makeCommentPayload(commentId = 'comment_001', username = 'test_user', fromId = 'user_567') {
   return {
     object: 'instagram',
     entry: [
@@ -346,7 +373,7 @@ function makeCommentPayload(commentId = 'comment_001', username = 'test_user') {
             value: {
               id: commentId,
               text: 'What is the price?',
-              from: { id: 'user_567', username },
+              from: { id: fromId, username },
               media: { id: 'media_888' },
             },
           },
@@ -692,6 +719,145 @@ describe('Follow-to-Unlock Gate in Inbound DM Webhook', () => {
     expect(dmLogUpsert).toBeDefined();
     expect((dmLogUpsert?.data as any)?.follow_verified).toBe(true);
     expect((dmLogUpsert?.data as any)?.follow_status).toBe('following');
+  });
+});
+
+// ─── Loop Prevention, Flood Protection & Human Handoff ──────────────────────
+
+describe('Loop Prevention, Flood Protection & Human Handoff', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    supabaseCalls.length = 0;
+    controlState.dmAutoReplyEnabled = true;
+    controlState.requireFollowForDm = false;
+    controlState.existingDmLogs = [];
+    controlState.dmHistoryLogs = [];
+    controlState.existingCommentLogs = [];
+    controlState.commenterHourlyCount = 0;
+    mockVerifyMetaSignature.mockResolvedValue(true);
+
+    const { isAutomationEnabledServer } = await import('@/lib/feature-flags-server');
+    vi.mocked(isAutomationEnabledServer).mockResolvedValue(true);
+    const { velocityThrottle } = await import('@/lib/services/automation/velocity');
+    vi.mocked(velocityThrottle.canReply).mockResolvedValue(true);
+    vi.mocked(velocityThrottle.recordReply).mockResolvedValue(undefined);
+    const { humanizedSleep } = await import('@/lib/services/automation/jitter');
+    vi.mocked(humanizedSleep).mockResolvedValue(undefined);
+    const { ContentHumanizer } = await import('@/lib/ai/engines/ContentHumanizer');
+    vi.mocked(ContentHumanizer.humanize).mockImplementation((text: string) => ({ humanized: text }) as any);
+    const { lexicalEntropyGuard } = await import('@/lib/services/automation/lexical');
+    vi.mocked(lexicalEntropyGuard.getRecentReplies).mockResolvedValue([]);
+    vi.mocked(lexicalEntropyGuard.isTooSimilar).mockReturnValue(false);
+    const { decryptToken } = await import('@/lib/crypto/encryption');
+    vi.mocked(decryptToken).mockResolvedValue('IGqxTEST_ACCESS_TOKEN');
+    const { ContentGuard } = await import('@/lib/ai/ContentGuard');
+    vi.mocked(ContentGuard.validateComment).mockReturnValue({
+      safe: true,
+      violation: { level: 'none', code: '', message: '', internal: '' },
+    } as any);
+  });
+
+  it('blocks self-reply by numeric platform_user_id even if username differs', async () => {
+    const res = await POST(
+      makeSignedRequest(makeCommentPayload('comment_self_num', 'different_alias', 'ig_account_111'))
+    );
+    expect(res.status).toBe(200);
+    expect(mockClassifyAndGenerateReply).not.toHaveBeenCalled();
+  });
+
+  it('flags commenter flood without invoking LLM when hourly count >= 5', async () => {
+    controlState.commenterHourlyCount = 5;
+    const res = await POST(
+      makeSignedRequest(makeCommentPayload('comment_flood_001', 'spammy_user', 'user_spam_999'))
+    );
+    expect(res.status).toBe(200);
+    expect(mockClassifyAndGenerateReply).not.toHaveBeenCalled();
+
+    const flagged = supabaseCalls.find(c => c.table === 'instagram_flagged_comments');
+    expect(flagged).toBeDefined();
+  });
+
+  it('uses public comment reply for follow-gate to preserve one-time private reply slot', async () => {
+    controlState.requireFollowForDm = true;
+    mockClassifyAndGenerateReply.mockResolvedValueOnce({
+      classification: 'link_request',
+      confidence: 0.95,
+      suggestedReply: 'Sent to your DMs!',
+      suggestedDM: 'Here is your link!',
+      threadHook: null,
+      leadScore: 2,
+      shouldAutoReply: true,
+      shouldSendDM: true,
+      shouldFlagForReview: false,
+      reasoning: 'User requested link',
+    });
+    mockPostPublicReply.mockResolvedValue({ replyId: 'pub_reply_001' });
+
+    const res = await POST(
+      makeSignedRequest(makeCommentPayload('comment_fg_pub', 'eager_follower', 'user_eager_01'))
+    );
+    expect(res.status).toBe(200);
+
+    // Public reply should be called (for both main comment reply + follow gate notice),
+    // and sendDmForComment (private reply API) MUST NOT be called!
+    expect(mockPostPublicReply).toHaveBeenCalled();
+    expect(mockSendDmForComment).not.toHaveBeenCalled();
+  });
+
+  it('sends one-time human handoff notice at 15-turn DM ceiling and stays silent thereafter', async () => {
+    // 15 prior turns, none escalated yet
+    controlState.dmHistoryLogs = Array.from({ length: 15 }, (_, idx) => ({
+      message_text: `Turn ${idx + 1}`,
+      ai_reply: `Reply ${idx + 1}`,
+      escalated: false,
+      created_at: new Date().toISOString(),
+    }));
+    mockSendPrivateMessage.mockResolvedValueOnce({ messageId: 'handoff_msg_1' });
+
+    const res16 = await POST(makeSignedRequest(makeDmPayload('msg_turn_16', 'Still have more questions!')));
+    expect(res16.status).toBe(200);
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+    expect(mockSendPrivateMessage).toHaveBeenCalledTimes(1);
+
+    const flagged16 = supabaseCalls.find(c => c.table === 'instagram_flagged_dms');
+    expect(flagged16).toBeDefined();
+
+    // Now turn 17: already escalated -> MUST NOT send another DM (no loop!)
+    vi.clearAllMocks();
+    supabaseCalls.length = 0;
+    controlState.dmHistoryLogs = [
+      ...(controlState.dmHistoryLogs as any[]),
+      { message_text: 'Turn 16', ai_reply: 'Handoff sent', escalated: true, created_at: new Date().toISOString() },
+    ];
+
+    const res17 = await POST(makeSignedRequest(makeDmPayload('msg_turn_17', 'Hello???')));
+    expect(res17.status).toBe(200);
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+    expect(mockSendPrivateMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends one-time warm wind-down reply on AI escalation (shouldAutoReply=false) and flags inbox', async () => {
+    controlState.dmHistoryLogs = [
+      { message_text: 'Off topic 1', ai_reply: 'Haha fair!', escalated: false, created_at: new Date().toISOString() },
+      { message_text: 'Off topic 2', ai_reply: 'Gotcha!', escalated: false, created_at: new Date().toISOString() },
+    ];
+    mockClassifyAndReplyDM.mockResolvedValueOnce({
+      classification: 'unrelated',
+      confidence: 0.9,
+      suggestedReply: "Going to hand you over to our team from here — they'll reply soon 😊",
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldEscalate: true,
+      reasoning: 'Off-topic deflection cap reached',
+    });
+    mockSendPrivateMessage.mockResolvedValueOnce({ messageId: 'wind_down_msg_1' });
+
+    const res = await POST(makeSignedRequest(makeDmPayload('msg_escalate_wind_down', 'Tell me another joke')));
+    expect(res.status).toBe(200);
+    expect(mockClassifyAndReplyDM).toHaveBeenCalledTimes(1);
+    expect(mockSendPrivateMessage).toHaveBeenCalledTimes(1);
+    const flagged = supabaseCalls.find(c => c.table === 'instagram_flagged_dms' && c.op === 'upsert');
+    expect(flagged).toBeDefined();
   });
 });
 

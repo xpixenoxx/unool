@@ -147,6 +147,9 @@ export async function POST(request: NextRequest) {
           dmKnowledgeBase: rawConfig.dm_knowledge_base,
           dmEscalationEnabled: rawConfig.dm_escalation_enabled ?? false,
           dmMaxRepliesPerHour: rawConfig.dm_max_replies_per_hour ?? 20,
+          requireFollowForDm: rawConfig.require_follow_for_dm ?? false,
+          followAskMessage: rawConfig.follow_ask_message || undefined,
+          followVerifiedMessage: rawConfig.follow_verified_message || undefined,
         }
       : DEFAULT_AUTOMATION_CONFIG;
 
@@ -526,8 +529,11 @@ export async function POST(request: NextRequest) {
         // Skip if empty or already processed
         if (!commentId || !commentText) continue;
 
-        // Skip comments made by brand account itself
-        if (brandUsername && commenterUsername && commenterUsername === brandUsername) continue;
+        // Skip comments made by brand account itself (by numeric ID or username)
+        const isSelfComment =
+          (commenterIgScopedId && connection.platform_user_id && commenterIgScopedId === connection.platform_user_id) ||
+          (brandUsername && commenterUsername && commenterUsername === brandUsername);
+        if (isSelfComment) continue;
 
         // Skip reply-to-reply comments only if thread chaining is disabled
         if (item.parent_id && !automationConfig.threadChainingEnabled) continue;
@@ -684,25 +690,43 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Optional DM sending for link requests — uses Private Replies API
+        // Optional DM sending for link requests — uses Private Replies API (or public follow-gate prompt)
         if (result.shouldSendDM && activeLinkUrl) {
-          const dmText = result.suggestedDM 
-            ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl 
-                ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
-                : result.suggestedDM)
-            : `Hey @${commentEvent.username}! Here's the link: ${activeLinkUrl}`;
-          const dmRes = await automation.sendDmForComment(
-            accessToken,
-            connection.platform_user_id,
-            commentId,
-            commenterIgScopedId,
-            dmText
-          );
-          if (dmRes) {
-            await supabaseAdmin
-              .from('instagram_comment_logs')
-              .update({ dm_sent: true })
-              .eq('comment_id', commentId);
+          if (automationConfig.requireFollowForDm) {
+            const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
+            const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
+            const pubGateRes = await automation.postPublicReply(
+              accessToken,
+              media.id,
+              commentId,
+              followAskPublic,
+              rawUsername || commenterUsername
+            );
+            if (pubGateRes) {
+              await supabaseAdmin
+                .from('instagram_comment_logs')
+                .update({ auto_replied: true })
+                .eq('comment_id', commentId);
+            }
+          } else {
+            const dmText = result.suggestedDM 
+              ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl 
+                  ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
+                  : result.suggestedDM)
+              : `Hey @${commentEvent.username}! Here's the link: ${activeLinkUrl}`;
+            const dmRes = await automation.sendDmForComment(
+              accessToken,
+              connection.platform_user_id,
+              commentId,
+              commenterIgScopedId,
+              dmText
+            );
+            if (dmRes) {
+              await supabaseAdmin
+                .from('instagram_comment_logs')
+                .update({ dm_sent: true })
+                .eq('comment_id', commentId);
+            }
           }
         }
 

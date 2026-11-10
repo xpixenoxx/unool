@@ -935,7 +935,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   // Fetch chronological conversation history for this sender in this workspace
   const { data: previousLogs } = await supabaseAdmin
     .from('instagram_dm_logs')
-    .select('message_text, ai_reply, created_at')
+    .select('message_text, ai_reply, escalated, created_at')
     .eq('workspace_id', connection.workspace_id)
     .eq('sender_id', dmEvent.senderId)
     .order('created_at', { ascending: true })
@@ -943,9 +943,13 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
 
   const conversationHistory: ConversationMessage[] = [];
   let conversationTurnCount = 0;
+  let alreadyEscalated = false;
 
   if (previousLogs && previousLogs.length > 0) {
     for (const log of previousLogs) {
+      if ((log as any).escalated === true) {
+        alreadyEscalated = true;
+      }
       if (log.message_text) {
         conversationHistory.push({ role: 'user', text: log.message_text });
       }
@@ -956,22 +960,63 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     }
   }
 
-  // If conversation has already reached beyond the 15-reply ceiling, stop auto-replying to prevent endless loops
-  if (conversationTurnCount > 15) {
-    logger.info('DM conversation reached turn limit (>15 replies)', {
+  // If conversation has already reached the 15-reply ceiling, stop auto-replying to prevent endless loops.
+  // Send a single warm handoff notice on first breach (if not already escalated) so the user isn't ghosted.
+  if (conversationTurnCount >= 15) {
+    logger.info('DM conversation reached turn limit (15+ replies)', {
       workspaceId: connection.workspace_id,
       senderId: dmEvent.senderId,
       conversationTurnCount,
+      alreadyEscalated,
     });
+
+    const handoffText = !alreadyEscalated && (automationConfig.dmEscalationEnabled ?? true)
+      ? "Hey! I'm passing your conversation directly over to our team so someone can give you a proper hand from here — they'll reply shortly 😊"
+      : 'SKIP';
+
+    let handoffSent = false;
+    if (handoffText !== 'SKIP') {
+      const sendRes = await automation.sendPrivateMessage(accessToken, igUserId, dmEvent.senderId, handoffText);
+      handoffSent = !!sendRes;
+    }
+
     await logDmEvent(connection.workspace_id, dmEvent, {
       classification: 'unrelated',
       confidence: 1.0,
-      suggestedReply: 'SKIP',
+      suggestedReply: handoffSent ? handoffText : 'SKIP',
       leadScore: 1,
       shouldAutoReply: false,
       shouldEscalate: true,
-      reasoning: 'Conversation turn limit reached (15 replies exceeded); escalated for human handling.',
+      reasoning: 'Conversation turn limit reached (15 replies); escalated for human handling.',
     });
+
+    if (handoffSent || alreadyEscalated) {
+      await supabaseAdmin
+        .from('instagram_dm_logs')
+        .update({ auto_replied: handoffSent, escalated: true })
+        .eq('workspace_id', connection.workspace_id)
+        .eq('message_id', dmEvent.messageId);
+    }
+
+    try {
+      await supabaseAdmin.from('instagram_flagged_dms').upsert(
+        {
+          workspace_id: connection.workspace_id,
+          message_id: dmEvent.messageId,
+          sender_id: dmEvent.senderId,
+          sender_username: dmEvent.senderUsername,
+          message_text: dmEvent.text,
+          classification: 'unrelated',
+          ai_suggested_reply: handoffSent ? handoffText : null,
+          lead_score: 1,
+          reasoning: 'Conversation turn limit reached (15 replies); escalated for human handling.',
+          status: 'pending',
+        },
+        { onConflict: 'workspace_id,message_id', ignoreDuplicates: false }
+      );
+    } catch (flagErr) {
+      logger.warn('Failed to upsert turn-limit DM into flagged inbox', { error: flagErr });
+    }
     return;
   }
 
@@ -1096,23 +1141,56 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
       workspaceId: connection.workspace_id,
       senderId: dmEvent.senderId,
       classification: result.classification,
+      alreadyEscalated,
     });
-    // Insert into flagged DMs inbox for human review
+
+    // If AI turned off auto-reply for this escalation (e.g., deflection cap reached)
+    // and provided a warm wind-down reply, send it ONCE so the follower isn't ghosted.
+    if (
+      !result.shouldAutoReply &&
+      !alreadyEscalated &&
+      result.suggestedReply &&
+      result.suggestedReply !== 'SKIP' &&
+      result.classification !== 'harmful' &&
+      result.classification !== 'spam'
+    ) {
+      let handoffReply = result.suggestedReply;
+      try {
+        const humanized = ContentHumanizer.humanize(handoffReply, 'instagram');
+        handoffReply = humanized.humanized || handoffReply;
+      } catch {
+        // use raw
+      }
+      const handoffRes = await automation.sendPrivateMessage(accessToken, igUserId, dmEvent.senderId, handoffReply);
+      if (handoffRes) {
+        await supabaseAdmin
+          .from('instagram_dm_logs')
+          .update({ auto_replied: true, escalated: true, reply_sent_at: new Date().toISOString() })
+          .eq('workspace_id', connection.workspace_id)
+          .eq('message_id', dmEvent.messageId);
+        await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
+      }
+    }
+
+    // Upsert into flagged DMs inbox for human review
     try {
-      await supabaseAdmin.from('instagram_flagged_dms').insert({
-        workspace_id: connection.workspace_id,
-        message_id: dmEvent.messageId,
-        sender_id: dmEvent.senderId,
-        sender_username: dmEvent.senderUsername,
-        message_text: dmEvent.text,
-        classification: result.classification,
-        ai_suggested_reply: result.suggestedReply !== 'SKIP' ? result.suggestedReply : null,
-        lead_score: result.leadScore,
-        reasoning: result.reasoning,
-        status: 'pending',
-      });
+      await supabaseAdmin.from('instagram_flagged_dms').upsert(
+        {
+          workspace_id: connection.workspace_id,
+          message_id: dmEvent.messageId,
+          sender_id: dmEvent.senderId,
+          sender_username: dmEvent.senderUsername,
+          message_text: dmEvent.text,
+          classification: result.classification,
+          ai_suggested_reply: result.suggestedReply !== 'SKIP' ? result.suggestedReply : null,
+          lead_score: result.leadScore,
+          reasoning: result.reasoning,
+          status: 'pending',
+        },
+        { onConflict: 'workspace_id,message_id', ignoreDuplicates: false }
+      );
     } catch (escalateErr) {
-      logger.warn('Failed to insert escalated DM into flagged inbox', { error: escalateErr });
+      logger.warn('Failed to upsert escalated DM into flagged inbox', { error: escalateErr });
     }
   }
 }
