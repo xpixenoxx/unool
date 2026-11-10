@@ -497,11 +497,21 @@ export class ScheduleService {
           logger.warn('Failed to check workspace queue hold, proceeding with due post', { postId: post.id, error: wsErr });
         }
 
-        // Prevent concurrent double-execution: atomically transition to 'publishing'
+        // Prevent concurrent double-execution: atomic compare-and-set claim
+        // (UPDATE ... WHERE status = 'scheduled' [or stale 'publishing']). Only the worker
+        // whose UPDATE actually affected a row may publish; losers skip the post.
         try {
-          await postRepository.updateStatus(post.id, 'publishing');
-        } catch {
-          continue; // Another worker or request picked it up
+          const claimed =
+            post.status === 'publishing'
+              ? await postRepository.claimForPublishing(post.id, 'publishing', new Date(Date.now() - 5 * 60 * 1000))
+              : await postRepository.claimForPublishing(post.id, 'scheduled');
+          if (!claimed) {
+            logger.info('Skipping due post: claim lost to another worker', { postId: post.id });
+            continue;
+          }
+        } catch (claimErr) {
+          logger.warn('Failed to claim due post for publishing, skipping', { postId: post.id, error: claimErr });
+          continue;
         }
 
         results.processed++;

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { getCurrentUsage, checkLimit, getLimitsForTier, Tier } from '@/lib/limits/freeTier';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -19,14 +19,15 @@ export async function enforceLimit(
     return NextResponse.json({ error: 'Missing workspace or user ID' }, { status: 401 });
   }
 
-  // Get workspace tier
+  // Get workspace tier (column in workspaces is 'plan')
   const { data: workspace } = await supabaseAdmin
     .from('workspaces')
-    .select('plan_tier')
+    .select('plan')
     .eq('id', workspaceId)
     .single();
 
-  const tier = (workspace?.plan_tier as Tier) || 'free';
+  const rawPlan = (workspace as any)?.plan || (workspace as any)?.plan_tier || 'free';
+  const tier: Tier = rawPlan === 'spark' ? 'free' : (rawPlan as Tier);
   const limits = getLimitsForTier(tier);
 
   // Get current usage

@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Public Profile Flow', () => {
-  const testSubdomain = 'test-profile-e2e';
-  const privateSubdomain = 'private-profile-e2e';
+  const testSubdomain = 'u/test-profile-e2e';
+  const privateSubdomain = 'u/private-profile-e2e';
 
   test.beforeEach(async ({ page }) => {
     // Ensure we start from a clean state
@@ -142,7 +142,7 @@ test.describe('Public Profile Flow', () => {
 
   test.describe('Error Handling', () => {
     test('shows friendly error for non-existent subdomain', async ({ page }) => {
-      await page.goto('/this-subdomain-definitely-does-not-exist-12345');
+      await page.goto('/u/this-subdomain-definitely-does-not-exist-12345');
 
       await expect(page.locator('text=Profile Not Found')).toBeVisible({ timeout: 5000 });
       await expect(page.locator('text=doesn\\'t exist')).toBeVisible({ timeout: 5000 });

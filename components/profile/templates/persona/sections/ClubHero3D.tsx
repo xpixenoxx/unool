@@ -268,6 +268,10 @@ const AmbientParticles = ({ uTime, uIntensity }: { uTime: number; uIntensity: nu
     });
 
     pointsRef.current = new THREE.Points(geometry, material);
+    return () => {
+      geometry.dispose();
+      material.dispose();
+    };
   }, []);
 
   useFrame(() => {
@@ -367,12 +371,14 @@ export function ClubHero3D({
   // Animation loop
   useEffect(() => {
     let frame = 0;
+    let rafId: number;
     const animate = () => {
       frame++;
       timeRef.current = frame * 0.016; // ~60fps
-      requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
     };
-    animate();
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   const effectiveIntensity = prefersReduced ? 0 : intensity;

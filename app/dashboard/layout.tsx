@@ -14,6 +14,7 @@ import { SignalStrip } from './signal/SignalStrip';
 import { SubdomainClaimPopup } from '@/components/onboarding/SubdomainClaimPopup';
 import { toast } from 'sonner';
 import { DashboardTimeTracker } from '@/components/analytics/DashboardTimeTracker';
+import { clearAllClientCaches } from '@/lib/utils/clientCache';
 
 /* ─── Biscuit color palette (used by main page background) ── */
 const biscuit = {
@@ -285,6 +286,7 @@ function DashboardSidebar({
   const flatNavItems = useMemo(() => navSections.flatMap((s) => s.items), [navSections]);
 
   const handleSignOut = async () => {
+    clearAllClientCaches();
     try {
       await fetch('/api/auth/signout', { method: 'POST' });
     } catch {
@@ -293,19 +295,23 @@ function DashboardSidebar({
     window.location.replace('/signin');
   };
 
-  const rawName = profile?.name || user?.fullName || 'usha';
-  const displayName = (rawName.toLowerCase() === 'user' || rawName.toLowerCase() === 'new user' || !rawName) ? 'usha' : rawName;
-  const avatarLetter = (displayName.toLowerCase().includes('usha') || displayName === 'usha') ? 'V' : (displayName.charAt(0).toUpperCase() || 'V');
-  const displayEmail = user?.email || 'usha@unool.co';
-  const currentSubdomain = profile?.subdomain || (displayName.toLowerCase() === 'usha' ? 'usha' : '');
-  const displayUrl = currentSubdomain ? `${currentSubdomain}.unool.co` : (displayEmail || 'usha.unool.co');
+  const rawName = profile?.name || user?.fullName || '';
+  const displayName = (rawName.toLowerCase() === 'user' || rawName.toLowerCase() === 'new user' || !rawName) ? (user?.email ? user.email.split('@')[0] : 'Creator') : rawName;
+  const avatarLetter = displayName.charAt(0).toUpperCase() || 'U';
+  const displayEmail = user?.email || '';
+  const currentSubdomain = profile?.subdomain || '';
+  const displayUrl = currentSubdomain ? `${currentSubdomain}.unool.co` : (displayEmail || 'unool.co');
 
   const handleCopyUrl = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
-    const urlToCopy = currentSubdomain ? `https://${currentSubdomain}.unool.co` : 'https://usha.unool.co';
+    if (!currentSubdomain) {
+      toast.error('Set up your subdomain in Presence first');
+      return;
+    }
+    const urlToCopy = `https://${currentSubdomain}.unool.co`;
     try {
       navigator.clipboard.writeText(urlToCopy);
       setCopied(true);

@@ -53,7 +53,7 @@ describe('ScheduleService.processDueScheduledPosts', () => {
 
     vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledPosts').mockResolvedValue([mockPost]);
     vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledVariants').mockResolvedValue([]);
-    const updateStatusSpy = vi.spyOn(SupabasePostRepository.prototype, 'updateStatus').mockResolvedValue(mockPost);
+    const claimSpy = vi.spyOn(SupabasePostRepository.prototype, 'claimForPublishing').mockResolvedValue(mockPost);
 
     vi.spyOn(publishService, 'publishToAllPlatforms').mockResolvedValue({
       instagram: { success: true, platformPostId: 'ig-123' },
@@ -64,7 +64,7 @@ describe('ScheduleService.processDueScheduledPosts', () => {
     expect(result.processed).toBe(1);
     expect(result.succeeded).toBe(1);
     expect(result.failed).toBe(0);
-    expect(updateStatusSpy).toHaveBeenCalledWith('post-due-1', 'publishing');
+    expect(claimSpy).toHaveBeenCalledWith('post-due-1', 'scheduled');
     expect(publishService.publishToAllPlatforms).toHaveBeenCalledWith('post-due-1', 'ws-test');
   });
 
@@ -88,6 +88,7 @@ describe('ScheduleService.processDueScheduledPosts', () => {
 
     vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledPosts').mockResolvedValue([mockPost]);
     vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledVariants').mockResolvedValue([]);
+    vi.spyOn(SupabasePostRepository.prototype, 'claimForPublishing').mockResolvedValue(mockPost);
     const updateStatusSpy = vi.spyOn(SupabasePostRepository.prototype, 'updateStatus').mockResolvedValue(mockPost);
 
     vi.spyOn(publishService, 'publishToAllPlatforms').mockResolvedValue({
@@ -124,7 +125,7 @@ describe('ScheduleService.processDueScheduledPosts', () => {
 
     vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledPosts').mockResolvedValue([mockStuckPost]);
     vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledVariants').mockResolvedValue([]);
-    const updateStatusSpy = vi.spyOn(SupabasePostRepository.prototype, 'updateStatus').mockResolvedValue(mockStuckPost);
+    const claimSpy = vi.spyOn(SupabasePostRepository.prototype, 'claimForPublishing').mockResolvedValue(mockStuckPost);
 
     vi.spyOn(publishService, 'publishToAllPlatforms').mockResolvedValue({
       bluesky: { success: true, platformPostId: 'bsky-123' },
@@ -136,6 +137,7 @@ describe('ScheduleService.processDueScheduledPosts', () => {
     expect(result.processed).toBe(1);
     expect(result.succeeded).toBe(1);
     expect(result.failed).toBe(0);
+    expect(claimSpy).toHaveBeenCalledWith('post-stuck-1', 'publishing', expect.any(Date));
     expect(publishService.publishToAllPlatforms).toHaveBeenCalledWith('post-stuck-1', 'ws-test');
   });
 

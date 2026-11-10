@@ -11,6 +11,13 @@ export default function ContactUsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const mailtoSubject = encodeURIComponent(form.subject || 'Unool Support Inquiry');
+    const mailtoBody = encodeURIComponent(
+      `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`
+    );
+    if (typeof window !== 'undefined') {
+      window.location.href = `mailto:support@unool.co?subject=${mailtoSubject}&body=${mailtoBody}`;
+    }
     setSubmitted(true);
   };
 

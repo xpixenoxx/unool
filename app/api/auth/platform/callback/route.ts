@@ -59,10 +59,19 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Get state from cookie (not URL parameter for security)
+  // Get state from cookie and/or URL parameter; if both are present they must match (CSRF defense)
   const cookieHeader = request.headers.get('cookie');
   const cookieState = parseOAuthCookie(cookieHeader);
-  const effectiveState = cookieState?.state || state;
+  if (state && cookieState?.state && state !== cookieState.state) {
+    logger.warn('OAuth callback state mismatch between URL and signed cookie', {
+      urlState: state.slice(0, 8) + '...',
+      cookieState: cookieState.state.slice(0, 8) + '...',
+    });
+    return NextResponse.redirect(
+      buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'invalid_state' })
+    );
+  }
+  const effectiveState = state || cookieState?.state;
 
   if (!effectiveState) {
     logger.warn('OAuth callback missing state', { hasCode: !!code, hasCookieState: !!cookieState });

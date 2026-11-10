@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
@@ -180,55 +180,58 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Inject auth identity headers for API routes ──────────────────────────
-  // Resolves BOTH x-user-id + x-workspace-id so getCurrentAuth() can return
-  // instantly from headers without any DB round-trip.
+  // SECURITY: Always strip client-supplied x-user-id / x-workspace-id headers first
+  // to prevent authentication bypass and cross-tenant account takeover via header spoofing.
   if (pathname.startsWith('/api/')) {
-    if (!request.headers.get('x-user-id')) {
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-        if (supabaseUrl && supabaseAnonKey) {
-          const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-            cookies: {
-              getAll() { return request.cookies.getAll(); },
-              setAll() {},
-            },
-          });
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const requestHeaders = new Headers(request.headers);
-            requestHeaders.set('x-user-id', user.id);
+    const sanitizedHeaders = new Headers(request.headers);
+    sanitizedHeaders.delete('x-user-id');
+    sanitizedHeaders.delete('x-workspace-id');
 
-            // Also resolve workspace ID so getCurrentAuth needs zero DB calls
-            if (supabaseServiceKey) {
-              try {
-                const { createClient: createSbClient } = await import('@supabase/supabase-js');
-                const admin = createSbClient(supabaseUrl, supabaseServiceKey);
-                // Use a short timeout (1.5s) so a slow DB never blocks the API call
-                const workspacePromise = admin
-                  .from('workspace_members')
-                  .select('workspace_id')
-                  .eq('user_id', user.id)
-                  .single();
-                const timeoutPromise = new Promise<{ data: null; error: Error }>(
-                  (resolve) => setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 1500)
-                );
-                const result = await Promise.race([workspacePromise, timeoutPromise]);
-                const workspaceId = result.data?.workspace_id || user.id;
-                requestHeaders.set('x-workspace-id', workspaceId);
-              } catch {
-                // workspace lookup failed — getCurrentAuth will resolve it
-              }
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      if (supabaseUrl && supabaseAnonKey) {
+        const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+          cookies: {
+            getAll() { return request.cookies.getAll(); },
+            setAll() {},
+          },
+        });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          sanitizedHeaders.set('x-user-id', user.id);
+
+          // Also resolve workspace ID so getCurrentAuth needs zero DB calls
+          if (supabaseServiceKey) {
+            try {
+              const { createClient: createSbClient } = await import('@supabase/supabase-js');
+              const admin = createSbClient(supabaseUrl, supabaseServiceKey);
+              // Use a short timeout (1.5s) so a slow DB never blocks the API call
+              const workspacePromise = admin
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', user.id)
+                .single();
+              const timeoutPromise = new Promise<{ data: null; error: Error }>(
+                (resolve) => setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 1500)
+              );
+              const result = await Promise.race([workspacePromise, timeoutPromise]);
+              const workspaceId = result.data?.workspace_id || user.id;
+              sanitizedHeaders.set('x-workspace-id', workspaceId);
+            } catch {
+              // workspace lookup failed — getCurrentAuth will resolve it
             }
-
-            return NextResponse.next({ request: { headers: requestHeaders } });
           }
+
+          return NextResponse.next({ request: { headers: sanitizedHeaders } });
         }
-      } catch {
-        // Auth injection failed — let routes handle their own auth
       }
+    } catch {
+      // Auth injection failed — let routes handle their own auth with stripped headers
     }
+
+    return NextResponse.next({ request: { headers: sanitizedHeaders } });
   }
 
   // For everything else, allow through (let page components handle auth)

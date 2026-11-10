@@ -340,6 +340,9 @@ function ScheduledPostModalContent({
 
   return (
     <motion.div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Scheduled post details"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

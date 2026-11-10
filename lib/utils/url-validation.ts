@@ -93,6 +93,14 @@ export async function validateUrlForFetch(url: string): Promise<ValidationResult
     return { allowed: false, reason: 'Metadata endpoint blocked' };
   }
 
+  // If hostname is already an IP literal (IPv4 or IPv6), validate directly without DNS lookup
+  if (isValidIpv4(hostname) || isValidIpv6(hostname)) {
+    if (isPrivateIp(hostname)) {
+      return { allowed: false, reason: `Private IP address blocked: ${hostname}` };
+    }
+    return { allowed: true, ip: hostname.replace(/^\[|\]$/g, '') };
+  }
+
   // Resolve hostname to IP for further validation
   let ips: string[];
   try {
@@ -102,11 +110,15 @@ export async function validateUrlForFetch(url: string): Promise<ValidationResult
     return { allowed: false, reason: 'Failed to resolve hostname' };
   }
 
-  // Validate each resolved IP
-  for (const ip of ips) {
-    // Skip if it's a hostname (shouldn't happen after resolution, but safe)
+  if (!ips || ips.length === 0) {
+    return { allowed: false, reason: 'Failed to resolve hostname to any IP address' };
+  }
+
+  // Validate each resolved IP (fail closed if any address is invalid or private)
+  for (const rawIp of ips) {
+    const ip = rawIp.replace(/^\[|\]$/g, '');
     if (!isValidIpv4(ip) && !isValidIpv6(ip)) {
-      continue;
+      return { allowed: false, reason: `Unrecognized or unresolvable address: ${ip}` };
     }
 
     if (isPrivateIp(ip)) {
@@ -173,9 +185,11 @@ export function quickUrlValidation(url: string): ValidationResult {
 }
 
 function isPrivateIp(ip: string): boolean {
+  const cleanIp = ip.replace(/^\[|\]$/g, '').toLowerCase();
+
   // Check IPv4
-  if (isValidIpv4(ip)) {
-    const num = ipToNumber(ip);
+  if (isValidIpv4(cleanIp)) {
+    const num = ipToNumber(cleanIp);
     for (const range of PRIVATE_IPV4_RANGES) {
       if (num >= range.start && num <= range.end) {
         return true;
@@ -185,18 +199,24 @@ function isPrivateIp(ip: string): boolean {
   }
 
   // Check IPv6
-  if (isValidIpv6(ip)) {
-    const lower = ip.toLowerCase();
+  if (isValidIpv6(cleanIp)) {
     for (const prefix of PRIVATE_IPV6_PREFIXES) {
-      if (lower.startsWith(prefix)) {
+      if (cleanIp.startsWith(prefix)) {
         return true;
       }
     }
-    // Check IPv4-mapped IPv6 addresses
-    if (lower.startsWith('::ffff:')) {
-      const ipv4 = lower.replace('::ffff:', '');
-      if (isValidIpv4(ipv4) && isPrivateIp(ipv4)) {
-        return true;
+    // Check IPv4-mapped IPv6 addresses (dotted quad ::ffff:127.0.0.1 or hex ::ffff:7f00:1)
+    if (cleanIp.startsWith('::ffff:')) {
+      const mapped = cleanIp.slice(7);
+      if (isValidIpv4(mapped)) {
+        return isPrivateIp(mapped);
+      }
+      const hexMatch = mapped.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+      if (hexMatch) {
+        const hi = parseInt(hexMatch[1], 16);
+        const lo = parseInt(hexMatch[2], 16);
+        const ipv4 = `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+        return isPrivateIp(ipv4);
       }
     }
     return false;
@@ -211,8 +231,13 @@ function isValidIpv4(ip: string): boolean {
 }
 
 function isValidIpv6(ip: string): boolean {
-  // Simplified IPv6 validation
-  return /^[0-9a-fA-F:]+$/.test(ip) && ip.includes(':');
+  const clean = ip.replace(/^\[|\]$/g, '').toLowerCase();
+  if (!clean.includes(':')) return false;
+  if (clean.startsWith('::ffff:')) {
+    const mapped = clean.slice(7);
+    if (isValidIpv4(mapped)) return true;
+  }
+  return /^[0-9a-f:]+$/.test(clean);
 }
 
 function ipToNumber(ip: string): number {

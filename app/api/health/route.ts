@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -91,15 +91,36 @@ async function checkOpenAI(): Promise<HealthCheck> {
   }
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request?: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
-  // Run all health checks in parallel
+  // Only run live external AI provider probes when explicitly requested with a valid CRON_SECRET
+  // to prevent unauthenticated traffic from triggering paid Anthropic completions.
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = request?.headers.get('authorization');
+  const isAuthorizedDeepProbe =
+    Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`) &&
+    request?.nextUrl?.searchParams.get('deep') === 'true';
+
   const [supabase, redis, anthropic, openai] = await Promise.all([
     checkSupabase(),
     checkRedis(),
-    checkAnthropic(),
-    checkOpenAI(),
+    isAuthorizedDeepProbe
+      ? checkAnthropic()
+      : Promise.resolve<HealthCheck>({
+          name: 'anthropic',
+          healthy: true,
+          latencyMs: 0,
+          details: { configured: Boolean(config.ANTHROPIC_API_KEY), mode: 'config-only' },
+        }),
+    isAuthorizedDeepProbe
+      ? checkOpenAI()
+      : Promise.resolve<HealthCheck>({
+          name: 'openai',
+          healthy: true,
+          latencyMs: 0,
+          details: { configured: Boolean(config.OPENAI_API_KEY), mode: 'config-only' },
+        }),
   ]);
 
   const checks: HealthCheck[] = [supabase, redis, anthropic, openai];

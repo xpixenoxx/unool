@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -17,11 +17,14 @@ export const maxDuration = 60;
  * route for each.
  */
 export async function GET(request: NextRequest) {
-  // Vercel Cron sets the Authorization header with CRON_SECRET when configured.
-  // If not set, allow through (Vercel only calls this from its own infrastructure).
+  // CRON_SECRET must be set — fail closed if missing
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    logger.error('CRON_SECRET environment variable is not set — rejecting instagram-sync cron request');
+    return NextResponse.json({ error: 'Server misconfigured: CRON_SECRET not set' }, { status: 500 });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -50,7 +53,10 @@ export async function GET(request: NextRequest) {
       try {
         const res = await fetch(`${appUrl}/api/instagram/sync`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${cronSecret}`,
+          },
           body: JSON.stringify({ workspaceId }),
         });
         const data = await res.json().catch(() => ({}));

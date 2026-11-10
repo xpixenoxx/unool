@@ -168,9 +168,15 @@ const staggerContainer = {
 
 const transition = { type: 'spring' as const, stiffness: 350, damping: 28 };
 
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
+
 // In-memory module cache for instant (0ms) revisits across sidebar navigation
 let memoryPresenceProfile: Profile | null = null;
 let memoryPresenceClaimedSubdomain: string | null = null;
+registerClientCacheReset(() => {
+  memoryPresenceProfile = null;
+  memoryPresenceClaimedSubdomain = null;
+});
 
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT

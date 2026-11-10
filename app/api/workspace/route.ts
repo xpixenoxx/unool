@@ -1,8 +1,9 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { config } from '@/lib/config/schema';
 import { withPlanEnforcement } from '@/lib/middleware/plan-enforcement';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 
 
@@ -75,13 +76,7 @@ export const POST = withPlanEnforcement(async (request: NextRequest, context: { 
     }
 
     // Check if user exists by email
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-    if (listError) {
-      console.error('List users failed:', listError);
-      return NextResponse.json({ error: 'Failed to check user' }, { status: 500 });
-    }
-
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = await findUserByEmail(email);
 
     if (!existingUser) {
       // Check if already invited

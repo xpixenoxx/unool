@@ -73,7 +73,7 @@ export default function AddAccountsPage() {
         
         <h1 className="text-[28px] font-bold text-[#1f2937] mb-2 mt-4 text-center">Add all your accounts</h1>
         <p className="text-[15px] text-zinc-500 mb-10 text-center max-w-[500px]">
-          Connect your social media accounts to post bridge and post to all of them at once.
+          Connect your social media accounts to Unool and post to all of them at once.
         </p>
 
         {/* Grid of accounts */}

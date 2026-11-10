@@ -137,6 +137,29 @@ export class SupabasePostRepository implements IPostRepository {
     return this.mapPostRow(data);
   }
 
+  async claimForPublishing(
+    id: string,
+    fromStatus: 'scheduled' | 'publishing' = 'scheduled',
+    staleBefore?: Date,
+  ): Promise<Post | null> {
+    let query = this.supabase
+      .from('posts')
+      .update({ status: 'publishing', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', fromStatus);
+
+    if (fromStatus === 'publishing') {
+      const threshold = staleBefore ?? new Date(Date.now() - 5 * 60 * 1000);
+      query = query.lte('updated_at', threshold.toISOString());
+    }
+
+    // No .single(): zero affected rows is a normal "lost the claim" outcome, not an error.
+    const { data, error } = await query.select();
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+    return this.mapPostRow(data[0]);
+  }
+
   async findVariantsByPostId(postId: string): Promise<PostVariant[]> {
     const { data, error } = await this.supabase
       .from('post_variants')

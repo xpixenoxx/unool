@@ -56,10 +56,58 @@ export function IntegrationsTab({ onLoadKeys }: IntegrationsTabProps) {
   const [showNewKey, setShowNewKey] = useState<string | null>(null);
   const [newKeyPlaintext, setNewKeyPlaintext] = useState<string>('');
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+  const [webhookEndpoints, setWebhookEndpoints] = useState<Array<{ id: string; url: string; createdAt: string }>>([]);
+  const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  const [addingWebhook, setAddingWebhook] = useState(false);
 
   useEffect(() => {
     loadApiKeys();
+    try {
+      const savedHooks = localStorage.getItem('unool_webhook_endpoints');
+      if (savedHooks) {
+        const parsed = JSON.parse(savedHooks);
+        if (Array.isArray(parsed)) setWebhookEndpoints(parsed);
+      }
+    } catch {}
   }, []);
+
+  const handleAddWebhook = () => {
+    const trimmed = newWebhookUrl.trim();
+    if (!trimmed) {
+      toast.error('Please enter a webhook URL');
+      return;
+    }
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'https:') {
+        toast.error('Webhook endpoints must use HTTPS');
+        return;
+      }
+    } catch {
+      toast.error('Please enter a valid HTTPS URL');
+      return;
+    }
+    const next = [
+      ...webhookEndpoints,
+      { id: crypto.randomUUID(), url: trimmed, createdAt: new Date().toISOString() },
+    ];
+    setWebhookEndpoints(next);
+    try {
+      localStorage.setItem('unool_webhook_endpoints', JSON.stringify(next));
+    } catch {}
+    setNewWebhookUrl('');
+    setAddingWebhook(false);
+    toast.success('Webhook endpoint saved');
+  };
+
+  const handleRemoveWebhook = (id: string) => {
+    const next = webhookEndpoints.filter((w) => w.id !== id);
+    setWebhookEndpoints(next);
+    try {
+      localStorage.setItem('unool_webhook_endpoints', JSON.stringify(next));
+    } catch {}
+    toast.success('Webhook endpoint removed');
+  };
 
   const loadApiKeys = async () => {
     setApiKeysLoading(true);
@@ -427,9 +475,22 @@ export function IntegrationsTab({ onLoadKeys }: IntegrationsTabProps) {
       {/* Webhooks */}
       <PCard>
         <PCardHead>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Webhooks
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Webhooks
+            </p>
+            {!addingWebhook && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAddingWebhook(true)}
+                className="gap-1.5 h-8 text-xs cursor-pointer"
+              >
+                <Webhook className="h-3 w-3" />
+                Add Endpoint
+              </Button>
+            )}
+          </div>
         </PCardHead>
         <PCardBody>
           <SectionCard
@@ -446,11 +507,54 @@ export function IntegrationsTab({ onLoadKeys }: IntegrationsTabProps) {
               </>
             }
             action={
-              <p className="text-xs text-muted-foreground italic">
-                Full webhook management coming in v1.1.
-              </p>
+              addingWebhook ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newWebhookUrl}
+                    onChange={(e) => setNewWebhookUrl(e.target.value)}
+                    placeholder="https://example.com/webhooks/unool"
+                    aria-label="Webhook endpoint URL"
+                    className="h-8 w-56 text-xs"
+                  />
+                  <Button size="sm" onClick={handleAddWebhook} className="h-8 text-xs cursor-pointer">
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setAddingWebhook(false);
+                      setNewWebhookUrl('');
+                    }}
+                    className="h-8 text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : null
             }
           />
+          {webhookEndpoints.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {webhookEndpoints.map((ep) => (
+                <div
+                  key={ep.id}
+                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/40"
+                >
+                  <code className="text-xs font-mono truncate text-foreground">{ep.url}</code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveWebhook(ep.id)}
+                    aria-label={`Remove webhook ${ep.url}`}
+                    className="h-7 w-7 text-red-500 hover:text-red-700 cursor-pointer shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </PCardBody>
       </PCard>
     </div>

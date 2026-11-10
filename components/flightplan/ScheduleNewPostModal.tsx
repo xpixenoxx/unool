@@ -192,52 +192,34 @@ export function ScheduleNewPostModal({
 
       for (const file of uniqueFilesToUpload) {
         const contentType = file.type || 'image/jpeg';
-        let uploadSuccess = false;
-
-        try {
-          const res = await fetch('/api/composer/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ filename: file.name, contentType }),
-          });
-          const data = await res.json();
-          if (res.ok && data.signedUrl) {
-            const putRes = await fetch(data.signedUrl, {
-              method: 'PUT',
-              headers: { 'Content-Type': contentType },
-              body: file,
-            });
-            if (putRes.ok && data.url) {
-              uploaded.push({
-                url: data.url,
-                type: data.type || (contentType.startsWith('video/') ? 'video' : 'image'),
-              });
-              uploadSuccess = true;
-            }
-          }
-        } catch {
-          // Fall back to data URL
+        const res = await fetch('/api/composer/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ filename: file.name, contentType }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.signedUrl || !data.url) {
+          throw new Error(data.error || `Failed to initialize upload for ${file.name}`);
         }
-
-        if (!uploadSuccess) {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          uploaded.push({
-            url: dataUrl,
-            type: file.type.startsWith('video/') ? 'video' : 'image',
-          });
+        const putRes = await fetch(data.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': contentType },
+          body: file,
+        });
+        if (!putRes.ok) {
+          throw new Error(`Storage upload failed for ${file.name}`);
         }
+        uploaded.push({
+          url: data.url,
+          type: data.type || (contentType.startsWith('video/') ? 'video' : 'image'),
+        });
       }
 
       setMediaUrls(prev => [...prev, ...uploaded]);
       studioToast.success(`Attached ${uploaded.length} media file${uploaded.length > 1 ? 's' : ''}`);
-    } catch {
-      studioToast.error('Failed to attach media file.');
+    } catch (err) {
+      studioToast.error(err instanceof Error ? err.message : 'Failed to attach media file.');
     } finally {
       setIsUploadingMedia(false);
       if (mediaFileInputRef.current) {
@@ -395,6 +377,9 @@ export function ScheduleNewPostModal({
   return (
     <AnimatePresence>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Schedule new post"
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       >

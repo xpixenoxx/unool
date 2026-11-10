@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react';
 import { FollowGateManager } from '@/components/follow-gate/FollowGateManager';
 import '@/components/follow-gate/FollowGateManager.css';
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
 
 let cachedWorkspaceId: string | null = null;
+registerClientCacheReset(() => {
+  cachedWorkspaceId = null;
+});
 
 export function FollowGateManagerPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(() => cachedWorkspaceId);

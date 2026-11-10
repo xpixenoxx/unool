@@ -36,28 +36,41 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     let workspaceId = body.workspaceId || request.nextUrl.searchParams.get('workspaceId');
 
-    // 1. Verify caller access if user session is present
-    try {
-      const userClient = await createSupabaseServerClient();
-      const { data: { user } } = await userClient.auth.getUser();
-      if (user) {
-        if (!workspaceId) {
-          const { data: m } = await supabaseAdmin
-            .from('workspace_memberships')
-            .select('workspace_id')
-            .eq('user_id', user.id)
-            .limit(1)
-            .single();
-          workspaceId = m?.workspace_id;
-        } else {
-          const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
-          if (!hasAccess) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // 1. Verify caller access: require either valid CRON_SECRET Bearer token OR authenticated workspace member
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    const isCronAuthorized = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+    if (!isCronAuthorized) {
+      let authorizedUser = false;
+      try {
+        const userClient = await createSupabaseServerClient();
+        const { data: { user } } = await userClient.auth.getUser();
+        if (user) {
+          if (!workspaceId) {
+            const { data: m } = await supabaseAdmin
+              .from('workspace_members')
+              .select('workspace_id')
+              .eq('user_id', user.id)
+              .limit(1)
+              .single();
+            workspaceId = m?.workspace_id;
+            authorizedUser = Boolean(workspaceId);
+          } else {
+            const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+            if (!hasAccess) {
+              return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+            authorizedUser = true;
           }
         }
+      } catch {
+        authorizedUser = false;
       }
-    } catch {
-      // Allow background sync / diagnostic caller if workspaceId is provided
+
+      if (!authorizedUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     if (!workspaceId) {

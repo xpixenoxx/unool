@@ -12,7 +12,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
 
 let memCache: FeatureFlags | null = null;
 let memCacheTime = 0;
-const CACHE_TTL_MS = 5_000; // 5 seconds cache for responsive toggling
+const CACHE_TTL_MS = 60_000; // 60 seconds cache with immediate CustomEvent/storage invalidation
 
 interface FeatureFlagsContextValue {
   flags: FeatureFlags;
@@ -85,13 +85,17 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
       fetchFlags(true);
     };
 
+    const handleFocus = () => {
+      fetchFlags(false);
+    };
+
     window.addEventListener('unool-feature-flags-updated', handleUpdate);
-    window.addEventListener('focus', handleUpdate);
+    window.addEventListener('focus', handleFocus);
     window.addEventListener('storage', handleUpdate);
 
     return () => {
       window.removeEventListener('unool-feature-flags-updated', handleUpdate);
-      window.removeEventListener('focus', handleUpdate);
+      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('storage', handleUpdate);
     };
   }, [fetchFlags]);

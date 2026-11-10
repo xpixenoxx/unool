@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
           ? Object.keys(payment.payment_method)[0] || 'unknown'
           : 'unknown';
 
-        // Activate plan
+        // Activate plan (markOrderPaid atomically updates order, activates workspace plan,
+        // upserts subscription with cfSubscriptionId, and records referral conversion once)
         const result = await markOrderPaid(
           order.order_id,
           payment.cf_payment_id,
@@ -104,39 +105,10 @@ export async function POST(request: NextRequest) {
         );
 
         if (result.success) {
-          // Also upsert the subscription record using order metadata
-          const tags = order.order_tags || {};
-          if (tags.plan_id && tags.workspace_id) {
-            // Get userId from the payment order record we just marked paid
-            const orderRecord = await findOrderByCfOrderId(order.order_id);
-            if (orderRecord) {
-              await upsertSubscription({
-                workspaceId: tags.workspace_id,
-                userId: orderRecord.user_id,
-                planId: tags.plan_id as PlanId,
-                billingCycle: (tags.billing_cycle as BillingCycle) || 'monthly',
-                amountPaise: Math.round(order.order_amount * 100),
-                currency: (order.order_currency as Currency) || 'INR',
-                status: 'active',
-              });
-
-              // ── Referral conversion: reward the referrer ──────
-              // Non-blocking: if this user was referred, mark them converted and
-              // grant the referrer 1 free month of AI credits.
-              try {
-                await recordReferralConversion(orderRecord.user_id);
-              } catch (refErr) {
-                logger.error('Referral conversion failed (non-fatal)', {
-                  error: refErr instanceof Error ? refErr : new Error(String(refErr)),
-                  userId: orderRecord.user_id,
-                });
-              }
-            }
-          }
-
           logger.info('Payment processed and plan activated via webhook', {
             orderId: order.order_id,
             cfPaymentId: payment.cf_payment_id,
+            alreadyProcessed: result.alreadyProcessed,
           });
         }
 

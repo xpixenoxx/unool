@@ -44,7 +44,7 @@ export function useTimeSelector(options: TimeSelectorOptions = {}): UseTimeSelec
     const target = new Date(now.getTime() + minutesFromNow * 60 * 1000);
     // Round up to next 5-minute boundary for cleaner UX
     const roundedMinutes = Math.ceil(target.getMinutes() / 5) * 5;
-    const newHour = target.getHours() + (roundedMinutes >= 60 ? 1 : 0);
+    const newHour = (target.getHours() + (roundedMinutes >= 60 ? 1 : 0)) % 24;
     const newMinute = roundedMinutes % 60;
 
     setHourState(newHour);

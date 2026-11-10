@@ -14,16 +14,23 @@ if (typeof window !== 'undefined' && !(window as any).__unool_open_hooked) {
   const originalOpen = window.open;
   window.open = function (...args: any[]) {
     const win = originalOpen.apply(this, args as any);
-    if (win) {
+    const targetUrl = typeof args[0] === 'string' ? args[0].toLowerCase() : '';
+    if (win && (targetUrl.includes('cashfree') || targetUrl.includes('payments') || targetUrl === '' || targetUrl === 'about:blank')) {
       (window as any).__unool_cf_window = win;
     }
     return win;
   };
 }
 
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
+
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 let memoryBillingPlans: PlanData[] | null = null;
 let memoryBillingCurrent: CurrentPlan | null = null;
+registerClientCacheReset(() => {
+  memoryBillingPlans = null;
+  memoryBillingCurrent = null;
+});
 // ── Skeleton Loader ─────────────────────────────────────────────
 function BillingSkeleton() {
   return (

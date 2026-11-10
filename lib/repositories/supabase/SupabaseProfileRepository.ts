@@ -1,4 +1,4 @@
-﻿import { config } from '@/lib/config/schema';
+import { config } from '@/lib/config/schema';
 import type { IProfileRepository } from '../interfaces/IProfileRepository';
 import type { Profile, CreateProfileInput, UpdateProfileInput, ProfileLink, ProofPoint, ProfileTheme, ProfileViewer } from '../interfaces/IProfileRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -124,6 +124,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
   async update(id: string, data: UpdateProfileInput, expectedVersion: number): Promise<Profile> {
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
+      version: expectedVersion + 1,
     };
 
     if (data.name !== undefined) updateData.name = data.name;

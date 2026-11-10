@@ -23,7 +23,7 @@ export default function TiltCard({
   const ref = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const isHovered = useMotionValue(0);
+  const isHovered = useMotionValue(1);
 
   const rotateX = useTransform(y, [-maxTilt, maxTilt], [maxTilt, -maxTilt]);
   const rotateY = useTransform(x, [-maxTilt, maxTilt], [-maxTilt, maxTilt]);
@@ -61,13 +61,13 @@ export default function TiltCard({
     };
 
     const handleMouseEnter = () => {
-      isHovered.set(1);
+      isHovered.set(scale);
     };
 
     const handleMouseLeave = () => {
       x.set(0);
       y.set(0);
-      isHovered.set(0);
+      isHovered.set(1);
     };
 
     element.addEventListener("mousemove", handleMouseMove);

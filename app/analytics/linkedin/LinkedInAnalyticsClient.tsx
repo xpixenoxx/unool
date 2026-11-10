@@ -217,11 +217,14 @@ export function LinkedInAnalyticsClient() {
           <span className="cnt">{s.text.length}/1250</span>
           <button className="btn" onClick={() => handleGen(k, i)}>Try again</button>
           <button className="btn" onClick={() => setSt(prev => ({ ...prev, [k]: { skipped: true } }))}>Skip</button>
-          <button className="btn pri" onClick={() => {
+          <button className="btn pri" onClick={async () => {
             if (!s.text.trim()) { showToastMsg('Write a reply first'); return; }
+            try {
+              await navigator.clipboard.writeText(s.text.trim());
+            } catch {}
             setSt(prev => ({ ...prev, [k]: { posted: true } }));
-            showToastMsg('Reply posted');
-          }}>Post reply</button>
+            showToastMsg('Reply copied to clipboard — paste on LinkedIn');
+          }}>Copy reply</button>
         </div>
       </div>
     );
@@ -309,15 +312,14 @@ export function LinkedInAnalyticsClient() {
   const C = 2 * Math.PI * 54;
   const f = Math.min(engagementRate / 100, 1);
 
-  // Build a synthetic 7-day impression curve from engagement (since LinkedIn API doesn't expose daily impressions to most apps)
-  const peakDay = Math.floor(Math.random() * 3) + 1; // Days 1-3 are typically peak
-  const buildCurve = (total: number) => {
-    const base = [0.12, 0.28, 0.22, 0.15, 0.1, 0.07, 0.06];
-    return base.map(b => Math.round(total * b));
-  };
-  const impressionCurve = buildCurve(totalEngagement * 8); // Rough estimate
-  const mx = Math.max(...impressionCurve, 1);
-  const pk = impressionCurve.indexOf(mx);
+  // Measured engagement breakdown per post (LinkedIn API provides reactions, comments, shares)
+  const engagementBreakdown = [
+    { label: 'Reactions', value: p.reactions },
+    { label: 'Comments', value: p.comments },
+    { label: 'Reposts', value: p.shares },
+  ];
+  const mx = Math.max(...engagementBreakdown.map(b => b.value), 1);
+  const pk = engagementBreakdown.findIndex(b => b.value === mx);
 
   return (
     <div className="wrap">
@@ -337,8 +339,8 @@ export function LinkedInAnalyticsClient() {
         <div style={{ display: 'contents' }}>
           {data.posts.map((post, i) => {
             const total = post.reactions + post.comments + post.shares;
-            const miniCurve = buildCurve(total);
-            const miniMax = Math.max(...miniCurve, 1);
+            const miniBars = [post.reactions, post.comments, post.shares];
+            const miniMax = Math.max(...miniBars, 1);
             return (
               <button key={post.id} className={`post clay ${i === cur ? 'on' : ''}`}
                 aria-pressed={i === cur} onClick={() => setCur(i)}>
@@ -346,7 +348,7 @@ export function LinkedInAnalyticsClient() {
                 <b>{truncate(post.text)}</b>
                 <div className="row">
                   <span className="mini">
-                    {miniCurve.map((v, idx) => (
+                    {miniBars.map((v, idx) => (
                       <i key={idx} style={{ height: `${Math.max(v / miniMax * 100, 12)}%` }}></i>
                     ))}
                   </span>
@@ -395,16 +397,16 @@ export function LinkedInAnalyticsClient() {
           </div>
 
           <div className="tray">
-            {impressionCurve.map((v, i) => (
-              <div className="col" key={i}>
+            {engagementBreakdown.map((item, i) => (
+              <div className="col" key={item.label}>
                 <div className="well">
                   <div className={`pillar ${i === pk ? 'peak' : ''}`} tabIndex={0}
-                    aria-label={`Day ${i + 1}: ${fmt(v)} estimated impressions`}
-                    style={{ height: `${v / mx * 100}%` }}>
-                    <span className="val">{fmt(v)}</span>
+                    aria-label={`${item.label}: ${fmt(item.value)}`}
+                    style={{ height: `${item.value / mx * 100}%` }}>
+                    <span className="val">{fmt(item.value)}</span>
                   </div>
                 </div>
-                <em>Day {i + 1}</em>
+                <em>{item.label}</em>
               </div>
             ))}
           </div>
@@ -413,7 +415,7 @@ export function LinkedInAnalyticsClient() {
             <div className="stat inset"><b>{p.reactions}</b>Reactions</div>
             <div className="stat inset"><b>{p.shares}</b>Reposts</div>
             <div className="stat inset"><b>{p.comments}</b>Comments</div>
-            <div className="stat inset"><b>Day {pk + 1}</b>Est. peak</div>
+            <div className="stat inset"><b>{fmt(totalEngagement)}</b>Total</div>
           </div>
         </section>
 

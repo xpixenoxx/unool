@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { clearAllClientCaches, syncClientCacheScope } from '@/lib/utils/clientCache';
 
 interface User {
   id: string;
@@ -46,6 +47,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch('/api/user/context', { credentials: 'include' });
       if (res.status === 401) {
+        clearAllClientCaches();
         setUser(null);
         setProfile(null);
         setWorkspace(null);
@@ -57,6 +59,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
       if (res.ok) {
         const data = await res.json();
+        syncClientCacheScope(data.user?.id, data.workspace?.id);
         setUser(data.user);
         setProfile(data.profile);
         setWorkspace(data.workspace);
@@ -70,6 +73,24 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const isPublicRoute =
+        path === '/' ||
+        path === '/pricing' ||
+        path === '/templates' ||
+        path === '/contact' ||
+        path === '/privacy' ||
+        path === '/terms' ||
+        path === '/signin' ||
+        path === '/signup' ||
+        path === '/forgot-password' ||
+        path.startsWith('/u/');
+      if (isPublicRoute) {
+        setLoading(false);
+        return;
+      }
+    }
     fetchUserContext();
   }, []);
 

@@ -59,6 +59,23 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const ALLOWED_UPLOAD_TYPES = new Set([
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+        'video/mp4',
+        'video/quicktime',
+        'video/webm',
+        'application/pdf',
+      ]);
+      if (!ALLOWED_UPLOAD_TYPES.has(contentType.toLowerCase())) {
+        return NextResponse.json(
+          { error: 'Unsupported content type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM, PDF.' },
+          { status: 400 }
+        );
+      }
+
       const key = buildR2Key('uploads', filename);
 
       // Generate a presigned PUT URL — the browser uploads directly to R2

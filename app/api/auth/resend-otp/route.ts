@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/auth/resend-otp
  *
  * Resends an OTP for signup or signin, subject to the 60-second cooldown.
@@ -12,6 +12,7 @@ import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 const bodySchema = z.object({
   email:   z.string().email(),
@@ -96,8 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Handle Signin Resend (user exists in Supabase auth) ────────────────
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-    const foundUser = userList?.users?.find(u => u.email === emailLower);
+    const foundUser = await findUserByEmail(emailLower);
     if (!foundUser) {
       // Same response regardless — no enumeration
       return NextResponse.json({

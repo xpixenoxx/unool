@@ -18,10 +18,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    // Validate file type (raster images only — disallow image/svg+xml to prevent Stored XSS)
+    const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+    if (!ALLOWED_AVATAR_TYPES.has(file.type.toLowerCase())) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only images are allowed.' },
+        { error: 'Invalid file type. Allowed image formats: JPEG, PNG, WebP, GIF.' },
         { status: 400 }
       );
     }

@@ -290,7 +290,15 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ postId, workspaceId: post.workspaceId }),
+        body: JSON.stringify({
+          postId,
+          workspaceId: post.workspaceId,
+          drafts: readyDrafts.map(d => ({
+            platform: d.platform,
+            content: d.content,
+            hashtags: d.hashtags,
+          })),
+        }),
       });
 
       const data = await res.json();

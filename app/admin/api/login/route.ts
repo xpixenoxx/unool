@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { signAdminJwt } from '@/lib/auth/admin-jwt';
 import { getAdminLoginRateLimit } from '@/lib/middleware/admin-rate-limit';
@@ -61,19 +61,9 @@ export async function POST(request: NextRequest) {
     let valid = false;
     if (adminUser.password_hash) {
       valid = await verifyPassword(adminUser.password_hash, password);
-      // Tolerate shift-key typo between PIXER#USHA and PIXER@USHA for usha@pixenox.com
-      if (!valid && emailClean === 'usha@pixenox.com') {
-        if (password === 'PIXER#USHA' || password === 'PIXER@USHA') {
-          valid = true;
-        }
-      }
     } else {
       const envPassword = process.env.ADMIN_PASSWORD;
       if (envPassword && password === envPassword) {
-        valid = true;
-      }
-      // Fallback for usha@pixenox.com on initial setup
-      if (emailClean === 'usha@pixenox.com' && (password === 'PIXER#USHA' || password === 'PIXER@USHA')) {
         valid = true;
       }
 

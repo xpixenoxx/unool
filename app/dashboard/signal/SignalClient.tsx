@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -60,6 +60,8 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
   return <>{display}{suffix}</>;
 }
 
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
+
 // In-memory module cache for instant (0ms) revisits across sidebar navigation
 let memorySignalPosts: SignalPost[] | null = null;
 let memoryResonance: ResonanceData | null = null;
@@ -72,6 +74,13 @@ let memoryAutomationStats: {
   hotLeads: number;
   pendingFlagged: number;
 } | null = null;
+registerClientCacheReset(() => {
+  memorySignalPosts = null;
+  memoryResonance = null;
+  memoryProfileSubdomain = null;
+  memoryWorkspaceId = null;
+  memoryAutomationStats = null;
+});
 
 /* ── Main Signal Client ─────────────────────────────────────────────────────── */
 export function SignalClient() {

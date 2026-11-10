@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/auth/signup
  *
  * Step 1 of 2 for signup.
@@ -23,6 +23,7 @@ import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 const bodySchema = z.object({
   name:     z.string().min(1, 'Name is required').max(100),
@@ -71,8 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email is already a verified account
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = userList?.users?.find(u => u.email === emailLower);
+    const existingUser = await findUserByEmail(emailLower);
     // Allow deleted accounts to re-register (soft-delete via is_deleted flag or deleted_accounts entry)
     let isExistingDeleted = existingUser?.user_metadata?.is_deleted === true;
     if (existingUser && !isExistingDeleted) {

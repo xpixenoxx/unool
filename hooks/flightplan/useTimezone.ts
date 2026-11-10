@@ -150,22 +150,30 @@ export function localToUtc(
   minute: number,
   timezone: string
 ): string {
-  const localDate = new Date(date);
-  localDate.setHours(hour, minute, 0, 0);
+  const utcBaseMs = Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    hour,
+    minute,
+    0,
+    0
+  );
+  const refDate = new Date(utcBaseMs);
 
-  // Get the offset at that specific date/time
-  const offsetStr = getTimezoneOffset(timezone, localDate);
-  const offsetMatch = offsetStr.match(/([+-])(\d{2}):?(\d{2})?/);
+  // Get the offset at that specific date/time (e.g. "GMT+5:30", "GMT-7", "+05:30")
+  const offsetStr = getTimezoneOffset(timezone, refDate);
+  const offsetMatch = offsetStr.match(/([+-])(\d{1,2})(?::?(\d{2}))?/);
 
   if (offsetMatch) {
     const sign = offsetMatch[1] === '+' ? -1 : 1;
     const hours = parseInt(offsetMatch[2], 10);
     const minutes = parseInt(offsetMatch[3] || '0', 10);
     const offsetMs = sign * (hours * 60 + minutes) * 60 * 1000;
-    return new Date(localDate.getTime() + offsetMs).toISOString();
+    return new Date(utcBaseMs + offsetMs).toISOString();
   }
 
-  return localDate.toISOString();
+  return refDate.toISOString();
 }
 
 /**

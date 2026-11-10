@@ -177,10 +177,18 @@ export function TemplateAnalyticsTab({ userId, workspaceId, currentTemplate }: T
   const currentStats = data.currentTemplateStats;
   const currentTemplateName = TEMPLATE_NAMES[currentTemplate] || currentTemplate;
 
-  const previousViews = Math.max(0, currentStats.views - Math.floor(currentStats.views * 0.12));
-  const previousClicks = Math.max(0, currentStats.linkClicks - Math.floor(currentStats.linkClicks * 0.08));
-  const viewsTrend = getTrend(currentStats.views, previousViews);
-  const clicksTrend = getTrend(currentStats.linkClicks, previousClicks);
+  const computePeriodSplitTrend = (series: Array<{ date: string; count: number }>) => {
+    if (!series || series.length < 2) {
+      return { trend: 'neutral' as const, change: '0%' };
+    }
+    const mid = Math.floor(series.length / 2);
+    const previousHalf = series.slice(0, mid).reduce((sum, item) => sum + item.count, 0);
+    const currentHalf = series.slice(mid).reduce((sum, item) => sum + item.count, 0);
+    return getTrend(currentHalf, previousHalf);
+  };
+
+  const viewsTrend = computePeriodSplitTrend(currentStats.viewsByDay);
+  const clicksTrend = computePeriodSplitTrend(currentStats.clicksByDay);
 
   const stats = [
     {

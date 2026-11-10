@@ -48,9 +48,15 @@ const DM_PRESETS = [
 
 // ─── Custom Stylesheet: Light Luxury Biscuit System ──────────────────────────
 
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
+
 // In-memory module cache for instant (0ms) revisits across sidebar navigation
 let memoryAutomationConfig: AutomationConfig | null = null;
 let memoryIgConnection: { status: 'connected' | 'not_connected' | 'expired'; username?: string } | null = null;
+registerClientCacheReset(() => {
+  memoryAutomationConfig = null;
+  memoryIgConnection = null;
+});
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

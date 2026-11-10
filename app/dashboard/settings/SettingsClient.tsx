@@ -49,9 +49,15 @@ interface SettingsClientProps {
   workspaceId: string;
 }
 
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
+
 // In-memory module cache for instant (0ms) revisits across sidebar navigation
 let memorySettingsWorkspace: Workspace | null = null;
 let memorySettingsTemplate: string | null = null;
+registerClientCacheReset(() => {
+  memorySettingsWorkspace = null;
+  memorySettingsTemplate = null;
+});
 
 /* ─── Main component ─── */
 

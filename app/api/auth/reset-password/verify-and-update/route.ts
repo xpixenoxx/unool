@@ -1,10 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyOtp } from '@/lib/auth/otp';
 import { hashPassword } from '@/lib/auth/password';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -32,8 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-    const user = userList?.users?.find(u => u.email === emailLower);
+    const user = await findUserByEmail(emailLower);
     if (!user) {
       return NextResponse.json({ success: false, message: 'Invalid or expired code.' }, { status: 400 });
     }

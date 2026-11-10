@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
+  cacheDir: './.vitest-cache',
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],

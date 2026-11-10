@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PostAdapter, PlatformType, AdaptedPost, AdaptationContext, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
 import { buildStudioContext } from '@/lib/ai/studioContext';
 import { config } from '@/lib/config/schema';
@@ -158,6 +158,10 @@ export async function POST(request: NextRequest) {
       // Create post with variants in database (reuse existing postId if provided on retries)
       let activePostId = existingPostId;
       if (activePostId) {
+        const existingPost = await postRepository.findById(activePostId);
+        if (!existingPost || existingPost.workspaceId !== workspaceId) {
+          return NextResponse.json({ error: 'Forbidden: post does not belong to this workspace' }, { status: 403 });
+        }
         // Post is being re-adapted/edited: update content and reset status to 'draft'
         await postRepository.update(activePostId, {
           content: content.trim(),

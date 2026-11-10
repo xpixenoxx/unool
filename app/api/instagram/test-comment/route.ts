@@ -8,10 +8,32 @@ import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { API_VERSIONS } from '@/lib/platforms/apiVersions';
-
-
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 export const dynamic = 'force-dynamic';
+
+async function verifyCallerAccess(request: NextRequest, workspaceId: string): Promise<NextResponse | null> {
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+    return null;
+  }
+
+  try {
+    const userClient = await createSupabaseServerClient();
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    if (!hasAccess) {
+      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+    }
+    return null;
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+}
 
 /**
  * GET /api/instagram/test-comment?workspaceId=...
@@ -23,6 +45,9 @@ export async function GET(request: NextRequest) {
     if (!workspaceId) {
       return NextResponse.json({ ok: false, error: 'workspaceId is required' }, { status: 400 });
     }
+
+    const authErr = await verifyCallerAccess(request, workspaceId);
+    if (authErr) return authErr;
 
     // 1. Connection check
     const { data: connections, error: connErr } = await supabaseAdmin
@@ -126,6 +151,8 @@ export async function POST(request: NextRequest) {
     if (!workspaceId) {
       return NextResponse.json({ ok: false, error: 'workspaceId is required' }, { status: 400 });
     }
+    const authErr = await verifyCallerAccess(request, workspaceId);
+    if (authErr) return authErr;
     const text = body.text || 'Hi';
     const commenterUsername = body.username || 'shrut_hi3878';
     const postLive = body.postLive === true;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 
@@ -14,9 +14,42 @@ const options = [
 
 export default function OnboardingStartPage() {
   const router = useRouter();
-  const [selected, setSelected] = useState<string>('enterprise'); // default based on screenshot
+  const [selected, setSelected] = useState<string>('creator');
 
-  const handleNext = () => {
+  useEffect(() => {
+    try {
+      const savedPersona = sessionStorage.getItem('unool_onboarding_persona');
+      const savedWho = sessionStorage.getItem('unool_signup_who');
+      if (savedPersona && options.some((o) => o.id === savedPersona)) {
+        setSelected(savedPersona);
+      } else if (savedWho === 'team') {
+        setSelected('agency');
+      } else if (savedWho === 'solo') {
+        setSelected('creator');
+      }
+    } catch {}
+  }, []);
+
+  const handleNext = async () => {
+    let savedTemplate: string | null = null;
+    try {
+      sessionStorage.setItem('unool_onboarding_persona', selected);
+      savedTemplate = sessionStorage.getItem('unool_signup_template');
+    } catch {}
+
+    try {
+      await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: selected,
+          ...(savedTemplate ? { theme: { template: savedTemplate } } : {}),
+        }),
+      });
+    } catch {
+      // Non-blocking: profile will still be editable in onboarding/dashboard
+    }
+
     router.push('/onboarding/connect');
   };
 
@@ -26,14 +59,23 @@ export default function OnboardingStartPage() {
       <p className="text-[#68d391] text-[15px] font-semibold mb-2">almost ready</p>
       <h1 className="text-[28px] font-bold text-[#1f2937] mb-8">what sounds most like you?</h1>
 
-      <div className="w-full space-y-3">
+      <div className="w-full space-y-3" role="radiogroup" aria-label="Select your persona">
         {options.map((opt) => {
           const isSelected = selected === opt.id;
           return (
             <div
               key={opt.id}
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={0}
               onClick={() => setSelected(opt.id)}
-              className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all duration-200 border
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelected(opt.id);
+                }
+              }}
+              className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#68d391]
                 ${isSelected 
                   ? 'bg-[#68d391] border-[#68d391] text-white shadow-md' 
                   : 'bg-white border-zinc-200 text-[#4b5563] hover:border-zinc-300 hover:shadow-sm'

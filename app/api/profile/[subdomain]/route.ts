@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { analytics, extractTrackingFromRequest } from '@/lib/analytics/track';
@@ -33,9 +33,15 @@ async function checkRateLimit(request: NextRequest): Promise<{ limited: boolean;
       return { limited: false, headers: {} };
     }
 
-    const count = await response.json() as number;
+    const rawJson = await response.json();
+    const count = typeof rawJson === 'number' ? rawJson : Number(rawJson?.result ?? 0);
+    if (count === 1) {
+      fetch(`${url}/expire/${key}/60`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
     const limit = 60; // 60 requests per minute
-    const remaining = Math.max(0, limit - count);
+    const remaining = Math.max(0, limit - (Number.isFinite(count) ? count : 0));
 
     const headers = {
       'X-RateLimit-Limit': limit.toString(),
@@ -141,10 +147,7 @@ export async function GET(
             break;
           }
         }
-        // Fallback to the latest candidate post in workspace
-        if (recentPosts.length === 0 && candidatePosts.length > 0) {
-          recentPosts = [candidatePosts[0]];
-        }
+        // SECURITY: Never fall back to unpublished draft/scheduled posts on a public profile
       }
 
       const latestPost = recentPosts[0] ?? null;
@@ -152,7 +155,7 @@ export async function GET(
       if (latestPost) {
         const variants = await postRepo.findVariantsByPostId(latestPost.id);
         const publishedVariants = variants.filter(v => v.status === 'published');
-        const targetVariants = publishedVariants.length > 0 ? publishedVariants : variants;
+        const targetVariants = publishedVariants;
 
         const platformItems = await Promise.all(
           targetVariants.map(async v => {

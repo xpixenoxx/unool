@@ -1,4 +1,4 @@
-﻿import { cache } from 'react';
+import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
 import { config } from '@/lib/config/schema';
@@ -99,40 +99,7 @@ export const getAuthContext = cache(async function getAuthContext(): Promise<Aut
 
   const cookieStore = await cookies();
 
-  // Fast-path 2: Synchronous JWT extract from cookie + in-memory workspace cache (<0.1ms)
-  const quickUser = extractUserFromCookieStore(cookieStore);
-  if (quickUser) {
-    const cached = workspaceMemoryCache.get(quickUser.userId);
-    if (cached && cached.expiresAt > Date.now()) {
-      return { userId: quickUser.userId, workspaceId: cached.workspaceId };
-    }
-
-    // Resolve workspace once and cache it
-    const adminClient = config.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : null;
-    if (!adminClient) {
-      return { userId: quickUser.userId, workspaceId: quickUser.userId };
-    }
-
-    try {
-      const { data: membership } = await adminClient
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', quickUser.userId)
-        .single();
-
-      if (membership?.workspace_id) {
-        workspaceMemoryCache.set(quickUser.userId, {
-          workspaceId: membership.workspace_id,
-          expiresAt: Date.now() + 5 * 60 * 1000, // 5 min TTL
-        });
-        return { userId: quickUser.userId, workspaceId: membership.workspace_id };
-      }
-    } catch {
-      // Fall through to normal client auth
-    }
-  }
-
-  // Fallback: Full Supabase SSR verification
+  // Full Supabase SSR verification (never trust unsigned/unverified JWT payloads from cookies)
   const supabase = createServerClient(
     config.SUPABASE_URL,
     config.SUPABASE_ANON_KEY,

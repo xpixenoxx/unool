@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/auth/signin
  *
  * Step 1 of sign-in: validate email + password, then issue an OTP.
@@ -25,6 +25,7 @@ import { config } from '@/lib/config/schema';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 const bodySchema = z.object({
   email:    z.string().email('Invalid email'),
@@ -57,9 +58,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch user by email
-    const { data: userList, error: fetchError } = await supabaseAdmin.auth.admin.listUsers();
-    const user = userList?.users?.find(u => u.email === emailLower);
-    if (fetchError || !user) {
+    const user = await findUserByEmail(emailLower);
+    if (!user) {
       // Constant-time: still run a dummy hash compare to avoid timing oracle
       await verifyPassword('$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy', password);
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });

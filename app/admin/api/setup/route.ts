@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /admin/api/setup
  *
  * One-time admin account setup / password reset endpoint.
@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { hashPassword } from '@/lib/auth/password';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 
 
@@ -51,8 +52,7 @@ export async function POST(request: NextRequest) {
     const emailLower = email.toLowerCase().trim();
 
     // ── Step 1: Get or create Supabase auth user ───────────────
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-    let authUser = userList?.users?.find((u) => u.email === emailLower);
+    let authUser = await findUserByEmail(emailLower);
 
     if (!authUser) {
       const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({

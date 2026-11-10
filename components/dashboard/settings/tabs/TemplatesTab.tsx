@@ -28,9 +28,9 @@ export function TemplatesTab({
   onTemplateChange,
   profileData,
 }: TemplatesTabProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState(currentTemplate);
+  const [selectedTemplate, setSelectedTemplate] = useState(currentTemplate || 'lone');
   const [isSaving, setIsSaving] = useState(false);
-  const [savedTemplate, setSavedTemplate] = useState<string | null>(null);
+  const [savedTemplate, setSavedTemplate] = useState<string | null>(currentTemplate || 'lone');
 
   const handleSelect = async (templateId: string) => {
     setSelectedTemplate(templateId);

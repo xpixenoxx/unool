@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Building2, Zap, Copy, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ interface WorkspaceTabProps {
 }
 
 export function WorkspaceTab({ workspaceId, initialWorkspace, onWorkspaceUpdate }: WorkspaceTabProps) {
+  const router = useRouter();
   const [workspaceName, setWorkspaceName] = useState(initialWorkspace?.name || '');
   const [saving, setSaving] = useState(false);
   const [copiedWorkspaceId, setCopiedWorkspaceId] = useState(false);
@@ -130,6 +132,7 @@ export function WorkspaceTab({ workspaceId, initialWorkspace, onWorkspaceUpdate 
             <Button
               size="sm"
               variant="outline"
+              onClick={() => router.push('/dashboard/billing')}
               className="h-8 gap-1.5 border-[#C4A265]/40 text-[#8B6914] hover:bg-[#F5EFE2] dark:text-[#C4A265] dark:hover:bg-zinc-800 cursor-pointer"
             >
               <Zap className="h-3 w-3" />

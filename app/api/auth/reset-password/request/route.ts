@@ -1,10 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { issueOtp, isResendCoolingDown } from '@/lib/auth/otp';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -28,8 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-    const user = userList?.users?.find(u => u.email === emailLower);
+    const user = await findUserByEmail(emailLower);
     
     // Do not reveal if user exists. We always simulate a successful return.
     if (!user) {

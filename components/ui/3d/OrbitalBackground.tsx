@@ -324,12 +324,14 @@ function SVGOrbitals({
 
   React.useEffect(() => {
     if (reducedMotion) return;
-    let start = performance.now();
+    const start = performance.now();
+    let rafId: number;
     const animate = (now: number) => {
       timeMotion.set((now - start) * 0.001 * speed);
-      requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
     };
-    requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
   }, [speed, reducedMotion, timeMotion]);
 
   return (

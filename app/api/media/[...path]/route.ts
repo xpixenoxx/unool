@@ -71,6 +71,10 @@ export async function GET(
       }
       headers.set('Cache-Control', 'public, max-age=31536000, immutable');
       headers.set('X-Content-Type-Options', 'nosniff');
+      headers.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+      if (response.ContentType && (response.ContentType.includes('svg') || response.ContentType.includes('html') || response.ContentType.includes('xml'))) {
+        headers.set('Content-Disposition', 'attachment');
+      }
 
       return new Response(response.Body as any, {
         status: 200,
@@ -96,6 +100,10 @@ export async function GET(
           if (cl) headers.set('Content-Length', cl);
           headers.set('Cache-Control', 'public, max-age=31536000, immutable');
           headers.set('X-Content-Type-Options', 'nosniff');
+          headers.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+          if (ct && (ct.includes('svg') || ct.includes('html') || ct.includes('xml'))) {
+            headers.set('Content-Disposition', 'attachment');
+          }
           return new Response(fetchRes.body, { status: 200, headers });
         }
       } catch (fetchErr) {

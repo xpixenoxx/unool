@@ -107,7 +107,10 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
   useEffect(() => {
     if (targetPage && typeof window !== 'undefined') {
       const currentUrl = new URL(window.location.href);
-      currentUrl.pathname = `/${targetPage}`;
+      const cleanPage = targetPage.replace(/^\/+/, '');
+      currentUrl.pathname = currentUrl.pathname.startsWith('/u/')
+        ? `${currentUrl.pathname.replace(/\/+$/, '')}/${cleanPage}`
+        : `/${cleanPage}`;
       currentUrl.searchParams.delete('page');
       window.location.replace(currentUrl.toString());
     }
@@ -328,6 +331,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       preset: profile.theme?.preset || 'minimal',
       accentColor: profile.theme?.accentColor || 'var(--color-primary)',
       customCss: profile.theme?.customCss || null,
+      conversationUrl: profile.theme?.conversationUrl || null,
     },
     socialHandles: profile.socialHandles || {},
     openTo: (profile as any).openTo || [],

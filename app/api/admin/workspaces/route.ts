@@ -1,9 +1,10 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
 import { config } from '@/lib/config/schema';
 import type { ListWorkspacesParams } from '@/lib/repositories/interfaces/IAdminRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 
 
@@ -68,10 +69,7 @@ export async function POST(request: NextRequest) {
 
     // If ownerEmail provided, look up or attach user
     if (ownerEmail) {
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-      const ownerUser = users?.users?.find(
-        (u) => u.email?.toLowerCase() === ownerEmail.toLowerCase().trim()
-      );
+      const ownerUser = await findUserByEmail(ownerEmail);
       if (ownerUser) {
         await supabaseAdmin.from('workspace_members').insert({
           workspace_id: workspace.id,

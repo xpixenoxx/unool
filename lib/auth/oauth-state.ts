@@ -1,6 +1,21 @@
+import { createHmac, timingSafeEqual } from 'crypto';
 import { config } from '@/lib/config/schema';
 import { Redis } from '@upstash/redis';
 import { logger } from '@/lib/logger';
+
+function getOAuthCookieSecret(): string {
+  return (
+    config.ENCRYPTION_KEY ||
+    config.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.ENCRYPTION_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    'unool-oauth-cookie-hmac-secret'
+  );
+}
+
+function signOAuthPayload(encodedPayload: string): string {
+  return createHmac('sha256', getOAuthCookieSecret()).update(encodedPayload).digest('base64url');
+}
 
 let redis: Redis | null = null;
 
@@ -139,17 +154,19 @@ export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: s
 }
 
 /**
- * Creates a secure cookie for OAuth flow containing all required state data
+ * Creates a secure HMAC-signed cookie for OAuth flow containing all required state data
  */
 export function createOAuthCookie(state: string, workspaceId: string, userId: string, platform: string, returnUrl?: string, maxAgeSeconds: number = STATE_TTL_SECONDS): string {
   const data: OAuthStateData = { workspaceId, userId, platform, returnUrl, createdAt: Date.now() };
-  // Base64 encode the JSON so it's cookie-safe
-  const value = btoa(JSON.stringify({ s: state, d: data }));
+  const payload = Buffer.from(JSON.stringify({ s: state, d: data }), 'utf8').toString('base64url');
+  const signature = signOAuthPayload(payload);
+  const value = `${payload}.${signature}`;
   return `oauth_state=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`;
 }
 
 /**
- * Parses OAuth state from cookie
+ * Parses and verifies HMAC-signed OAuth state from cookie.
+ * Rejects unsigned or tampered cookies.
  */
 export function parseOAuthCookie(cookieHeader: string | null): { state: string, data: OAuthStateData } | null {
   if (!cookieHeader) return null;
@@ -159,10 +176,32 @@ export function parseOAuthCookie(cookieHeader: string | null): { state: string, 
   if (!oauthCookie) return null;
 
   try {
-    const raw = oauthCookie.split('=')[1];
+    const raw = oauthCookie.slice('oauth_state='.length).trim();
     if (!raw) return null;
-    const parsed = JSON.parse(atob(raw));
-    return { state: parsed.s, data: parsed.d };
+
+    const dotIndex = raw.lastIndexOf('.');
+    if (dotIndex <= 0) {
+      logger.warn('Rejected unsigned oauth_state cookie');
+      return null;
+    }
+
+    const payload = raw.slice(0, dotIndex);
+    const providedSig = raw.slice(dotIndex + 1);
+    const expectedSig = signOAuthPayload(payload);
+
+    const providedBuf = Buffer.from(providedSig, 'utf8');
+    const expectedBuf = Buffer.from(expectedSig, 'utf8');
+    if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
+      logger.warn('Rejected oauth_state cookie with invalid HMAC signature');
+      return null;
+    }
+
+    const jsonStr = Buffer.from(payload, 'base64url').toString('utf8');
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || typeof parsed.s !== 'string' || !parsed.d || typeof parsed.d !== 'object') {
+      return null;
+    }
+    return { state: parsed.s, data: parsed.d as OAuthStateData };
   } catch {
     return null;
   }

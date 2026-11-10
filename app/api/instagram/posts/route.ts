@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -37,18 +37,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
     }
 
-    // Verify authentication
-    try {
-      const userClient = await createSupabaseServerClient();
-      const { data: { user } } = await userClient.auth.getUser();
-      if (user) {
-        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
-        if (!hasAccess) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Verify authentication (require authenticated workspace member or CRON_SECRET)
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    const isCronAuthorized = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+    if (!isCronAuthorized) {
+      let authorized = false;
+      try {
+        const userClient = await createSupabaseServerClient();
+        const { data: { user } } = await userClient.auth.getUser();
+        if (user) {
+          const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+          if (!hasAccess) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+          }
+          authorized = true;
         }
+      } catch {
+        authorized = false;
       }
-    } catch {
-      // Continue if internal/diagnostic
+      if (!authorized) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     // 1. Fetch connected Instagram account
@@ -115,7 +126,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Fetch platform_posts published from UNOOL to Instagram
+    // 2. Fetch platform_posts published from UNOOL to Instagram (strictly scoped to workspaceId)
     let unoolPosts: PublishedInstagramPost[] = [];
     try {
       const { data: dbPosts } = await supabaseAdmin
@@ -125,13 +136,17 @@ export async function GET(request: NextRequest) {
           platform_post_id,
           platform_url,
           created_at,
-          published_at,
-          post_variants (
-            content,
-            media_urls
+          post_variants!inner (
+            platform,
+            adapted_content,
+            media_urls,
+            posts!inner (
+              workspace_id
+            )
           )
         `)
-        .eq('platform', 'instagram')
+        .eq('post_variants.platform', 'instagram')
+        .eq('post_variants.posts.workspace_id', workspaceId)
         .order('created_at', { ascending: false })
         .limit(30);
 
@@ -141,12 +156,12 @@ export async function GET(request: NextRequest) {
           const mediaUrls = variant?.media_urls || [];
           return {
             id: p.platform_post_id || p.id,
-            caption: variant?.content || '',
+            caption: variant?.adapted_content || variant?.content || '',
             media_type: 'IMAGE',
             media_url: mediaUrls[0] || undefined,
             thumbnail_url: mediaUrls[0] || undefined,
             permalink: p.platform_url || undefined,
-            timestamp: p.published_at || p.created_at,
+            timestamp: p.created_at,
             source: 'unool_published',
           };
         });

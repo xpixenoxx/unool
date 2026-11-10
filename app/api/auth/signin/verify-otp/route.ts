@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/auth/signin/verify-otp
  *
  * Step 2 of sign-in: verify the sign-in OTP.
@@ -14,6 +14,7 @@ import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -44,8 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch user
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-    const user = userList?.users?.find(u => u.email === emailLower);
+    const user = await findUserByEmail(emailLower);
     if (!user) {
       return NextResponse.json({ success: false, message: 'Invalid or expired code.' }, { status: 400 });
     }

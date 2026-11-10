@@ -74,6 +74,20 @@ function SignUpComponent() {
         sessionStorage.setItem('unool_desired_handle', cleanHandle);
       } catch {}
     }
+
+    const urlPlan = searchParams?.get('plan');
+    if (urlPlan) {
+      try {
+        sessionStorage.setItem('unool_signup_plan', urlPlan.toLowerCase().trim());
+      } catch {}
+    }
+
+    const urlTemplate = searchParams?.get('template');
+    if (urlTemplate) {
+      try {
+        sessionStorage.setItem('unool_signup_template', urlTemplate.trim());
+      } catch {}
+    }
   }, [searchParams]);
 
   // Form Fields
@@ -227,6 +241,11 @@ function SignUpComponent() {
 
     setBusy(true);
     try {
+      if (who) {
+        try {
+          sessionStorage.setItem('unool_signup_who', who);
+        } catch {}
+      }
       const cleanRef = refCode.trim() || undefined;
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -324,7 +343,7 @@ function SignUpComponent() {
         }
         setStage('completed');
         setTimeout(() => {
-          router.push(data.redirectTo || '/signin');
+          router.push(data.redirectTo || (data.session ? '/onboarding/start' : '/signin'));
         }, 1500);
       }
     } catch {

@@ -50,13 +50,13 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
     fetchStats();
   }, [fetchStats]);
 
-  // Periodic polling every 8 seconds when tab is visible
+  // Periodic fallback polling every 30 seconds when tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         fetchStats();
       }
-    }, 8000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [fetchStats]);
@@ -87,14 +87,24 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
         .channel(`referrals-sync-${workspaceId}`)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'referral_codes' },
+          {
+            event: '*',
+            schema: 'public',
+            table: 'referral_codes',
+            filter: `workspace_id=eq.${workspaceId}`,
+          },
           () => {
             fetchStats();
           }
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'referrals' },
+          {
+            event: '*',
+            schema: 'public',
+            table: 'referrals',
+            filter: `referrer_workspace_id=eq.${workspaceId}`,
+          },
           () => {
             fetchStats();
           }

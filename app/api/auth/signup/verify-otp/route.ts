@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/auth/signup/verify-otp
  *
  * Step 2 of 2 for signup.
@@ -22,6 +22,7 @@ import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -85,8 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If an existing soft-deleted user record exists in Supabase, purge it so the new user can be created
-    const { data: preUserList } = await supabaseAdmin.auth.admin.listUsers();
-    const preExistingUser = preUserList?.users?.find(u => u.email === emailLower);
+    const preExistingUser = await findUserByEmail(emailLower);
     if (preExistingUser) {
       let isPreDeleted = preExistingUser.user_metadata?.is_deleted === true;
       if (!isPreDeleted) {
@@ -126,8 +126,7 @@ export async function POST(request: NextRequest) {
       // If the user already exists (duplicate OTP submit or leftover unverified user)
       if (errMsg.includes('already') || errMsg.includes('duplicate')) {
         // Try to update the existing user instead
-        const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-        const existingUser = userList?.users?.find(u => u.email === emailLower);
+        const existingUser = await findUserByEmail(emailLower);
         if (existingUser) {
           // Update their metadata and confirm their email
           await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {

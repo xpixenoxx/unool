@@ -6,6 +6,7 @@ import { config } from '@/lib/config/schema';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,18 +89,28 @@ export async function GET(request: NextRequest) {
   const returnUrl = searchParams.get('returnUrl') || undefined;
   const errorRedirect = returnUrl || '/dashboard';
 
-  // workspaceId and userId are passed by the frontend — trust them directly
-  // to avoid redundant auth round-trips.
-  let workspaceId = searchParams.get('workspaceId');
-  let userId = searchParams.get('userId');
+  // Always resolve the authenticated user from session/middleware — never trust userId query param
+  const resolved = await resolveAuth(request);
+  const userId = resolved.userId;
 
-  if (!workspaceId || !userId) {
-    const resolved = await resolveAuth(request);
-    workspaceId = workspaceId || resolved.workspaceId;
-    userId = userId || resolved.userId;
+  if (!userId) {
+    logger.warn('Platform connect: unauthenticated request', { platform });
+    return NextResponse.redirect(new URL(`${errorRedirect}?error=unauthorized`, request.url));
   }
 
-  if (!platform || !workspaceId || !userId) {
+  const requestedWorkspaceId = searchParams.get('workspaceId');
+  let workspaceId = resolved.workspaceId;
+
+  if (requestedWorkspaceId) {
+    const hasAccess = await verifyWorkspaceAccess(userId, requestedWorkspaceId);
+    if (!hasAccess) {
+      logger.warn('Platform connect: workspace access denied', { userId, requestedWorkspaceId, platform });
+      return NextResponse.redirect(new URL(`${errorRedirect}?error=forbidden_workspace`, request.url));
+    }
+    workspaceId = requestedWorkspaceId;
+  }
+
+  if (!platform || !workspaceId) {
     logger.warn('Platform connect: missing params', { platform, hasWorkspace: !!workspaceId, hasUser: !!userId });
     return NextResponse.redirect(new URL(`${errorRedirect}?error=missing_params`, request.url));
   }

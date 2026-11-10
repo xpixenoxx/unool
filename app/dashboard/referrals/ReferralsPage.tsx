@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react';
 import { ReferralDashboard } from '@/components/referrals/ReferralDashboard';
 import '@/components/referrals/ReferralDashboard.css';
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
 
 let cachedReferralWorkspaceId: string | null = null;
+registerClientCacheReset(() => {
+  cachedReferralWorkspaceId = null;
+});
 
 export function ReferralsPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(() => cachedReferralWorkspaceId);

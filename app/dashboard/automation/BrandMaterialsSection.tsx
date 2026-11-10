@@ -1620,7 +1620,7 @@ export default function BrandMaterialsSection({
                 </span>
               ) : (
                 <a
-                  href="/dashboard/settings/accounts"
+                  href="/dashboard/settings"
                   className="un-btn"
                   style={{ fontSize: 11, padding: '3px 8px', color: '#8B7355', textDecoration: 'none' }}
                 >
@@ -1816,7 +1816,7 @@ export default function BrandMaterialsSection({
             </p>
             {!isInstagramConnected && (
               <a
-                href="/dashboard/settings/accounts"
+                href="/dashboard/settings"
                 className="un-btn un-btn-primary"
                 style={{ fontSize: 12, padding: '6px 14px', textDecoration: 'none', display: 'inline-flex' }}
               >

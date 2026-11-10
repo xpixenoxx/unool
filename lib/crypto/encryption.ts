@@ -87,8 +87,11 @@ export async function encryptToken(token: string): Promise<string> {
     combined.set(iv);
     combined.set(new Uint8Array(encrypted), iv.length);
 
-    // Version prefix + base64
-    return `v${version}:${btoa(String.fromCharCode(...combined))}`;
+    // Version prefix + base64 (safe for large buffers without spreading into String.fromCharCode)
+    const base64Payload = typeof Buffer !== 'undefined'
+      ? Buffer.from(combined).toString('base64')
+      : btoa(Array.from(combined, (b) => String.fromCharCode(b)).join(''));
+    return `v${version}:${base64Payload}`;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Token encryption failed', { error: err });

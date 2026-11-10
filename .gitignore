@@ -5,6 +5,7 @@ node_modules
 
 # testing
 coverage
+.vitest-cache
 
 # next.js
 .next/
@@ -41,6 +42,14 @@ next-env.d.ts
 
 .vercel
 .env*
+!.env.example
 __pycache__/
 *.pyc
 .gravitas/
+*.log
+cookies*.txt
+cookies*.json
+tmp-*.json
+temp_*.txt
+tempp.txt
+.vitest-cache/

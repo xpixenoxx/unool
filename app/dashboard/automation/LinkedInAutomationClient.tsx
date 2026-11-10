@@ -252,7 +252,7 @@ export default function LinkedInAutomationClient({
 
       const data = await res.json();
       
-      let replyText = 'Thank you for reaching out, Alex. Would love to share our architecture deck: ' + (config.linkUrl || 'https://unool.co//u/usha');
+      let replyText = 'Thank you for reaching out, Alex. Would love to share our architecture deck: ' + (config.linkUrl || 'https://unool.co');
       if (data?.replies && Array.isArray(data.replies) && data.replies.length > 0) {
         replyText = data.replies[0]?.text || replyText;
       }
@@ -543,7 +543,7 @@ export default function LinkedInAutomationClient({
                     <input
                       type="url"
                       className="un-input"
-                      placeholder="https://unool.co//u/usha"
+                      placeholder="https://yourhandle.unool.co"
                       value={config.linkUrl || ''}
                       onChange={e => updateConfig({ linkUrl: e.target.value || null })}
                     />

@@ -17,6 +17,7 @@ export interface PlanLimits {
   api_access?: boolean;
   team_seats?: number;
   ai_adaptations_per_month?: number;
+  ai_credits_per_month?: number;
   media_uploads_per_month?: number;
   analytics_retention_days?: number;
   custom_domain?: boolean;
@@ -116,7 +117,7 @@ async function getCachedPlanFromRedis(planId: string): Promise<CachedPlan | null
   const redis = getRedisForCache();
   if (!redis) return null;
   try {
-    return await redis.get<CachedPlan>(`plan:`);
+    return await redis.get<CachedPlan>(`plan:${planId}`);
   } catch { return null; }
 }
 
@@ -125,7 +126,7 @@ async function setCachedPlanInRedis(planId: string, plan: Plan): Promise<void> {
   if (!redis) return;
   try {
     const cached: CachedPlan = { plan, expiresAt: Date.now() + PLAN_CACHE_TTL * 1000 };
-    await redis.set(`plan:`, cached, { ex: PLAN_CACHE_TTL });
+    await redis.set(`plan:${planId}`, cached, { ex: PLAN_CACHE_TTL });
   } catch { /* non-fatal */ }
 }
 
@@ -181,9 +182,14 @@ async function getPlanFromCache(planId: string): Promise<Plan | null> {
   return plan;
 }
 
-export function clearPlanCache(workspaceId: string): void {
+export function clearPlanCache(planOrWorkspaceId: string): void {
   const redis = getRedisForCache();
-  if (redis) redis.del(`plan:`).catch(() => {});
+  if (redis) {
+    redis.del(`plan:${planOrWorkspaceId}`).catch(() => {});
+    for (const pid of ['spark', 'free', 'creator', 'pro', 'studio']) {
+      redis.del(`plan:${pid}`).catch(() => {});
+    }
+  }
 }
 
 // ============================================================
@@ -429,7 +435,7 @@ export async function enforcePlanLimits(
       break;
     }
     case 'use_ai': {
-      const limit = planInfo.limits.ai_adaptations_per_month;
+      const limit = planInfo.limits.ai_adaptations_per_month ?? planInfo.limits.ai_credits_per_month;
       if (usage.aiAdaptationsThisMonth === null) {
         return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
       }

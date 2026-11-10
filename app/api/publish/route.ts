@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { publishService } from '@/lib/services/PublishService';
 import { logger } from '@/lib/logger';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
+import { getCurrentAuth } from '@/lib/auth/server';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { config } from '@/lib/config/schema';
@@ -13,6 +15,11 @@ const postRepository = new SupabasePostRepository();
 export async function POST(request: NextRequest) {
   return planEnforcement.createPost(request, async (request) => {
     try {
+      const auth = await getCurrentAuth(request);
+      if (!auth) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
       const body = await request.json();
       const { postId, workspaceId, drafts, mediaItems } = body;
 
@@ -38,6 +45,14 @@ export async function POST(request: NextRequest) {
           { error: 'Could not resolve workspaceId for post' },
           { status: 400 }
         );
+      }
+
+      // SECURITY: Prevent cross-tenant IDOR — ensure caller belongs to the post's workspace
+      if (resolvedWorkspaceId !== auth.workspaceId) {
+        const hasAccess = await verifyWorkspaceAccess(auth.userId, resolvedWorkspaceId);
+        if (!hasAccess) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
       }
 
       const existingVariants = await postRepository.findVariantsByPostId(postId);

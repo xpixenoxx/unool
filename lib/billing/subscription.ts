@@ -199,8 +199,8 @@ export async function markOrderPaid(
     return { success: false, alreadyProcessed: false };
   }
 
-  // Update order status
-  const { error: updateError } = await supabaseAdmin
+  // Update order status with optimistic lock and row-count verification
+  const { data: updatedRows, error: updateError } = await supabaseAdmin
     .from('payment_orders')
     .update({
       status: 'PAID',
@@ -209,11 +209,18 @@ export async function markOrderPaid(
       updated_at: new Date().toISOString(),
     })
     .eq('cf_order_id', cfOrderId)
-    .eq('status', 'PENDING'); // Optimistic lock — only update if still PENDING
+    .eq('status', 'PENDING') // Optimistic lock — only update if still PENDING
+    .select('id');
 
   if (updateError) {
     logger.error('Failed to update order', { cfOrderId, error: new Error(updateError.message) });
     return { success: false, alreadyProcessed: false };
+  }
+
+  // If 0 rows were updated, a concurrent request already transitioned the order from PENDING to PAID
+  if (!updatedRows || updatedRows.length === 0) {
+    logger.info('Order already transitioned by concurrent caller — skipping duplicate side effects', { cfOrderId });
+    return { success: true, alreadyProcessed: true };
   }
 
   // Activate workspace plan — retry up to 3 times with exponential backoff

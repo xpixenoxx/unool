@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { logger } from '@/lib/logger';
@@ -107,6 +107,11 @@ export async function PUT(request: NextRequest) {
     let profile = await profileRepository.findByWorkspaceId(workspaceId);
 
     if (profile) {
+      // Merge theme so partial theme updates (e.g. template selector) preserve accentColor, preset, conversationUrl, customCss
+      const mergedTheme = theme !== undefined
+        ? { ...((profile.theme as Record<string, unknown>) || {}), ...(theme as Record<string, unknown>) }
+        : undefined;
+
       // Update existing profile - no plan limit needed for updates
       profile = await profileRepository.update(profile.id, {
         name,
@@ -117,7 +122,7 @@ export async function PUT(request: NextRequest) {
         avatarUrl,
         links,
         proofPoints,
-        theme,
+        theme: mergedTheme as any,
         subdomain: subdomain || undefined,
         visibility,
         openTo,

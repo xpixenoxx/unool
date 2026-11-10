@@ -118,6 +118,22 @@ export interface IPostRepository {
   create(input: CreatePostInput): Promise<Post>;
   update(id: string, data: UpdatePostInput): Promise<Post>;
   updateStatus(id: string, status: PostStatus, platformPostId?: string): Promise<Post>;
+  /**
+   * Atomic compare-and-set claim of a post for publishing (BUG-026).
+   * Performs a single `UPDATE ... SET status='publishing' WHERE id=? AND status=?` and
+   * returns the claimed post only if THIS call changed a row; returns null when another
+   * worker already claimed it (zero rows affected).
+   *
+   * - fromStatus 'scheduled' (default): claim a freshly due post.
+   * - fromStatus 'publishing': recover a post stuck in 'publishing'; only succeeds while
+   *   its `updated_at` is still older than `staleBefore` (the winning claim bumps
+   *   `updated_at`, so a concurrent second recovery loses).
+   */
+  claimForPublishing(
+    id: string,
+    fromStatus?: 'scheduled' | 'publishing',
+    staleBefore?: Date,
+  ): Promise<Post | null>;
   findVariantsByPostId(postId: string): Promise<PostVariant[]>;
   findVariantById(id: string): Promise<PostVariant | null>;
   createVariant(variant: CreatePostVariantInput): Promise<PostVariant>;

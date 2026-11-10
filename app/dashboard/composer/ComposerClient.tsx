@@ -131,9 +131,15 @@ import { IPhonePreview, type IPhonePreviewProps } from './IPhonePreview';
    Main Composer Client
    ───────────────────────────────────────────────────────────── */
 
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
+
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 let memoryComposerProfile: Profile | null = null;
 let memoryComposerConnections: PlatformType[] | null = null;
+registerClientCacheReset(() => {
+  memoryComposerProfile = null;
+  memoryComposerConnections = null;
+});
 
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const { flags: featureFlags } = useFeatureFlags();
@@ -1544,11 +1550,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-base font-bold text-[#231C16] truncate">
-                        {profile.name || user?.fullName || 'usha'}
+                        {profile.name || user?.fullName || (user?.email ? user.email.split('@')[0] : 'Creator')}
                       </p>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#EFE7D8] text-[#735A42] border border-[#E2D6C2]">
-                        {profile.company || 'AVADIKA SOLUTIONS'}
-                      </span>
+                      {profile.company && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#EFE7D8] text-[#735A42] border border-[#E2D6C2]">
+                          {profile.company}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-[#735A42] mt-0.5 font-normal">
                       {profile.headline || profile.role || 'Professional'}
