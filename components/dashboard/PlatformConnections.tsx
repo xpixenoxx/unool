@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -436,6 +437,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     return [...connected, ...notConnectedNonManual, ...notConnectedManual];
   }, [connectablePlatforms, connections]);
 
+  const router = useRouter();
   const [loading, setLoading] = useState(() => {
     const hasCached = memoryConnectionsCache.has(workspaceId);
     const hasProps = Boolean(initialConnectionsProp && Object.keys(initialConnectionsProp).length > 0);
@@ -607,6 +609,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
           return next;
         });
         toast.success(`${cfg.name} disconnected`);
+        router.refresh();
       } else {
         toast.error('Failed to disconnect');
       }

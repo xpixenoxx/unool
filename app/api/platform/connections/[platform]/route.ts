@@ -3,6 +3,7 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
+import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -33,6 +34,8 @@ export async function DELETE(
     for (const conn of matchingConns) {
       await platformRepository.disconnect(conn.id);
     }
+
+    invalidateOverviewCache(auth.workspaceId);
 
     logger.info('Platform disconnected', { traceId, workspaceId: auth.workspaceId, platform });
 

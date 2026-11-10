@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections, SUPPORTED_PLATFORMS } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
@@ -475,6 +475,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   );
 
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(searchParams.get('connect') === 'bluesky');
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
@@ -636,6 +637,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         .then((res) => {
           if (res.ok) {
             showToast(`${pDef?.name || platformId} disconnected`);
+            if (data?.connections) {
+              data.connections[platformId] = { status: 'not_connected' };
+            }
+            router.refresh();
           } else {
             // Revert on failure
             setConnections((prev) => ({

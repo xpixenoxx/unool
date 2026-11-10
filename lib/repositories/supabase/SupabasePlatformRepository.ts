@@ -8,6 +8,7 @@ import type {
   Platform,
 } from '../interfaces/IPlatformRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
 
 export class SupabasePlatformRepository implements IPlatformRepository {
   private supabase = supabaseAdmin;
@@ -205,6 +206,10 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       // Non-blocking post-reconciliation
     }
 
+    if (input.workspaceId) {
+      invalidateOverviewCache(input.workspaceId);
+    }
+
     return mapped;
   }
 
@@ -227,7 +232,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   }
 
   async disconnect(id: string): Promise<void> {
-    const { error } = await this.supabase
+    const { data: row, error } = await this.supabase
       .from('platform_connections')
       .update({
         status: 'revoked',
@@ -236,13 +241,26 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         expires_at: null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', id)
+      .select('workspace_id')
+      .single();
     if (error) throw error;
+    if (row?.workspace_id) {
+      invalidateOverviewCache(row.workspace_id);
+    }
   }
 
   async delete(id: string): Promise<void> {
-    const { error } = await this.supabase.from('platform_connections').delete().eq('id', id);
+    const { data: row, error } = await this.supabase
+      .from('platform_connections')
+      .delete()
+      .eq('id', id)
+      .select('workspace_id')
+      .single();
     if (error) throw error;
+    if (row?.workspace_id) {
+      invalidateOverviewCache(row.workspace_id);
+    }
   }
 
   async createPlatformPost(input: CreatePlatformPostInput): Promise<PlatformPost> {

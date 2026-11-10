@@ -1,16 +1,16 @@
-﻿import { Suspense } from 'react';
+import { Suspense } from 'react';
 import { getAuthContext } from '@/lib/auth/context';
 import { config } from '@/lib/config/schema';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { getCurrentUsage, getLimitsForTier, Tier } from '@/lib/limits/freeTier';
+import { getOverviewCache, setOverviewCache } from '@/lib/cache/overviewCache';
+import { mapConnectionRows } from '@/lib/platforms/connectionStatus';
 import DashboardClient from './DashboardClient';
 
 
 const profileRepository = new SupabaseProfileRepository();
 const postRepository = new SupabasePostRepository();
-
-const overviewMemoryCache = new Map<string, { data: any; expiry: number }>();
 
 async function getDashboardData(): Promise<{
   profile: {
@@ -58,9 +58,9 @@ async function getDashboardData(): Promise<{
   const { userId, workspaceId } = auth;
 
   // ── Fast In-Memory Cache (15s TTL) for 0ms Route Switching ──────────────
-  const cached = overviewMemoryCache.get(workspaceId);
-  if (cached && Date.now() < cached.expiry) {
-    return cached.data;
+  const cached = getOverviewCache(workspaceId);
+  if (cached) {
+    return cached;
   }
 
   const thisWeekStart = new Date();
@@ -97,7 +97,7 @@ async function getDashboardData(): Promise<{
     // 5. Platform connections (lightweight)
     supabaseAdmin
       .from('platform_connections')
-      .select('platform, expires_at, status')
+      .select('platform, expires_at, status, updated_at')
       .eq('workspace_id', workspaceId),
 
     // 6. Profile views this week (for accurate SSR card matching the "views this week" subtitle)
@@ -128,16 +128,7 @@ async function getDashboardData(): Promise<{
     updatedAt: post.updatedAt.toISOString(),
   }));
 
-  const connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }> = {};
-  if (connectionsResult.data) {
-    for (const c of connectionsResult.data) {
-      const isExpired =
-        c.status === 'expired' ||
-        c.status === 'error' ||
-        (c.expires_at && new Date(c.expires_at) <= new Date());
-      connections[c.platform] = { status: isExpired ? 'expired' : 'connected' };
-    }
-  }
+  const connections = mapConnectionRows(connectionsResult.data);
 
   const result = {
     profile: profile
@@ -166,7 +157,7 @@ async function getDashboardData(): Promise<{
     workspaceId,
   };
 
-  overviewMemoryCache.set(workspaceId, { data: result, expiry: Date.now() + 15_000 });
+  setOverviewCache(workspaceId, result, 15_000);
   return result;
 }
 
