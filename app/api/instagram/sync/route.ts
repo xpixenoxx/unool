@@ -386,12 +386,11 @@ export async function POST(request: NextRequest) {
     let repliesPosted = 0;
     const processedComments: any[] = [];
 
-    const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15);
-
     // 5. For each media item, fetch and process comments
     for (const media of mediaItems) {
       let rawComments: any[] = [];
       const commentsCount = media.comments_count ?? 0;
+      const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15, media.id);
 
       // Source 1: Check if comments were already retrieved in bulk me/media call
       if (media.comments?.data && Array.isArray(media.comments.data) && media.comments.data.length > 0) {
@@ -603,7 +602,7 @@ export async function POST(request: NextRequest) {
             didReply = true;
             repliesPosted++;
             await velocityThrottle.recordReply(workspaceId);
-            lexicalEntropyGuard.recordReply(workspaceId, finalReply);
+            lexicalEntropyGuard.recordReply(workspaceId, finalReply, media.id);
             logger.info('Auto-reply posted via comment sync', { commentId, replyId: replyResult.replyId });
           }
         }

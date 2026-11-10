@@ -162,4 +162,25 @@ describe('LexicalEntropyGuard', () => {
   it('returns false when recent replies list is empty', () => {
     expect(guard.isTooSimilar('Any reply here', [])).toBe(false);
   });
+
+  it('scopes replies by media thread when mediaId is provided', async () => {
+    guard.recordReply(workspaceId, 'Thread A reply 1', 'media_A');
+    guard.recordReply(workspaceId, 'Thread B reply 1', 'media_B');
+
+    const threadAReplies = await guard.getRecentReplies(workspaceId, 10, 'media_A');
+    expect(threadAReplies).toContain('Thread A reply 1');
+
+    const threadBReplies = await guard.getRecentReplies(workspaceId, 10, 'media_B');
+    expect(threadBReplies).toContain('Thread B reply 1');
+  });
+
+  it('records reply to both workspace cache and media thread cache', async () => {
+    guard.recordReply(workspaceId, 'Thread C reply', 'media_C');
+
+    const wsReplies = await guard.getRecentReplies(workspaceId, 10);
+    expect(wsReplies).toContain('Thread C reply');
+
+    const threadReplies = await guard.getRecentReplies(workspaceId, 10, 'media_C');
+    expect(threadReplies).toContain('Thread C reply');
+  });
 });

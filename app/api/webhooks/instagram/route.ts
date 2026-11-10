@@ -521,8 +521,8 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     }
   }
 
-  // ── Fetch recent replies for anti-duplication ───────────────────────────
-  const recentReplies = await lexicalEntropyGuard.getRecentReplies(connection.workspace_id, 15);
+  // ── Fetch recent replies for thread-scoped anti-duplication ─────────────
+  const recentReplies = await lexicalEntropyGuard.getRecentReplies(connection.workspace_id, 15, commentEvent.mediaId);
 
   // ── Classify and generate reply ─────────────────────────────────────────
   const automation = new InstagramCommentAutomation(groqApiKey);
@@ -585,9 +585,9 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
           .from('instagram_comment_logs')
           .update({ auto_replied: true })
           .eq('comment_id', commentEvent.commentId);
-        // Record in velocity tracker and lexical guard
+        // Record in velocity tracker and lexical guard (thread-scoped)
         await velocityThrottle.recordReply(connection.workspace_id);
-        lexicalEntropyGuard.recordReply(connection.workspace_id, finalReply);
+        lexicalEntropyGuard.recordReply(connection.workspace_id, finalReply, commentEvent.mediaId);
         logger.info('Auto-reply posted and logged', { commentId: commentEvent.commentId });
       } else {
         logger.error('Failed to post public reply via Instagram Graph API', { commentId: commentEvent.commentId });

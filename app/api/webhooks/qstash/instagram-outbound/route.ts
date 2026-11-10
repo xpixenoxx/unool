@@ -195,8 +195,8 @@ async function handleJob(params: InstagramOutboundJobParams) {
         return NextResponse.json({ error: errorMsg, deferred: true }, { status: 200 });
       }
 
-      // Generate AI response
-      const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15);
+      // Generate AI response with thread-scoped anti-duplication
+      const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15, mediaId);
       const classified = await automation.classifyAndGenerateReply(
         {
           commentId,
@@ -318,7 +318,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
         .eq('comment_id', commentId);
 
       await velocityThrottle.recordReply(workspaceId);
-      lexicalEntropyGuard.recordReply(workspaceId, finalReply);
+      lexicalEntropyGuard.recordReply(workspaceId, finalReply, mediaId);
 
       logger.info('QStash outbound worker: comment reply confirmed sent', { commentId, replyId: replyResult.replyId });
       return NextResponse.json({ success: true, replyId: replyResult.replyId }, { status: 200 });
