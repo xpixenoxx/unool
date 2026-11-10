@@ -91,7 +91,7 @@ async function checkOpenAI(): Promise<HealthCheck> {
   }
 }
 
-export async function GET(request?: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   // Only run live external AI provider probes when explicitly requested with a valid CRON_SECRET
