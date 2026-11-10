@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -246,17 +246,11 @@ export function IPhonePreview({
   drafts = [],
   effectiveScale = 0.72,
 }: IPhonePreviewProps) {
-  const defaultConnected: PlatformType[] = ['linkedin', 'threads', 'instagram', 'youtube', 'bluesky', 'telegram'];
-
   const [islandExpanded, setIslandExpanded] = useState(false);
 
-  const activePreviews = useMemo(() => {
-    if (connectedPlatforms.length > 0) return connectedPlatforms;
-    if (selectedPlatforms.length > 0) return selectedPlatforms;
-    return defaultConnected;
-  }, [selectedPlatforms, connectedPlatforms]);
-
-  const platformsToShow = activePreviews.length > 0 ? activePreviews : defaultConnected;
+  const platformsToShow = useMemo(() => {
+    return connectedPlatforms;
+  }, [connectedPlatforms]);
 
   // Auto-switch preview platform if current one is not in platformsToShow
   useEffect(() => {
@@ -298,64 +292,72 @@ export function IPhonePreview({
       </div>
 
       {/* ── Horizontal Bar Along Upper Edge of Mobile (Image 2) ── */}
-      <div className="flex gap-2 p-2 rounded-2xl shadow-xs border border-[#E8E0D4] bg-[#FFFDF9]/95 backdrop-blur-md w-full overflow-x-auto no-scrollbar scroll-smooth">
-        {platformsToShow.map(p => {
-          const pCfg = PLATFORM_CONFIG[p];
-          const isActive = previewPlatform === p;
-          const draft = drafts.find(d => d.platform === p);
-          const isReady = draft?.status === 'ready';
-          const isGenerating = draft?.status === 'generating';
-          const isError = draft?.status === 'error';
-          const isDraftOverLimit = (draft?.characterCount ?? 0) > (pCfg?.maxChars ?? 1000);
+      {platformsToShow.length > 0 ? (
+        <div className="flex gap-2 p-2 rounded-2xl shadow-xs border border-[#E8E0D4] bg-[#FFFDF9]/95 backdrop-blur-md w-full overflow-x-auto no-scrollbar scroll-smooth">
+          {platformsToShow.map(p => {
+            const pCfg = PLATFORM_CONFIG[p];
+            const isActive = previewPlatform === p;
+            const draft = drafts.find(d => d.platform === p);
+            const isReady = draft?.status === 'ready';
+            const isGenerating = draft?.status === 'generating';
+            const isError = draft?.status === 'error';
+            const isDraftOverLimit = (draft?.characterCount ?? 0) > (pCfg?.maxChars ?? 1000);
 
-          return (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPreviewPlatform(p)}
-              className={cn(
-                'relative group flex flex-col items-center gap-1 p-1 rounded-xl transition-all duration-200 flex-shrink-0 cursor-pointer',
-                isActive
-                  ? 'scale-105'
-                  : 'opacity-70 hover:opacity-100 hover:scale-100'
-              )}
-              title={isError ? `${pCfg?.name || p}: Adaptation unavailable (review Terms of Service)` : pCfg?.name || p}
-            >
-              {/* Squircle App Icon Container */}
-              <div
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPreviewPlatform(p)}
                 className={cn(
-                  'relative w-10 h-10 rounded-[12px] flex items-center justify-center transition-all duration-200 overflow-hidden',
+                  'relative group flex flex-col items-center gap-1 p-1 rounded-xl transition-all duration-200 flex-shrink-0 cursor-pointer',
                   isActive
-                    ? 'ring-2 ring-[#C4A265] ring-offset-2 scale-105 shadow-md bg-white'
-                    : 'hover:scale-105 hover:shadow-xs'
+                    ? 'scale-105'
+                    : 'opacity-70 hover:opacity-100 hover:scale-100'
                 )}
+                title={isError ? `${pCfg?.name || p}: Adaptation unavailable (review Terms of Service)` : pCfg?.name || p}
               >
-                <PlatformBrandLogo platform={p} size={30} />
+                {/* Squircle App Icon Container */}
+                <div
+                  className={cn(
+                    'relative w-10 h-10 rounded-[12px] flex items-center justify-center transition-all duration-200 overflow-hidden',
+                    isActive
+                      ? 'ring-2 ring-[#C4A265] ring-offset-2 scale-105 shadow-md bg-white'
+                      : 'hover:scale-105 hover:shadow-xs'
+                  )}
+                >
+                  <PlatformBrandLogo platform={p} size={30} />
 
-                {/* Status Indicator Badge */}
-                {isGenerating && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-500 border-2 border-white animate-spin flex items-center justify-center text-[7px] text-white" />
-                )}
-                {isReady && !isDraftOverLimit && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
-                )}
-                {(isError || isDraftOverLimit) && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 border border-white" />
-                )}
-              </div>
+                  {/* Status Indicator Badge */}
+                  {isGenerating && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-500 border-2 border-white animate-spin flex items-center justify-center text-[7px] text-white" />
+                  )}
+                  {isReady && !isDraftOverLimit && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
+                  )}
+                  {(isError || isDraftOverLimit) && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 border border-white" />
+                  )}
+                </div>
 
-              <span
-                className={cn(
-                  'text-[10px] max-w-[44px] truncate leading-tight tracking-tight',
-                  isActive ? 'font-bold text-[#3D2B1F]' : 'font-medium text-[#8B7355]'
-                )}
-              >
-                {pCfg?.name?.split(' ')[0] || p}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                <span
+                  className={cn(
+                    'text-[10px] max-w-[44px] truncate leading-tight tracking-tight',
+                    isActive ? 'font-bold text-[#3D2B1F]' : 'font-medium text-[#8B7355]'
+                  )}
+                >
+                  {pCfg?.name?.split(' ')[0] || p}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center py-2.5 px-3 rounded-2xl shadow-xs border border-[#E8E0D4] bg-[#FFFDF9]/95 text-center w-full">
+          <span className="text-[11px] font-medium text-[#8B7355]">
+            No connected platforms to preview
+          </span>
+        </div>
+      )}
 
       {/* ── Realistic iPhone 16 Pro Chassis ───────────────── */}
       <div
@@ -519,27 +521,46 @@ export function IPhonePreview({
 
               {/* ── Scrollable Feed Canvas ── */}
               <div className="flex-1 overflow-y-auto w-full no-scrollbar overscroll-contain">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={previewPlatform}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="w-full"
-                  >
-                    <PlatformMobilePreview
-                      platform={previewPlatform}
-                      content={displayContent}
-                      isEmpty={isEmpty}
-                      media={media}
-                      profileName={profileName}
-                      profileHeadline={profileHeadline}
-                      initials={initials}
-                      avatarUrl={avatarUrl}
-                    />
-                  </motion.div>
-                </AnimatePresence>
+                {platformsToShow.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center select-none">
+                    <div className="w-14 h-14 rounded-2xl bg-[#F4EFE6] border border-[#E8DEC8] flex items-center justify-center mb-3.5 shadow-2xs">
+                      <PlatformBrandLogo platform="linkedin" size={26} className="opacity-40 grayscale" />
+                    </div>
+                    <p className="text-sm font-bold text-[#231C16]">No connected platforms</p>
+                    <p className="text-xs text-[#7A6B5D] mt-1.5 leading-relaxed">
+                      Connect your social accounts in Dashboard to see live mobile previews and publish everywhere.
+                    </p>
+                    <a
+                      href="/dashboard"
+                      className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#231C16] text-white text-xs font-semibold hover:bg-black transition-all shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Connect Accounts</span>
+                    </a>
+                  </div>
+                ) : (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={previewPlatform}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }}
+                      className="w-full"
+                    >
+                      <PlatformMobilePreview
+                        platform={previewPlatform}
+                        content={displayContent}
+                        isEmpty={isEmpty}
+                        media={media}
+                        profileName={profileName}
+                        profileHeadline={profileHeadline}
+                        initials={initials}
+                        avatarUrl={avatarUrl}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                )}
               </div>
 
               {/* ── Native App Bottom Navigation & Home Indicator ── */}
@@ -587,8 +608,12 @@ export function IPhonePreview({
 
       {/* Live Sync Status Pill */}
       <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-[#8B7355]">
-        <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        <span>Pixel-perfect {cfg?.name} client preview</span>
+        <span className={cn("flex h-1.5 w-1.5 rounded-full", platformsToShow.length > 0 ? "bg-emerald-500" : "bg-amber-500")} />
+        <span>
+          {platformsToShow.length > 0
+            ? `Pixel-perfect ${cfg?.name || previewPlatform} client preview`
+            : 'Connect an account to enable live preview'}
+        </span>
       </div>
     </div>
   );

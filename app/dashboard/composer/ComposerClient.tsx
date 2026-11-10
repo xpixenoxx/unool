@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -176,6 +176,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>(() => memoryComposerConnections || []);
+  const [connectionsLoading, setConnectionsLoading] = useState<boolean>(() => memoryComposerConnections === null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>([]);
   const [previewPlatform, setPreviewPlatform] = useState<PlatformType>('linkedin');
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -513,19 +514,33 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           .filter((p: PlatformType) => p in PLATFORM_CONFIG);
         memoryComposerConnections = active;
         setConnectedPlatforms(active);
+        setSelectedPlatforms(prev => prev.filter(p => active.includes(p)));
+        if (active.length > 0) {
+          setPreviewPlatform(prev => (active.includes(prev) ? prev : active[0]));
+          setActiveTab(prev => (active.includes(prev) ? prev : active[0]));
+        }
+      } else {
+        memoryComposerConnections = [];
+        setConnectedPlatforms([]);
         setSelectedPlatforms([]);
       }
     } catch {
       // Ignore
+    } finally {
+      setConnectionsLoading(false);
     }
   }, [featureFlags.automationEnabled]);
 
   const togglePlatform = (platform: PlatformType) => {
-    setSelectedPlatforms(prev => 
-      prev.includes(platform) 
-        ? prev.filter(p => p !== platform)
-        : [...prev, platform]
-    );
+    if (!connectedPlatforms.includes(platform)) return;
+    setSelectedPlatforms(prev => {
+      const willSelect = !prev.includes(platform);
+      if (willSelect) {
+        setPreviewPlatform(platform);
+        return [...prev, platform];
+      }
+      return prev.filter(p => p !== platform);
+    });
   };
 
   const processFiles = async (files: File[]) => {
@@ -707,12 +722,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       loadProfile();
     };
 
+    const handleFocus = () => {
+      loadProfile();
+      loadConnections();
+    };
+
     window.addEventListener('studio-profile-updated', handleProfileUpdate);
-    window.addEventListener('focus', loadProfile);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       window.removeEventListener('studio-profile-updated', handleProfileUpdate);
-      window.removeEventListener('focus', loadProfile);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [loadProfile, loadConnections]);
 
@@ -763,7 +783,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
+    const targetPlatforms = (useSelectedOnly ? selectedPlatforms : connectedPlatforms)
+      .filter(p => connectedPlatforms.includes(p));
+
+    if (targetPlatforms.length === 0) {
+      studioToast.error(
+        useSelectedOnly
+          ? 'Please select at least one connected platform.'
+          : 'No connected platforms found. Please connect your accounts first.'
+      );
+      return;
+    }
 
     const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
     if (skippedPlatforms.length > 0) {
@@ -984,9 +1014,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const handlePublish = async () => {
     if (!postId) return;
 
-    const readyDrafts = drafts.filter(d => d.status === 'ready');
+    const readyDrafts = drafts.filter(d => d.status === 'ready' && connectedPlatforms.includes(d.platform));
     if (readyDrafts.length === 0) {
-      studioToast.error('No drafts ready to publish');
+      studioToast.error('No drafts ready to publish for your connected platforms');
       return;
     }
 
@@ -1070,9 +1100,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   };
 
   const handleScheduleSubmit = async () => {
-    const readyDrafts = drafts.filter(d => d.status === 'ready');
+    const readyDrafts = drafts.filter(d => d.status === 'ready' && connectedPlatforms.includes(d.platform));
     if (readyDrafts.length === 0) {
-      studioToast.error('No drafts ready to schedule');
+      studioToast.error('No drafts ready to schedule for your connected platforms');
       return;
     }
 
@@ -1132,7 +1162,22 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
+    if (useSelectedOnly && selectedPlatforms.length === 0) {
+      studioToast.error('Please select at least one platform first.');
+      return;
+    }
+
+    const targetPlatforms = (useSelectedOnly ? selectedPlatforms : connectedPlatforms)
+      .filter(p => connectedPlatforms.includes(p));
+
+    if (targetPlatforms.length === 0) {
+      studioToast.error(
+        useSelectedOnly
+          ? 'Please select at least one connected platform.'
+          : 'No connected platforms found. Please connect your accounts first.'
+      );
+      return;
+    }
     const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
     if (skippedPlatforms.length > 0) {
       studioToast.info(
@@ -1224,27 +1269,74 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   };
 
-  const readyCount = drafts.filter(d => d.status === 'ready').length;
+  const readyCount = drafts.filter(d => d.status === 'ready' && connectedPlatforms.includes(d.platform)).length;
 
   const PlatformSelector = () => {
-    const defaultPlatformList: PlatformType[] = [
-      'linkedin',
-      'threads',
-      'instagram',
-      'youtube',
-      'bluesky',
-      'telegram',
-      'dribbble',
-      'kick',
-    ];
+    const platformsToDisplay: PlatformType[] = connectedPlatforms;
 
-    const platformsToDisplay: PlatformType[] = connectedPlatforms.length > 0
-      ? connectedPlatforms
-      : defaultPlatformList;
+    if (connectionsLoading) {
+      return (
+        <div className="mb-4 space-y-2.5">
+          <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            {[1, 2, 3, 4].map(idx => (
+              <div
+                key={idx}
+                className="h-11 rounded-xl border border-[#E8DEC8] bg-[#FAF8F5] animate-pulse"
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (platformsToDisplay.length === 0) {
+      return (
+        <div className="mb-4 space-y-2.5">
+          <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
+          <div className="rounded-2xl border border-dashed border-[#E8DEC8] bg-[#FFFDF9] p-4 text-center">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+              <div>
+                <p className="text-xs font-bold text-[#231C16]">No connected platforms yet</p>
+                <p className="text-[11px] text-[#7A6B5D] mt-0.5">
+                  Connect your social accounts to select, preview, and broadcast across your networks.
+                </p>
+              </div>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#231C16] hover:bg-black text-white text-xs font-semibold transition-all shrink-0 shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Connect Platforms</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const allSelected = platformsToDisplay.length > 0 && platformsToDisplay.every(p => selectedPlatforms.includes(p));
 
     return (
       <div className="mb-4 space-y-2.5">
-        <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
+          {platformsToDisplay.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (allSelected) {
+                  setSelectedPlatforms([]);
+                } else {
+                  setSelectedPlatforms([...platformsToDisplay]);
+                }
+              }}
+              className="text-[11px] font-semibold text-[#8B7355] hover:text-[#231C16] transition-colors cursor-pointer"
+            >
+              {allSelected ? 'Clear all' : 'Select all'}
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
           {platformsToDisplay.map(platform => {
             const cfg = PLATFORM_CONFIG[platform] || { name: platform, icon: PlatformSVGs[platform] || Linkedin, maxChars: 3000, color: 'bg-blue-600' };
@@ -1729,7 +1821,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <button
                     type="button"
                     onClick={() => handleDirectBroadcast(true)}
-                    disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0}
+                    disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0 || connectedPlatforms.length === 0}
                     className="h-10 px-4 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {broadcastingType === 'selected' ? (
@@ -1969,7 +2061,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     <button
                       type="button"
                       onClick={() => generateDrafts(true)}
-                      disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0}
+                      disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0 || connectedPlatforms.length === 0}
                       className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-2 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
                     >
                       {generatingType === 'selected' ? (
