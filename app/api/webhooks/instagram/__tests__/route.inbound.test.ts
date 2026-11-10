@@ -720,6 +720,36 @@ describe('Follow-to-Unlock Gate in Inbound DM Webhook', () => {
     expect((dmLogUpsert?.data as any)?.follow_verified).toBe(true);
     expect((dmLogUpsert?.data as any)?.follow_status).toBe('following');
   });
+
+  it('runs follow-gate even when dmAutoReplyEnabled=false (gate fires before the disabled-reply bail-out)', async () => {
+    // The key regression guard: require_follow_for_dm=true means the follow prompt
+    // must be sent on EVERY DM, even when dm_auto_reply_enabled=false.
+    controlState.dmAutoReplyEnabled = false;
+    controlState.requireFollowForDm = true;
+
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'prompt_follow',
+      replyText: 'Follow @testbrand to unlock! 👇',
+      isFollowing: false,
+      messageId: 'qr_early_gate_001',
+    });
+
+    const res = await POST(makeSignedRequest(makeDmPayload('msg_early_gate_001', 'link please')));
+    expect(res.status).toBe(200);
+
+    // Follow gate must have fired — not silenced by dmAutoReplyEnabled=false
+    expect(mockProcessDmFollowGate).toHaveBeenCalledTimes(1);
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+
+    const dmLogUpsert = supabaseCalls.find(
+      c => c.table === 'instagram_dm_logs' && c.op === 'upsert' && (c.data as any)?.message_id === 'msg_early_gate_001'
+    );
+    expect(dmLogUpsert).toBeDefined();
+    expect((dmLogUpsert?.data as any)?.follow_verified).toBe(false);
+    expect((dmLogUpsert?.data as any)?.follow_status).toBe('not_following');
+    expect((dmLogUpsert?.data as any)?.auto_replied).toBe(true);
+  });
 });
 
 // ─── Loop Prevention, Flood Protection & Human Handoff ──────────────────────

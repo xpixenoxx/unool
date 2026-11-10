@@ -796,6 +796,67 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   // NOT whether we record the message in the inbox for human review.
   const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
 
+  // ── Follow-to-Unlock Gate: runs BEFORE dmAutoReplyEnabled bail-out ──────────
+  // When require_follow_for_dm is enabled, every inbound DM must be intercepted
+  // to check follow status — even if DM auto-reply is disabled. This ensures the
+  // "please follow" prompt is always sent, independent of the AI reply setting.
+  if (automationConfig.enabled && automationConfig.requireFollowForDm) {
+    const followGateAccessToken = await getOrRefreshAccessToken(connection);
+    if (followGateAccessToken) {
+      const { data: followGateLogs } = await supabaseAdmin
+        .from('instagram_dm_logs')
+        .select('message_text, ai_reply, escalated, created_at')
+        .eq('workspace_id', connection.workspace_id)
+        .eq('sender_id', dmEvent.senderId)
+        .order('created_at', { ascending: true })
+        .limit(30);
+
+      const followGateAutomation = new InstagramCommentAutomation(groqApiKey || '');
+      const followGateResult = await followGateAutomation.processDmFollowGate({
+        dmEvent,
+        config: automationConfig,
+        accessToken: followGateAccessToken,
+        igUserId,
+        brandUsername: connection.username || 'creator',
+        previousLogs: followGateLogs || [],
+      });
+
+      if (followGateResult.handled) {
+        await supabaseAdmin.from('instagram_dm_logs').upsert(
+          {
+            workspace_id: connection.workspace_id,
+            message_id: dmEvent.messageId,
+            sender_id: dmEvent.senderId,
+            sender_username: dmEvent.senderUsername,
+            message_text: dmEvent.text,
+            classification: followGateResult.action === 'follow_confirmed' ? 'positive' : 'question',
+            confidence: 1.0,
+            ai_reply: followGateResult.replyText,
+            auto_replied: true,
+            escalated: false,
+            lead_score: followGateResult.isFollowing ? 2 : 1,
+            reasoning: `Follow gate ${followGateResult.action}: isFollowing=${followGateResult.isFollowing}`,
+            follow_verified: followGateResult.isFollowing,
+            follow_status: followGateResult.isFollowing ? 'following' : 'not_following',
+            created_at: new Date().toISOString(),
+          },
+          { onConflict: 'message_id', ignoreDuplicates: false }
+        );
+
+        await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
+        logger.info('Instagram DM follow gate handled message (pre-filter path)', {
+          messageId: dmEvent.messageId,
+          action: followGateResult.action,
+          isFollowing: followGateResult.isFollowing,
+        });
+        return;
+      }
+      // User IS following — fall through to normal DM auto-reply flow below.
+      // The existing follow-gate block at line ~1024 is now a no-op because
+      // requireFollowForDm is processed here first.
+    }
+  }
+
   if (!automationConfig.enabled || !automationConfig.dmAutoReplyEnabled || !groqApiKey) {
     // Record the DM for human review without attempting to auto-reply.
     logger.debug('DM auto-reply disabled — recording for inbox only', {
