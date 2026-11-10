@@ -19,6 +19,7 @@ const {
   mockClassifyAndReplyDM,
   mockSendPrivateMessage,
   mockVerifyMetaSignature,
+  mockProcessDmFollowGate,
   supabaseCalls,
   controlState,
 } = vi.hoisted(() => {
@@ -599,6 +600,10 @@ describe('Flagged DMs for human inbox', () => {
 
     const { isAutomationEnabledServer } = await import('@/lib/feature-flags-server');
     vi.mocked(isAutomationEnabledServer).mockResolvedValue(true);
+    const { velocityThrottle } = await import('@/lib/services/automation/velocity');
+    vi.mocked(velocityThrottle.canReply).mockResolvedValue(true);
+    const { decryptToken } = await import('@/lib/crypto/encryption');
+    vi.mocked(decryptToken).mockResolvedValue('IGqxTEST_ACCESS_TOKEN');
     const { ContentGuard } = await import('@/lib/ai/ContentGuard');
     vi.mocked(ContentGuard.validateComment).mockReturnValue({
       safe: true,
@@ -631,6 +636,10 @@ describe('Follow-to-Unlock Gate in Inbound DM Webhook', () => {
 
     const { isAutomationEnabledServer } = await import('@/lib/feature-flags-server');
     vi.mocked(isAutomationEnabledServer).mockResolvedValue(true);
+    const { velocityThrottle } = await import('@/lib/services/automation/velocity');
+    vi.mocked(velocityThrottle.canReply).mockResolvedValue(true);
+    const { decryptToken } = await import('@/lib/crypto/encryption');
+    vi.mocked(decryptToken).mockResolvedValue('IGqxTEST_ACCESS_TOKEN');
     const { ContentGuard } = await import('@/lib/ai/ContentGuard');
     vi.mocked(ContentGuard.validateComment).mockReturnValue({
       safe: true,

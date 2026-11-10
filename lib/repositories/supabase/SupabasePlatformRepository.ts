@@ -44,9 +44,18 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     };
   }
 
+  private toDbError(error: unknown, context: string): Error {
+    if (error instanceof Error) return error;
+    if (error && typeof error === 'object') {
+      const pg = error as { message?: string; details?: string; hint?: string; code?: string };
+      return new Error(`${context}: ${pg.message || 'unknown error'} (code: ${pg.code || 'none'}, details: ${pg.details || 'none'})`);
+    }
+    return new Error(`${context}: ${String(error)}`);
+  }
+
   async findById(id: string): Promise<PlatformConnection | null> {
     const { data, error } = await this.supabase.from('platform_connections').select('*').eq('id', id).single();
-    if (error) { if (error.code === 'PGRST116') return null; throw error; }
+    if (error) { if (error.code === 'PGRST116') return null; throw this.toDbError(error, 'Error finding connection by id'); }
     return this.mapConnectionRow(data);
   }
 
@@ -57,7 +66,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .eq('workspace_id', workspaceId)
       .eq('platform', platform)
       .limit(1);
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error finding connection by platform');
     if (!data || data.length === 0) return null;
     return this.mapConnectionRow(data[0]);
   }
@@ -67,7 +76,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId);
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error finding connections by workspace');
     return data.map(this.mapConnectionRow);
   }
 
@@ -79,7 +88,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         .select('*')
         .eq('workspace_id', workspaceId)
         .eq('user_id', userId);
-      if (error) throw error;
+      if (error) throw this.toDbError(error, 'Error finding connections by user');
       return data.map(this.mapConnectionRow);
     } catch {
       // user_id column may not exist yet — fall back
@@ -88,7 +97,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   }
 
   async create(input: CreatePlatformConnectionInput): Promise<PlatformConnection> {
-    // Check if connection already exists (by workspace + platform only — user_id may not exist)
+    // Check if connection already exists (by workspace + platform)
     const { data: existingData } = await this.supabase
       .from('platform_connections')
       .select('id')
@@ -98,8 +107,8 @@ export class SupabasePlatformRepository implements IPlatformRepository {
 
     const existing = existingData?.[0];
 
-    let data;
-    let error;
+    let data: Record<string, unknown> | null = null;
+    let lastError: unknown = null;
 
     if (existing) {
       // Update existing record
@@ -113,28 +122,47 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         updated_at: new Date().toISOString(),
       };
       
-      // Only overwrite the refresh token if a new one was provided
       if (input.refreshToken) {
         updatePayload.refresh_token_encrypted = input.refreshToken;
       }
-
-      // Only set user_id if provided (column may not exist in DB)
       if (input.userId) {
         updatePayload.user_id = input.userId;
       }
-
-      if (input.metadata) {
+      if (input.metadata && Object.keys(input.metadata).length > 0) {
         updatePayload.metadata = input.metadata;
       }
 
-      const result = await this.supabase
+      let result = await this.supabase
         .from('platform_connections')
         .update(updatePayload)
         .eq('id', existing.id)
         .select()
         .single();
+
+      // If update failed due to missing metadata/user_id column or constraint, progressively strip & retry
+      if (result.error && (result.error.code === '42703' || result.error.message?.includes('column') || result.error.code === '23503')) {
+        if ('metadata' in updatePayload) {
+          delete updatePayload.metadata;
+          result = await this.supabase
+            .from('platform_connections')
+            .update(updatePayload)
+            .eq('id', existing.id)
+            .select()
+            .single();
+        }
+        if (result.error && 'user_id' in updatePayload) {
+          delete updatePayload.user_id;
+          result = await this.supabase
+            .from('platform_connections')
+            .update(updatePayload)
+            .eq('id', existing.id)
+            .select()
+            .single();
+        }
+      }
+
       data = result.data;
-      error = result.error;
+      lastError = result.error;
     } else {
       // Insert new record
       const insertPayload: Record<string, unknown> = {
@@ -148,36 +176,76 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         scopes: input.scopes || [],
         status: 'connected',
       };
-      // Only set user_id if provided (column may not exist in DB)
       if (input.userId) {
         insertPayload.user_id = input.userId;
       }
-
-      if (input.metadata) {
+      if (input.metadata && Object.keys(input.metadata).length > 0) {
         insertPayload.metadata = input.metadata;
       }
 
-      const result = await this.supabase
+      let result = await this.supabase
         .from('platform_connections')
         .insert(insertPayload)
         .select()
         .single();
-      data = result.data;
-      error = result.error;
 
-      // If insert failed because user_id column doesn't exist, retry without it
-      if (error && input.userId) {
-        delete insertPayload.user_id;
-        const retryResult = await this.supabase
-          .from('platform_connections')
-          .insert(insertPayload)
-          .select()
-          .single();
-        data = retryResult.data;
-        error = retryResult.error;
+      // If insert failed because metadata or user_id column doesn't exist, progressively strip & retry
+      if (result.error && (result.error.code === '42703' || result.error.message?.includes('column') || result.error.code === '23503')) {
+        if ('metadata' in insertPayload) {
+          delete insertPayload.metadata;
+          result = await this.supabase
+            .from('platform_connections')
+            .insert(insertPayload)
+            .select()
+            .single();
+        }
+        if (result.error && 'user_id' in insertPayload) {
+          delete insertPayload.user_id;
+          result = await this.supabase
+            .from('platform_connections')
+            .insert(insertPayload)
+            .select()
+            .single();
+        }
       }
+
+      // If insert hit unique constraint (23505), update the existing connection instead
+      if (result.error && result.error.code === '23505') {
+        const { data: conflictRow } = await this.supabase
+          .from('platform_connections')
+          .select('id')
+          .eq('workspace_id', input.workspaceId)
+          .eq('platform', input.platform)
+          .limit(1)
+          .single();
+
+        if (conflictRow?.id) {
+          const fallbackUpdate: Record<string, unknown> = {
+            platform_user_id: input.platformUserId,
+            username: input.username,
+            access_token_encrypted: input.accessToken,
+            expires_at: input.expiresAt?.toISOString(),
+            scopes: input.scopes || [],
+            status: 'connected',
+            updated_at: new Date().toISOString(),
+          };
+          if (input.refreshToken) fallbackUpdate.refresh_token_encrypted = input.refreshToken;
+          result = await this.supabase
+            .from('platform_connections')
+            .update(fallbackUpdate)
+            .eq('id', conflictRow.id)
+            .select()
+            .single();
+        }
+      }
+
+      data = result.data;
+      lastError = result.error;
     }
-    if (error) throw error;
+
+    if (lastError || !data) {
+      throw this.toDbError(lastError, 'DB error saving platform connection');
+    }
     const mapped = this.mapConnectionRow(data);
 
     // Reconcile and preserve past posts: ensure existing platform_posts for this workspace & platform
@@ -223,7 +291,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     if (data.status !== undefined) updateData.status = data.status;
 
     const { data: row, error } = await this.supabase.from('platform_connections').update(updateData).eq('id', id).select().single();
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error updating platform connection');
     return this.mapConnectionRow(row);
   }
 
@@ -244,7 +312,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .eq('id', id)
       .select('workspace_id')
       .single();
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error disconnecting platform connection');
     if (row?.workspace_id) {
       invalidateOverviewCache(row.workspace_id);
     }
@@ -257,7 +325,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .eq('id', id)
       .select('workspace_id')
       .single();
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error deleting platform connection');
     if (row?.workspace_id) {
       invalidateOverviewCache(row.workspace_id);
     }
@@ -275,7 +343,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       })
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error creating platform post');
     return this.mapPostRow(data);
   }
 
@@ -284,7 +352,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .from('platform_posts')
       .select('*')
       .eq('post_variant_id', variantId);
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error finding platform posts by variant');
     return data.map(this.mapPostRow);
   }
 
@@ -294,7 +362,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .from('platform_posts')
       .select('*')
       .in('post_variant_id', variantIds);
-    if (error) throw error;
+    if (error) throw this.toDbError(error, 'Error finding platform posts by variant ids');
     return (data || []).map(this.mapPostRow);
   }
 

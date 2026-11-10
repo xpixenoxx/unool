@@ -178,10 +178,14 @@ const env = {
   ...process.env,
   SUPABASE_URL: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  // Threads OAuth: support both THREADS_* and legacy META_* env var names
-  THREADS_CLIENT_ID: process.env.THREADS_CLIENT_ID || process.env.META_CLIENT_ID,
-  THREADS_CLIENT_SECRET: process.env.THREADS_CLIENT_SECRET || process.env.META_CLIENT_SECRET,
+  // Threads OAuth: support THREADS_*, META_*, and APP_ID variants
+  THREADS_CLIENT_ID: process.env.THREADS_CLIENT_ID || process.env.META_CLIENT_ID || process.env.THREADS_APP_ID || process.env.META_APP_ID,
+  THREADS_CLIENT_SECRET: process.env.THREADS_CLIENT_SECRET || process.env.META_CLIENT_SECRET || process.env.THREADS_APP_SECRET || process.env.META_APP_SECRET,
   THREADS_REDIRECT_URI: process.env.THREADS_REDIRECT_URI || process.env.META_REDIRECT_URI,
+  // Instagram OAuth: support INSTAGRAM_CLIENT_ID, INSTAGRAM_APP_ID, META_CLIENT_ID, META_APP_ID variants
+  INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID || process.env.INSTAGRAM_APP_ID || process.env.META_CLIENT_ID || process.env.META_APP_ID,
+  INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET || process.env.INSTAGRAM_APP_SECRET || process.env.META_CLIENT_SECRET || process.env.META_APP_SECRET,
+  INSTAGRAM_REDIRECT_URI: process.env.INSTAGRAM_REDIRECT_URI || process.env.META_REDIRECT_URI,
   // Instagram / Meta Webhook: support both INSTAGRAM_* and META_* env var names interchangeably
   META_WEBHOOK_SECRET: process.env.META_WEBHOOK_SECRET || process.env.INSTAGRAM_WEBHOOK_SECRET,
   META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,

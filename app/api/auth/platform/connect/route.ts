@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { generateOAuthState, storeOAuthState, createOAuthCookie } from '@/lib/auth/oauth-state';
 import { createServerClient } from '@supabase/ssr';
@@ -108,6 +108,14 @@ export async function GET(request: NextRequest) {
   if (!adapter) {
     logger.warn('Platform connect: unsupported platform', { platform });
     return NextResponse.redirect(new URL(`${errorRedirect}?error=unsupported_platform&platform=${platform}`, request.url));
+  }
+
+  // Ensure adapter has credentials configured before redirecting to provider
+  if (!adapter.authConfig.clientId) {
+    logger.error('Platform connect: missing client ID credentials', { platform });
+    return NextResponse.redirect(
+      new URL(`${errorRedirect}?error=missing_credentials&platform=${platform}&detail=missing_${platform}_client_id`, request.url)
+    );
   }
 
   // Platforms with custom connect flows are handled entirely on the frontend.

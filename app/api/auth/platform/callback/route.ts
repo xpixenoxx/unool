@@ -244,7 +244,7 @@ export async function GET(request: NextRequest) {
       refreshToken: refreshTokenEncrypted || '',
       expiresAt,
       scopes: finalScopes,
-      metadata: connectionMetadata,
+      metadata: Object.keys(connectionMetadata).length > 0 ? connectionMetadata : undefined,
     });
 
     logger.info('Platform connected successfully', {
@@ -291,14 +291,24 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
+    // Supabase PostgrestError is a plain object (not instanceof Error), so String(error)
+    // would produce "[object Object]". Properly extract the message from any shape.
+    let errMsg: string;
+    if (error instanceof Error) {
+      errMsg = error.message;
+    } else if (error !== null && typeof error === 'object') {
+      const pgErr = error as { message?: string; details?: string; code?: string };
+      errMsg = pgErr.message || pgErr.details || JSON.stringify(error);
+    } else {
+      errMsg = String(error);
+    }
     logger.error('OAuth callback failed', {
-      error: err,
+      error: errMsg,
       platform,
       workspaceId,
       state: effectiveState.slice(0, 8) + '...',
     });
-    const errorMsg = encodeURIComponent(err.message?.slice(0, 200) || 'unknown');
+    const errorMsg = encodeURIComponent(errMsg.slice(0, 200) || 'unknown');
     return NextResponse.redirect(
       buildRedirectUrl(request, returnUrl, {
         error: 'callback_failed',

@@ -134,10 +134,19 @@ export class InstagramAdapter implements PlatformAdapter {
 
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('instagram', async () => {
-      const profileResponse = await fetchWithRetry(
+      let profileResponse = await fetchWithRetry(
         `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name,profile_picture_url,user_id,account_type`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
+
+      // If full field query fails (e.g. unknown field for personal/creator accounts), fallback to core fields
+      if (!profileResponse.ok) {
+        logger.warn('Instagram full profile fetch failed, falling back to core fields (id,username)');
+        profileResponse = await fetchWithRetry(
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+      }
 
       if (!profileResponse.ok) {
         if (profileResponse.status === 401 || profileResponse.status === 403) {
