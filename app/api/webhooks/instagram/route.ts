@@ -27,6 +27,7 @@ import { handleFollowWebhookEvent } from '@/lib/follow-gate/service';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { resolveInstagramConnection } from '@/lib/platforms/instagram/identityResolver';
 import { queueService } from '@/lib/services/QueueService';
+import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 
 
 
@@ -415,7 +416,10 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  const automationConfig = await loadAutomationConfig(connection.workspace_id);
+  const automationConfig = await loadAutomationConfig(connection.workspace_id, {
+    brandUsername: connection.username,
+    mediaId: commentEvent.mediaId,
+  });
 
   if (!automationConfig.enabled) {
     logger.debug('Instagram comment automation disabled for workspace', { workspaceId: connection.workspace_id });
@@ -614,41 +618,8 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       }
     }
 
-    // ── Resolve specific brand materials page linked to this Instagram post ──
-    let activeLinkUrl = automationConfig.linkUrl;
-    if (commentEvent.mediaId && connection.workspace_id) {
-      try {
-        const { data: matchedPages } = await supabaseAdmin
-          .from('brand_materials_pages')
-          .select('slug, title, theme, materials')
-          .eq('workspace_id', connection.workspace_id)
-          .eq('is_published', true);
-
-        if (matchedPages && matchedPages.length > 0) {
-          const matched = matchedPages.find(p => {
-            const linked = p.theme?.linked_posts || (p as any).linked_posts || [];
-            return linked.some((lp: any) => {
-              if (typeof lp === 'string') return lp === commentEvent.mediaId || commentEvent.mediaId.includes(lp);
-              return lp?.id === commentEvent.mediaId || lp?.permalink?.includes(commentEvent.mediaId);
-            });
-          });
-          if (matched) {
-            const pageSlug = matched.slug;
-            const brandSub = (connection.username || 'user').toLowerCase().trim();
-            activeLinkUrl = (pageSlug && pageSlug !== 'showcase')
-              ? `https://${brandSub}.unool.co/${pageSlug}`
-              : `https://${brandSub}.unool.co/`;
-            logger.info('Dispatched post-linked brand materials page for Instagram media in webhook', {
-              mediaId: commentEvent.mediaId,
-              slug: pageSlug,
-              activeLinkUrl,
-            });
-          }
-        }
-      } catch (err) {
-        logger.warn('Error finding linked brand materials page for media in webhook', { error: err });
-      }
-    }
+    // Post-linked page + subdomain/slug URL was already resolved in loadAutomationConfig
+    const activeLinkUrl = automationConfig.linkUrl;
 
     // ── Send DM for link_request / purchase_intent ──────────────────────
     if (result.shouldSendDM && activeLinkUrl) {
@@ -738,22 +709,39 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
 async function processDmEvent(igUserId: string, messaging: Record<string, unknown>): Promise<void> {
   const message = messaging.message as Record<string, unknown> | undefined;
+  const postback = messaging.postback as Record<string, unknown> | undefined;
   const sender = messaging.sender as Record<string, unknown> | undefined;
 
-  if (!message || !sender) return;
+  if ((!message && !postback) || !sender) return;
 
   // Don't process our own outbound messages (echo)
-  if (sender.id === igUserId) {
-    logger.debug('Skipping echo/outbound DM', { senderId: sender.id, igUserId });
+  if ((message as any)?.is_echo === true || sender.id === igUserId) {
+    logger.debug('Skipping echo/outbound DM', {
+      senderId: sender.id,
+      igUserId,
+      isEcho: (message as any)?.is_echo,
+    });
     return;
   }
 
+  const quickReply = (message as any)?.quick_reply as Record<string, unknown> | undefined;
+  const resolvedText =
+    (message?.text as string | undefined) ||
+    (quickReply?.payload as string | undefined) ||
+    (postback?.title as string | undefined) ||
+    (postback?.payload as string | undefined) ||
+    '';
+
   const dmEvent: DmEvent = {
-    messageId: messaging.mid as string || message.mid as string || String(Date.now()),
+    messageId:
+      (messaging.mid as string) ||
+      (message?.mid as string) ||
+      (postback?.mid as string) ||
+      `dm_${sender.id}_${messaging.timestamp || Date.now()}`,
     senderId: sender.id as string,
     senderUsername: (sender as any).username,
-    text: message.text as string || '',
-    timestamp: messaging.timestamp as string || new Date().toISOString(),
+    text: resolvedText,
+    timestamp: (messaging.timestamp as string) || new Date().toISOString(),
   };
 
   if (!dmEvent.text || !dmEvent.senderId) {
@@ -789,7 +777,9 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     return;
   }
 
-  const automationConfig = await loadAutomationConfig(connection.workspace_id);
+  const automationConfig = await loadAutomationConfig(connection.workspace_id, {
+    brandUsername: connection.username,
+  });
 
   // ── ALWAYS record the inbound DM regardless of auto-reply setting ──────────
   // dmAutoReplyEnabled controls ONLY whether we send an automated reply,
@@ -802,58 +792,100 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   // "please follow" prompt is always sent, independent of the AI reply setting.
   if (automationConfig.enabled && automationConfig.requireFollowForDm) {
     const followGateAccessToken = await getOrRefreshAccessToken(connection);
-    if (followGateAccessToken) {
+    if (!followGateAccessToken) {
+      logger.warn('Could not obtain valid access token for DM follow gate', {
+        connectionId: connection.id,
+        messageId: dmEvent.messageId,
+      });
+    } else {
+      const canReplyGate = await velocityThrottle.canReply(
+        `dm:${connection.workspace_id}`,
+        automationConfig.dmMaxRepliesPerHour || 20
+      );
+
       const { data: followGateLogs } = await supabaseAdmin
         .from('instagram_dm_logs')
-        .select('message_text, ai_reply, escalated, created_at')
+        .select('message_text, ai_reply, escalated, follow_verified, follow_status, reasoning, created_at')
         .eq('workspace_id', connection.workspace_id)
         .eq('sender_id', dmEvent.senderId)
         .order('created_at', { ascending: true })
         .limit(30);
 
-      const followGateAutomation = new InstagramCommentAutomation(groqApiKey || '');
-      const followGateResult = await followGateAutomation.processDmFollowGate({
-        dmEvent,
-        config: automationConfig,
-        accessToken: followGateAccessToken,
-        igUserId,
-        brandUsername: connection.username || 'creator',
-        previousLogs: followGateLogs || [],
-      });
+      const priorGateTurns = (followGateLogs || []).filter(
+        (l: any) => l?.ai_reply && l.ai_reply !== 'SKIP'
+      ).length;
 
-      if (followGateResult.handled) {
-        await supabaseAdmin.from('instagram_dm_logs').upsert(
-          {
-            workspace_id: connection.workspace_id,
-            message_id: dmEvent.messageId,
-            sender_id: dmEvent.senderId,
-            sender_username: dmEvent.senderUsername,
-            message_text: dmEvent.text,
-            classification: followGateResult.action === 'follow_confirmed' ? 'positive' : 'question',
-            confidence: 1.0,
-            ai_reply: followGateResult.replyText,
-            auto_replied: true,
-            escalated: false,
-            lead_score: followGateResult.isFollowing ? 2 : 1,
-            reasoning: `Follow gate ${followGateResult.action}: isFollowing=${followGateResult.isFollowing}`,
-            follow_verified: followGateResult.isFollowing,
-            follow_status: followGateResult.isFollowing ? 'following' : 'not_following',
-            created_at: new Date().toISOString(),
-          },
-          { onConflict: 'message_id', ignoreDuplicates: false }
-        );
-
-        await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
-        logger.info('Instagram DM follow gate handled message (pre-filter path)', {
-          messageId: dmEvent.messageId,
-          action: followGateResult.action,
-          isFollowing: followGateResult.isFollowing,
+      if (canReplyGate && priorGateTurns < 15) {
+        const followGateAutomation = new InstagramCommentAutomation(groqApiKey || '');
+        const followGateResult = await followGateAutomation.processDmFollowGate({
+          dmEvent,
+          config: automationConfig,
+          accessToken: followGateAccessToken,
+          igUserId,
+          brandUsername: connection.username || 'creator',
+          previousLogs: followGateLogs || [],
         });
-        return;
+
+        if (followGateResult.handled) {
+          const gateSendSucceeded = !!followGateResult.messageId;
+          const resolvedSenderUsername = dmEvent.senderUsername || followGateResult.resolvedUsername;
+          await supabaseAdmin.from('instagram_dm_logs').upsert(
+            {
+              workspace_id: connection.workspace_id,
+              message_id: dmEvent.messageId,
+              sender_id: dmEvent.senderId,
+              sender_username: resolvedSenderUsername,
+              message_text: dmEvent.text,
+              classification: followGateResult.action === 'follow_confirmed' ? 'positive' : 'question',
+              confidence: 1.0,
+              ai_reply: followGateResult.replyText,
+              auto_replied: gateSendSucceeded,
+              escalated: !gateSendSucceeded,
+              lead_score: followGateResult.isFollowing ? 2 : 1,
+              reasoning: gateSendSucceeded
+                ? `Follow gate ${followGateResult.action}: isFollowing=${followGateResult.isFollowing}`
+                : `Follow gate ${followGateResult.action} DM send failed: isFollowing=${followGateResult.isFollowing}`,
+              follow_verified: followGateResult.isFollowing,
+              follow_status: followGateResult.isFollowing ? 'following' : 'not_following',
+              ...(gateSendSucceeded ? { reply_sent_at: new Date().toISOString() } : {}),
+              created_at: new Date().toISOString(),
+            },
+            { onConflict: 'message_id', ignoreDuplicates: false }
+          );
+
+          if (gateSendSucceeded) {
+            await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
+          } else {
+            try {
+              await supabaseAdmin.from('instagram_flagged_dms').upsert(
+                {
+                  workspace_id: connection.workspace_id,
+                  message_id: dmEvent.messageId,
+                  sender_id: dmEvent.senderId,
+                  sender_username: resolvedSenderUsername,
+                  message_text: dmEvent.text,
+                  classification: 'question',
+                  ai_suggested_reply: followGateResult.replyText,
+                  lead_score: followGateResult.isFollowing ? 2 : 1,
+                  reasoning: `Follow gate ${followGateResult.action} failed to deliver via Meta API — queued for retry`,
+                  status: 'pending',
+                },
+                { onConflict: 'workspace_id,message_id', ignoreDuplicates: false }
+              );
+            } catch (flagErr) {
+              logger.warn('Failed to flag failed follow-gate DM for review', { error: flagErr });
+            }
+          }
+
+          logger.info('Instagram DM follow gate handled message (pre-filter path)', {
+            messageId: dmEvent.messageId,
+            action: followGateResult.action,
+            isFollowing: followGateResult.isFollowing,
+            gateSendSucceeded,
+          });
+          return;
+        }
       }
-      // User IS following — fall through to normal DM auto-reply flow below.
-      // The existing follow-gate block at line ~1024 is now a no-op because
-      // requireFollowForDm is processed here first.
     }
   }
 
@@ -996,7 +1028,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   // Fetch chronological conversation history for this sender in this workspace
   const { data: previousLogs } = await supabaseAdmin
     .from('instagram_dm_logs')
-    .select('message_text, ai_reply, escalated, created_at')
+    .select('message_text, ai_reply, escalated, follow_verified, follow_status, reasoning, created_at')
     .eq('workspace_id', connection.workspace_id)
     .eq('sender_id', dmEvent.senderId)
     .order('created_at', { ascending: true })
@@ -1079,49 +1111,6 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
       logger.warn('Failed to upsert turn-limit DM into flagged inbox', { error: flagErr });
     }
     return;
-  }
-
-  // ── Follow-to-Unlock Gate Enforcement ──────────────────────────────────────
-  if (automationConfig.requireFollowForDm) {
-    const followGateResult = await automation.processDmFollowGate({
-      dmEvent,
-      config: automationConfig,
-      accessToken,
-      igUserId,
-      brandUsername: connection.username || 'creator',
-      previousLogs: previousLogs || [],
-    });
-
-    if (followGateResult.handled) {
-      await supabaseAdmin.from('instagram_dm_logs').upsert(
-        {
-          workspace_id: connection.workspace_id,
-          message_id: dmEvent.messageId,
-          sender_id: dmEvent.senderId,
-          sender_username: dmEvent.senderUsername,
-          message_text: dmEvent.text,
-          classification: followGateResult.action === 'follow_confirmed' ? 'positive' : 'question',
-          confidence: 1.0,
-          ai_reply: followGateResult.replyText,
-          auto_replied: true,
-          escalated: false,
-          lead_score: followGateResult.isFollowing ? 2 : 1,
-          reasoning: `Follow gate ${followGateResult.action}: isFollowing=${followGateResult.isFollowing}`,
-          follow_verified: followGateResult.isFollowing,
-          follow_status: followGateResult.isFollowing ? 'following' : 'not_following',
-          created_at: new Date().toISOString(),
-        },
-        { onConflict: 'message_id', ignoreDuplicates: false }
-      );
-
-      await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
-      logger.info('Instagram DM follow gate handled message', {
-        messageId: dmEvent.messageId,
-        action: followGateResult.action,
-        isFollowing: followGateResult.isFollowing,
-      });
-      return;
-    }
   }
 
   const currentTurn = conversationTurnCount + 1;
@@ -1258,7 +1247,10 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
 
 // ─── Helper: Load automation config ──────────────────────────────────────────
 
-async function loadAutomationConfig(workspaceId: string): Promise<AutomationConfig> {
+async function loadAutomationConfig(
+  workspaceId: string,
+  options?: { brandUsername?: string | null; mediaId?: string | null }
+): Promise<AutomationConfig> {
   const globalAutomationEnabled = await isAutomationEnabledServer();
   if (!globalAutomationEnabled) {
     return {
@@ -1287,13 +1279,19 @@ async function loadAutomationConfig(workspaceId: string): Promise<AutomationConf
       .single();
 
     if (data) {
+      const resolvedLinkUrl = await resolveCreatorDeliveryLink(workspaceId, {
+        configuredLinkUrl: data.link_url || undefined,
+        brandUsername: options?.brandUsername,
+        mediaId: options?.mediaId,
+      });
+
       return {
         enabled: data.enabled ?? false,
         autoReplyPositive: data.auto_reply_positive ?? true,
         autoReplyQuestions: data.auto_reply_questions ?? true,
         autoReplyLinkRequests: data.auto_reply_link_requests ?? true,
         autoReplyPurchaseIntent: data.auto_reply_purchase_intent ?? true,
-        linkUrl: data.link_url || undefined,
+        linkUrl: resolvedLinkUrl,
         customInstructions: data.custom_instructions || undefined,
         brandPersona: data.brand_persona || undefined,
         flagNegative: data.flag_negative ?? true,

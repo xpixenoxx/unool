@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
+import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 
 
 // GET /api/instagram/automation?workspaceId=xxx
@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
         dmKnowledgeBase: null,
         dmEscalationEnabled: false,
         dmMaxRepliesPerHour: 0,
+        requireFollowForDm: false,
+        followAskMessage: null,
+        followVerifiedMessage: null,
       });
     }
 
@@ -55,24 +58,13 @@ export async function GET(request: NextRequest) {
       .eq('workspace_id', workspaceId)
       .single();
 
-    // ── Phase 12.3: Bio-link default ─────────────────────────────────────────
-    // When linkUrl is not set, fall back to the user's UNOOL profile URL.
-    // This drives DM traffic to their personal brand hub automatically.
-    let defaultLinkUrl: string | null = null;
-    try {
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('subdomain')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profile?.subdomain) {
-        const appUrl = config.NEXT_PUBLIC_APP_URL || 'https://unool.com';
-        defaultLinkUrl = `${appUrl}/u/${profile.subdomain}`;
-      }
-    } catch {
-      // Non-critical — linkUrl stays null
-    }
+    // ── Phase 12.3: Bio-link / Brand Materials Subdomain+Slug default ────────
+    // When linkUrl is not explicitly set, resolve from creator's UNOOL subdomain
+    // and published brand materials page slug (e.g. https://subdomain.unool.co/slug).
+    const resolvedDefaultLink = await resolveCreatorDeliveryLink(workspaceId, {
+      userId: user.id,
+    });
+    const defaultLinkUrl: string | null = resolvedDefaultLink || null;
 
     // Return defaults if not configured yet
     if (!data) {
@@ -98,6 +90,9 @@ export async function GET(request: NextRequest) {
         dmKnowledgeBase: null,
         dmEscalationEnabled: true,
         dmMaxRepliesPerHour: 20,
+        requireFollowForDm: false,
+        followAskMessage: null,
+        followVerifiedMessage: null,
       });
     }
 
@@ -107,7 +102,7 @@ export async function GET(request: NextRequest) {
       autoReplyQuestions: data.auto_reply_questions,
       autoReplyLinkRequests: data.auto_reply_link_requests,
       autoReplyPurchaseIntent: data.auto_reply_purchase_intent ?? true,
-      // Use stored linkUrl or fall back to profile URL if not set
+      // Use stored linkUrl or fall back to creator subdomain/slug URL if not set
       linkUrl: data.link_url || defaultLinkUrl,
       customInstructions: data.custom_instructions,
       brandPersona: data.brand_persona,
@@ -124,6 +119,9 @@ export async function GET(request: NextRequest) {
       dmKnowledgeBase: data.dm_knowledge_base,
       dmEscalationEnabled: data.dm_escalation_enabled ?? true,
       dmMaxRepliesPerHour: data.dm_max_replies_per_hour ?? 20,
+      requireFollowForDm: data.require_follow_for_dm ?? false,
+      followAskMessage: data.follow_ask_message || null,
+      followVerifiedMessage: data.follow_verified_message || null,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -173,6 +171,9 @@ export async function PUT(request: NextRequest) {
         dmKnowledgeBase: null,
         dmEscalationEnabled: false,
         dmMaxRepliesPerHour: 0,
+        requireFollowForDm: false,
+        followAskMessage: null,
+        followVerifiedMessage: null,
       });
     }
 
@@ -199,6 +200,11 @@ export async function PUT(request: NextRequest) {
       dm_knowledge_base: rest.dmKnowledgeBase || null,
       dm_escalation_enabled: rest.dmEscalationEnabled ?? true,
       dm_max_replies_per_hour: rest.dmMaxRepliesPerHour ?? 20,
+      require_follow_for_dm: Boolean(rest.requireFollowForDm ?? false),
+      follow_ask_message:
+        typeof rest.followAskMessage === 'string' ? rest.followAskMessage.trim() || null : null,
+      follow_verified_message:
+        typeof rest.followVerifiedMessage === 'string' ? rest.followVerifiedMessage.trim() || null : null,
       updated_at: new Date().toISOString(),
     };
 

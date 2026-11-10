@@ -1,5 +1,4 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
   InstagramCommentAutomation,
@@ -7,6 +6,7 @@ import {
   type CommentEvent,
   type AutomationConfig,
 } from '@/lib/services/InstagramCommentAutomation';
+import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
@@ -70,6 +70,11 @@ export async function POST(request: NextRequest) {
         .eq('workspace_id', workspaceId)
         .single();
 
+      const resolvedLinkUrl = await resolveCreatorDeliveryLink(workspaceId, {
+        configuredLinkUrl: data?.link_url || undefined,
+        userId: user.id,
+      });
+
       if (data) {
         automationConfig = {
           enabled: true, // Force enabled for simulation
@@ -77,7 +82,7 @@ export async function POST(request: NextRequest) {
           autoReplyQuestions: data.auto_reply_questions ?? true,
           autoReplyLinkRequests: data.auto_reply_link_requests ?? true,
           autoReplyPurchaseIntent: data.auto_reply_purchase_intent ?? true,
-          linkUrl: data.link_url || undefined,
+          linkUrl: resolvedLinkUrl,
           customInstructions: data.custom_instructions || undefined,
           brandPersona: data.brand_persona || undefined,
           flagNegative: data.flag_negative ?? true,
@@ -88,6 +93,16 @@ export async function POST(request: NextRequest) {
           dmWelcomeMessage: data.dm_welcome_message || undefined,
           dmKnowledgeBase: data.dm_knowledge_base || undefined,
           dmEscalationEnabled: data.dm_escalation_enabled ?? true,
+          requireFollowForDm: data.require_follow_for_dm ?? false,
+          followAskMessage: data.follow_ask_message || undefined,
+          followVerifiedMessage: data.follow_verified_message || undefined,
+        };
+      } else {
+        automationConfig = {
+          ...DEFAULT_AUTOMATION_CONFIG,
+          enabled: true,
+          dmAutoReplyEnabled: true,
+          linkUrl: resolvedLinkUrl,
         };
       }
     } catch {

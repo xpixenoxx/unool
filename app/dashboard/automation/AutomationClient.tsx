@@ -814,6 +814,50 @@ export default function AutomationClient({
                       </label>
                     </div>
 
+                    <div className="un-rule-row">
+                      <div>
+                        <div className="un-rule-name">Force-Follow Before Unlocking Link</div>
+                        <div className="un-rule-desc">Check whether each DM sender follows you before delivering your link &amp; page details</div>
+                      </div>
+                      <label className="un-channel-switch">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(config.requireFollowForDm)}
+                          onChange={e => updateConfig({ requireFollowForDm: e.target.checked })}
+                        />
+                        <div className="un-channel-track" />
+                        <div className="un-channel-thumb">
+                          <div className="un-channel-thumb-ridges"><span /><span /><span /></div>
+                        </div>
+                      </label>
+                    </div>
+
+                    {config.requireFollowForDm && (
+                      <div style={{ padding: '12px 14px', borderRadius: 12, background: '#FAF6EE', border: '1px solid #E8DFCE', marginBottom: 14 }}>
+                        <div className="un-field">
+                          <label className="un-label">Follow Prompt Message (Sent when not following — supports &#123;username&#125;, &#123;brand&#125;)</label>
+                          <textarea
+                            className="un-input un-textarea"
+                            placeholder={"Hey @{username}! 👋 To unlock this, make sure to follow {brand}! Tap I Followed! ✅ below once you've followed 👇"}
+                            value={config.followAskMessage || ''}
+                            onChange={e => updateConfig({ followAskMessage: e.target.value || null })}
+                          />
+                        </div>
+                        <div className="un-field" style={{ marginBottom: 4 }}>
+                          <label className="un-label">Unlocked Details Message (Sent once follow is verified — supports &#123;username&#125;, &#123;brand&#125;, &#123;link&#125;)</label>
+                          <textarea
+                            className="un-input un-textarea"
+                            placeholder={"Thanks for following {brand}! 🎉 Here is your exclusive access: {link}"}
+                            value={config.followVerifiedMessage || ''}
+                            onChange={e => updateConfig({ followVerifiedMessage: e.target.value || null })}
+                          />
+                          <div style={{ fontSize: 11.5, color: '#8B7355', marginTop: 6 }}>
+                            Automatically sends your Canonical Resource Link or your UNOOL subdomain/page slug (e.g. https://subdomain.unool.co/slug).
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="un-field" style={{ marginTop: 14 }}>
                       <label className="un-label">Hourly DM Reply Ceiling</label>
                       <div className="un-slider-container">

@@ -8,6 +8,7 @@ import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutom
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
+import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 import type { InstagramOutboundJobParams } from '@/lib/services/QueueService';
 
 export const maxDuration = 60;
@@ -195,6 +196,13 @@ async function handleJob(params: InstagramOutboundJobParams) {
         return NextResponse.json({ error: errorMsg, deferred: true }, { status: 200 });
       }
 
+      // Resolve canonical or post-linked subdomain/slug link BEFORE classification
+      const activeLinkUrl = await resolveCreatorDeliveryLink(workspaceId, {
+        configuredLinkUrl: cfg?.link_url,
+        brandUsername: connection.username,
+        mediaId,
+      });
+
       // Generate AI response with thread-scoped anti-duplication
       const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15, mediaId);
       const classified = await automation.classifyAndGenerateReply(
@@ -212,7 +220,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
           autoReplyQuestions: cfg?.auto_reply_questions ?? true,
           autoReplyLinkRequests: cfg?.auto_reply_link_requests ?? true,
           autoReplyPurchaseIntent: cfg?.auto_reply_purchase_intent ?? true,
-          linkUrl: cfg?.link_url || undefined,
+          linkUrl: activeLinkUrl,
           customInstructions: cfg?.custom_instructions || undefined,
           brandPersona: cfg?.brand_persona || undefined,
           flagNegative: cfg?.flag_negative ?? true,
@@ -221,6 +229,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
           jitterMinSeconds: cfg?.jitter_min_seconds ?? 25,
           jitterMaxSeconds: cfg?.jitter_max_seconds ?? 120,
           threadChainingEnabled: cfg?.thread_chaining_enabled ?? true,
+          requireFollowForDm: cfg?.require_follow_for_dm ?? false,
         },
         recentReplies
       );
@@ -279,7 +288,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
 
       let didSendDm = false;
       let sentDmText = '';
-      if (classified.shouldSendDM && (classified.suggestedDM || cfg?.link_url)) {
+      if (classified.shouldSendDM && (classified.suggestedDM || activeLinkUrl)) {
         try {
           const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
           if (cfg?.require_follow_for_dm) {
@@ -299,7 +308,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
           } else {
             const dmTextToSend =
               classified.suggestedDM ||
-              `Hey ${commenterUsername ? `@${commenterUsername}` : 'there'}! Here's the link you asked for: ${cfg?.link_url}`;
+              `Hey ${commenterUsername ? `@${commenterUsername}` : 'there'}! Here's the link you asked for: ${activeLinkUrl}`;
             const dmRes = await automation.sendDmForComment(
               accessToken,
               connection.platform_user_id,
@@ -376,7 +385,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
       // Multi-turn conversation history (includes both user messages and prior AI replies)
       const { data: previousLogs } = await supabaseAdmin
         .from('instagram_dm_logs')
-        .select('message_text, ai_reply, escalated, created_at')
+        .select('message_text, ai_reply, escalated, follow_verified, follow_status, reasoning, created_at')
         .eq('workspace_id', workspaceId)
         .eq('sender_id', senderId)
         .order('created_at', { ascending: true })
@@ -447,16 +456,24 @@ async function handleJob(params: InstagramOutboundJobParams) {
         );
       }
 
+      // Resolve creator delivery link (configured link_url → UNOOL subdomain/slug)
+      const resolvedLinkUrl = await resolveCreatorDeliveryLink(workspaceId, {
+        configuredLinkUrl: cfg?.link_url,
+        brandUsername: connection.username,
+      });
+
+      const dmEventObj = {
+        messageId,
+        senderId,
+        senderUsername: params.senderUsername,
+        text: dmText,
+        timestamp: new Date().toISOString(),
+      };
+
       // ── Follow-to-Unlock Gate Enforcement ──────────────────────────────────
       if (cfg?.require_follow_for_dm) {
         const followGateResult = await automation.processDmFollowGate({
-          dmEvent: {
-            messageId,
-            senderId,
-            senderUsername: params.senderUsername,
-            text: dmText,
-            timestamp: new Date().toISOString(),
-          },
+          dmEvent: dmEventObj,
           config: {
             enabled: cfg?.enabled ?? true,
             autoReplyPositive: cfg?.auto_reply_positive ?? true,
@@ -465,10 +482,11 @@ async function handleJob(params: InstagramOutboundJobParams) {
             autoReplyPurchaseIntent: cfg?.auto_reply_purchase_intent ?? true,
             flagNegative: cfg?.flag_negative ?? true,
             flagSpam: cfg?.flag_spam ?? true,
+            dmAutoReplyEnabled: cfg?.dm_auto_reply_enabled ?? true,
             requireFollowForDm: true,
             followAskMessage: cfg?.follow_ask_message || undefined,
             followVerifiedMessage: cfg?.follow_verified_message || undefined,
-            linkUrl: cfg?.link_url || undefined,
+            linkUrl: resolvedLinkUrl,
           },
           accessToken,
           igUserId: connection.platform_user_id,
@@ -477,10 +495,17 @@ async function handleJob(params: InstagramOutboundJobParams) {
         });
 
         if (followGateResult.handled) {
+          if (!followGateResult.messageId) {
+            throw new Error(`Meta API rejected Follow-Gate DM (${followGateResult.action}) or returned null`);
+          }
+
           await markJobSent(workspaceId, jobType, targetId);
+          const resolvedSenderUsername =
+            dmEventObj.senderUsername || followGateResult.resolvedUsername || params.senderUsername;
           await supabaseAdmin
             .from('instagram_dm_logs')
             .update({
+              ...(resolvedSenderUsername ? { sender_username: resolvedSenderUsername } : {}),
               classification: followGateResult.action === 'follow_confirmed' ? 'positive' : 'question',
               confidence: 1.0,
               auto_replied: true,
@@ -503,20 +528,31 @@ async function handleJob(params: InstagramOutboundJobParams) {
         }
       }
 
+      if (cfg?.dm_auto_reply_enabled === false) {
+        const pausedReason = 'DM auto-reply disabled — queued for human review';
+        await flagDmForDeadLetter(workspaceId, params, pausedReason);
+        await supabaseAdmin
+          .from('instagram_dm_logs')
+          .update({
+            auto_replied: false,
+            delivery_status: 'needs_review',
+            escalated: true,
+            reasoning: pausedReason,
+          })
+          .eq('message_id', messageId);
+        await markJobSent(workspaceId, jobType, targetId);
+        return NextResponse.json({ success: true, action: 'queued_for_human_review' }, { status: 200 });
+      }
+
       const classified = await automation.classifyAndReplyDM(
-        {
-          messageId,
-          senderId,
-          senderUsername: params.senderUsername,
-          text: dmText,
-          timestamp: new Date().toISOString(),
-        },
+        dmEventObj,
         {
           enabled: cfg?.enabled ?? true,
           autoReplyPositive: cfg?.auto_reply_positive ?? true,
           autoReplyQuestions: cfg?.auto_reply_questions ?? true,
           autoReplyLinkRequests: cfg?.auto_reply_link_requests ?? true,
           autoReplyPurchaseIntent: cfg?.auto_reply_purchase_intent ?? true,
+          linkUrl: resolvedLinkUrl,
           flagNegative: cfg?.flag_negative ?? true,
           flagSpam: cfg?.flag_spam ?? true,
           maxRepliesPerHour: cfg?.max_replies_per_hour ?? 30,

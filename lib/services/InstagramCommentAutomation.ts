@@ -116,7 +116,14 @@ export interface DmFollowGateInput {
   accessToken: string;
   igUserId: string;
   brandUsername: string;
-  previousLogs?: Array<{ message_text?: string | null; ai_reply?: string | null; auto_replied?: boolean | null }>;
+  previousLogs?: Array<{
+    message_text?: string | null;
+    ai_reply?: string | null;
+    auto_replied?: boolean | null;
+    follow_verified?: boolean | null;
+    follow_status?: string | null;
+    reasoning?: string | null;
+  }>;
 }
 
 export type DmFollowGateResult =
@@ -126,10 +133,12 @@ export type DmFollowGateResult =
       replyText: string;
       isFollowing: boolean;
       messageId?: string;
+      resolvedUsername?: string;
     }
   | {
       handled: false;
       isFollowing: boolean;
+      resolvedUsername?: string;
     };
 
 // Default config — safe defaults with owner review for risky categories
@@ -200,6 +209,7 @@ const dmClassificationSchema = z.object({
 
 export class InstagramCommentAutomation {
   private groq: GroqProvider;
+  private fetchedUsernames = new Map<string, string>();
 
   constructor(groqApiKey: string) {
     this.groq = new GroqProvider(groqApiKey);
@@ -754,6 +764,19 @@ Return ONLY valid JSON:
       );
       if (res.ok) {
         const data = await res.json();
+        if (typeof data?.username === 'string' && data.username.trim()) {
+          this.fetchedUsernames.set(
+            recipientIgScopedId,
+            data.username.replace(/^@/, '').trim()
+          );
+        }
+        if (data?.is_user_follow_business === undefined) {
+          logger.warn('Meta response missing is_user_follow_business field', {
+            recipientIgScopedId,
+            apiHost,
+            responseKeys: Object.keys(data || {}),
+          });
+        }
         logger.info('Follow verification result', {
           recipientIgScopedId,
           apiHost,
@@ -860,25 +883,101 @@ Return ONLY valid JSON:
     // Query Meta Graph API for live follow status
     const isFollowing = await this.checkUserFollowsBusiness(accessToken, dmEvent.senderId);
 
+    // Enrich missing senderUsername from Meta profile lookup when available
+    if (!dmEvent.senderUsername) {
+      const cachedUsername = this.fetchedUsernames.get(dmEvent.senderId);
+      if (cachedUsername) {
+        dmEvent.senderUsername = cachedUsername;
+      }
+    }
+    const resolvedUsername = dmEvent.senderUsername;
+
     const text = (dmEvent.text || '').trim();
     const isConfirmationText =
       /^(i\s*followed|confirm_follow|done\s*following|already\s*followed|followed\s*you|followed)/i.test(text) ||
       text.toLowerCase().includes('i followed') ||
       text === 'CONFIRM_FOLLOW';
 
-    const lastAiReply = previousLogs && previousLogs.length > 0 ? previousLogs[previousLogs.length - 1]?.ai_reply : '';
+    const logs = previousLogs || [];
+    const lastLogWithReply = [...logs].reverse().find(l => l.ai_reply && l.ai_reply !== 'SKIP');
+    const lastAiReply = lastLogWithReply?.ai_reply || '';
+
+    const isVerifiedUnlockReply = (reply: string): boolean => {
+      const lower = reply.toLowerCase();
+      if (
+        lower.includes('thanks for following') ||
+        lower.includes("you're all set") ||
+        lower.includes("you're officially in") ||
+        lower.includes('welcome to the inner circle') ||
+        lower.includes('verified!') ||
+        lower.includes('exclusive access') ||
+        lower.includes('vip link')
+      ) {
+        return true;
+      }
+      if (config.followVerifiedMessage?.trim()) {
+        const staticChunks = config.followVerifiedMessage
+          .trim()
+          .split(/\{username\}|\{brand\}|\{link\}/)
+          .map(s => s.trim().toLowerCase())
+          .filter(s => s.length >= 6);
+        if (staticChunks.some(chunk => lower.includes(chunk))) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const isFollowAskReply = (reply: string): boolean => {
+      if (!reply || isVerifiedUnlockReply(reply)) return false;
+      const lower = reply.toLowerCase();
+      if (config.followAskMessage?.trim()) {
+        const customAskChunks = config.followAskMessage
+          .trim()
+          .split(/\{username\}|\{brand\}/)
+          .map(s => s.trim().toLowerCase())
+          .filter(s => s.length >= 6);
+        if (customAskChunks.some(chunk => lower.includes(chunk))) {
+          return true;
+        }
+      }
+      return (
+        lower.includes('make sure you hit "follow"') ||
+        lower.includes("couldn't verify your follow") ||
+        lower.includes('confirm_follow') ||
+        reply.includes('I Followed') ||
+        lower.includes('follow')
+      );
+    };
+
+    const lastFollowStatus = lastLogWithReply?.follow_status;
+    const lastReasoning = lastLogWithReply?.reasoning || '';
+
     const wasAwaitingFollow =
-      !!lastAiReply &&
-      (lastAiReply.toLowerCase().includes('follow') ||
-        lastAiReply.includes('I Followed') ||
-        lastAiReply.includes('CONFIRM_FOLLOW'));
+      !!lastLogWithReply &&
+      (lastFollowStatus === 'not_following' ||
+        lastReasoning.includes('Follow gate prompt_follow') ||
+        lastReasoning.includes('Follow gate remind_follow') ||
+        (!lastFollowStatus && isFollowAskReply(lastAiReply)));
+
+    const alreadyUnlocked = logs.some(
+      l =>
+        l.reasoning?.includes('Follow gate follow_confirmed') ||
+        (l.follow_verified === true && l.follow_status === 'following' && !!l.ai_reply) ||
+        (!!l.ai_reply && isVerifiedUnlockReply(l.ai_reply))
+    );
+
+    const isLinkOrDetailsRequest =
+      /(?:send|share|give|get|need|want|drop|dm|unlock|where|what(?:'s| is))\b.*\b(link|access|details|resource|template|slug|url|page|guide|pdf)\b|^\s*(?:send\s*(?:me\s*)?(?:the\s*)?)?(?:link|url|details|access|slug|info|template|guide|pdf|resource|send\s*it|send)(?:\s+(?:please|pls|plz|now))?\s*[?!.]*\s*$/i.test(
+        text
+      );
 
     const cleanBrand = brandUsername.startsWith('@') ? brandUsername : `@${brandUsername}`;
 
     // ── Case 1: User has NOT followed yet ──────────────────────────────────
     if (!isFollowing) {
       if (isConfirmationText || wasAwaitingFollow) {
-        // User claimed they followed or clicked confirmation, but Meta API reports false
+        // User claimed they followed or clicked confirmation, or sent another DM while still not following
         const remindText =
           `We couldn't verify your follow yet! 🧐 Make sure you hit "Follow" on ${cleanBrand}, then tap "I Followed! ✅" below!`;
         const sendRes = await this.sendQuickReplyMessage(
@@ -894,6 +993,7 @@ Return ONLY valid JSON:
           replyText: remindText,
           isFollowing: false,
           messageId: sendRes?.messageId,
+          resolvedUsername,
         };
       }
 
@@ -919,20 +1019,37 @@ Return ONLY valid JSON:
         replyText: promptText,
         isFollowing: false,
         messageId: sendRes?.messageId,
+        resolvedUsername,
       };
     }
 
     // ── Case 2: User IS following ──────────────────────────────────────────
-    if (isConfirmationText || wasAwaitingFollow) {
-      // User followed and confirmed!
-      const defaultVerified = config.linkUrl
-        ? `Thanks for following ${cleanBrand}! 🎉 You're all set! Here is your exclusive access: ${config.linkUrl} ✨ Let me know if you need anything else!`
+    const shouldDeliverUnlock =
+      isConfirmationText ||
+      (wasAwaitingFollow && !alreadyUnlocked) ||
+      (!alreadyUnlocked && (config.dmAutoReplyEnabled === false || isLinkOrDetailsRequest));
+
+    if (shouldDeliverUnlock) {
+      const targetLink = config.linkUrl?.trim() || '';
+      const defaultVerified = targetLink
+        ? `Thanks for following ${cleanBrand}! 🎉 You're all set! Here is your exclusive access: ${targetLink} ✨ Let me know if you need anything else!`
         : `Thanks for following ${cleanBrand}! 🎉 You're officially in! What can I help you with today?`;
 
-      const verifiedText = (config.followVerifiedMessage?.trim() || defaultVerified)
+      const customVerifiedTemplate = config.followVerifiedMessage?.trim();
+      let verifiedText = (customVerifiedTemplate || defaultVerified)
         .replace(/{username}/g, dmEvent.senderUsername || 'friend')
         .replace(/@?{brand}/g, cleanBrand)
-        .replace(/{link}/g, config.linkUrl || '');
+        .replace(/{link}/g, targetLink);
+
+      // If creator set a custom verified message without a {link} placeholder, append the resolved link automatically
+      if (
+        customVerifiedTemplate &&
+        targetLink &&
+        !customVerifiedTemplate.includes('{link}') &&
+        !verifiedText.includes(targetLink)
+      ) {
+        verifiedText = `${verifiedText.trim()}\n\n${targetLink}`;
+      }
 
       const sendRes = await this.sendPrivateMessage(
         accessToken,
@@ -941,17 +1058,24 @@ Return ONLY valid JSON:
         verifiedText
       );
 
+      const confirmedMessageId = sendRes
+        ? (typeof sendRes === 'object' && 'messageId' in sendRes && sendRes.messageId
+            ? sendRes.messageId
+            : 'sent')
+        : undefined;
+
       return {
         handled: true,
         action: 'follow_confirmed',
         replyText: verifiedText,
         isFollowing: true,
-        messageId: sendRes ? 'sent' : undefined,
+        messageId: confirmedMessageId,
+        resolvedUsername,
       };
     }
 
-    // Existing follower sending a normal message — proceed with full AI conversation
-    return { handled: false, isFollowing: true };
+    // Existing verified follower sending a normal message — proceed with normal DM pipeline
+    return { handled: false, isFollowing: true, resolvedUsername };
   }
 
   /**

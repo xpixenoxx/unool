@@ -39,6 +39,9 @@ const {
   const controlState = {
     dmAutoReplyEnabled: true,
     requireFollowForDm: false,
+    configuredLinkUrl: 'https://unool.co/link' as string | null,
+    profiles: [] as unknown[],
+    brandPages: [] as unknown[],
     existingDmLogs: [] as unknown[],
     dmHistoryLogs: [] as unknown[],
     existingCommentLogs: [] as unknown[],
@@ -220,7 +223,7 @@ vi.mock('@supabase/supabase-js', () => ({
             auto_reply_purchase_intent: true,
             flag_negative: true,
             flag_spam: true,
-            link_url: 'https://unool.co/link',
+            link_url: controlState.configuredLinkUrl,
             max_replies_per_hour: 30,
             jitter_min_seconds: 1,
             jitter_max_seconds: 2,
@@ -311,8 +314,12 @@ vi.mock('@supabase/supabase-js', () => ({
         return chain;
       }
 
+      if (table === 'profiles') {
+        return buildChain({ data: controlState.profiles, error: null });
+      }
+
       if (table === 'brand_materials_pages') {
-        return buildChain({ data: [], error: null });
+        return buildChain({ data: controlState.brandPages, error: null });
       }
 
       return buildChain({ data: null, error: null });
@@ -390,6 +397,10 @@ describe('Inbound DM processing', () => {
     vi.clearAllMocks();
     supabaseCalls.length = 0;
     controlState.dmAutoReplyEnabled = true;
+    controlState.requireFollowForDm = false;
+    controlState.configuredLinkUrl = 'https://unool.co/link';
+    controlState.profiles = [];
+    controlState.brandPages = [];
     controlState.existingDmLogs = [];
     controlState.existingCommentLogs = [];
     mockVerifyMetaSignature.mockResolvedValue(true);
@@ -561,6 +572,10 @@ describe('Comment deduplication — retry on failure', () => {
     vi.clearAllMocks();
     supabaseCalls.length = 0;
     controlState.dmAutoReplyEnabled = true;
+    controlState.requireFollowForDm = false;
+    controlState.configuredLinkUrl = 'https://unool.co/link';
+    controlState.profiles = [];
+    controlState.brandPages = [];
     controlState.existingDmLogs = [];
     controlState.existingCommentLogs = [];
     mockVerifyMetaSignature.mockResolvedValue(true);
@@ -749,6 +764,116 @@ describe('Follow-to-Unlock Gate in Inbound DM Webhook', () => {
     expect((dmLogUpsert?.data as any)?.follow_verified).toBe(false);
     expect((dmLogUpsert?.data as any)?.follow_status).toBe('not_following');
     expect((dmLogUpsert?.data as any)?.auto_replied).toBe(true);
+  });
+
+  it('skips is_echo messages even when sender.id differs from igUserId', async () => {
+    controlState.requireFollowForDm = true;
+
+    const echoWithFlag = {
+      object: 'instagram',
+      entry: [
+        {
+          id: 'ig_account_111',
+          messaging: [
+            {
+              sender: { id: 'external_or_alias_sender' },
+              recipient: { id: 'user_sender_001' },
+              timestamp: Date.now(),
+              message: {
+                mid: 'msg_is_echo_flag',
+                text: 'Outbound echo copy',
+                is_echo: true,
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const res = await POST(makeSignedRequest(echoWithFlag));
+    expect(res.status).toBe(200);
+    expect(mockProcessDmFollowGate).not.toHaveBeenCalled();
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+    expect(mockSendPrivateMessage).not.toHaveBeenCalled();
+  });
+
+  it('extracts quick_reply.payload when message.text is omitted and resolves subdomain/slug link once', async () => {
+    controlState.requireFollowForDm = true;
+    controlState.configuredLinkUrl = null;
+    controlState.profiles = [{ subdomain: 'creatorhub', deleted_at: null }];
+    controlState.brandPages = [{ slug: 'vip-kit', theme: {}, is_published: true }];
+
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'follow_confirmed',
+      replyText: 'Thanks for following @testbrand! https://creatorhub.unool.co/vip-kit',
+      isFollowing: true,
+      messageId: 'sent_qr_unlock',
+      resolvedUsername: 'fan_handle',
+    });
+
+    const quickReplyOnlyPayload = {
+      object: 'instagram',
+      entry: [
+        {
+          id: 'ig_account_111',
+          messaging: [
+            {
+              sender: { id: 'user_qr_01' },
+              recipient: { id: 'ig_account_111' },
+              timestamp: Date.now(),
+              message: {
+                mid: 'msg_qr_payload_01',
+                quick_reply: { payload: 'CONFIRM_FOLLOW' },
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const res = await POST(makeSignedRequest(quickReplyOnlyPayload));
+    expect(res.status).toBe(200);
+
+    // Must call follow gate exactly once (never twice on sync path)
+    expect(mockProcessDmFollowGate).toHaveBeenCalledTimes(1);
+    const gateCallArg = mockProcessDmFollowGate.mock.calls[0][0];
+    expect(gateCallArg.dmEvent.text).toBe('CONFIRM_FOLLOW');
+    expect(gateCallArg.config.linkUrl).toBe('https://creatorhub.unool.co/vip-kit');
+
+    const dmLogUpsert = supabaseCalls.find(
+      c => c.table === 'instagram_dm_logs' && c.op === 'upsert' && (c.data as any)?.message_id === 'msg_qr_payload_01'
+    );
+    expect((dmLogUpsert?.data as any)?.sender_username).toBe('fan_handle');
+    expect((dmLogUpsert?.data as any)?.auto_replied).toBe(true);
+  });
+
+  it('marks auto_replied=false, escalates, and queues flagged DM when follow-gate Meta send fails', async () => {
+    controlState.requireFollowForDm = true;
+    const { velocityThrottle } = await import('@/lib/services/automation/velocity');
+
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'prompt_follow',
+      replyText: 'Please follow @testbrand!',
+      isFollowing: false,
+      messageId: undefined,
+    });
+
+    const res = await POST(makeSignedRequest(makeDmPayload('msg_fg_fail_01', 'link?')));
+    expect(res.status).toBe(200);
+
+    const dmLogUpsert = supabaseCalls.find(
+      c => c.table === 'instagram_dm_logs' && c.op === 'upsert' && (c.data as any)?.message_id === 'msg_fg_fail_01'
+    );
+    expect((dmLogUpsert?.data as any)?.auto_replied).toBe(false);
+    expect((dmLogUpsert?.data as any)?.escalated).toBe(true);
+
+    const flagged = supabaseCalls.find(
+      c => c.table === 'instagram_flagged_dms' && (c.data as any)?.message_id === 'msg_fg_fail_01'
+    );
+    expect(flagged).toBeDefined();
+    expect(velocityThrottle.recordReply).not.toHaveBeenCalled();
   });
 });
 

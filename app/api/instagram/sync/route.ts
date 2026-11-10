@@ -14,6 +14,7 @@ import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
+import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -124,6 +125,11 @@ export async function POST(request: NextRequest) {
       .eq('workspace_id', workspaceId)
       .single();
 
+    const resolvedWorkspaceLinkUrl = await resolveCreatorDeliveryLink(workspaceId, {
+      configuredLinkUrl: rawConfig?.link_url,
+      brandUsername,
+    });
+
     const automationConfig: AutomationConfig = (rawConfig && globalAutomationEnabled)
       ? {
           enabled: rawConfig.enabled ?? true,
@@ -131,7 +137,7 @@ export async function POST(request: NextRequest) {
           autoReplyQuestions: rawConfig.auto_reply_questions ?? true,
           autoReplyLinkRequests: rawConfig.auto_reply_link_requests ?? true,
           autoReplyPurchaseIntent: rawConfig.auto_reply_purchase_intent ?? true,
-          linkUrl: rawConfig.link_url,
+          linkUrl: resolvedWorkspaceLinkUrl,
           customInstructions: rawConfig.custom_instructions,
           brandPersona: rawConfig.brand_persona,
           flagNegative: rawConfig.flag_negative ?? true,
@@ -505,6 +511,18 @@ export async function POST(request: NextRequest) {
 
       totalCommentsExamined += rawComments.length;
 
+      const mediaLinkUrl = rawComments.length > 0
+        ? await resolveCreatorDeliveryLink(workspaceId, {
+            configuredLinkUrl: rawConfig?.link_url,
+            brandUsername,
+            mediaId: media.id,
+          })
+        : automationConfig.linkUrl;
+      const effectiveMediaConfig: AutomationConfig = {
+        ...automationConfig,
+        linkUrl: mediaLinkUrl,
+      };
+
       for (const item of rawComments) {
         const commentId = item.id;
         const commentText = item.text || item.message || '';
@@ -582,7 +600,7 @@ export async function POST(request: NextRequest) {
         const result: ClassifiedComment = await automation.classifyAndGenerateReply(
           commentEvent,
           media.caption || '',
-          automationConfig,
+          effectiveMediaConfig,
           recentReplies
         );
 
@@ -654,41 +672,8 @@ export async function POST(request: NextRequest) {
           thread_hook: result.threadHook,
         }, { onConflict: 'comment_id', ignoreDuplicates: true });
 
-        // ── Resolve specific brand materials page linked to this Instagram post ──
-        let activeLinkUrl = automationConfig.linkUrl;
-        if (media.id && connection.workspace_id) {
-          try {
-            const { data: matchedPages } = await supabaseAdmin
-              .from('brand_materials_pages')
-              .select('slug, title, theme, materials')
-              .eq('workspace_id', connection.workspace_id)
-              .eq('is_published', true);
-
-            if (matchedPages && matchedPages.length > 0) {
-              const matched = matchedPages.find(p => {
-                const linked = p.theme?.linked_posts || (p as any).linked_posts || [];
-                return linked.some((lp: any) => {
-                  if (typeof lp === 'string') return lp === media.id || media.id.includes(lp);
-                  return lp?.id === media.id || lp?.permalink?.includes(media.id);
-                });
-              });
-              if (matched) {
-                const pageSlug = matched.slug;
-                const brandSub = (brandUsername || 'user').toLowerCase().trim();
-                activeLinkUrl = (pageSlug && pageSlug !== 'showcase')
-                  ? `https://${brandSub}.unool.co/${pageSlug}`
-                  : `https://${brandSub}.unool.co/`;
-                logger.info('Dispatched post-linked brand materials page for Instagram media in sync', {
-                  mediaId: media.id,
-                  slug: pageSlug,
-                  activeLinkUrl,
-                });
-              }
-            }
-          } catch (err) {
-            logger.warn('Error finding linked brand materials page for media in sync', { error: err });
-          }
-        }
+        // Resolved link for this media post (post-linked brand materials page → configured link → subdomain/slug)
+        const activeLinkUrl = mediaLinkUrl;
 
         // Optional DM sending for link requests — uses Private Replies API (or public follow-gate prompt)
         if (result.shouldSendDM && activeLinkUrl) {

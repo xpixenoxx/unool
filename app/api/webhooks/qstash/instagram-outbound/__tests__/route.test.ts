@@ -7,6 +7,7 @@ const {
   mockSendDmForComment,
   mockClassifyAndGenerateReply,
   mockClassifyAndReplyDM,
+  mockProcessDmFollowGate,
   mockDecryptToken,
   mockCanReply,
   mockRecordReply,
@@ -19,6 +20,7 @@ const {
   const mockSendDmForComment = vi.fn();
   const mockClassifyAndGenerateReply = vi.fn();
   const mockClassifyAndReplyDM = vi.fn();
+  const mockProcessDmFollowGate = vi.fn();
   const mockDecryptToken = vi.fn();
   const mockCanReply = vi.fn();
   const mockRecordReply = vi.fn();
@@ -34,6 +36,10 @@ const {
     dmHistoryLogs: [] as any[],
     dmEscalationEnabled: true,
     requireFollowForDm: false,
+    dmAutoReplyEnabled: true,
+    configuredLinkUrl: 'https://unool.co/link' as string | null,
+    profiles: [] as any[],
+    brandPages: [] as any[],
   };
 
   return {
@@ -42,6 +48,7 @@ const {
     mockSendDmForComment,
     mockClassifyAndGenerateReply,
     mockClassifyAndReplyDM,
+    mockProcessDmFollowGate,
     mockDecryptToken,
     mockCanReply,
     mockRecordReply,
@@ -104,6 +111,7 @@ vi.mock('@/lib/services/InstagramCommentAutomation', () => ({
     async sendDmForComment(...args: unknown[]) { return mockSendDmForComment(...args); }
     async classifyAndGenerateReply(...args: unknown[]) { return mockClassifyAndGenerateReply(...args); }
     async classifyAndReplyDM(...args: unknown[]) { return mockClassifyAndReplyDM(...args); }
+    async processDmFollowGate(...args: unknown[]) { return mockProcessDmFollowGate(...args); }
   },
 }));
 
@@ -166,14 +174,22 @@ vi.mock('@supabase/supabase-js', () => ({
           data: {
             enabled: true,
             max_replies_per_hour: 30,
-            dm_auto_reply_enabled: true,
+            dm_auto_reply_enabled: jobControlState.dmAutoReplyEnabled,
             dm_escalation_enabled: jobControlState.dmEscalationEnabled,
             dm_max_replies_per_hour: 20,
             require_follow_for_dm: jobControlState.requireFollowForDm,
-            link_url: 'https://unool.co/link',
+            link_url: jobControlState.configuredLinkUrl,
           },
           error: null,
         });
+      }
+
+      if (table === 'profiles') {
+        return makeChain({ data: jobControlState.profiles, error: null });
+      }
+
+      if (table === 'brand_materials_pages') {
+        return makeChain({ data: jobControlState.brandPages, error: null });
       }
 
       if (table === 'instagram_comment_logs') {
@@ -244,10 +260,19 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
     jobControlState.dmHistoryLogs = [];
     jobControlState.dmEscalationEnabled = true;
     jobControlState.requireFollowForDm = false;
+    jobControlState.dmAutoReplyEnabled = true;
+    jobControlState.configuredLinkUrl = 'https://unool.co/link';
+    jobControlState.profiles = [];
+    jobControlState.brandPages = [];
 
     mockDecryptToken.mockResolvedValue('IGqx_VALID_TOKEN');
     mockCanReply.mockResolvedValue(true);
     mockRecordReply.mockResolvedValue(undefined);
+    mockProcessDmFollowGate.mockResolvedValue({ handled: false, isFollowing: true });
+
+    const { lexicalEntropyGuard } = await import('@/lib/services/automation/lexical');
+    vi.mocked(lexicalEntropyGuard.getRecentReplies).mockResolvedValue([]);
+    vi.mocked(lexicalEntropyGuard.isTooSimilar).mockReturnValue(false);
 
     mockClassifyAndGenerateReply.mockResolvedValue({
       classification: 'question',
@@ -544,6 +569,192 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
     // Called twice on postPublicReply (main reply + follow gate public ask) and NEVER on sendDmForComment
     expect(mockPostPublicReply).toHaveBeenCalledTimes(2);
     expect(mockSendDmForComment).not.toHaveBeenCalled();
+  });
+
+  it('passes resolved subdomain/slug linkUrl to classifyAndReplyDM when link_url is null', async () => {
+    jobControlState.configuredLinkUrl = null;
+    jobControlState.profiles = [{ subdomain: 'creatorhub', deleted_at: null }];
+    jobControlState.brandPages = [{ slug: 'launch-kit', theme: {}, is_published: true }];
+
+    const res = await POST(makeRequest({
+      jobId: 'job_dm_link_fallback',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_dm_link_1',
+      senderId: 'sender_link_1',
+      dmText: 'Where can I get the guide?',
+    }));
+
+    expect(res.status).toBe(200);
+    expect(mockClassifyAndReplyDM).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: 'msg_dm_link_1', senderId: 'sender_link_1' }),
+      expect.objectContaining({ linkUrl: 'https://creatorhub.unool.co/launch-kit' }),
+      [],
+      1,
+      '@brand_account',
+      true
+    );
+  });
+
+  it('resolves post-linked brand_materials_pages slug before classifyAndGenerateReply in comment_reply', async () => {
+    jobControlState.configuredLinkUrl = null;
+    jobControlState.profiles = [{ subdomain: 'creatorhub', deleted_at: null }];
+    jobControlState.brandPages = [
+      { slug: 'launch-kit', theme: { linked_posts: [{ id: 'media_post_launch' }] }, is_published: true },
+    ];
+
+    const res = await POST(makeRequest({
+      jobId: 'job_cmt_post_slug',
+      jobType: 'comment_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      commentId: 'cmt_post_slug_1',
+      mediaId: 'media_post_launch',
+      commentText: 'link please!',
+      commenterUsername: 'curious_dev',
+    }));
+
+    expect(res.status).toBe(200);
+    expect(mockClassifyAndGenerateReply).toHaveBeenCalledWith(
+      expect.objectContaining({ commentId: 'cmt_post_slug_1', mediaId: 'media_post_launch' }),
+      '',
+      expect.objectContaining({ linkUrl: 'https://creatorhub.unool.co/launch-kit' }),
+      []
+    );
+  });
+
+  it('enforces processDmFollowGate inside QStash dm_reply for prompt_follow and follow_confirmed', async () => {
+    jobControlState.requireFollowForDm = true;
+    jobControlState.configuredLinkUrl = null;
+    jobControlState.profiles = [{ subdomain: 'creatorhub', deleted_at: null }];
+    jobControlState.brandPages = [{ slug: 'vip-kit', theme: {}, is_published: true }];
+
+    // 1) Unfollowed sender -> prompt_follow
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'prompt_follow',
+      replyText: 'Please follow @brand_account first! 👇',
+      isFollowing: false,
+      messageId: 'qr_qstash_1',
+      resolvedUsername: 'qstash_fan',
+    });
+
+    const res1 = await POST(makeRequest({
+      jobId: 'job_fg_prompt',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_fg_prompt_1',
+      senderId: 'sender_fg_1',
+      dmText: 'Send link',
+    }));
+
+    expect(res1.status).toBe(200);
+    const json1 = await res1.json();
+    expect(json1.followGateAction).toBe('prompt_follow');
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+
+    const promptGateCall = mockProcessDmFollowGate.mock.calls[0][0];
+    expect(promptGateCall.config.linkUrl).toBe('https://creatorhub.unool.co/vip-kit');
+
+    const dmPromptUpdate = supabaseCalls.find(c => c.table === 'instagram_dm_logs' && c.op === 'update');
+    expect((dmPromptUpdate?.data as any)?.follow_verified).toBe(false);
+    expect((dmPromptUpdate?.data as any)?.follow_status).toBe('not_following');
+    expect((dmPromptUpdate?.data as any)?.sender_username).toBe('qstash_fan');
+
+    // 2) Verified follower -> follow_confirmed delivers subdomain/slug link
+    vi.clearAllMocks();
+    supabaseCalls.length = 0;
+    mockDecryptToken.mockResolvedValue('IGqx_VALID_TOKEN');
+    mockCanReply.mockResolvedValue(true);
+    mockRecordReply.mockResolvedValue(undefined);
+    const { lexicalEntropyGuard } = await import('@/lib/services/automation/lexical');
+    vi.mocked(lexicalEntropyGuard.getRecentReplies).mockResolvedValue([]);
+    vi.mocked(lexicalEntropyGuard.isTooSimilar).mockReturnValue(false);
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'follow_confirmed',
+      replyText: 'Thanks for following! https://creatorhub.unool.co/vip-kit',
+      isFollowing: true,
+      messageId: 'dm_qstash_unlock_1',
+    });
+
+    const res2 = await POST(makeRequest({
+      jobId: 'job_fg_confirm',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_fg_confirm_1',
+      senderId: 'sender_fg_1',
+      dmText: 'I Followed! ✅',
+    }));
+
+    expect(res2.status).toBe(200);
+    const json2 = await res2.json();
+    expect(json2.followGateAction).toBe('follow_confirmed');
+    const dmUnlockUpdate = supabaseCalls.find(c => c.table === 'instagram_dm_logs' && c.op === 'update');
+    expect((dmUnlockUpdate?.data as any)?.follow_verified).toBe(true);
+    expect((dmUnlockUpdate?.data as any)?.follow_status).toBe('following');
+    expect((dmUnlockUpdate?.data as any)?.auto_replied).toBe(true);
+  });
+
+  it('retries via 500 when QStash follow-gate send fails (!messageId) and queues human review when dm_auto_reply_enabled=false', async () => {
+    jobControlState.requireFollowForDm = true;
+    jobControlState.retryCount = 0;
+    jobControlState.maxRetries = 3;
+    mockProcessDmFollowGate.mockResolvedValueOnce({
+      handled: true,
+      action: 'prompt_follow',
+      replyText: 'Please follow!',
+      isFollowing: false,
+      messageId: undefined,
+    });
+
+    const retryRes = await POST(makeRequest({
+      jobId: 'job_fg_retry',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_fg_retry_1',
+      senderId: 'sender_fg_2',
+      dmText: 'link?',
+    }));
+
+    expect(retryRes.status).toBe(500);
+    const retryJson = await retryRes.json();
+    expect(retryJson.retryable).toBe(true);
+
+    // When follow-gate bypasses (already unlocked) and dm_auto_reply_enabled=false -> queued for human review
+    vi.clearAllMocks();
+    supabaseCalls.length = 0;
+    jobControlState.dmAutoReplyEnabled = false;
+    mockDecryptToken.mockResolvedValue('IGqx_VALID_TOKEN');
+    mockCanReply.mockResolvedValue(true);
+    mockRecordReply.mockResolvedValue(undefined);
+    const { lexicalEntropyGuard } = await import('@/lib/services/automation/lexical');
+    vi.mocked(lexicalEntropyGuard.getRecentReplies).mockResolvedValue([]);
+    vi.mocked(lexicalEntropyGuard.isTooSimilar).mockReturnValue(false);
+    mockProcessDmFollowGate.mockResolvedValueOnce({ handled: false, isFollowing: true });
+
+    const pausedRes = await POST(makeRequest({
+      jobId: 'job_dm_paused',
+      jobType: 'dm_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      messageId: 'msg_dm_paused_1',
+      senderId: 'sender_fg_2',
+      dmText: 'Thank you!',
+    }));
+
+    expect(pausedRes.status).toBe(200);
+    const pausedJson = await pausedRes.json();
+    expect(pausedJson.action).toBe('queued_for_human_review');
+    expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+    const flagged = supabaseCalls.find(c => c.table === 'instagram_flagged_dms' && c.op === 'upsert');
+    expect(flagged).toBeDefined();
+    const logUpdate = supabaseCalls.find(c => c.table === 'instagram_dm_logs' && c.op === 'update');
+    expect((logUpdate?.data as any)?.delivery_status).toBe('needs_review');
   });
 });
 

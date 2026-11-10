@@ -413,4 +413,233 @@ describe('InstagramCommentAutomation', () => {
       expect(result.suggestedReply).toContain('https://unool.com/u/testbrand');
     });
   });
+
+  // ─── Follow-to-Unlock Gate Tests ────────────────────────────────────────────
+
+  describe('processDmFollowGate & checkUserFollowsBusiness', () => {
+    it('enriches missing senderUsername from Meta Graph lookup and asks unfollowed user on every new DM', async () => {
+      const fetchMock = vi.mocked(global.fetch);
+      // Turn 1: Graph lookup -> not following (with username), then Quick Reply send -> ok
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: 'igsid_99', username: 'new_fan', is_user_follow_business: false }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ message_id: 'qr_turn1' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        // Turn 2: Graph lookup -> still not following, then retry reminder Quick Reply -> ok
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: 'igsid_99', username: 'new_fan', is_user_follow_business: false }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ message_id: 'qr_turn2' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+
+      const gateConfig: AutomationConfig = {
+        ...baseConfig,
+        dmAutoReplyEnabled: false,
+        requireFollowForDm: true,
+        linkUrl: 'https://creatorhub.unool.co/vip-kit',
+      };
+
+      const turn1Dm: DmEvent = {
+        messageId: 'dm_turn_1',
+        senderId: 'igsid_99',
+        senderUsername: undefined,
+        text: 'send me details',
+        timestamp: new Date().toISOString(),
+      };
+
+      const res1 = await automation.processDmFollowGate({
+        dmEvent: turn1Dm,
+        config: gateConfig,
+        accessToken: 'IGqxTEST_TOKEN',
+        igUserId: 'brand_ig_1',
+        brandUsername: 'creatorhub',
+        previousLogs: [],
+      });
+
+      expect(res1.handled).toBe(true);
+      if (!res1.handled) throw new Error('Expected res1.handled to be true');
+      expect(res1.action).toBe('prompt_follow');
+      expect(res1.isFollowing).toBe(false);
+      expect(res1.resolvedUsername).toBe('new_fan');
+      expect(turn1Dm.senderUsername).toBe('new_fan');
+      expect(res1.replyText).toContain('@new_fan');
+
+      const res2 = await automation.processDmFollowGate({
+        dmEvent: { ...turn1Dm, messageId: 'dm_turn_2', text: 'hello still waiting' },
+        config: gateConfig,
+        accessToken: 'IGqxTEST_TOKEN',
+        igUserId: 'brand_ig_1',
+        brandUsername: 'creatorhub',
+        previousLogs: [
+          {
+            message_text: 'send me details',
+            ai_reply: res1.replyText,
+            auto_replied: true,
+            follow_verified: false,
+            follow_status: 'not_following',
+            reasoning: 'Follow gate prompt_follow: isFollowing=false',
+          },
+        ],
+      });
+
+      expect(res2.handled).toBe(true);
+      if (!res2.handled) throw new Error('Expected res2.handled to be true');
+      expect(res2.action).toBe('remind_follow');
+      expect(res2.isFollowing).toBe(false);
+      // Every new inbound DM triggers a fresh Graph API follow-status check
+      const lookupCalls = fetchMock.mock.calls.filter(c => String(c[0]).includes('is_user_follow_business'));
+      expect(lookupCalls).toHaveLength(2);
+    });
+
+    it('unlocks once followed with subdomain/slug link (even when custom message omits {link}) and does NOT loop afterward', async () => {
+      const fetchMock = vi.mocked(global.fetch);
+      // Turn 2: now following -> sends verified DM
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: 'igsid_100', username: 'fan_two', is_user_follow_business: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ message_id: 'unlocked_dm_1' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        // Turn 3: still following after default "Thanks for following..." unlock -> must NOT loop unlock
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: 'igsid_100', username: 'fan_two', is_user_follow_business: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+
+      const subdomainLink = 'https://creatorhub.unool.co/launch-guide';
+      const customGateConfig: AutomationConfig = {
+        ...baseConfig,
+        dmAutoReplyEnabled: true,
+        requireFollowForDm: true,
+        linkUrl: subdomainLink,
+        followVerifiedMessage: 'Awesome! You are unlocked!',
+      };
+
+      const unlockRes = await automation.processDmFollowGate({
+        dmEvent: makeDmEvent('link please', 'igsid_100'),
+        config: customGateConfig,
+        accessToken: 'IGqxTEST_TOKEN',
+        igUserId: 'brand_ig_1',
+        brandUsername: 'creatorhub',
+        previousLogs: [
+          {
+            message_text: 'hi',
+            ai_reply: 'Hey! Follow @creatorhub to unlock 👇',
+            auto_replied: true,
+            follow_verified: false,
+            follow_status: 'not_following',
+            reasoning: 'Follow gate prompt_follow: isFollowing=false',
+          },
+        ],
+      });
+
+      expect(unlockRes.handled).toBe(true);
+      if (!unlockRes.handled) throw new Error('Expected unlockRes.handled to be true');
+      expect(unlockRes.action).toBe('follow_confirmed');
+      expect(unlockRes.isFollowing).toBe(true);
+      expect(unlockRes.messageId).toBe('unlocked_dm_1');
+      expect(unlockRes.replyText).toContain('Awesome! You are unlocked!');
+      expect(unlockRes.replyText).toContain(subdomainLink);
+
+      // Post-unlock message when previous reply is default "Thanks for following..." wording
+      // without structured follow_status fields must NOT false-positive as awaiting follow
+      const followUpRes = await automation.processDmFollowGate({
+        dmEvent: makeDmEvent('How does billing work?', 'igsid_100'),
+        config: { ...baseConfig, dmAutoReplyEnabled: true, requireFollowForDm: true, linkUrl: subdomainLink },
+        accessToken: 'IGqxTEST_TOKEN',
+        igUserId: 'brand_ig_1',
+        brandUsername: 'creatorhub',
+        previousLogs: [
+          {
+            message_text: 'I Followed! ✅',
+            ai_reply: `Thanks for following @creatorhub! 🎉 You're all set! Here is your exclusive access: ${subdomainLink} ✨ Let me know if you need anything else!`,
+            auto_replied: true,
+          },
+        ],
+      });
+
+      expect(followUpRes.handled).toBe(false);
+      expect(followUpRes.isFollowing).toBe(true);
+    });
+
+    it('delivers follow_confirmed for first-time follower asking "link please" or when dmAutoReplyEnabled=false, while letting general questions pass', async () => {
+      const fetchMock = vi.mocked(global.fetch);
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: 'igsid_101', is_user_follow_business: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ message_id: 'dm_link_sent' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: 'igsid_102', is_user_follow_business: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+
+      const gateConfig: AutomationConfig = {
+        ...baseConfig,
+        dmAutoReplyEnabled: true,
+        requireFollowForDm: true,
+        linkUrl: 'https://creatorhub.unool.co/starter-kit',
+      };
+
+      const linkAskRes = await automation.processDmFollowGate({
+        dmEvent: makeDmEvent('link please', 'igsid_101'),
+        config: gateConfig,
+        accessToken: 'IGqxTEST_TOKEN',
+        igUserId: 'brand_ig_1',
+        brandUsername: 'creatorhub',
+        previousLogs: [],
+      });
+
+      expect(linkAskRes.handled).toBe(true);
+      if (!linkAskRes.handled) throw new Error('Expected linkAskRes.handled to be true');
+      expect(linkAskRes.action).toBe('follow_confirmed');
+      expect(linkAskRes.replyText).toContain('https://creatorhub.unool.co/starter-kit');
+
+      const generalQRes = await automation.processDmFollowGate({
+        dmEvent: makeDmEvent('Hey, how does the scheduling feature work?', 'igsid_102'),
+        config: gateConfig,
+        accessToken: 'IGqxTEST_TOKEN',
+        igUserId: 'brand_ig_1',
+        brandUsername: 'creatorhub',
+        previousLogs: [],
+      });
+
+      expect(generalQRes.handled).toBe(false);
+      expect(generalQRes.isFollowing).toBe(true);
+    });
+  });
 });

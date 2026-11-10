@@ -25,6 +25,9 @@ export interface AutomationConfig {
   dmKnowledgeBase: string | null;
   dmEscalationEnabled: boolean;
   dmMaxRepliesPerHour: number;
+  requireFollowForDm?: boolean;
+  followAskMessage?: string | null;
+  followVerifiedMessage?: string | null;
 }
 
 export interface CommentLog {
