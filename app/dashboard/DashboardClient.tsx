@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
-import { PlatformConnections, SUPPORTED_PLATFORMS } from '@/components/dashboard/PlatformConnections';
+import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
 import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegrationDialog';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
@@ -110,17 +110,6 @@ interface NetworkPlatformDef {
   mark: string;
 }
 
-const OVERVIEW_8_PLATFORMS: NetworkPlatformDef[] = [
-  { id: 'linkedin', name: 'LinkedIn', mark: 'in' },
-  { id: 'threads', name: 'Threads', mark: '@' },
-  { id: 'instagram', name: 'Instagram', mark: 'Ig' },
-  { id: 'bluesky', name: 'Bluesky', mark: 'B' },
-  { id: 'mastodon', name: 'Mastodon', mark: 'M' },
-  { id: 'slack', name: 'Slack', mark: '#' },
-  { id: 'telegram', name: 'Telegram', mark: 'T' },
-  { id: 'dribbble', name: 'Dribbble', mark: 'Dr' },
-];
-
 const ALL_PLATFORM_DEFS: Record<string, NetworkPlatformDef> = {
   linkedin: { id: 'linkedin', name: 'LinkedIn', mark: 'in' },
   threads: { id: 'threads', name: 'Threads', mark: '@' },
@@ -150,6 +139,74 @@ const ALL_PLATFORM_DEFS: Record<string, NetworkPlatformDef> = {
   devto: { id: 'devto', name: 'DEV.to', mark: 'Dev' },
   manual: { id: 'manual', name: 'Manual / Other', mark: 'Ot' },
 };
+
+/**
+ * All 27 existing platforms in standard system order.
+ */
+export const ALL_EXISTING_PLATFORMS: NetworkPlatformDef[] = [
+  ALL_PLATFORM_DEFS.linkedin,
+  ALL_PLATFORM_DEFS.threads,
+  ALL_PLATFORM_DEFS.instagram,
+  ALL_PLATFORM_DEFS.bluesky,
+  ALL_PLATFORM_DEFS.mastodon,
+  ALL_PLATFORM_DEFS.slack,
+  ALL_PLATFORM_DEFS.telegram,
+  ALL_PLATFORM_DEFS.dribbble,
+  ALL_PLATFORM_DEFS.x,
+  ALL_PLATFORM_DEFS.facebook,
+  ALL_PLATFORM_DEFS.youtube,
+  ALL_PLATFORM_DEFS.pinterest,
+  ALL_PLATFORM_DEFS.reddit,
+  ALL_PLATFORM_DEFS.twitch,
+  ALL_PLATFORM_DEFS.discord,
+  ALL_PLATFORM_DEFS.skool,
+  ALL_PLATFORM_DEFS.whop,
+  ALL_PLATFORM_DEFS.kick,
+  ALL_PLATFORM_DEFS.warpcast,
+  ALL_PLATFORM_DEFS.mewe,
+  ALL_PLATFORM_DEFS.nostr,
+  ALL_PLATFORM_DEFS.medium,
+  ALL_PLATFORM_DEFS.lemmy,
+  ALL_PLATFORM_DEFS.listmonk,
+  ALL_PLATFORM_DEFS.hashnode,
+  ALL_PLATFORM_DEFS.devto,
+  ALL_PLATFORM_DEFS.manual,
+].filter(Boolean);
+
+export function getSortedBroadcastPlatforms(
+  connections: Record<string, { status: string; username?: string }>
+) {
+  const isConn = (id: string) => connections[id]?.status?.toLowerCase() === 'connected';
+
+  // 1. Separate all 27 platforms into connected and not-connected lists
+  const connectedList: NetworkPlatformDef[] = [];
+  const notConnectedList: NetworkPlatformDef[] = [];
+
+  for (const p of ALL_EXISTING_PLATFORMS) {
+    if (isConn(p.id)) {
+      connectedList.push(p);
+    } else {
+      notConnectedList.push(p);
+    }
+  }
+
+  // 2. Sort: connected platforms first, then not connected, taking exactly 8 platforms for overview grid
+  const displayList = [...connectedList, ...notConnectedList].slice(0, 8);
+
+  return displayList.map((p) => {
+    const isConnected = isConn(p.id);
+    const theme = PLATFORM_BRAND_THEMES[p.id] || {
+      color: '#1565d8',
+      gradient: 'linear-gradient(145deg, #1d6bf3, #0a3fb5)',
+    };
+    return {
+      ...p,
+      connected: isConnected,
+      color: theme.color,
+      gradient: theme.gradient,
+    };
+  });
+}
 
 const PLATFORM_BRAND_THEMES: Record<string, { color: string; gradient: string }> = {
   linkedin: {
@@ -539,75 +596,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     []
   );
 
-  // Platforms dataset: ALL connected platforms are shown FIRST,
-  // followed by not-connected platforms, with strictly alternating Blue and Black colors.
-  const platforms = useMemo(() => {
-    const isConn = (id: string) => connections[id]?.status?.toLowerCase() === 'connected';
-
-    // 1. All connected platforms (core 8 platforms first, then any other connected system platforms)
-    const connectedList: NetworkPlatformDef[] = [];
-    const connectedSet = new Set<string>();
-
-    for (const p of OVERVIEW_8_PLATFORMS) {
-      if (isConn(p.id)) {
-        connectedList.push(p);
-        connectedSet.add(p.id);
-      }
-    }
-    for (const pid of SUPPORTED_PLATFORMS) {
-      if (!connectedSet.has(pid) && isConn(pid)) {
-        const def = ALL_PLATFORM_DEFS[pid] || {
-          id: pid,
-          name: pid.charAt(0).toUpperCase() + pid.slice(1),
-          mark: pid.slice(0, 2).toUpperCase(),
-        };
-        connectedList.push(def);
-        connectedSet.add(pid);
-      }
-    }
-
-    // 2. Unconnected platforms: default core 8 platforms first, then remaining supported platforms
-    const notConnectedList: NetworkPlatformDef[] = [];
-    for (const p of OVERVIEW_8_PLATFORMS) {
-      if (!connectedSet.has(p.id)) {
-        notConnectedList.push(p);
-      }
-    }
-    for (const pid of SUPPORTED_PLATFORMS) {
-      if (!connectedSet.has(pid) && !notConnectedList.some((p) => p.id === pid)) {
-        const def = ALL_PLATFORM_DEFS[pid] || {
-          id: pid,
-          name: pid.charAt(0).toUpperCase() + pid.slice(1),
-          mark: pid.slice(0, 2).toUpperCase(),
-        };
-        notConnectedList.push(def);
-      }
-    }
-
-    // Keep at least 8 platforms, or rounded up to complete 4-column rows if more platforms are connected
-    const targetCount = Math.max(8, Math.ceil(connectedList.length / 4) * 4);
-    const combined = [...connectedList, ...notConnectedList].slice(0, targetCount);
-
-    return combined.map((p) => {
-      const isConnected = isConn(p.id);
-      const theme = PLATFORM_BRAND_THEMES[p.id] || {
-        color: '#1565d8',
-        gradient: 'linear-gradient(145deg, #1d6bf3, #0a3fb5)',
-      };
-      return {
-        ...p,
-        connected: isConnected,
-        color: theme.color,
-        gradient: theme.gradient,
-      };
-    });
-  }, [connections]);
+  // Broadcast Network platforms (Overview):
+  // Compares all 27 existing platforms, sorts so connected platforms
+  // appear first, followed by not-connected platforms, and displays exactly 8 platforms.
+  const platforms = useMemo(() => getSortedBroadcastPlatforms(connections), [connections]);
 
   // System-wide platform counts (all 27 supported platforms)
-  const totalSystemPlatforms = SUPPORTED_PLATFORMS.length; // 27
+  const totalSystemPlatforms = ALL_EXISTING_PLATFORMS.length; // 27
   const systemConnectedCount = useMemo(() => {
-    return SUPPORTED_PLATFORMS.filter(
-      (pid) => connections[pid]?.status === 'connected'
+    return ALL_EXISTING_PLATFORMS.filter(
+      (p) => connections[p.id]?.status?.toLowerCase() === 'connected'
     ).length;
   }, [connections]);
   const systemNotConnectedCount = Math.max(0, totalSystemPlatforms - systemConnectedCount);
@@ -660,6 +658,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     } else {
       if (platformId === 'bluesky') {
         setBlueskyDialogOpen(true);
+      } else if (platformId === 'manual') {
+        setManualDialogOpen(true);
       } else {
         setConnectingPlatform(platformId);
         window.location.href = `/api/auth/platform/connect?platform=${platformId}&workspaceId=${data.workspaceId}&userId=${data.userId}`;
