@@ -62,6 +62,34 @@ describe('mapConnectionRows', () => {
     expect(result.bluesky).toEqual({ status: 'expired' });
   });
 
+  it('maps connection with past expires_at but valid refresh_token to connected (e.g. YouTube)', () => {
+    const pastDate = new Date(Date.now() - 3600 * 1000).toISOString();
+    const rows = [
+      {
+        platform: 'youtube',
+        status: 'connected',
+        expires_at: pastDate,
+        refresh_token_encrypted: 'enc_refresh_token_xyz',
+      },
+    ];
+
+    const result = mapConnectionRows(rows);
+    expect(result.youtube).toEqual({ status: 'connected' });
+  });
+
+  it('maps Kick with stream configuration to connected', () => {
+    const rows = [
+      {
+        platform: 'kick',
+        status: 'not_connected',
+        access_token_encrypted: 'enc_stream_payload',
+      },
+    ];
+
+    const result = mapConnectionRows(rows);
+    expect(result.kick).toEqual({ status: 'connected' });
+  });
+
   it('prioritizes the newest updated_at record when multiple rows exist', () => {
     const olderConnected = {
       platform: 'instagram',

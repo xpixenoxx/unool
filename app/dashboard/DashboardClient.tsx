@@ -580,6 +580,34 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     }
   }, [data.connections]);
 
+  // Proactively sync live connections on mount and on window focus
+  useEffect(() => {
+    let isMounted = true;
+    const fetchConnections = async () => {
+      try {
+        const res = await fetch(`/api/platform/connections?workspaceId=${data.workspaceId}&_t=${Date.now()}`, {
+          credentials: 'include',
+        });
+        if (res.ok && isMounted) {
+          const resData = await res.json();
+          if (resData?.connections) {
+            setConnections((prev) => ({ ...prev, ...resData.connections }));
+          }
+        }
+      } catch {
+        /* silent */
+      }
+    };
+
+    fetchConnections();
+
+    window.addEventListener('focus', fetchConnections);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', fetchConnections);
+    };
+  }, [data.workspaceId]);
+
   const handleConnectionChange = useCallback(
     (newConns: Record<string, { status: string; username?: string }>) => {
       setConnections((prev) => {

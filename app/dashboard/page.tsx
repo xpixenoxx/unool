@@ -95,10 +95,16 @@ async function getDashboardData(): Promise<{
     getCurrentUsage(supabaseAdmin, workspaceId, userId),
 
     // 5. Platform connections (lightweight)
-    supabaseAdmin
-      .from('platform_connections')
-      .select('platform, expires_at, status, updated_at')
-      .eq('workspace_id', workspaceId),
+    (workspaceId !== userId
+      ? supabaseAdmin
+          .from('platform_connections')
+          .select('platform, expires_at, status, updated_at, refresh_token_encrypted, refresh_token, access_token_encrypted')
+          .or(`workspace_id.eq.${workspaceId},workspace_id.eq.${userId}`)
+      : supabaseAdmin
+          .from('platform_connections')
+          .select('platform, expires_at, status, updated_at, refresh_token_encrypted, refresh_token, access_token_encrypted')
+          .eq('workspace_id', workspaceId)
+    ),
 
     // 6. Profile views this week (for accurate SSR card matching the "views this week" subtitle)
     supabaseAdmin

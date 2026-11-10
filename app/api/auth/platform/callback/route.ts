@@ -7,6 +7,7 @@ import { verifyAndConsumeOAuthState, parseOAuthCookie, parseAndConsumePKCECookie
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -278,6 +279,13 @@ export async function GET(request: NextRequest) {
         });
         // Continue — don't block the OAuth callback for a non-critical feature
       }
+    }
+
+    // Invalidate dashboard overview cache so the newly connected platform shows immediately
+    try {
+      invalidateOverviewCache(workspaceId);
+    } catch {
+      /* silent */
     }
 
     // Build success redirect URL
