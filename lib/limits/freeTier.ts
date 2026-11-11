@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { PLANS_FALLBACK } from '@/lib/billing/plans';
 
 export interface FreeTierLimits {
   postsPerMonth: number;
@@ -10,37 +11,48 @@ export interface FreeTierLimits {
 }
 
 export const FREE_TIER_LIMITS: FreeTierLimits = {
-  postsPerMonth: 12,
+  postsPerMonth: PLANS_FALLBACK.spark.limits.posts_per_month,
   aiTokensPerMonth: 50_000,
-  connectedAccounts: 3,
-  scheduledPosts: 5,
-  teamMembers: 1,
-  apiCallsPerDay: 100,
+  connectedAccounts: PLANS_FALLBACK.spark.limits.channels,
+  scheduledPosts: PLANS_FALLBACK.spark.limits.posts_per_month,
+  teamMembers: PLANS_FALLBACK.spark.limits.team_seats,
+  apiCallsPerDay: 0,
+};
+
+export const CREATOR_TIER_LIMITS: FreeTierLimits = {
+  postsPerMonth: -1,
+  aiTokensPerMonth: 250_000,
+  connectedAccounts: PLANS_FALLBACK.creator.limits.channels,
+  scheduledPosts: -1,
+  teamMembers: PLANS_FALLBACK.creator.limits.team_seats,
+  apiCallsPerDay: 0,
 };
 
 export const PRO_TIER_LIMITS: FreeTierLimits = {
-  postsPerMonth: 300,
+  postsPerMonth: -1,
   aiTokensPerMonth: 500_000,
-  connectedAccounts: 10,
-  scheduledPosts: 100,
-  teamMembers: 5,
-  apiCallsPerDay: 5_000,
+  connectedAccounts: PLANS_FALLBACK.pro.limits.channels,
+  scheduledPosts: -1,
+  teamMembers: PLANS_FALLBACK.pro.limits.team_seats,
+  apiCallsPerDay: 0,
 };
 
 export const ENTERPRISE_TIER_LIMITS: FreeTierLimits = {
-  postsPerMonth: 10_000,
-  aiTokensPerMonth: 5_000_000,
-  connectedAccounts: 50,
-  scheduledPosts: 1_000,
-  teamMembers: 50,
+  postsPerMonth: -1,
+  aiTokensPerMonth: -1,
+  connectedAccounts: -1,
+  scheduledPosts: -1,
+  teamMembers: PLANS_FALLBACK.studio.limits.team_seats,
   apiCallsPerDay: 100_000,
 };
 
-export type Tier = 'free' | 'pro' | 'enterprise';
+export type Tier = 'free' | 'spark' | 'creator' | 'pro' | 'studio' | 'enterprise';
 
 export function getLimitsForTier(tier: Tier): FreeTierLimits {
   switch (tier) {
+    case 'creator': return CREATOR_TIER_LIMITS;
     case 'pro': return PRO_TIER_LIMITS;
+    case 'studio':
     case 'enterprise': return ENTERPRISE_TIER_LIMITS;
     default: return FREE_TIER_LIMITS;
   }
@@ -74,8 +86,9 @@ export function checkLimit(
   const limit = limits[type];
   const usageKey = mapLimitTypeToUsageKey(type);
   const used = usage[usageKey] ?? 0;
-  const remaining = Math.max(0, limit - used);
-  const allowed = used < limit;
+  const isUnlimited = limit === -1;
+  const remaining = isUnlimited ? -1 : Math.max(0, limit - used);
+  const allowed = isUnlimited ? true : used < limit;
 
   let resetAt: Date;
   const now = new Date();

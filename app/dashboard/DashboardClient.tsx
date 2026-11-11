@@ -48,7 +48,7 @@ interface DashboardData {
   recentPosts: Post[];
   usageStats: UsageStats;
   connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
-  planTier: 'free' | 'pro' | 'enterprise';
+  planTier: 'free' | 'spark' | 'creator' | 'pro' | 'studio' | 'enterprise';
   userId: string;
   workspaceId: string;
 }

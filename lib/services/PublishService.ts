@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -12,9 +12,30 @@ import type { Platform } from '@/lib/repositories/interfaces/IPostRepository';
 import { TokenExpiredError } from '@/lib/utils/retry';
 import { getPlatformLimit } from '@/lib/config/platformLimits';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { normalizePlanId, type PlanId } from '@/lib/billing/plans';
+import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 
 const platformRepository = new SupabasePlatformRepository();
 const postRepository = new SupabasePostRepository();
+
+/**
+ * Per-plan monthly X (Twitter) post safety caps to protect unit economics
+ * against X API v2 pay-per-use link-post pricing ($0.015 text / $0.20 link).
+ */
+export const X_MONTHLY_POST_CAPS: Record<PlanId, number> = {
+  spark: 10,
+  creator: 30,
+  pro: 100,
+  studio: 300,
+};
+
+export function estimateXPostCostUsd(content: string): { costUsd: number; hasLink: boolean } {
+  const hasLink = /https?:\/\/\S+/i.test(content || '');
+  return {
+    costUsd: hasLink ? 0.20 : 0.015,
+    hasLink,
+  };
+}
 
 export interface PublishJobInput {
   postVariantId: string;
@@ -144,10 +165,56 @@ export class PublishService {
       });
     }
 
+    // Enforce X (Twitter) API monthly cost protection cap per workspace plan
+    if (input.platform === 'x' || (input.platform as string) === 'twitter') {
+      try {
+        const planCtx = await getPlanContext(connection.userId || '', input.workspaceId);
+        const planId = normalizePlanId(planCtx?.plan || 'spark');
+        const xMonthlyCap = X_MONTHLY_POST_CAPS[planId] ?? X_MONTHLY_POST_CAPS.spark;
+
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const { count: xPublishedThisMonth } = await supabaseAdmin
+          .from('platform_posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('platform_connection_id', connection.id)
+          .gte('published_at', monthStart.toISOString());
+
+        if ((xPublishedThisMonth || 0) >= xMonthlyCap) {
+          const capErrMsg = `Monthly X (Twitter) publishing cap reached (${xPublishedThisMonth}/${xMonthlyCap} posts on ${planId.toUpperCase()} plan) to protect against X API pay-per-use overages. Upgrade your plan for a higher X publishing allowance.`;
+          logger.warn('X API monthly cost protection cap triggered', {
+            workspaceId: input.workspaceId,
+            planId,
+            xPublishedThisMonth,
+            xMonthlyCap,
+          });
+          await postRepository.updateVariant(input.postVariantId, {
+            status: 'failed',
+            error: { code: 'X_API_COST_CAP_EXCEEDED', message: capErrMsg },
+          });
+          return ok({
+            success: false,
+            error: capErrMsg,
+          });
+        }
+      } catch (xCapErr) {
+        logger.warn('Failed to verify X monthly post cap — continuing publish', { error: xCapErr });
+      }
+    }
+
     // Attempt publish with automatic token refresh on 401
     const attemptPublish = async (currentAccessToken: string, hasRetried: boolean): Promise<PublishJobResult> => {
       try {
         const result = await adapter.publish(currentAccessToken, publishInput);
+
+        const engagementMeta: Record<string, unknown> = {};
+        if (input.platform === 'x' || (input.platform as string) === 'twitter') {
+          const xCost = estimateXPostCostUsd(publishInput.content);
+          engagementMeta.estimated_x_api_cost_usd = xCost.costUsd;
+          engagementMeta.has_link = xCost.hasLink;
+        }
 
         // Save platform post record
         await platformRepository.createPlatformPost({
@@ -155,7 +222,7 @@ export class PublishService {
           platformConnectionId: connection.id,
           platformPostId: result.platformPostId,
           platformUrl: result.platformUrl,
-          engagement: {},
+          engagement: engagementMeta,
         });
 
         // Update variant status

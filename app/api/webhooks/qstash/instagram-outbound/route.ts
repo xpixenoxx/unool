@@ -9,7 +9,8 @@ import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
-import type { InstagramOutboundJobParams } from '@/lib/services/QueueService';
+import { queueService, type InstagramOutboundJobParams } from '@/lib/services/QueueService';
+import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 
 export const maxDuration = 60;
 
@@ -181,6 +182,45 @@ async function handleJob(params: InstagramOutboundJobParams) {
         return NextResponse.json({ success: true, message: 'Already replied' }, { status: 200 });
       }
 
+      // Enforce Meta's 7-day Private Reply / comment reply window (6d 23h safety threshold)
+      const META_WINDOW_MS = (6 * 24 + 23) * 60 * 60 * 1000;
+      const commentTimeIso = params.commentTimestamp || existingJob?.created_at;
+      if (commentTimeIso) {
+        const ageMs = Date.now() - new Date(commentTimeIso).getTime();
+        if (Number.isFinite(ageMs) && ageMs > META_WINDOW_MS) {
+          const expiredMsg = 'Meta 7-day comment reply window expired before delivery';
+          logger.warn(expiredMsg, { workspaceId, commentId, commentTimeIso });
+          await markDeadLetter(workspaceId, jobType, targetId, expiredMsg, params);
+          return NextResponse.json({ error: expiredMsg, expired: true }, { status: 200 });
+        }
+      }
+
+      // Enforce monthly ig_comments_per_month plan quota
+      try {
+        const planCtx = await getPlanContext(connection.user_id || '', workspaceId);
+        const monthlyIgLimit = planCtx?.limits?.ig_comments_per_month;
+        if (typeof monthlyIgLimit === 'number' && monthlyIgLimit > 0) {
+          const monthStart = new Date();
+          monthStart.setDate(1);
+          monthStart.setHours(0, 0, 0, 0);
+          const { count: monthlyUsed } = await supabaseAdmin
+            .from('instagram_comment_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('workspace_id', workspaceId)
+            .eq('auto_replied', true)
+            .gte('created_at', monthStart.toISOString());
+
+          if ((monthlyUsed || 0) >= monthlyIgLimit) {
+            const quotaMsg = `Monthly Instagram comment automation limit reached (${monthlyUsed}/${monthlyIgLimit}) for ${planCtx?.plan} plan`;
+            logger.warn(quotaMsg, { workspaceId, commentId });
+            await markDeadLetter(workspaceId, jobType, targetId, quotaMsg, params);
+            return NextResponse.json({ error: quotaMsg, code: 'PLAN_LIMIT_EXCEEDED' }, { status: 200 });
+          }
+        }
+      } catch (planErr) {
+        logger.warn('Failed to check monthly IG comment limit in outbound worker', { error: planErr, workspaceId });
+      }
+
       // Load config & check rate limit
       const { data: cfg } = await supabaseAdmin
         .from('instagram_automation_config')
@@ -190,10 +230,28 @@ async function handleJob(params: InstagramOutboundJobParams) {
 
       const canReply = await velocityThrottle.canReply(workspaceId, cfg?.max_replies_per_hour || 30);
       if (!canReply) {
-        const errorMsg = 'Velocity limit reached for comments — deferred';
-        logger.warn(errorMsg, { workspaceId, commentId });
-        await markDeadLetter(workspaceId, jobType, targetId, errorMsg, params);
-        return NextResponse.json({ error: errorMsg, deferred: true }, { status: 200 });
+        const delaySeconds = velocityThrottle.getSecondsUntilNextHourBucket(30, 180);
+        const deferMsg = `Velocity limit reached for comments — re-queued for next hour window (+${delaySeconds}s)`;
+        logger.info(deferMsg, { workspaceId, commentId, delaySeconds });
+        await supabaseAdmin
+          .from('instagram_outbound_jobs')
+          .update({
+            status: 'queued',
+            retry_count: existingJob?.retry_count || 0,
+            last_error: deferMsg,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('workspace_id', workspaceId)
+          .eq('job_type', jobType)
+          .eq('target_id', targetId);
+
+        if (queueService.isAvailable()) {
+          await queueService.enqueueInstagramOutboundTask({
+            ...params,
+            delaySeconds,
+          });
+        }
+        return NextResponse.json({ success: true, deferred: true, delaySeconds }, { status: 200 });
       }
 
       // Resolve canonical or post-linked subdomain/slug link BEFORE classification
@@ -376,10 +434,28 @@ async function handleJob(params: InstagramOutboundJobParams) {
 
       const canReply = await velocityThrottle.canReply(`dm:${workspaceId}`, cfg?.dm_max_replies_per_hour || 20);
       if (!canReply) {
-        const errorMsg = 'Velocity limit reached for DMs — deferred';
-        logger.warn(errorMsg, { workspaceId, messageId });
-        await markDeadLetter(workspaceId, jobType, targetId, errorMsg, params);
-        return NextResponse.json({ error: errorMsg, deferred: true }, { status: 200 });
+        const delaySeconds = velocityThrottle.getSecondsUntilNextHourBucket(30, 180);
+        const deferMsg = `Velocity limit reached for DMs — re-queued for next hour window (+${delaySeconds}s)`;
+        logger.info(deferMsg, { workspaceId, messageId, delaySeconds });
+        await supabaseAdmin
+          .from('instagram_outbound_jobs')
+          .update({
+            status: 'queued',
+            retry_count: existingJob?.retry_count || 0,
+            last_error: deferMsg,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('workspace_id', workspaceId)
+          .eq('job_type', jobType)
+          .eq('target_id', targetId);
+
+        if (queueService.isAvailable()) {
+          await queueService.enqueueInstagramOutboundTask({
+            ...params,
+            delaySeconds,
+          });
+        }
+        return NextResponse.json({ success: true, deferred: true, delaySeconds }, { status: 200 });
       }
 
       // Multi-turn conversation history (includes both user messages and prior AI replies)

@@ -38,7 +38,7 @@ async function getDashboardData(): Promise<{
     linkClicksThisWeek?: number;
   };
   connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
-  planTier: 'free' | 'pro' | 'enterprise';
+  planTier: Tier;
   userId: string;
   workspaceId: string;
 }> {

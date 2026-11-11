@@ -1,4 +1,4 @@
-﻿import { config } from '@/lib/config/schema';
+import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -115,6 +115,21 @@ export class VelocityThrottle {
     const now = new Date();
     now.setMinutes(0, 0, 0);
     return now.toISOString();
+  }
+
+  /**
+   * Calculates the number of seconds until the next hour bucket starts,
+   * plus a randomized jitter window so queued jobs do not thundering-herd
+   * at minute 00:00 of the next hour.
+   */
+  getSecondsUntilNextHourBucket(jitterMinSeconds = 30, jitterMaxSeconds = 180): number {
+    const now = new Date();
+    const secondsIntoHour = now.getMinutes() * 60 + now.getSeconds();
+    const secondsRemaining = Math.max(60, 3600 - secondsIntoHour);
+    const jitter = Math.floor(
+      jitterMinSeconds + Math.random() * Math.max(1, jitterMaxSeconds - jitterMinSeconds)
+    );
+    return secondsRemaining + jitter;
   }
 }
 

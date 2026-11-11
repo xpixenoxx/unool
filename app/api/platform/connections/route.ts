@@ -97,6 +97,24 @@ async function tryRefreshToken(row: Record<string, any>, supabaseAdmin: any): Pr
         .from('platform_connections')
         .update({ status: 'expired', updated_at: new Date().toISOString() })
         .eq('id', row.id);
+
+      // Best-effort email notification when a previously connected platform transitions to expired (P1-3)
+      if (row.status === 'connected' && row.user_id) {
+        try {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
+          const email = authUser?.user?.email;
+          if (email) {
+            const { sendTokenExpiredAlertEmail } = await import('@/lib/auth/email');
+            await sendTokenExpiredAlertEmail({
+              to: email,
+              platform: row.platform,
+              username: row.username || undefined,
+            });
+          }
+        } catch {
+          // Non-fatal alert dispatch
+        }
+      }
     } else {
       await supabaseAdmin
         .from('platform_connections')

@@ -47,10 +47,52 @@ export async function GET(request: NextRequest) {
       new Date(subscription.cancelled_at) > new Date(latestPaidOrder.created_at)
     );
 
+    const isSubscriptionExpired = Boolean(
+      subscription?.current_period_end &&
+      new Date(subscription.current_period_end) < new Date()
+    );
+
+    // If subscription has expired (e.g., period ended after cancel_at_period_end or non-renewal), downgrade to Spark
+    if (subscription && subscription.status === 'active' && isSubscriptionExpired) {
+      try {
+        await Promise.allSettled([
+          adminClient
+            .from('subscriptions')
+            .update({ status: 'expired', updated_at: new Date().toISOString() })
+            .eq('id', subscription.id),
+          adminClient
+            .from('workspaces')
+            .update({ plan: 'spark', plan_status: 'active', plan_expires_at: null, updated_at: new Date().toISOString() })
+            .eq('id', auth.workspaceId),
+        ]);
+      } catch (expErr) {
+        logger.warn('Failed to auto-expire elapsed subscription', { error: expErr, workspaceId: auth.workspaceId });
+      }
+      const sparkPlan = getPlan('spark')!;
+      return NextResponse.json({
+        plan: {
+          id: 'spark',
+          name: 'Spark',
+          tagline: sparkPlan.tagline,
+        },
+        subscription: null,
+        isFreeTier: true,
+      }, {
+        headers: NO_CACHE_HEADERS,
+      });
+    }
+
     // If there is a paid order that represents an upgrade or newer state than the subscription record
+    const isOrderRecentEnough = Boolean(
+      latestPaidOrder?.created_at &&
+      (Date.now() - new Date(latestPaidOrder.created_at).getTime() < (latestPaidOrder.billing_cycle === 'annual' ? 366 : 32) * 24 * 60 * 60 * 1000)
+    );
+
     if (
       latestPaidOrder &&
+      isOrderRecentEnough &&
       !isCancelledAfterOrder &&
+      !isSubscriptionExpired &&
       (!subscription || subscription.status !== 'active' || subscription.plan_id !== latestPaidOrder.plan_id)
     ) {
       const plan = getPlan(latestPaidOrder.plan_id as PlanId);
@@ -145,7 +187,12 @@ export async function GET(request: NextRequest) {
       .eq('id', auth.workspaceId)
       .single();
 
-    if (workspace && workspace.plan && workspace.plan !== 'spark' && workspace.plan_status === 'active') {
+    const isWorkspacePlanExpired = Boolean(
+      workspace?.plan_expires_at &&
+      new Date(workspace.plan_expires_at) < new Date()
+    );
+
+    if (workspace && workspace.plan && workspace.plan !== 'spark' && workspace.plan_status === 'active' && !isWorkspacePlanExpired) {
       const plan = getPlan(workspace.plan);
       const currency: Currency = 'INR';
       const monthlyPaise = plan?.pricing[currency]?.monthly || 0;

@@ -3,6 +3,8 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
+import { isTemplateAllowedForPlan } from '@/components/profile/templates/registry';
 
 
 const profileRepository = new SupabaseProfileRepository();
@@ -102,6 +104,23 @@ export async function PUT(request: NextRequest) {
         : onboarding_answers !== undefined
         ? onboarding_answers
         : undefined;
+
+    // Enforce template entitlement if a specific template is requested in theme
+    const requestedTemplate = (theme as Record<string, unknown> | undefined)?.template as string | undefined;
+    if (requestedTemplate) {
+      const planCtx = await getPlanContext(userId, workspaceId);
+      if (planCtx && !isTemplateAllowedForPlan(requestedTemplate, planCtx.templateCount)) {
+        return NextResponse.json(
+          {
+            error: `The '${requestedTemplate}' persona template requires a Creator, Pro, or Studio plan. Spark (Free) includes 5 starter templates.`,
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCtx.plan,
+            templateCount: planCtx.templateCount,
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // Get existing profile or create new
     let profile = await profileRepository.findByWorkspaceId(workspaceId);

@@ -205,6 +205,84 @@ const dmClassificationSchema = z.object({
   reasoning: z.string(),
 });
 
+// ─── Outbound Link Allowlist Sanitizer (P1-4 Prompt-Injection Defense) ──────
+
+const URL_REGEX = /https?:\/\/[^\s)"'<>]+|www\.[^\s)"'<>]+/gi;
+
+export function extractUrlsFromText(text?: string | null): string[] {
+  if (!text) return [];
+  const matches = text.match(URL_REGEX);
+  return matches ? matches.map((m) => m.replace(/[.,;!?]+$/, '')) : [];
+}
+
+/**
+ * Strips or replaces any URL in AI-generated comment replies or DMs that does not
+ * belong to the creator's configured allowlist (`linkUrl`, knowledge base URLs, or `unool.co`).
+ * Prevents prompt-injection attacks in inbound comments/DMs from tricking the LLM
+ * into sending phishing or arbitrary third-party links from the creator's account.
+ */
+export function sanitizeOutboundLinks(
+  text: string | null | undefined,
+  allowedUrls: Array<string | null | undefined>,
+  fallbackLinkUrl?: string | null
+): string {
+  if (!text || text === 'SKIP') return text || '';
+
+  const normalizedAllowlist = new Set<string>();
+  const allowedHosts = new Set<string>(['unool.co', 'unool.com']);
+
+  for (const raw of allowedUrls) {
+    if (!raw) continue;
+    for (const candidate of [raw, ...extractUrlsFromText(raw)]) {
+      const cleaned = candidate.trim().replace(/[.,;!?]+$/, '');
+      if (!cleaned) continue;
+      normalizedAllowlist.add(cleaned.toLowerCase());
+      try {
+        const parsed = new URL(cleaned.startsWith('http') ? cleaned : `https://${cleaned}`);
+        if (parsed.hostname) {
+          allowedHosts.add(parsed.hostname.toLowerCase());
+        }
+      } catch {
+        // Ignore malformed allowlist entries
+      }
+    }
+  }
+
+  return text.replace(URL_REGEX, (matchedUrl) => {
+    const trailingPunctMatch = matchedUrl.match(/[.,;!?]+$/);
+    const trailingPunct = trailingPunctMatch ? trailingPunctMatch[0] : '';
+    const coreUrl = trailingPunct ? matchedUrl.slice(0, -trailingPunct.length) : matchedUrl;
+    const lowerUrl = coreUrl.toLowerCase();
+
+    if (normalizedAllowlist.has(lowerUrl)) {
+      return matchedUrl;
+    }
+
+    try {
+      const parsed = new URL(coreUrl.startsWith('http') ? coreUrl : `https://${coreUrl}`);
+      const host = parsed.hostname.toLowerCase();
+      if (
+        allowedHosts.has(host) ||
+        host.endsWith('.unool.co') ||
+        host.endsWith('.unool.com')
+      ) {
+        return matchedUrl;
+      }
+    } catch {
+      // Malformed URL — treat as untrusted
+    }
+
+    logger.warn('Blocked unauthorized URL in AI-generated Instagram reply (prompt-injection guard)', {
+      blockedUrl: coreUrl,
+    });
+
+    if (fallbackLinkUrl && fallbackLinkUrl.trim()) {
+      return `${fallbackLinkUrl.trim()}${trailingPunct}`;
+    }
+    return '';
+  }).replace(/\s{2,}/g, ' ').trim();
+}
+
 // ─── Comment Classifier ─────────────────────────────────────────────────────
 
 export class InstagramCommentAutomation {
@@ -340,6 +418,24 @@ Return ONLY valid JSON (no markdown, no explanation):
 
     // Apply auto-reply flags based on automation config
     const classified = result.value;
+    const allowedSources = [
+      config.linkUrl,
+      config.customInstructions,
+      config.dmTemplate,
+      config.dmKnowledgeBase,
+    ];
+    classified.suggestedReply = sanitizeOutboundLinks(
+      classified.suggestedReply,
+      allowedSources,
+      config.linkUrl
+    );
+    if (classified.suggestedDM) {
+      classified.suggestedDM = sanitizeOutboundLinks(
+        classified.suggestedDM,
+        allowedSources,
+        config.linkUrl
+      );
+    }
     classified.shouldAutoReply = this.resolveAutoReplyFlag(classified, config);
     classified.shouldSendDM = classified.shouldSendDM && !!config.linkUrl;
 
@@ -527,7 +623,20 @@ Return ONLY valid JSON:
       };
     }
 
-    return result.value;
+    const classifiedDm = result.value;
+    const allowedDmSources = [
+      targetLink,
+      config.customInstructions,
+      config.dmTemplate,
+      config.dmKnowledgeBase,
+      config. dmWelcomeMessage,
+    ];
+    classifiedDm.suggestedReply = sanitizeOutboundLinks(
+      classifiedDm.suggestedReply,
+      allowedDmSources,
+      targetLink
+    );
+    return classifiedDm;
   }
 
   /**

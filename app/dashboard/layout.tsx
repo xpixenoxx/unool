@@ -107,8 +107,8 @@ function DashboardSidebar({
       }
     };
 
-    // Initial fetch on mount for instantaneous fresh count
-    fetchLatestDrafts();
+    // Initial pendingPostsCount is already hydrated via /api/user/context in useUserContext()
+    // Only re-fetch on publish events, window focus, or periodic decay interval.
 
     const handlePublishEvent = () => {
       fetchLatestDrafts();
@@ -208,21 +208,21 @@ function DashboardSidebar({
           name: 'Studio',
           href: '/dashboard/studio',
           icon: PenTool,
-          description: 'Create content',
+          description: 'Bio-link profile & persona templates',
         },
         {
           id: 'flightplan',
           name: 'Flight plan',
           href: '/dashboard/flightplan',
           icon: CalendarDays,
-          description: 'Plan & schedule content',
+          description: '7-day AI content calendar',
         },
         {
           id: 'signal',
           name: 'Signal',
           href: '/dashboard/signal',
           icon: Radio,
-          description: 'Publish & schedule',
+          description: 'Cross-platform post composer',
           badge: dynamicPendingCount > 0 ? dynamicPendingCount : undefined,
         },
         ...(featureFlags.automationEnabled
@@ -231,7 +231,7 @@ function DashboardSidebar({
               name: 'Automation',
               href: '/dashboard/automation',
               icon: Zap,
-              description: 'Instagram comment automation',
+              description: 'Instagram Comment & DM auto-reply',
             }]
           : []),
       ],

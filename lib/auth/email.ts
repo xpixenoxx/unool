@@ -136,3 +136,68 @@ export async function sendOtpEmail(opts: {
     throw err;
   }
 }
+
+/**
+ * Sends a proactive notification email when a connected social platform OAuth token expires
+ * and automatic refresh fails, so scheduled posts and automations do not fail silently (P1-3).
+ */
+export async function sendTokenExpiredAlertEmail(opts: {
+  to: string;
+  platform: string;
+  username?: string;
+}): Promise<void> {
+  const { to, platform, username } = opts;
+  if (!to || !config.RESEND_API_KEY) {
+    logger.info('Skipping token expiry email (no recipient or RESEND_API_KEY not configured)', { platform });
+    return;
+  }
+
+  const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
+  const handleText = username ? ` (@${username.replace(/^@/, '')})` : '';
+  const reconnectUrl = `${(config.NEXT_PUBLIC_APP_URL || 'https://unool.co').replace(/\/$/, '')}/dashboard/channels`;
+  const subject = `${APP_NAME} — Action Required: Reconnect your ${platformLabel} account`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>${subject}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="background:#fff;border-radius:12px;padding:32px;">
+          <tr>
+            <td>
+              <h2 style="margin:0 0 12px;color:#1f2937;">Your ${platformLabel}${handleText} connection expired</h2>
+              <p style="margin:0 0 20px;font-size:14px;color:#4b5563;line-height:1.6;">
+                Your ${platformLabel} authorization token has expired or been revoked by ${platformLabel}. To keep your scheduled broadcasts and comment/DM automations running without interruption, please reconnect your account in Unool.
+              </p>
+              <p style="margin:0 0 24px;">
+                <a href="${reconnectUrl}" style="display:inline-block;background:#C8613D;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">
+                  Reconnect ${platformLabel}
+                </a>
+              </p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} ${APP_NAME}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    const { Resend } = await import('resend');
+    const resend = new Resend(config.RESEND_API_KEY);
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    logger.info('Sent platform token expiration alert email', { to, platform });
+  } catch (err) {
+    logger.warn('Failed to send platform token expiration alert email', { error: String(err), to, platform });
+  }
+}

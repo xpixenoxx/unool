@@ -5,7 +5,7 @@ import { trackAiUsage } from '@/lib/limits/enforcer';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
+import { planEnforcement, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { config } from '@/lib/config/schema';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
@@ -16,10 +16,22 @@ const profileRepository = new SupabaseProfileRepository();
 export const maxDuration = 300; // 5 mins for multi-post generation
 
 export async function POST(request: NextRequest) {
-  return planEnforcement.useAI(request, async (request) => {
+  return planEnforcement.useAI(request, async (request, planCtx) => {
     const traceId = crypto.randomUUID();
 
     try {
+      const flightplanGate = await enforcePlanLimit(request, 'flightplan_ai', planCtx);
+      if (!flightplanGate.allowed) {
+        return NextResponse.json(
+          {
+            error: flightplanGate.error?.message || 'FlightPlan AI requires Pro or Studio plan',
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCtx.plan,
+          },
+          { status: 403, headers: flightplanGate.headers }
+        );
+      }
+
       const auth = await getCurrentAuth(request);
       if (!auth) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

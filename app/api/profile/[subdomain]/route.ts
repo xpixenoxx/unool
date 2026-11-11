@@ -6,6 +6,7 @@ import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePost
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 
 const profileRepository = new SupabaseProfileRepository();
 
@@ -185,6 +186,19 @@ export async function GET(
       // Non-critical — fail silently so the profile always loads
     }
 
+    // Resolve workspace plan entitlements (badge removal / white-label) for public profile rendering
+    let hideBadge = false;
+    let whiteLabel = false;
+    if (profile.workspaceId) {
+      try {
+        const planCtx = await getPlanContext(profile.userId, profile.workspaceId);
+        hideBadge = Boolean(planCtx?.features?.badge_removal || planCtx?.features?.white_label);
+        whiteLabel = Boolean(planCtx?.features?.white_label);
+      } catch {
+        // Default to showing badge if plan lookup fails
+      }
+    }
+
     // Build response WITHOUT email (P0-T5: strip email from public response)
     // The email field is never included in the public profile response
     const response = {
@@ -213,6 +227,12 @@ export async function GET(
         accentColor: (profile.theme as any)?.accentColor || 'var(--color-primary)',
         customCss: (profile.theme as any)?.customCss || null,
         ...profile.theme,
+      },
+      hideBadge,
+      whiteLabel,
+      features: {
+        badge_removal: hideBadge,
+        white_label: whiteLabel,
       },
       visibility: profile.visibility || 'public',
       recentActivity,

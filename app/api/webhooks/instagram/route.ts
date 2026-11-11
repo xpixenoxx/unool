@@ -478,6 +478,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
         mediaId: commentEvent.mediaId,
         commentText: commentEvent.text,
         commenterUsername: commentEvent.username,
+        commentTimestamp: commentEvent.timestamp,
       });
 
       if (msgId) {
@@ -489,22 +490,86 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     }
   }
 
-  // ── Velocity check: enforce hourly rate limits ──────────────────────────
+  // ── Enforce monthly ig_comments_per_month plan quota ────────────────────
+  try {
+    const { getPlanContext } = await import('@/lib/middleware/plan-enforcement-middleware');
+    const planCtx = await getPlanContext(connection.user_id || '', connection.workspace_id);
+    const monthlyIgLimit = planCtx?.limits?.ig_comments_per_month;
+    if (typeof monthlyIgLimit === 'number' && monthlyIgLimit > 0) {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const { count: monthlyUsed } = await supabaseAdmin
+        .from('instagram_comment_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', connection.workspace_id)
+        .eq('auto_replied', true)
+        .gte('created_at', monthStart.toISOString());
+
+      if ((monthlyUsed || 0) >= monthlyIgLimit) {
+        logger.warn('Monthly Instagram comment automation quota reached — skipping auto-reply', {
+          workspaceId: connection.workspace_id,
+          commentId: commentEvent.commentId,
+          monthlyUsed,
+          monthlyIgLimit,
+          plan: planCtx?.plan,
+        });
+        return;
+      }
+    }
+  } catch (planErr) {
+    logger.warn('Failed to check monthly IG comment quota in webhook', { error: planErr });
+  }
+
+  // ── Velocity check: enforce hourly rate limits & queue for next hour ────
   const canReply = await velocityThrottle.canReply(
     connection.workspace_id,
     automationConfig.maxRepliesPerHour || 30
   );
   if (!canReply) {
-    logger.info('Velocity limit reached — queuing comment for later', {
+    const delaySeconds = velocityThrottle.getSecondsUntilNextHourBucket(30, 180);
+    logger.info('Velocity limit reached — queuing comment for next hour window', {
       workspaceId: connection.workspace_id,
       commentId: commentEvent.commentId,
+      delaySeconds,
     });
-    // Flag for human review instead of dropping
-    await flagCommentForReview(connection.workspace_id, commentEvent, {
-      classification: 'unrelated',
-      suggestedReply: '',
-      reasoning: 'Rate limit reached — deferred for human review',
-    }, 0);
+    const fallbackJobId = `ig-comment-${commentEvent.commentId}`;
+    await supabaseAdmin.from('instagram_outbound_jobs').upsert({
+      workspace_id: connection.workspace_id,
+      job_type: 'comment_reply',
+      target_id: commentEvent.commentId,
+      payload: {
+        jobId: fallbackJobId,
+        jobType: 'comment_reply',
+        workspaceId: connection.workspace_id,
+        connectionId: connection.id,
+        commentId: commentEvent.commentId,
+        mediaId: commentEvent.mediaId,
+        commentText: commentEvent.text,
+        commenterUsername: commentEvent.username,
+        commentTimestamp: commentEvent.timestamp,
+      },
+      status: 'queued',
+      retry_count: 0,
+      max_retries: 3,
+      last_error: `Deferred to next hour window (+${delaySeconds}s) due to velocity cap`,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'workspace_id,job_type,target_id' });
+
+    if (queueService.isAvailable()) {
+      await queueService.enqueueInstagramOutboundTask({
+        jobId: fallbackJobId,
+        jobType: 'comment_reply',
+        workspaceId: connection.workspace_id,
+        connectionId: connection.id,
+        commentId: commentEvent.commentId,
+        mediaId: commentEvent.mediaId,
+        commentText: commentEvent.text,
+        commenterUsername: commentEvent.username,
+        commentTimestamp: commentEvent.timestamp,
+        delaySeconds,
+      });
+    }
     return;
   }
 
@@ -988,22 +1053,53 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     }
   }
 
-  // Velocity check for DMs
+  // Velocity check for DMs — queue for next hour window instead of dropping
   const canReply = await velocityThrottle.canReply(
     `dm:${connection.workspace_id}`,
     automationConfig.dmMaxRepliesPerHour || 20
   );
   if (!canReply) {
-    logger.info('DM velocity limit reached', { workspaceId: connection.workspace_id });
-    await logDmEvent(connection.workspace_id, dmEvent, {
-      classification: 'unrelated',
-      confidence: 0,
-      suggestedReply: '',
-      leadScore: 0,
-      shouldAutoReply: false,
-      shouldEscalate: false,
-      reasoning: 'Rate limit reached — recorded for human review',
+    const delaySeconds = velocityThrottle.getSecondsUntilNextHourBucket(30, 180);
+    logger.info('DM velocity limit reached — queuing DM for next hour window', {
+      workspaceId: connection.workspace_id,
+      messageId: dmEvent.messageId,
+      delaySeconds,
     });
+    const fallbackDmJobId = `ig-dm-${dmEvent.messageId}`;
+    await supabaseAdmin.from('instagram_outbound_jobs').upsert({
+      workspace_id: connection.workspace_id,
+      job_type: 'dm_reply',
+      target_id: dmEvent.messageId,
+      payload: {
+        jobId: fallbackDmJobId,
+        jobType: 'dm_reply',
+        workspaceId: connection.workspace_id,
+        connectionId: connection.id,
+        messageId: dmEvent.messageId,
+        senderId: dmEvent.senderId,
+        senderUsername: dmEvent.senderUsername,
+        dmText: dmEvent.text,
+      },
+      status: 'queued',
+      retry_count: 0,
+      max_retries: 3,
+      last_error: `Deferred to next hour window (+${delaySeconds}s) due to velocity cap`,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'workspace_id,job_type,target_id' });
+
+    if (queueService.isAvailable()) {
+      await queueService.enqueueInstagramOutboundTask({
+        jobId: fallbackDmJobId,
+        jobType: 'dm_reply',
+        workspaceId: connection.workspace_id,
+        connectionId: connection.id,
+        messageId: dmEvent.messageId,
+        senderId: dmEvent.senderId,
+        senderUsername: dmEvent.senderUsername,
+        dmText: dmEvent.text,
+        delaySeconds,
+      });
+    }
     return;
   }
 

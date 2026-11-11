@@ -8,6 +8,7 @@ import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
+import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -240,6 +241,32 @@ export async function GET(request: NextRequest) {
       }
       if (profile.accountType) {
         connectionMetadata.account_type = profile.accountType;
+      }
+    }
+
+    // Enforce plan channel limit before creating a new platform connection (allow reconnecting existing platform)
+    const planCtx = await getPlanContext(userId, finalWorkspaceId);
+    const channelLimit = planCtx?.limits?.channels;
+    if (planCtx && typeof channelLimit === 'number' && channelLimit > 0) {
+      const existingConnections = await platformRepository.findByWorkspaceId(finalWorkspaceId);
+      const activePlatforms = new Set(
+        existingConnections.filter(c => c.status === 'connected').map(c => c.platform)
+      );
+      if (!activePlatforms.has(platform) && activePlatforms.size >= channelLimit) {
+        logger.warn('OAuth callback blocked: channel limit reached for plan', {
+          workspaceId: finalWorkspaceId,
+          plan: planCtx.plan,
+          connectedCount: activePlatforms.size,
+          channelLimit,
+          platform,
+        });
+        return NextResponse.redirect(
+          buildRedirectUrl(request, returnUrl, {
+            error: 'channel_limit_exceeded',
+            limit: String(channelLimit),
+            plan: planCtx.plan,
+          })
+        );
       }
     }
 

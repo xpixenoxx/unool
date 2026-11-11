@@ -6,7 +6,8 @@
 
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
-import type { PlanId, BillingCycle, Currency } from './plans';
+import { clearPlanCache as clearPlansTableCache, type PlanId, type BillingCycle, type Currency } from './plans';
+import { clearPlanCache as clearEnforcementCache } from '@/lib/plan-enforcement';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 
@@ -397,6 +398,7 @@ export async function cancelSubscription(
       .update({
         plan: 'spark',
         plan_status: 'active',
+        plan_expires_at: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', workspaceId);
@@ -412,6 +414,8 @@ export async function cancelSubscription(
       .eq('workspace_id', workspaceId);
   }
 
+  clearEnforcementCache(workspaceId);
+  clearPlansTableCache();
   logger.info('Subscription cancelled', { workspaceId, immediate });
 }
 
@@ -459,6 +463,8 @@ export async function activateWorkspacePlan(
     throw new Error(`Failed to activate plan: ${error.message}`);
   }
 
+  clearEnforcementCache(workspaceId);
+  clearPlansTableCache(planId);
   logger.info('Workspace plan activated', { workspaceId, planId, billingCycle, expiresAt: periodEnd });
 }
 

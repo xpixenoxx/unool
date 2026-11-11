@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
   PlanLimits,
   PlanFeatures,
@@ -9,6 +9,7 @@ import {
   getEffectiveLimit,
   isFeatureEnabled,
 } from '@/lib/plan-enforcement';
+import { getPlan, normalizePlanId, PLANS_FALLBACK } from '@/lib/billing/plans';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -17,8 +18,12 @@ export interface PlanEnforcementContext {
   userId: string;
   workspaceId: string;
   plan: string;
+  rawPlan?: string;
+  planStatus?: string;
+  isExpired?: boolean;
   features: PlanFeatures;
   limits: PlanLimits;
+  templateCount: number;
 }
 
 export interface PlanEnforcementResult {
@@ -34,10 +39,9 @@ export interface PlanEnforcementResult {
   headers?: Record<string, string>;
 }
 
-async function getPlanContext(userId: string, workspaceId: string): Promise<PlanEnforcementContext | null> {
+export async function getPlanContext(userId: string, workspaceId: string): Promise<PlanEnforcementContext | null> {
 
   // Read the plan from the workspaces table — this is where upgrades are stored.
-  // (Previously this read from profiles.plan which is a social profile row and has no plan field.)
   let workspace: { plan: string; plan_status?: string; plan_expires_at?: string | null; features?: unknown } | null = null;
 
   // First try direct workspace ID lookup
@@ -72,49 +76,99 @@ async function getPlanContext(userId: string, workspaceId: string): Promise<Plan
     }
   }
 
-  // If we still can't find the workspace, degrade gracefully to free tier
-  // (better than returning 500 "Failed to retrieve plan information")
+  // If we still can't find the workspace, degrade gracefully to free tier (spark)
   if (!workspace) {
-    logger.warn('Could not resolve workspace — defaulting to free tier', { workspaceId, userId });
-    workspace = { plan: 'free' };
+    logger.warn('Could not resolve workspace — defaulting to spark tier', { workspaceId, userId });
+    workspace = { plan: 'spark', plan_status: 'active' };
   }
 
-  const plan = (workspace.plan as string) || 'free';
-
-  // Check plan is active and not expired
+  const rawPlan = normalizePlanId((workspace.plan as string) || 'spark');
   const planStatus = workspace.plan_status || 'active';
-  if (planStatus !== 'active' && planStatus !== 'trialing') {
-    logger.warn('Workspace plan is not active', { workspaceId, planStatus });
+  const isInactiveStatus = planStatus !== 'active' && planStatus !== 'trialing';
+  const isExpired = Boolean(workspace.plan_expires_at && new Date(workspace.plan_expires_at) < new Date());
+
+  // Enforce subscription lifecycle: if a paid plan is cancelled/expired/past_due/paused, downgrade effective entitlements to Spark (Free)
+  let effectivePlan = rawPlan;
+  if (rawPlan !== 'spark' && (isInactiveStatus || isExpired)) {
+    logger.warn('Workspace paid plan is inactive or expired — enforcing Spark (Free) tier limits', {
+      workspaceId,
+      rawPlan,
+      planStatus,
+      planExpiresAt: workspace.plan_expires_at,
+    });
+    effectivePlan = 'spark';
   }
 
-  if (workspace.plan_expires_at && new Date(workspace.plan_expires_at) < new Date()) {
-    logger.warn('Workspace plan has expired', { workspaceId, planExpiresAt: workspace.plan_expires_at });
-  }
+  const fallbackDef = getPlan(effectivePlan) || PLANS_FALLBACK.spark;
 
-  // Get plan limits/features from the plans table
+  // Get plan limits/features from the plans table (if seeded)
   const { data: planInfo } = await supabaseAdmin
     .from('plans')
     .select('limits, features')
-    .eq('id', plan)
+    .eq('id', effectivePlan)
     .single();
 
-  // Workspace-level feature overrides take priority over plan defaults.
-  // NOTE: The DB migration stores all quota fields (ai_adaptations_per_month, etc.)
-  // in the 'features' JSON column. 'limits' is a sparse subset.
-  // Merge both so all enforcement checks can find their keys.
-  const rawFeatures = (planInfo?.features || {}) as Record<string, unknown>;
-  const rawLimits = (planInfo?.limits || {}) as Record<string, unknown>;
-  const mergedLimits = { ...rawFeatures, ...rawLimits } as PlanLimits;
+  const dbFeatures = (planInfo?.features || {}) as Record<string, unknown>;
+  const dbLimits = (planInfo?.limits || {}) as Record<string, unknown>;
+  const wsFeatures = (!isInactiveStatus && !isExpired && workspace.features && typeof workspace.features === 'object')
+    ? (workspace.features as Record<string, unknown>)
+    : {};
 
-  const features: PlanFeatures = (workspace.features as PlanFeatures) || rawFeatures as PlanFeatures;
-  const limits: PlanLimits = mergedLimits;
+  // Always start with canonical PLANS_FALLBACK ground truth so unseeded DB or missing keys never allow unlimited bypass
+  const canonicalLimits: PlanLimits = {
+    ...fallbackDef.limits,
+    profiles: fallbackDef.limits.workspaces,
+    ai_adaptations_per_month: fallbackDef.limits.ai_credits_per_month,
+    template_count: fallbackDef.templateCount,
+  };
+
+  const canonicalFeatures: PlanFeatures = {
+    ...fallbackDef.features,
+    posts_per_month: fallbackDef.limits.posts_per_month,
+    channels: fallbackDef.limits.channels,
+    profiles: fallbackDef.limits.workspaces,
+    workspaces: fallbackDef.limits.workspaces,
+    team_seats: fallbackDef.limits.team_seats,
+    ai_credits_per_month: fallbackDef.limits.ai_credits_per_month,
+    ai_adaptations_per_month: fallbackDef.limits.ai_credits_per_month,
+    ig_comments_per_month: fallbackDef.limits.ig_comments_per_month,
+    linkedin_comments_per_month: fallbackDef.limits.linkedin_comments_per_month,
+    brand_voices: fallbackDef.limits.brand_voices,
+    analytics_retention_days: fallbackDef.limits.analytics_retention_days,
+    template_count: fallbackDef.templateCount,
+  };
+
+  const mergedLimits: PlanLimits = {
+    ...canonicalLimits,
+    ...dbLimits,
+  };
+  if (mergedLimits.ai_adaptations_per_month === undefined) {
+    mergedLimits.ai_adaptations_per_month = mergedLimits.ai_credits_per_month;
+  }
+  if (mergedLimits.profiles === undefined) {
+    mergedLimits.profiles = mergedLimits.workspaces;
+  }
+
+  const features: PlanFeatures = {
+    ...canonicalFeatures,
+    ...dbFeatures,
+    ...wsFeatures,
+  } as PlanFeatures;
+
+  const templateCount = typeof mergedLimits.template_count === 'number'
+    ? mergedLimits.template_count
+    : fallbackDef.templateCount;
 
   return {
     userId,
     workspaceId,
-    plan,
+    plan: effectivePlan,
+    rawPlan,
+    planStatus,
+    isExpired,
     features,
-    limits,
+    limits: mergedLimits,
+    templateCount,
   };
 }
 
@@ -125,20 +179,35 @@ function checkFeatureGate(
 ): { allowed: boolean; reason?: string } {
   const featureMap: Record<PlanAction, keyof PlanFeatures> = {
     create_post: 'posts_per_month',
-    create_profile: 'profiles',
+    create_profile: 'workspaces',
     invite_member: 'team_seats',
-    use_ai: 'ai_adaptations_per_month',
+    use_ai: 'ai_credits_per_month',
     upload_media: 'media_uploads_per_month',
+    connect_channel: 'channels',
+    ig_comment_reply: 'ig_comments_per_month',
+    linkedin_comment_reply: 'linkedin_comments_per_month',
+    brand_voice: 'brand_voices',
     api_access: 'api_access',
     custom_domain: 'custom_domain',
     analytics: 'analytics_retention_days',
-    scheduling: 'analytics_retention_days',
+    scheduling: 'posts_per_month',
     team_collaboration: 'team_seats',
-    white_label: 'custom_domain',
-    priority_support: 'custom_domain',
+    white_label: 'white_label',
+    priority_support: 'priority_support',
     api_keys: 'api_access',
     webhooks: 'api_access',
-    export_data: 'analytics_retention_days',
+    export_data: 'csv_export',
+    csv_export: 'csv_export',
+    flightplan_ai: 'flightplan_ai',
+    content_humanizer: 'content_humanizer',
+    first_comment: 'first_comment',
+    dm_concierge: 'dm_concierge',
+    dm_concierge_full: 'dm_concierge_full',
+    lead_scoring: 'lead_scoring',
+    auto_hide_spam: 'auto_hide_spam',
+    approval_workflows: 'approval_workflows',
+    follow_to_unlock: 'follow_to_unlock',
+    badge_removal: 'badge_removal',
   };
 
   const featureKey = featureMap[action];
@@ -149,9 +218,6 @@ function checkFeatureGate(
   const limitValue = limits[featureKey as keyof PlanLimits];
   const value = featureValue !== undefined ? featureValue : limitValue;
 
-  // IMPORTANT: If the key is absent from BOTH features and limits, do NOT block.
-  // The feature gate should only deny when a feature is explicitly set to false or 0.
-  // Missing = not restricted at the gate level (quota check handles enforcement).
   if (value === undefined) return { allowed: true };
 
   // -1 = unlimited, true = enabled, positive number = has quota (allowed at gate level)
@@ -163,7 +229,7 @@ function checkFeatureGate(
 
   return {
     allowed,
-    reason: allowed ? undefined : `Feature '${action}' not available in current plan`,
+    reason: allowed ? undefined : `Feature '${action}' is not available on your current plan`,
   };
 }
 
@@ -172,7 +238,8 @@ async function checkQuota(
   action: PlanAction,
   userId: string,
   workspaceId: string,
-  plan: string
+  plan: string,
+  contextLimits?: PlanLimits
 ): Promise<{ allowed: boolean; limit: number; currentUsage: number; reason?: string }> {
 
   const monthStart = new Date();
@@ -182,65 +249,84 @@ async function checkQuota(
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
 
-  // Get plan limits from database
-  const { data: planData } = await supabaseAdmin
-    .from('plans')
-    .select('limits')
-    .eq('id', plan)
-    .single();
-
-  const limits = planData?.limits as PlanLimits | undefined;
-
-  // Map action to table and limit
-  const actionConfig: Record<
-    PlanAction,
-    { table: string; limitKey: keyof PlanLimits; timeWindow: Date }
-  > = {
-    create_post: { table: 'posts', limitKey: 'posts_per_month', timeWindow: monthStart },
-    create_profile: { table: 'profiles', limitKey: 'profiles', timeWindow: new Date(0) },
-    invite_member: { table: 'workspace_members', limitKey: 'team_seats', timeWindow: new Date(0) },
-    use_ai: { table: 'ai_usage', limitKey: 'ai_adaptations_per_month', timeWindow: monthStart },
-    upload_media: { table: 'media_uploads', limitKey: 'media_uploads_per_month', timeWindow: monthStart },
-    api_access: { table: 'api_calls', limitKey: 'api_access', timeWindow: dayStart },
-    custom_domain: { table: 'profiles', limitKey: 'custom_domain', timeWindow: new Date(0) },
-    analytics: { table: 'analytics', limitKey: 'analytics_retention_days', timeWindow: new Date(0) },
-    scheduling: { table: 'posts', limitKey: 'posts_per_month', timeWindow: monthStart },
-    team_collaboration: { table: 'workspace_members', limitKey: 'team_seats', timeWindow: new Date(0) },
-    white_label: { table: 'profiles', limitKey: 'custom_domain', timeWindow: new Date(0) },
-    priority_support: { table: 'profiles', limitKey: 'custom_domain', timeWindow: new Date(0) },
-    api_keys: { table: 'api_keys', limitKey: 'api_access', timeWindow: new Date(0) },
-    webhooks: { table: 'webhooks', limitKey: 'api_access', timeWindow: new Date(0) },
-    export_data: { table: 'exports', limitKey: 'analytics_retention_days', timeWindow: new Date(0) },
+  const fallbackDef = getPlan(plan) || PLANS_FALLBACK.spark;
+  const limits: PlanLimits = contextLimits || {
+    ...fallbackDef.limits,
+    profiles: fallbackDef.limits.workspaces,
+    ai_adaptations_per_month: fallbackDef.limits.ai_credits_per_month,
   };
 
-  const targetConfig = actionConfig[action];
+  // Map action to table and limit
+  const actionConfigMap: Partial<Record<
+    PlanAction,
+    { table: string; limitKey: keyof PlanLimits; timeWindow: Date; filterStatus?: string | string[]; filterBool?: [string, boolean] }
+  >> = {
+    create_post: { table: 'posts', limitKey: 'posts_per_month', timeWindow: monthStart, filterStatus: ['published', 'scheduled'] },
+    scheduling: { table: 'posts', limitKey: 'posts_per_month', timeWindow: monthStart, filterStatus: ['published', 'scheduled'] },
+    create_profile: { table: 'profiles', limitKey: 'workspaces', timeWindow: new Date(0) },
+    invite_member: { table: 'workspace_members', limitKey: 'team_seats', timeWindow: new Date(0) },
+    team_collaboration: { table: 'workspace_members', limitKey: 'team_seats', timeWindow: new Date(0) },
+    use_ai: { table: 'ai_usage', limitKey: 'ai_credits_per_month', timeWindow: monthStart },
+    upload_media: { table: 'media_uploads', limitKey: 'media_uploads_per_month', timeWindow: monthStart },
+    connect_channel: { table: 'platform_connections', limitKey: 'channels', timeWindow: new Date(0), filterStatus: 'connected' },
+    ig_comment_reply: { table: 'instagram_comment_logs', limitKey: 'ig_comments_per_month', timeWindow: monthStart, filterBool: ['replied', true] },
+    linkedin_comment_reply: { table: 'linkedin_comment_logs', limitKey: 'linkedin_comments_per_month', timeWindow: monthStart },
+    brand_voice: { table: 'brand_materials_pages', limitKey: 'brand_voices', timeWindow: new Date(0) },
+  };
+
+  const targetConfig = actionConfigMap[action];
   if (!targetConfig) return { allowed: true, limit: -1, currentUsage: 0 };
 
-  const limit = limits?.[targetConfig.limitKey] as number | boolean | undefined;
+  let limit = limits[targetConfig.limitKey] as number | boolean | undefined;
+  if (targetConfig.limitKey === 'ai_credits_per_month' && limit === undefined) {
+    limit = limits.ai_adaptations_per_month;
+  }
+  if (targetConfig.limitKey === 'workspaces' && limit === undefined) {
+    limit = limits.profiles;
+  }
+
   if (limit === true || limit === -1 || limit === undefined) {
     return { allowed: true, limit: -1, currentUsage: 0 };
   }
 
+  const numericLimit = typeof limit === 'number' ? limit : 0;
+  if (numericLimit <= 0) {
+    return {
+      allowed: false,
+      limit: 0,
+      currentUsage: 0,
+      reason: `Feature '${action}' is not available on your current plan`,
+    };
+  }
+
   let currentUsage = 0;
-  if (targetConfig.timeWindow > new Date(0)) {
-    // Time-windowed query
-    const { count } = await supabaseAdmin
-      .from(targetConfig.table)
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .gte('created_at', targetConfig.timeWindow.toISOString());
-    currentUsage = count || 0;
-  } else {
-    // Total count
-    const { count } = await supabaseAdmin
+  try {
+    let query = supabaseAdmin
       .from(targetConfig.table)
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId);
-    currentUsage = count || 0;
-  }
 
-  const numericLimit = typeof limit === 'number' ? limit : -1;
-  if (numericLimit === -1) return { allowed: true, limit: -1, currentUsage: 0 };
+    if (targetConfig.filterStatus) {
+      if (Array.isArray(targetConfig.filterStatus)) {
+        query = query.in('status', targetConfig.filterStatus);
+      } else {
+        query = query.eq('status', targetConfig.filterStatus);
+      }
+    }
+
+    if (targetConfig.filterBool) {
+      query = query.eq(targetConfig.filterBool[0], targetConfig.filterBool[1]);
+    }
+
+    if (targetConfig.timeWindow > new Date(0)) {
+      query = query.gte('created_at', targetConfig.timeWindow.toISOString());
+    }
+
+    const { count } = await query;
+    currentUsage = count || 0;
+  } catch {
+    currentUsage = 0;
+  }
 
   return {
     allowed: currentUsage < numericLimit,
@@ -282,7 +368,7 @@ export async function enforcePlanLimit(
   }
 
   // Check quota for tracked actions
-  const quotaCheck = await checkQuota(action, userId, workspaceId, plan);
+  const quotaCheck = await checkQuota(action, userId, workspaceId, plan, limits);
   if (!quotaCheck.allowed) {
     return {
       allowed: false,
@@ -304,29 +390,28 @@ export async function enforcePlanLimit(
     allowed: true,
     headers: {
       'X-Current-Plan': plan,
-      'X-Quota-Limit': String(quotaCheck.limit ?? getEffectiveLimit(limits, actionConfig[action]?.limitKey) ?? -1),
+      'X-Quota-Limit': String(quotaCheck.limit ?? (actionConfig[action] ? getEffectiveLimit(limits, actionConfig[action]!.limitKey) : -1) ?? -1),
       'X-Quota-Usage': String(quotaCheck.currentUsage ?? 0),
     },
   };
 }
 
-// Action config for quota checking (same as in checkQuota)
-const actionConfig: Record<PlanAction, { limitKey: keyof PlanLimits }> = {
+// Action config for quota headers
+const actionConfig: Partial<Record<PlanAction, { limitKey: keyof PlanLimits }>> = {
   create_post: { limitKey: 'posts_per_month' },
-  create_profile: { limitKey: 'profiles' },
+  create_profile: { limitKey: 'workspaces' },
   invite_member: { limitKey: 'team_seats' },
-  use_ai: { limitKey: 'ai_adaptations_per_month' },
+  use_ai: { limitKey: 'ai_credits_per_month' },
   upload_media: { limitKey: 'media_uploads_per_month' },
+  connect_channel: { limitKey: 'channels' },
+  ig_comment_reply: { limitKey: 'ig_comments_per_month' },
+  linkedin_comment_reply: { limitKey: 'linkedin_comments_per_month' },
+  brand_voice: { limitKey: 'brand_voices' },
   api_access: { limitKey: 'api_access' },
   custom_domain: { limitKey: 'custom_domain' },
   analytics: { limitKey: 'analytics_retention_days' },
   scheduling: { limitKey: 'posts_per_month' },
   team_collaboration: { limitKey: 'team_seats' },
-  white_label: { limitKey: 'custom_domain' },
-  priority_support: { limitKey: 'custom_domain' },
-  api_keys: { limitKey: 'api_access' },
-  webhooks: { limitKey: 'api_access' },
-  export_data: { limitKey: 'analytics_retention_days' },
 };
 
 export async function withPlanEnforcement(
@@ -434,6 +519,10 @@ export const planEnforcement = {
   inviteMember: createPlanEnforcementMiddleware('invite_member'),
   useAI: createPlanEnforcementMiddleware('use_ai'),
   uploadMedia: createPlanEnforcementMiddleware('upload_media'),
+  connectChannel: createPlanEnforcementMiddleware('connect_channel'),
+  igCommentReply: createPlanEnforcementMiddleware('ig_comment_reply'),
+  linkedinCommentReply: createPlanEnforcementMiddleware('linkedin_comment_reply'),
+  brandVoice: createPlanEnforcementMiddleware('brand_voice'),
   apiAccess: createPlanEnforcementMiddleware('api_access'),
   customDomain: createPlanEnforcementMiddleware('custom_domain'),
   analytics: createPlanEnforcementMiddleware('analytics'),
@@ -444,4 +533,15 @@ export const planEnforcement = {
   apiKeys: createPlanEnforcementMiddleware('api_keys'),
   webhooks: createPlanEnforcementMiddleware('webhooks'),
   exportData: createPlanEnforcementMiddleware('export_data'),
+  csvExport: createPlanEnforcementMiddleware('csv_export'),
+  flightplanAI: createPlanEnforcementMiddleware('flightplan_ai'),
+  contentHumanizer: createPlanEnforcementMiddleware('content_humanizer'),
+  firstComment: createPlanEnforcementMiddleware('first_comment'),
+  dmConcierge: createPlanEnforcementMiddleware('dm_concierge'),
+  dmConciergeFull: createPlanEnforcementMiddleware('dm_concierge_full'),
+  leadScoring: createPlanEnforcementMiddleware('lead_scoring'),
+  autoHideSpam: createPlanEnforcementMiddleware('auto_hide_spam'),
+  approvalWorkflows: createPlanEnforcementMiddleware('approval_workflows'),
+  followToUnlock: createPlanEnforcementMiddleware('follow_to_unlock'),
+  badgeRemoval: createPlanEnforcementMiddleware('badge_removal'),
 };

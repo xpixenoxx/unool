@@ -513,6 +513,22 @@ export function getTemplatesByPersona(persona: TemplateMeta['persona']): Templat
   return TEMPLATE_REGISTRY.filter(t => t.persona === persona);
 }
 
+export const SPARK_FREE_TEMPLATE_IDS = new Set([
+  'lover',
+  'lone',
+  'energy',
+  'rebellion',
+  'vision',
+  'minimal',
+]);
+
+export function isTemplateAllowedForPlan(templateId: string, templateCountLimit: number): boolean {
+  if (!templateId) return true;
+  if (templateCountLimit === -1 || templateCountLimit >= 16) return true;
+  const normalized = templateId.toLowerCase().trim();
+  return SPARK_FREE_TEMPLATE_IDS.has(normalized);
+}
+
 export function getDefaultTemplate(persona?: TemplateMeta['persona']): TemplateMeta {
   if (persona) {
     const found = TEMPLATE_REGISTRY.find(t => t.persona === persona);

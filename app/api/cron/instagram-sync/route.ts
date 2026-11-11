@@ -73,7 +73,56 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, synced: results.length, results });
+    // Drain any deferred/queued jobs in instagram_outbound_jobs that are within Meta's 7-day window
+    let drainedJobs = 0;
+    try {
+      const minWindowIso = new Date(Date.now() - (6 * 24 + 23) * 60 * 60 * 1000).toISOString();
+      const { data: queuedJobs } = await supabaseAdmin
+        .from('instagram_outbound_jobs')
+        .select('*')
+        .eq('status', 'queued')
+        .gte('created_at', minWindowIso)
+        .order('created_at', { ascending: true })
+        .limit(25);
+
+      if (queuedJobs && queuedJobs.length > 0) {
+        const { queueService } = await import('@/lib/services/QueueService');
+        for (const job of queuedJobs) {
+          const payload = (job.payload || {}) as Record<string, unknown>;
+          const jobParams = {
+            jobId: (payload.jobId as string) || `ig-${job.job_type}-${job.target_id}`,
+            jobType: job.job_type as 'comment_reply' | 'dm_reply',
+            workspaceId: job.workspace_id as string,
+            connectionId: (payload.connectionId as string) || '',
+            commentId: (payload.commentId as string) || (job.job_type === 'comment_reply' ? job.target_id : undefined),
+            mediaId: payload.mediaId as string | undefined,
+            commentText: payload.commentText as string | undefined,
+            commenterUsername: payload.commenterUsername as string | undefined,
+            commentTimestamp: (payload.commentTimestamp as string) || job.created_at,
+            messageId: (payload.messageId as string) || (job.job_type === 'dm_reply' ? job.target_id : undefined),
+            senderId: payload.senderId as string | undefined,
+            senderUsername: payload.senderUsername as string | undefined,
+            dmText: payload.dmText as string | undefined,
+          };
+
+          if (queueService.isAvailable()) {
+            const msgId = await queueService.enqueueInstagramOutboundTask(jobParams);
+            if (msgId) drainedJobs++;
+          } else {
+            const res = await fetch(`${appUrl}/api/webhooks/qstash/instagram-outbound`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(jobParams),
+            });
+            if (res.ok) drainedJobs++;
+          }
+        }
+      }
+    } catch (drainErr) {
+      logger.warn('instagram-sync cron: failed to drain queued outbound jobs', { error: drainErr });
+    }
+
+    return NextResponse.json({ ok: true, synced: results.length, drainedJobs, results });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('instagram-sync cron: unexpected error', { error: err });

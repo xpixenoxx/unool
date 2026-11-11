@@ -25,11 +25,14 @@ export interface InstagramOutboundJobParams {
   mediaId?: string;
   commentText?: string;
   commenterUsername?: string;
+  commentTimestamp?: string;
   // DM fields
   messageId?: string;
   senderId?: string;
   senderUsername?: string;
   dmText?: string;
+  // Optional delay in seconds (used when deferring velocity-throttled jobs to next hour bucket)
+  delaySeconds?: number;
 }
 
 class QueueService {
@@ -115,6 +118,18 @@ class QueueService {
       return null;
     }
 
+    // QStash free/standard tier limits `notBefore` delay to 7 days.
+    // For posts scheduled >7 days out, return null gracefully so the post remains
+    // `status = 'scheduled'` in PostgreSQL and is picked up by `/api/cron/publish-scheduled`.
+    const qstashMaxDelayMs = 7 * 24 * 60 * 60 * 1000;
+    if (params.scheduledAt.getTime() - nowMs > qstashMaxDelayMs) {
+      logger.info('Scheduled time is >7 days in the future — stored in DB for cron pickup', {
+        postId: params.postId,
+        scheduledAt: params.scheduledAt.toISOString(),
+      });
+      return null;
+    }
+
     try {
       // QStash API expects notBefore as a Unix timestamp in seconds
       const notBeforeSeconds = Math.floor(params.scheduledAt.getTime() / 1000);
@@ -156,6 +171,7 @@ class QueueService {
   /**
    * Enqueues an asynchronous durable task for Instagram outbound comment reply or DM.
    * Utilizes QStash retry limit (3 retries), exponential backoff, and idempotency deduplicationId.
+   * Supports `delaySeconds` for rate-limit deferral to the next hourly velocity bucket.
    */
   async enqueueInstagramOutboundTask(params: InstagramOutboundJobParams): Promise<string | null> {
     if (!this.client) {
@@ -164,8 +180,13 @@ class QueueService {
     }
 
     try {
-      const dedupeKey = `ig-outbound-${params.jobType}-${params.commentId || params.messageId}`;
-      const res = await this.client.publishJSON({
+      const targetId = params.commentId || params.messageId;
+      const delaySec = params.delaySeconds && params.delaySeconds > 0 ? Math.floor(params.delaySeconds) : 0;
+      const notBeforeSeconds = delaySec > 0 ? Math.floor(Date.now() / 1000) + delaySec : undefined;
+      const bucketSuffix = notBeforeSeconds ? `-defer-${Math.floor(notBeforeSeconds / 3600)}` : '';
+      const dedupeKey = `ig-outbound-${params.jobType}-${targetId}${bucketSuffix}`;
+
+      const publishOptions: Parameters<Client['publishJSON']>[0] = {
         url: this.instagramOutboundWebhookUrl,
         body: params,
         retries: 3,
@@ -173,13 +194,17 @@ class QueueService {
           'Upstash-Timeout': '60s',
         },
         deduplicationId: dedupeKey,
-      });
+        ...(notBeforeSeconds ? { notBefore: notBeforeSeconds } : {}),
+      };
+
+      const res = await this.client.publishJSON(publishOptions);
 
       logger.info('Enqueued Instagram outbound task via QStash', {
         messageId: res.messageId,
         jobId: params.jobId,
         jobType: params.jobType,
-        targetId: params.commentId || params.messageId,
+        targetId,
+        delaySeconds: delaySec,
       });
       return res.messageId;
     } catch (error) {

@@ -337,9 +337,20 @@ export function clearPlanCache(planId?: string): void {
 
 // ── Public API ──────────────────────────────────────────────────
 
+export function normalizePlanId(planId?: string | null): PlanId {
+  if (!planId) return 'spark';
+  const lower = planId.toLowerCase().trim();
+  if (lower === 'free' || lower === 'spark') return 'spark';
+  if (lower === 'creator') return 'creator';
+  if (lower === 'pro') return 'pro';
+  if (lower === 'studio' || lower === 'enterprise') return 'studio';
+  return 'spark';
+}
+
 export async function getPlanAsync(planId: string): Promise<PlanDefinition | null> {
+  const normalized = normalizePlanId(planId);
   const plans = await getPlans();
-  return plans[planId as PlanId] || null;
+  return plans[normalized] || null;
 }
 
 export async function getPlanPriceAsync(
@@ -363,8 +374,11 @@ export async function getAllPlansAsync(): Promise<PlanDefinition[]> {
 // These read from cache if available, or return hardcoded fallback.
 
 export function getPlan(planId: string): PlanDefinition | null {
-  if (planCache) return planCache[planId as PlanId] || null;
-  return PLANS_FALLBACK[planId as PlanId] || null;
+  if (!planId) return null;
+  const lower = planId.toLowerCase().trim();
+  const mapped = lower === 'free' ? 'spark' : (lower === 'enterprise' ? 'studio' : lower);
+  if (planCache && mapped in planCache) return planCache[mapped as PlanId] || null;
+  return PLANS_FALLBACK[mapped as PlanId] || null;
 }
 
 export function getPlanPrice(planId: PlanId, cycle: BillingCycle, currency: Currency): number {

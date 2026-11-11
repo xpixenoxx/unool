@@ -135,19 +135,14 @@ export class WhopAdapter implements PlatformAdapter {
     };
   }
 
-  async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
-    // Whop doesn't currently support programmatic post creation via API.
-    // We log the attempt and return a success placeholder so the publish
-    // pipeline doesn't break. Users should use the Whop dashboard to post.
-    logger.warn('Whop publish called — Whop API does not support post creation yet', {
+  async publish(_accessToken: string, input: PublishInput): Promise<PublishResult> {
+    logger.warn('Whop publish rejected — Whop API does not support programmatic post creation', {
       contentLength: input.content.length,
     });
 
-    return {
-      platformPostId: `whop-${Date.now()}`,
-      platformUrl: 'https://whop.com',
-      publishedAt: new Date(),
-    };
+    throw new Error(
+      'Whop API does not support programmatic post creation. Please post directly in your Whop dashboard.'
+    );
   }
 
   async deletePost(_accessToken: string, _platformPostId: string): Promise<void> {

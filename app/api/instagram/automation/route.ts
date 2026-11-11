@@ -5,6 +5,7 @@ import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
+import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 
 
 // GET /api/instagram/automation?workspaceId=xxx
@@ -145,6 +146,50 @@ export async function PUT(request: NextRequest) {
     // Verify user has access to this workspace
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    // Enforce subscription feature entitlements for paid-only automation capabilities
+    const planCtx = await getPlanContext(user.id, workspaceId);
+    if (planCtx) {
+      if (rest.dmAutoReplyEnabled === true && !planCtx.features.dm_concierge) {
+        return NextResponse.json(
+          {
+            error: 'Instagram DM Concierge requires Creator, Pro, or Studio plan.',
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCtx.plan,
+            feature: 'dm_concierge',
+          },
+          { status: 403 }
+        );
+      }
+
+      if (
+        typeof rest.dmKnowledgeBase === 'string' &&
+        rest.dmKnowledgeBase.trim().length > 0 &&
+        !planCtx.features.dm_concierge_full
+      ) {
+        return NextResponse.json(
+          {
+            error: 'Full DM Concierge with Knowledge Base requires Pro or Studio plan.',
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCtx.plan,
+            feature: 'dm_concierge_full',
+          },
+          { status: 403 }
+        );
+      }
+
+      if (rest.autoHideSpam === true && !planCtx.features.auto_hide_spam) {
+        return NextResponse.json(
+          {
+            error: 'Auto-Hide Spam requires Creator, Pro, or Studio plan.',
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCtx.plan,
+            feature: 'auto_hide_spam',
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const globalAutomationEnabled = await isAutomationEnabledServer();
     if (!globalAutomationEnabled) {

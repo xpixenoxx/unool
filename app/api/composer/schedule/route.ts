@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
+import { planEnforcement, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
 import { scheduleService } from '@/lib/services/ScheduleService';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { logger } from '@/lib/logger';
@@ -17,7 +17,7 @@ export const maxDuration = 120;
  * Accepts the reviewed/approved arc and creates all scheduled posts + QStash tasks.
  */
 export async function POST(request: NextRequest) {
-  return planEnforcement.scheduling(request, async (request) => {
+  return planEnforcement.scheduling(request, async (request, planCtx) => {
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -37,6 +37,53 @@ export async function POST(request: NextRequest) {
 
     if (!posts || !Array.isArray(posts) || posts.length === 0) {
       return NextResponse.json({ error: 'No posts provided to schedule' }, { status: 400 });
+    }
+
+    // Enforce batch post quota: ensure scheduling `posts.length` posts does not exceed `posts_per_month`
+    const postsPerMonthLimit = planCtx.limits.posts_per_month;
+    if (typeof postsPerMonthLimit === 'number' && postsPerMonthLimit > 0) {
+      const currentUsage = Number(request.headers.get('X-Quota-Usage') || 0);
+      const { supabaseAdmin } = await import('@/lib/supabase/admin');
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const { count } = await supabaseAdmin
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId)
+        .in('status', ['published', 'scheduled'])
+        .gte('created_at', monthStart.toISOString());
+      const effectiveUsed = typeof count === 'number' ? count : currentUsage;
+      if (effectiveUsed + posts.length > postsPerMonthLimit) {
+        return NextResponse.json(
+          {
+            error: `Scheduling ${posts.length} post(s) would exceed your monthly limit of ${postsPerMonthLimit} posts (${effectiveUsed} already used). Upgrade to Creator or Pro for unlimited posts.`,
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCtx.plan,
+            limit: postsPerMonthLimit,
+            currentUsage: effectiveUsed,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Enforce first_comment feature gate if any post explicitly requests autoFirstComment
+    const requestsFirstComment = posts.some((p: any) =>
+      Array.isArray(p.platforms) && p.platforms.some((pf: any) => pf.autoFirstComment === true && pf.firstCommentHint)
+    );
+    if (requestsFirstComment) {
+      const firstCommentGate = await enforcePlanLimit(request, 'first_comment', planCtx);
+      if (!firstCommentGate.allowed) {
+        return NextResponse.json(
+          {
+            error: firstCommentGate.error?.message || 'Auto First Comment requires Pro or Studio plan',
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCtx.plan,
+          },
+          { status: 403, headers: firstCommentGate.headers }
+        );
+      }
     }
 
     const profile = await profileRepository.findByWorkspaceId(workspaceId);

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import type { Plan } from '@/lib/repositories/interfaces/IAdminRepository';
-import { getPlan, type PlanId } from '@/lib/billing/plans';
+import { getPlan, normalizePlanId, PLANS_FALLBACK, type PlanId } from '@/lib/billing/plans';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
 
@@ -13,31 +13,57 @@ import { logger } from '@/lib/logger';
 
 export interface PlanLimits {
   posts_per_month?: number;
+  channels?: number;
   profiles?: number;
+  workspaces?: number;
   api_access?: boolean;
   team_seats?: number;
   ai_adaptations_per_month?: number;
   ai_credits_per_month?: number;
+  ig_comments_per_month?: number;
+  linkedin_comments_per_month?: number;
+  brand_voices?: number;
   media_uploads_per_month?: number;
   analytics_retention_days?: number;
   custom_domain?: boolean;
+  template_count?: number;
 }
 
 export interface PlanFeatures {
   posts_per_month?: number;
+  channels?: number;
   profiles?: number;
+  workspaces?: number;
   api_access?: boolean;
   analytics_retention_days?: number;
   custom_domain?: boolean;
+  badge_removal?: boolean;
+  dm_concierge?: boolean;
+  dm_concierge_full?: boolean;
+  lead_scoring?: boolean;
+  follow_to_unlock?: boolean;
+  flightplan_ai?: boolean;
+  first_comment?: boolean;
+  content_humanizer?: boolean;
+  auto_hide_spam?: boolean;
+  csv_export?: boolean;
+  white_label?: boolean;
+  approval_workflows?: boolean;
+  priority_support?: boolean;
   team_seats?: number;
   ai_adaptations_per_month?: number;
+  ai_credits_per_month?: number;
+  ig_comments_per_month?: number;
+  linkedin_comments_per_month?: number;
+  brand_voices?: number;
   media_uploads_per_month?: number;
+  template_count?: number;
 }
 
 export interface WorkspacePlanInfo {
   planId: string;
   planName: string;
-  planStatus: 'active' | 'past_due' | 'canceled' | 'trialing' | 'paused';
+  planStatus: 'active' | 'past_due' | 'canceled' | 'cancelled' | 'expired' | 'trialing' | 'paused';
   planExpiresAt: string | null;
   limits: PlanLimits;
   features: PlanFeatures;
@@ -50,6 +76,10 @@ export interface UsageSnapshot {
   aiAdaptationsThisMonth: number | null;
   mediaUploadsThisMonth: number | null;
   apiCallsToday: number | null;
+  connectedChannels?: number | null;
+  igCommentsThisMonth?: number | null;
+  linkedinCommentsThisMonth?: number | null;
+  brandVoices?: number | null;
 }
 
 export interface LimitCheckResult {
@@ -82,7 +112,22 @@ export type PlanAction =
   | 'priority_support'
   | 'api_keys'
   | 'webhooks'
-  | 'export_data';
+  | 'export_data'
+  | 'connect_channel'
+  | 'ig_comment_reply'
+  | 'linkedin_comment_reply'
+  | 'brand_voice'
+  | 'flightplan_ai'
+  | 'content_humanizer'
+  | 'first_comment'
+  | 'dm_concierge'
+  | 'dm_concierge_full'
+  | 'lead_scoring'
+  | 'auto_hide_spam'
+  | 'csv_export'
+  | 'approval_workflows'
+  | 'follow_to_unlock'
+  | 'badge_removal';
 
 // ============================================================
 // PLAN CACHE (in-memory, short TTL)
@@ -131,8 +176,11 @@ async function setCachedPlanInRedis(planId: string, plan: Plan): Promise<void> {
 }
 
 async function getPlanFromCache(planId: string): Promise<Plan | null> {
+  const normalizedId = normalizePlanId(planId);
+  const planDef = getPlan(normalizedId) || PLANS_FALLBACK.spark;
+
   // Check Redis cache first
-  const cached = await getCachedPlanFromRedis(planId);
+  const cached = await getCachedPlanFromRedis(normalizedId);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.plan;
   }
@@ -141,44 +189,61 @@ async function getPlanFromCache(planId: string): Promise<Plan | null> {
   const { data, error } = await supabaseAdmin
     .from('plans')
     .select('*')
-    .eq('id', planId)
+    .eq('id', normalizedId)
     .single();
 
   if (error || !data) {
-    const planDef = getPlan(planId as PlanId);
-    if (!planDef) return null;
     const fallbackPlan: Plan = {
       id: planDef.id,
       name: planDef.name,
       description: planDef.tagline,
       priceMonthlyUsd: (planDef.pricing?.USD?.monthly || 0) / 100,
       priceYearlyUsd: (planDef.pricing?.USD?.annual || 0) / 100,
-      features: planDef.features as unknown as Record<string, unknown>,
-      limits: planDef.limits as unknown as Record<string, unknown>,
+      features: { ...planDef.features, template_count: planDef.templateCount } as unknown as Record<string, unknown>,
+      limits: {
+        ...planDef.limits,
+        profiles: planDef.limits.workspaces,
+        ai_adaptations_per_month: planDef.limits.ai_credits_per_month,
+        template_count: planDef.templateCount,
+      } as unknown as Record<string, unknown>,
       isActive: true,
       sortOrder: planDef.sortOrder,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    await setCachedPlanInRedis(planId, fallbackPlan);
+    await setCachedPlanInRedis(normalizedId, fallbackPlan);
     return fallbackPlan;
   }
 
-  const plan: Plan = {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    priceMonthlyUsd: data.price_monthly_usd,
-    priceYearlyUsd: data.price_yearly_usd,
-    features: data.features || {},
-    limits: data.limits || {},
-    isActive: data.is_active,
-    sortOrder: data.sort_order,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+  const mergedLimits = {
+    ...planDef.limits,
+    profiles: planDef.limits.workspaces,
+    ai_adaptations_per_month: planDef.limits.ai_credits_per_month,
+    template_count: planDef.templateCount,
+    ...(data.limits || {}),
   };
 
-  await setCachedPlanInRedis(planId, plan);
+  const mergedFeatures = {
+    ...planDef.features,
+    template_count: planDef.templateCount,
+    ...(data.features || {}),
+  };
+
+  const plan: Plan = {
+    id: data.id,
+    name: data.name || planDef.name,
+    description: data.description || planDef.tagline,
+    priceMonthlyUsd: data.price_monthly_usd ?? (planDef.pricing?.USD?.monthly || 0) / 100,
+    priceYearlyUsd: data.price_yearly_usd ?? (planDef.pricing?.USD?.annual || 0) / 100,
+    features: mergedFeatures,
+    limits: mergedLimits,
+    isActive: data.is_active ?? true,
+    sortOrder: data.sort_order ?? planDef.sortOrder,
+    createdAt: data.created_at || new Date().toISOString(),
+    updatedAt: data.updated_at || new Date().toISOString(),
+  };
+
+  await setCachedPlanInRedis(normalizedId, plan);
   return plan;
 }
 
@@ -214,7 +279,8 @@ export async function getWorkspacePlanInfo(workspaceId: string): Promise<Workspa
 
     if (!ws) return null;
 
-    const plan = await getPlanFromCache(ws.plan);
+    const normalizedPlan = normalizePlanId(ws.plan);
+    const plan = await getPlanFromCache(normalizedPlan);
     if (!plan) return null;
 
     return {
@@ -227,17 +293,18 @@ export async function getWorkspacePlanInfo(workspaceId: string): Promise<Workspa
     };
   }
 
-  // The view should have plan_limits and plan_features computed
-  const plan = await getPlanFromCache(data.plan);
+  const normalizedPlan = normalizePlanId(data.plan);
+  // The view should have plan_limits and plan_features computed, merged over canonical defaults
+  const plan = await getPlanFromCache(normalizedPlan);
   if (!plan) return null;
 
   return {
-    planId: data.plan,
+    planId: normalizedPlan,
     planName: plan.name,
     planStatus: data.plan_status || 'active',
     planExpiresAt: data.plan_expires_at,
-    limits: (data.plan_limits || plan.limits) as PlanLimits,
-    features: (data.plan_features || plan.features) as PlanFeatures,
+    limits: { ...(plan.limits as PlanLimits), ...(data.plan_limits || {}) } as PlanLimits,
+    features: { ...(plan.features as PlanFeatures), ...(data.plan_features || {}) } as PlanFeatures,
   };
 }
 
@@ -256,7 +323,7 @@ export async function getUsageSnapshot(workspaceId: string): Promise<UsageSnapsh
       .from('posts')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
-      .eq('status', 'published')
+      .in('status', ['published', 'scheduled'])
       .gte('created_at', monthStart.toISOString()),
 
     supabaseAdmin
@@ -286,6 +353,24 @@ export async function getUsageSnapshot(workspaceId: string): Promise<UsageSnapsh
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .gte('created_at', dayStart.toISOString()),
+
+    supabaseAdmin
+      .from('platform_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'connected'),
+
+    supabaseAdmin
+      .from('instagram_comment_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('replied', true)
+      .gte('created_at', monthStart.toISOString()),
+
+    supabaseAdmin
+      .from('brand_materials_pages')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId),
   ]);
 
   // Extract counts — null means query failed (unknown usage), not zero
@@ -308,6 +393,10 @@ export async function getUsageSnapshot(workspaceId: string): Promise<UsageSnapsh
     aiAdaptationsThisMonth: safeCount(results[3]),
     mediaUploadsThisMonth: safeCount(results[4]),
     apiCallsToday: safeCount(results[5]),
+    connectedChannels: safeCount(results[6]),
+    igCommentsThisMonth: safeCount(results[7]),
+    linkedinCommentsThisMonth: 0,
+    brandVoices: safeCount(results[8]),
   };
 }
 
@@ -347,7 +436,7 @@ function checkLimit(
 
 export async function enforcePlanLimits(
   workspaceId: string,
-  action: 'create_post' | 'create_profile' | 'invite_member' | 'use_ai' | 'upload_media' | 'api_access' | 'custom_domain'
+  action: PlanAction
 ): Promise<PlanEnforcementResult> {
   const planInfo = await getWorkspacePlanInfo(workspaceId);
 
@@ -357,12 +446,12 @@ export async function enforcePlanLimits(
       allowed: false,
       checks: {},
       workspacePlan: {
-        planId: 'free',
-        planName: 'Free',
+        planId: 'spark',
+        planName: 'Spark',
         planStatus: 'active',
         planExpiresAt: null,
-        limits: {},
-        features: {},
+        limits: PLANS_FALLBACK.spark.limits,
+        features: PLANS_FALLBACK.spark.features,
       },
     };
   }
@@ -403,9 +492,11 @@ export async function enforcePlanLimits(
 
   const usage = await getUsageSnapshot(workspaceId);
   const checks: Record<string, LimitCheckResult> = {};
+  const nextMonthIso = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString();
 
   switch (action) {
-    case 'create_post': {
+    case 'create_post':
+    case 'scheduling': {
       const limit = planInfo.limits.posts_per_month;
       if (usage.postsThisMonth === null) {
         return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
@@ -414,19 +505,20 @@ export async function enforcePlanLimits(
         'Posts per month',
         usage.postsThisMonth,
         limit,
-        new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
+        nextMonthIso
       );
       break;
     }
     case 'create_profile': {
-      const limit = planInfo.limits.profiles;
+      const limit = planInfo.limits.profiles ?? planInfo.limits.workspaces;
       if (usage.profiles === null) {
         return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
       }
       checks.profiles = checkLimit('Profiles', usage.profiles, limit);
       break;
     }
-    case 'invite_member': {
+    case 'invite_member':
+    case 'team_collaboration': {
       const limit = planInfo.limits.team_seats;
       if (usage.teamMembers === null) {
         return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
@@ -435,16 +527,42 @@ export async function enforcePlanLimits(
       break;
     }
     case 'use_ai': {
-      const limit = planInfo.limits.ai_adaptations_per_month ?? planInfo.limits.ai_credits_per_month;
+      const limit = planInfo.limits.ai_credits_per_month ?? planInfo.limits.ai_adaptations_per_month;
       if (usage.aiAdaptationsThisMonth === null) {
         return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify usage (service error). Please try again.' } }, workspacePlan: planInfo };
       }
       checks.ai_adaptations_per_month = checkLimit(
-        'AI adaptations per month',
+        'AI credits per month',
         usage.aiAdaptationsThisMonth,
         limit,
-        new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
+        nextMonthIso
       );
+      break;
+    }
+    case 'connect_channel': {
+      const limit = planInfo.limits.channels;
+      if (usage.connectedChannels === null || usage.connectedChannels === undefined) {
+        return { allowed: false, checks: { usage_error: { allowed: false, limit: 0, current: 0, remaining: 0, message: 'Unable to verify connected channels.' } }, workspacePlan: planInfo };
+      }
+      checks.channels = checkLimit('Connected channels', usage.connectedChannels, limit);
+      break;
+    }
+    case 'ig_comment_reply': {
+      const limit = planInfo.limits.ig_comments_per_month;
+      const current = usage.igCommentsThisMonth ?? 0;
+      checks.ig_comments_per_month = checkLimit('Instagram comments per month', current, limit, nextMonthIso);
+      break;
+    }
+    case 'linkedin_comment_reply': {
+      const limit = planInfo.limits.linkedin_comments_per_month;
+      const current = usage.linkedinCommentsThisMonth ?? 0;
+      checks.linkedin_comments_per_month = checkLimit('LinkedIn comments per month', current, limit, nextMonthIso);
+      break;
+    }
+    case 'brand_voice': {
+      const limit = planInfo.limits.brand_voices;
+      const current = usage.brandVoices ?? 0;
+      checks.brand_voices = checkLimit('Brand voices', current, limit);
       break;
     }
     case 'upload_media': {
@@ -456,18 +574,20 @@ export async function enforcePlanLimits(
         'Media uploads per month',
         usage.mediaUploadsThisMonth,
         limit,
-        new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
+        nextMonthIso
       );
       break;
     }
-    case 'api_access': {
+    case 'api_access':
+    case 'api_keys':
+    case 'webhooks': {
       const hasAccess = planInfo.features.api_access === true || planInfo.limits.api_access === true;
       checks.api_access = {
         allowed: hasAccess,
         limit: hasAccess ? -1 : 0,
         current: usage.apiCallsToday ?? 0,
         remaining: hasAccess ? -1 : 0,
-        message: hasAccess ? undefined : 'API access not included in your plan',
+        message: hasAccess ? undefined : 'API access not included in your plan (Studio required)',
       };
       break;
     }
@@ -478,7 +598,32 @@ export async function enforcePlanLimits(
         limit: hasAccess ? -1 : 0,
         current: 0,
         remaining: hasAccess ? -1 : 0,
-        message: hasAccess ? undefined : 'Custom domain not included in your plan',
+        message: hasAccess ? undefined : 'Custom domain not included in your plan (Pro or Studio required)',
+      };
+      break;
+    }
+    case 'flightplan_ai':
+    case 'content_humanizer':
+    case 'first_comment':
+    case 'dm_concierge':
+    case 'dm_concierge_full':
+    case 'lead_scoring':
+    case 'auto_hide_spam':
+    case 'csv_export':
+    case 'export_data':
+    case 'white_label':
+    case 'priority_support':
+    case 'approval_workflows':
+    case 'follow_to_unlock':
+    case 'badge_removal': {
+      const featureKey = action === 'export_data' ? 'csv_export' : action;
+      const hasAccess = planInfo.features[featureKey as keyof PlanFeatures] === true;
+      checks[featureKey] = {
+        allowed: hasAccess,
+        limit: hasAccess ? -1 : 0,
+        current: 0,
+        remaining: hasAccess ? -1 : 0,
+        message: hasAccess ? undefined : `Feature '${featureKey}' is not included in your current plan (${planInfo.planName}).`,
       };
       break;
     }
@@ -498,7 +643,7 @@ export async function enforcePlanLimits(
 // ============================================================
 
 export interface PlanEnforcementOptions {
-  action: 'create_post' | 'create_profile' | 'invite_member' | 'use_ai' | 'upload_media' | 'api_access' | 'custom_domain';
+  action: PlanAction;
   errorMessage?: string;
 }
 

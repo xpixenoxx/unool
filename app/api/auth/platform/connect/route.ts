@@ -7,6 +7,7 @@ import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +120,35 @@ export async function GET(request: NextRequest) {
   if (!adapter) {
     logger.warn('Platform connect: unsupported platform', { platform });
     return NextResponse.redirect(new URL(`${errorRedirect}?error=unsupported_platform&platform=${platform}`, request.url));
+  }
+
+  // Enforce plan channel limit (allow reconnecting an already-connected platform)
+  try {
+    const planCtx = await getPlanContext(userId, workspaceId);
+    const channelLimit = planCtx?.limits?.channels;
+    if (planCtx && typeof channelLimit === 'number' && channelLimit > 0) {
+      const { data: connectedRows } = await supabaseAdmin
+        .from('platform_connections')
+        .select('platform')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'connected');
+
+      const connectedPlatforms = new Set((connectedRows || []).map((r: any) => r.platform));
+      if (!connectedPlatforms.has(platform) && connectedPlatforms.size >= channelLimit) {
+        logger.warn('Platform connect: channel limit reached for plan', {
+          workspaceId,
+          plan: planCtx.plan,
+          connectedCount: connectedPlatforms.size,
+          channelLimit,
+          platform,
+        });
+        return NextResponse.redirect(
+          new URL(`${errorRedirect}?error=channel_limit_exceeded&limit=${channelLimit}&plan=${planCtx.plan}`, request.url)
+        );
+      }
+    }
+  } catch (limitErr) {
+    logger.warn('Platform connect: failed to check channel limit', { error: limitErr, workspaceId });
   }
 
   // Ensure adapter has credentials configured before redirecting to provider

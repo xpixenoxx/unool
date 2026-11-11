@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ContentHumanizer } from '@/lib/ai/engines';
 import { PlatformType } from '@/lib/ai/PostAdapter';
+import { getCurrentAuth } from '@/lib/auth/server';
+import { getPlanContext, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
+import { trackAiUsage } from '@/lib/limits/enforcer';
+import { config } from '@/lib/config/schema';
 import { z } from 'zod';
 
 export const maxDuration = 60;
@@ -14,11 +18,6 @@ export const maxDuration = 60;
  * - Strips invisible Unicode watermark characters
  * - Fixes symmetric AI sentence structures
  * - Returns a 5-check panel score (0-100)
- *
- * Works for ALL platforms. Platform param used only to preserve
- * markdown formatting on Hashnode / Dev.to / Medium / Listmonk.
- *
- * No AI call — pure deterministic regex pipeline.
  */
 
 const RequestSchema = z.object({
@@ -29,6 +28,11 @@ const RequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getCurrentAuth(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = RequestSchema.safeParse(body);
 
@@ -47,7 +51,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ diagnosis, needsHumanizing });
     }
 
+    const planCtx = await getPlanContext(auth.userId, auth.workspaceId);
+    if (!planCtx) {
+      return NextResponse.json({ error: 'Failed to retrieve plan information' }, { status: 500 });
+    }
+
+    const humanizerCheck = await enforcePlanLimit(request, 'content_humanizer', planCtx);
+    if (!humanizerCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: humanizerCheck.error?.message || 'Content Humanizer requires Pro or Studio plan',
+          code: 'PLAN_LIMIT_EXCEEDED',
+          plan: planCtx.plan,
+        },
+        { status: 403, headers: humanizerCheck.headers }
+      );
+    }
+
+    const aiCheck = await enforcePlanLimit(request, 'use_ai', planCtx);
+    if (!aiCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: aiCheck.error?.message || 'Monthly AI credit limit reached',
+          code: 'PLAN_LIMIT_EXCEEDED',
+          plan: planCtx.plan,
+          limit: aiCheck.error?.limit,
+          currentUsage: aiCheck.error?.currentUsage,
+        },
+        { status: 403, headers: aiCheck.headers }
+      );
+    }
+
     const result = await ContentHumanizer.humanizeWithAI(content, platform as PlatformType | undefined);
+
+    try {
+      await trackAiUsage(
+        auth.workspaceId,
+        auth.userId,
+        Math.ceil(content.length / 4),
+        Math.ceil((result.humanized?.length || content.length) / 4),
+        'content-humanizer',
+        config.AI_DEFAULT_MODEL
+      );
+    } catch {
+      // Non-fatal usage tracking
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
