@@ -176,11 +176,11 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
     } else if (idx === 2) {
       baseCopy = data.whatWentWrong
         ? `${tmpl.prefix}${data.whatWentWrong}. The obstacle that forced our pivot.`
-        : `The challenge: 35% of users dropped off before ever seeing the value. Our process was the bottleneck.`;
+        : `The challenge we ran into: ${data.coreStory.slice(0, 140)}`;
     } else if (idx === 3) {
       baseCopy = data.oneRealNumber
-        ? `${tmpl.prefix}${data.oneRealNumber}. Measurable impact in just 3 weeks.`
-        : `The numbers: +47 new accounts in 3 weeks, and churn dropped by 35%.`;
+        ? `${tmpl.prefix}${data.oneRealNumber}. Here is what the real-world feedback showed us.`
+        : `What the real-world results showed us: ${data.coreStory.slice(0, 140)}`;
     } else if (idx === 4) {
       baseCopy = `Want to see how this works in practice? Try our new flow free, plan your first week in minutes, and tell us what we should build next.`;
     } else if (idx === 5) {

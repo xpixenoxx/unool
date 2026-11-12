@@ -1,7 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { scheduleService } from '@/lib/services/ScheduleService';
+import { SupabaseWorkspaceRepository } from '@/lib/repositories/supabase/SupabaseWorkspaceRepository';
 import { logger } from '@/lib/logger';
+
+const workspaceRepository = new SupabaseWorkspaceRepository();
 
 /**
  * GET /api/composer/schedule/week
@@ -41,7 +44,38 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const canvas = await scheduleService.getWeekCanvas(workspaceId, weekStart);
+    // Non-blocking background self-heal for any overdue posts in this workspace
+    try {
+      after(async () => {
+        try {
+          const healRes = await scheduleService.processDueScheduledPosts(workspaceId);
+          if (healRes.processed > 0) {
+            logger.info('Self-healed due scheduled posts on week canvas load', {
+              workspaceId,
+              ...healRes,
+            });
+          }
+        } catch (healErr) {
+          logger.warn('Failed to self-heal due scheduled posts on week canvas load', {
+            workspaceId,
+            error: healErr instanceof Error ? healErr.message : String(healErr),
+          });
+        }
+      });
+    } catch {
+      // Ignore if called outside Next.js request scope (e.g. unit tests)
+    }
+
+    const [canvas, workspace] = await Promise.all([
+      scheduleService.getWeekCanvas(workspaceId, weekStart),
+      workspaceRepository.findById(workspaceId).catch(() => null),
+    ]);
+
+    const rawHeldUntil = (workspace?.settings as Record<string, unknown> | null)?.queue_held_until;
+    const queueHeldUntil =
+      typeof rawHeldUntil === 'string' && new Date(rawHeldUntil) > new Date()
+        ? rawHeldUntil
+        : null;
 
     // Look up platform_posts for published variants to get live platform URLs
     const allVariants = canvas.flatMap(({ variants }) => variants);
@@ -67,7 +101,9 @@ export async function GET(request: NextRequest) {
 
     // Shape the response for the frontend
     const posts = canvas.map(({ post, variants }) => {
-      const effectiveStatus = (post.status === 'published' || variants.some(v => v.status === 'published'))
+      const hasPublishedVariant = variants.some(v => v.status === 'published');
+      const hasFailedVariants = variants.some(v => v.status === 'failed');
+      const effectiveStatus = (post.status === 'published' || hasPublishedVariant)
         ? 'published'
         : post.status;
 
@@ -75,9 +111,11 @@ export async function GET(request: NextRequest) {
         postId: post.id,
         content: post.content,
         status: effectiveStatus,
+        hasFailedVariants,
         scheduledAt: post.scheduledAt?.toISOString() ?? null,
         scheduleStrategy: post.scheduleStrategy,
         arcId: post.arcId,
+        arcBeat: post.arcBeat ?? null,
         createdAt: post.createdAt.toISOString(),
         platforms: variants.map(v => ({
           variantId: v.id,
@@ -100,6 +138,7 @@ export async function GET(request: NextRequest) {
       success: true,
       weekStart: weekStart.toISOString(),
       weekEnd: new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      queueHeldUntil,
       posts,
     });
   } catch (error) {

@@ -57,6 +57,29 @@ export function PlatformTabs({
             {!compact && <span className={cn('hidden sm:inline', !isEnabled && 'line-through')}>
               {p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}
             </span>}
+            {onToggleEnabled && (
+              <span
+                role="checkbox"
+                aria-checked={isEnabled}
+                aria-label={`${isEnabled ? 'Disable' : 'Enable'} ${p.platform}`}
+                tabIndex={0}
+                onClick={e => {
+                  e.stopPropagation();
+                  onToggleEnabled(idx);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleEnabled(idx);
+                  }
+                }}
+                className="ml-1 inline-flex items-center justify-center rounded px-1 text-[10px] hover:opacity-80"
+                title={isEnabled ? `Click to exclude ${p.platform}` : `Click to include ${p.platform}`}
+              >
+                {isEnabled ? '✓' : '✕'}
+              </span>
+            )}
           </button>
         );
       })}

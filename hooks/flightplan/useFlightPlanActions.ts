@@ -18,10 +18,17 @@ import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
 const GENERATION_TIMEOUT = FLIGHTPLAN_CONSTANTS.GENERATION_TIMEOUT_MS;
 
 /**
- * Generate idempotency key for scheduling
+ * Generate a deterministic idempotency key for a given arc approval so rapid
+ * double-clicks or network retries deduplicate against the same key on the server.
  */
-function generateIdempotencyKey(): string {
-  return `${FLIGHTPLAN_CONSTANTS.IDEMPOTENCY_KEY_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+function generateIdempotencyKey(arc: WeekArc, storyData: StoryIntakeData): string {
+  const rawSeed = `${storyData.weekStartDate || ''}|${arc.arcTitle || ''}|${(storyData.coreStory || '').slice(0, 120)}|${arc.weekPosts.length}`;
+  let hash = 5381;
+  for (let i = 0; i < rawSeed.length; i++) {
+    hash = ((hash << 5) + hash) ^ rawSeed.charCodeAt(i);
+  }
+  const unsigned = (hash >>> 0).toString(36);
+  return `${FLIGHTPLAN_CONSTANTS.IDEMPOTENCY_KEY_PREFIX}${storyData.weekStartDate || 'week'}_${unsigned}`;
 }
 
 /**
@@ -96,7 +103,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
 
   const approve = useCallback(async (arc: WeekArc, storyData: StoryIntakeData): Promise<boolean> => {
     try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const tz = storyData.audienceTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       const activePosts = arc.weekPosts
         .filter(p => !p.deleted)
         .filter(p => p.platforms.some(pf => pf.enabled !== false));
@@ -106,7 +113,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
         return false;
       }
 
-      const idempotencyKey = generateIdempotencyKey();
+      const idempotencyKey = generateIdempotencyKey(arc, storyData);
 
       const request: ScheduleFlightPlanRequest = {
         arcTitle: arc.arcTitle,

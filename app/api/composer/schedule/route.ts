@@ -33,10 +33,37 @@ export async function POST(request: NextRequest) {
       userTimezone,        // e.g. "Asia/Kolkata"
       posts,               // Array of posts from the arc review screen
       scheduleMode,        // 'arc' | 'single'
+      idempotencyKey,      // Optional client-supplied idempotency key
     } = body;
 
     if (!posts || !Array.isArray(posts) || posts.length === 0) {
       return NextResponse.json({ error: 'No posts provided to schedule' }, { status: 400 });
+    }
+
+    // Reject inline Base64 data: URLs to prevent multi-MB database/queue bloat (BUG-09)
+    const hasDataUri = posts.some((p: any) => {
+      if (typeof p.imageUrl === 'string' && p.imageUrl.trim().toLowerCase().startsWith('data:')) {
+        return true;
+      }
+      if (Array.isArray(p.imageUrls) && p.imageUrls.some((u: any) => typeof u === 'string' && u.trim().toLowerCase().startsWith('data:'))) {
+        return true;
+      }
+      if (Array.isArray(p.platforms)) {
+        return p.platforms.some((pf: any) =>
+          Array.isArray(pf.mediaUrls) &&
+          pf.mediaUrls.some((m: any) => {
+            const url = typeof m === 'string' ? m : m?.url;
+            return typeof url === 'string' && url.trim().toLowerCase().startsWith('data:');
+          })
+        );
+      }
+      return false;
+    });
+    if (hasDataUri) {
+      return NextResponse.json(
+        { error: 'Inline Base64 data: URLs are not allowed. Please upload media files before scheduling.' },
+        { status: 400 }
+      );
     }
 
     // Enforce batch post quota: ensure scheduling `posts.length` posts does not exceed `posts_per_month`
@@ -68,9 +95,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Enforce first_comment feature gate if any post explicitly requests autoFirstComment
+    // Enforce first_comment feature gate if any post explicitly requests autoFirstComment (boolean or non-empty string)
     const requestsFirstComment = posts.some((p: any) =>
-      Array.isArray(p.platforms) && p.platforms.some((pf: any) => pf.autoFirstComment === true && pf.firstCommentHint)
+      Array.isArray(p.platforms) &&
+      p.platforms.some(
+        (pf: any) =>
+          (pf.autoFirstComment === true && Boolean(pf.firstCommentHint)) ||
+          (typeof pf.autoFirstComment === 'string' && pf.autoFirstComment.trim().length > 0)
+      )
     );
     if (requestsFirstComment) {
       const firstCommentGate = await enforcePlanLimit(request, 'first_comment', planCtx);
@@ -127,6 +159,7 @@ export async function POST(request: NextRequest) {
         storyType: storyType || 'shipped',
         weekStartDate: weekStart,
         userTimezone: userTimezone || 'UTC',
+        idempotencyKey: typeof idempotencyKey === 'string' && idempotencyKey.trim() ? idempotencyKey.trim() : undefined,
         posts: posts.map((p: any) => ({
           day: p.day,
           scheduledHour: p.scheduledHour ?? 9,
@@ -215,6 +248,7 @@ export async function POST(request: NextRequest) {
       baseScheduledAt: scheduledAt,
       strategy: (singlePost.strategy ?? 'simultaneous') as ScheduleStrategy,
       postId: singlePost.postId,
+      arcBeat: singlePost.arcBeat,
       platforms: (singlePost.platforms ?? []).map((p: any) => {
         const rawContent = p.content || '';
         const validation = ContentGuard.validateForBroadcast(rawContent, { route: 'composer/schedule/single' });

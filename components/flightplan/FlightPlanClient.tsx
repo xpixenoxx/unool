@@ -1,18 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { format, startOfWeek } from 'date-fns';
+import { AnimatePresence } from 'framer-motion';
+import { format } from 'date-fns';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import { StoryIntake } from './StoryIntake';
 import { ReviewScreen } from './ReviewScreen';
 import { WeekCanvas } from './WeekCanvas';
-import { generateClientFallbackArc } from './fallbackArc';
 import { useFlightPlanActions } from '@/hooks/flightplan';
+import { registerClientCacheReset, syncClientCacheScope } from '@/lib/utils/clientCache';
 import type { WeekArc, ViewMode, PlatformType, StoryIntakeData } from '@/types/flightplan';
-import { B, MOTION } from './design-tokens';
+import { B } from './design-tokens';
 import './flightplan.css';
 
 interface FlightPlanInnerProps {
@@ -78,7 +78,15 @@ function WritingWeekView() {
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 let memoryConnectedPlatforms: PlatformType[] | null = null;
 
+registerClientCacheReset(() => {
+  memoryConnectedPlatforms = null;
+});
+
 function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
+  useEffect(() => {
+    syncClientCacheScope(userId, workspaceId);
+  }, [userId, workspaceId]);
+
   const searchParams = useSearchParams();
   const targetPostId = searchParams?.get('postId') || null;
   const [view, setView] = useState<ViewMode>('canvas');
@@ -88,7 +96,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const [isPreviewOnly, setIsPreviewOnly] = useState(false);
   const [storyData, setStoryData] = useState<StoryIntakeData | null>(null);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>(() => memoryConnectedPlatforms || []);
-  const [isHoldActive] = useState(false);
+  const [isHoldActive, setIsHoldActive] = useState(false);
 
   const [canvasWeekOffset, setCanvasWeekOffset] = useState<number>(0);
   const [showTourAfterSchedule, setShowTourAfterSchedule] = useState(false);
@@ -120,29 +128,20 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
     setStoryData(data);
 
     try {
-      let generatedArc: WeekArc | null = null;
-      try {
-        generatedArc = await generateArc(data);
-      } catch (err) {
-        console.warn('Backend generateArc threw error, using client synthesis fallback:', err);
-      }
+      const generatedArc = await generateArc(data);
 
-      // Resilient fallback: If backend returned null, errored, or timed out, synthesize directly
+      // Do not silently mask quota/validation/API errors with fabricated template posts (BUG-06).
+      // useFlightPlanActions.generate already displays an actionable toast on failure.
       if (!generatedArc) {
-        generatedArc = generateClientFallbackArc(data);
+        return;
       }
-
-      // Brief animation time so user sees the 3-step checklist
-      await new Promise(r => setTimeout(r, 2600));
 
       setIsPreviewOnly(connectedPlatforms.length === 0);
       setArc(generatedArc);
       setView('review');
     } catch (err) {
       console.error('Generation caught exception:', err);
-      const fallback = generateClientFallbackArc(data);
-      setArc(fallback);
-      setView('review');
+      studioToast.generationFailed('Failed to generate week plan. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -252,6 +251,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
                 return storyData.weekStartDate;
               })()
             }
+            audienceTimezone={storyData?.audienceTimezone}
             isPreviewOnly={isPreviewOnly}
             onApprove={handleApprove}
             onBack={() => setView('story')}
@@ -269,6 +269,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             autoTour={showTourAfterSchedule}
             onTourComplete={() => setShowTourAfterSchedule(false)}
             isHoldActive={isHoldActive}
+            onHoldChange={setIsHoldActive}
             connectedPlatforms={connectedPlatforms}
           />
         )}

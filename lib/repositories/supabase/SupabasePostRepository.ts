@@ -1,4 +1,4 @@
-﻿import { config } from '@/lib/config/schema';
+import { config } from '@/lib/config/schema';
 import type { IPostRepository } from '../interfaces/IPostRepository';
 import type {
   Post,
@@ -39,6 +39,7 @@ export class SupabasePostRepository implements IPostRepository {
       qstashMessageId: (row.qstash_message_id as string | null) ?? null,
       scheduleStrategy: (row.schedule_strategy as ScheduleStrategy) ?? 'simultaneous',
       arcId: (row.arc_id as string | null) ?? null,
+      arcBeat: (row.arc_beat as string | null) ?? null,
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
     };
@@ -96,18 +97,30 @@ export class SupabasePostRepository implements IPostRepository {
   }
 
   async create(input: CreatePostInput): Promise<Post> {
+    const insertRow: Record<string, unknown> = {
+      profile_id: input.profileId,
+      workspace_id: input.workspaceId,
+      content: input.content,
+      adaptation_prompt_version: input.adaptationPromptVersion,
+      status: 'draft',
+      version: 1,
+    };
+    if (input.arcBeat !== undefined) {
+      insertRow.arc_beat = input.arcBeat;
+    }
+
     const { data, error } = await this.supabase
       .from('posts')
-      .insert({
-        profile_id: input.profileId,
-        workspace_id: input.workspaceId,
-        content: input.content,
-        adaptation_prompt_version: input.adaptationPromptVersion,
-        status: 'draft',
-        version: 1,
-      })
+      .insert(insertRow)
       .select()
       .single();
+
+    if (error && input.arcBeat !== undefined && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('arc_beat'))) {
+      delete insertRow.arc_beat;
+      const retry = await this.supabase.from('posts').insert(insertRow).select().single();
+      if (retry.error) throw retry.error;
+      return { ...this.mapPostRow(retry.data), arcBeat: input.arcBeat ?? null };
+    }
     if (error) throw error;
     return this.mapPostRow(data);
   }
@@ -121,8 +134,15 @@ export class SupabasePostRepository implements IPostRepository {
     if (data.qstashMessageId !== undefined) updateData.qstash_message_id = data.qstashMessageId;
     if (data.scheduleStrategy !== undefined) updateData.schedule_strategy = data.scheduleStrategy;
     if (data.arcId !== undefined) updateData.arc_id = data.arcId;
+    if (data.arcBeat !== undefined) updateData.arc_beat = data.arcBeat;
 
     const { data: row, error } = await this.supabase.from('posts').update(updateData).eq('id', id).select().single();
+    if (error && data.arcBeat !== undefined && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('arc_beat'))) {
+      delete updateData.arc_beat;
+      const retry = await this.supabase.from('posts').update(updateData).eq('id', id).select().single();
+      if (retry.error) throw retry.error;
+      return { ...this.mapPostRow(retry.data), arcBeat: data.arcBeat ?? null };
+    }
     if (error) throw error;
     return this.mapPostRow(row);
   }
@@ -139,7 +159,7 @@ export class SupabasePostRepository implements IPostRepository {
 
   async claimForPublishing(
     id: string,
-    fromStatus: 'scheduled' | 'publishing' = 'scheduled',
+    fromStatus: 'scheduled' | 'publishing' | 'failed' = 'scheduled',
     staleBefore?: Date,
   ): Promise<Post | null> {
     let query = this.supabase
@@ -187,6 +207,8 @@ export class SupabasePostRepository implements IPostRepository {
         character_count: input.characterCount,
         hashtag_strategy: input.hashtagStrategy,
         first_comment_hint: input.firstCommentHint ?? null,
+        auto_first_comment: input.autoFirstComment ?? null,
+        qstash_message_id: input.qstashMessageId ?? null,
         status: input.status ?? 'draft',
         scheduled_at: input.scheduledAt ? input.scheduledAt.toISOString() : null,
         error: input.error ?? null,
@@ -195,6 +217,53 @@ export class SupabasePostRepository implements IPostRepository {
       .single();
     if (error) throw error;
     return this.mapVariantRow(data);
+  }
+
+  async createVariantsBatch(inputs: CreatePostVariantInput[]): Promise<PostVariant[]> {
+    if (inputs.length === 0) return [];
+    const rows = inputs.map((input) => ({
+      post_id: input.postId,
+      platform: input.platform,
+      adapted_content: input.adaptedContent,
+      media_urls: input.mediaUrls || [],
+      character_count: input.characterCount,
+      hashtag_strategy: input.hashtagStrategy,
+      first_comment_hint: input.firstCommentHint ?? null,
+      auto_first_comment: input.autoFirstComment ?? null,
+      qstash_message_id: input.qstashMessageId ?? null,
+      status: input.status ?? 'draft',
+      scheduled_at: input.scheduledAt ? input.scheduledAt.toISOString() : null,
+      error: input.error ?? null,
+    }));
+
+    const { data, error } = await this.supabase
+      .from('post_variants')
+      .insert(rows)
+      .select();
+    if (error) throw error;
+    return (data || []).map(this.mapVariantRow.bind(this));
+  }
+
+  async claimVariantForPublishing(
+    id: string,
+    fromStatus: 'scheduled' | 'publishing' | 'failed' = 'scheduled',
+    staleBefore?: Date,
+  ): Promise<PostVariant | null> {
+    let query = this.supabase
+      .from('post_variants')
+      .update({ status: 'publishing', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', fromStatus);
+
+    if (fromStatus === 'publishing') {
+      const threshold = staleBefore ?? new Date(Date.now() - 5 * 60 * 1000);
+      query = query.lte('updated_at', threshold.toISOString());
+    }
+
+    const { data, error } = await query.select();
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+    return this.mapVariantRow(data[0]);
   }
 
   async updateVariant(id: string, data: UpdatePostVariantInput): Promise<PostVariant> {
@@ -246,7 +315,7 @@ export class SupabasePostRepository implements IPostRepository {
       .from('posts')
       .select('*')
       .eq('workspace_id', workspaceId)
-      .in('status', ['scheduled', 'published', 'publishing'])
+      .in('status', ['scheduled', 'published', 'publishing', 'failed'])
       .gte('scheduled_at', from.toISOString())
       .lte('scheduled_at', to.toISOString())
       .order('scheduled_at', { ascending: true });
@@ -302,7 +371,22 @@ export class SupabasePostRepository implements IPostRepository {
   }
 
   async findDueScheduledVariants(beforeDate: Date, workspaceId?: string): Promise<PostVariant[]> {
-    let query = this.supabase
+    if (workspaceId) {
+      const { data, error } = await this.supabase
+        .from('post_variants')
+        .select('*, posts!inner(workspace_id)')
+        .eq('status', 'scheduled')
+        .eq('posts.workspace_id', workspaceId)
+        .lte('scheduled_at', beforeDate.toISOString())
+        .order('scheduled_at', { ascending: true })
+        .limit(50);
+
+      if (!error && data) {
+        return data.map(this.mapVariantRow.bind(this));
+      }
+    }
+
+    const query = this.supabase
       .from('post_variants')
       .select('*')
       .eq('status', 'scheduled')
@@ -339,28 +423,71 @@ export class SupabasePostRepository implements IPostRepository {
       startDate: row.start_date as string,
       endDate: row.end_date as string,
       status: row.status as ArcStatus,
+      idempotencyKey: (row.idempotency_key as string | null) ?? null,
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
     };
   }
 
   async createContentArc(input: CreateContentArcInput): Promise<ContentArc> {
+    const insertRow: Record<string, unknown> = {
+      workspace_id: input.workspaceId,
+      profile_id: input.profileId,
+      title: input.title,
+      core_story: input.coreStory,
+      story_type: input.storyType,
+      start_date: input.startDate,
+      end_date: input.endDate,
+      status: 'active',
+    };
+    if (input.idempotencyKey) {
+      insertRow.idempotency_key = input.idempotencyKey;
+    }
+
     const { data, error } = await this.supabase
       .from('content_arcs')
-      .insert({
-        workspace_id: input.workspaceId,
-        profile_id: input.profileId,
-        title: input.title,
-        core_story: input.coreStory,
-        story_type: input.storyType,
-        start_date: input.startDate,
-        end_date: input.endDate,
-        status: 'active',
-      })
+      .insert(insertRow)
       .select()
       .single();
+
+    if (error && input.idempotencyKey && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('idempotency_key'))) {
+      delete insertRow.idempotency_key;
+      const retry = await this.supabase.from('content_arcs').insert(insertRow).select().single();
+      if (retry.error) throw retry.error;
+      return { ...this.mapArcRow(retry.data), idempotencyKey: input.idempotencyKey };
+    }
     if (error) throw error;
     return this.mapArcRow(data);
+  }
+
+  async findContentArcByIdempotencyKey(workspaceId: string, idempotencyKey: string): Promise<ContentArc | null> {
+    if (!idempotencyKey) return null;
+    const { data, error } = await this.supabase
+      .from('content_arcs')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('idempotency_key', idempotencyKey)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('idempotency_key')) {
+        return null;
+      }
+      throw error;
+    }
+    if (!data) return null;
+    return this.mapArcRow(data);
+  }
+
+  async findPostsByArcId(arcId: string): Promise<Post[]> {
+    const { data, error } = await this.supabase
+      .from('posts')
+      .select('*')
+      .eq('arc_id', arcId)
+      .order('scheduled_at', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(this.mapPostRow.bind(this));
   }
 
   async updateContentArc(id: string, data: UpdateContentArcInput): Promise<ContentArc> {

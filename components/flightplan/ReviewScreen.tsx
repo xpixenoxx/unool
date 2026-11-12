@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { format, addDays, isToday, startOfDay, startOfWeek } from 'date-fns';
+import { format, addDays, isToday, startOfDay } from 'date-fns';
 import { BarcodeTicket } from './ui/BarcodeTicket';
 import { HashtagInput } from './ui/HashtagInput';
 import { ImageDropZone } from './ui/ImageDropZone';
@@ -11,12 +11,13 @@ import { studioToast } from '@/components/dashboard/StudioToast';
 import { extractMediaFilename } from '@/hooks/flightplan';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { PLATFORM_CONFIG } from '@/types/flightplan';
-import type { WeekArc, ArcPost, ArcPlatformDraft, PlatformType } from '@/types/flightplan';
-import { COL, BEAT_COLORS, PLATFORM_META } from './design-tokens';
+import type { WeekArc, ArcPost, PlatformType } from '@/types/flightplan';
+import { COL, PLATFORM_META } from './design-tokens';
 
 interface ReviewScreenProps {
   arc: WeekArc;
   weekStartDate: string;
+  audienceTimezone?: string;
   isPreviewOnly: boolean;
   onApprove: (arc: WeekArc) => void;
   onBack: () => void;
@@ -26,7 +27,6 @@ interface ReviewScreenProps {
   onStoryHoverChange?: (paused: boolean) => void;
 }
 
-const DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const two = (n: number) => String(n).padStart(2, '0');
 
 function parseLocalDate(dateStr: string): Date {
@@ -46,12 +46,17 @@ export function ReviewScreen({
 
   arc: initialArc,
   weekStartDate,
-  isPreviewOnly,
+  audienceTimezone,
+  isPreviewOnly: _isPreviewOnly,
   onApprove,
   onBack,
   isScheduling,
 }: ReviewScreenProps) {
   const { flags: featureFlags } = useFeatureFlags();
+  const activeTimezone = useMemo(
+    () => audienceTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    [audienceTimezone]
+  );
   const baseDate = useMemo(() => {
     const parsed = parseLocalDate(weekStartDate);
     const today = startOfDay(new Date());
@@ -127,7 +132,8 @@ export function ReviewScreen({
 
   // Nudge time by minutes (+/-)
   const handleNudgeTime = (dayIdx: number, addMins: number) => {
-    const targetDay = dateOf(dayIdx);
+    const postDayIndex = typeof arc.weekPosts[dayIdx]?.day === 'number' ? arc.weekPosts[dayIdx].day : dayIdx;
+    const targetDay = dateOf(postDayIndex);
     const now = new Date();
     const todayStart = startOfDay(now);
 
@@ -164,7 +170,8 @@ export function ReviewScreen({
     const [h, m] = timeStr.split(':').map(Number);
     if (isNaN(h) || isNaN(m)) return;
 
-    const targetDay = dateOf(dayIdx);
+    const postDayIndex = typeof arc.weekPosts[dayIdx]?.day === 'number' ? arc.weekPosts[dayIdx].day : dayIdx;
+    const targetDay = dateOf(postDayIndex);
     const now = new Date();
     const todayStart = startOfDay(now);
 
@@ -373,16 +380,15 @@ export function ReviewScreen({
           // Fall through to Data URI fallback
         }
 
-        // 2. Fallback to base64 Data URI (safe for both browser render & Node.js sharp processing)
+        // 2. Reject failed uploads instead of encoding multi-MB Base64 Data URIs into the database (BUG-09)
         if (!uploadSucceeded) {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          uploadedUrls.push(dataUrl);
+          studioToast.error(`Failed to upload ${file.name || 'media file'}. Please check your connection and try again.`);
+          continue;
         }
+      }
+
+      if (uploadedUrls.length === 0) {
+        return;
       }
 
       // Collect all media filenames from OTHER days to prevent week-level duplicates
@@ -897,12 +903,12 @@ export function ReviewScreen({
               <div className="stub">
                 <div className="fp-stub-header">
                   <span>BOARDING PASS // STUB</span>
-                  <span className="fp-stub-badge">FLIGHT FP-0{i + 1}</span>
+                  <span className="fp-stub-badge">FLIGHT FP-0{postDayIndex + 1}</span>
                 </div>
 
                 <div className="fp-fld">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>SCHEDULED DEPARTURE</span>
+                    <span>SCHEDULED DEPARTURE ({activeTimezone})</span>
                     {isPastDay && (
                       <span style={{ fontSize: 10, color: 'var(--bad)', fontWeight: 700, textTransform: 'uppercase' }}>
                         Past date (skipped)
@@ -967,8 +973,10 @@ export function ReviewScreen({
                     <div
                       className={`fp-sw ${hasAutoComment ? 'on' : ''}`}
                       role="switch"
+                      aria-checked={hasAutoComment}
                       tabIndex={0}
                       onClick={() => !isDeleted && handleToggleFirstComment(i)}
+                      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isDeleted) { e.preventDefault(); handleToggleFirstComment(i); } }}
                       style={{ cursor: isDeleted ? 'not-allowed' : 'pointer' }}
                     >
                       <i />

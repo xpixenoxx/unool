@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { publishService } from '@/lib/services/PublishService';
 import { logger } from '@/lib/logger';
 import { Receiver } from '@upstash/qstash';
@@ -13,6 +13,13 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 export const maxDuration = 300; // 5 minutes max for background publishing
 
 const postRepository = new SupabasePostRepository();
+
+function isPermanentPublishError(errorMsg?: string): boolean {
+  if (!errorMsg) return false;
+  return /unsupported platform|no active connection|requires an image|monthly x .* cap reached|failed to decrypt|marked as failed prior to publishing/i.test(
+    errorMsg
+  );
+}
 
 // QStash v2 Receiver for signature verification
 function getReceiver(): Receiver | null {
@@ -187,37 +194,114 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
       return NextResponse.json({ skipped: true, reason: 'already_published' });
     }
 
+    if (variant.status === 'draft') {
+      logger.info('QStash cascading: variant reverted to draft — skipping', { variantId });
+      return NextResponse.json({ skipped: true, reason: 'variant_cancelled' });
+    }
+
+    if (typeof postRepository.claimVariantForPublishing === 'function') {
+      const fromStatus =
+        variant.status === 'publishing'
+          ? 'publishing'
+          : variant.status === 'failed'
+            ? 'failed'
+            : 'scheduled';
+      const claimedVariant = await postRepository.claimVariantForPublishing(
+        variantId,
+        fromStatus,
+        fromStatus === 'publishing' ? new Date(Date.now() - 5 * 60 * 1000) : undefined
+      );
+      if (!claimedVariant) {
+        logger.info('QStash cascading: variant claim lost to concurrent worker — skipping', { variantId });
+        return NextResponse.json({ skipped: true, reason: 'already_claimed' });
+      }
+    }
+
     const result = await publishService.publishPost({
       postVariantId: variantId,
       platform: variant.platform,
       workspaceId,
     });
 
-    // ── Auto first-comment dispatch ────────────────────────────────────────
-    if (result.ok && result.value.success && autoFirstComment && result.value.platformPostId) {
+    const succeeded = result.ok && result.value.success;
+
+    // ── Auto first-comment dispatch (only when explicitly enabled) ─────────
+    const approvedComment = variant.autoFirstComment || autoFirstComment;
+    if (succeeded && approvedComment && result.value.platformPostId) {
       const { queueService } = await import('@/lib/services/QueueService');
       await queueService.enqueueScheduledPublishTask({
         postId,
         workspaceId,
         variantId: `first-comment:${variantId}:${result.value.platformPostId}`,
         scheduledAt: new Date(Date.now() + 90_000),
-        autoFirstComment,
+        autoFirstComment: approvedComment,
       });
     }
 
-    return NextResponse.json({ success: result.ok ? result.value.success : false });
+    // Reconcile parent post status when cascading variants finish
+    try {
+      const siblingVariants = await postRepository.findVariantsByPostId(postId);
+      if (siblingVariants.length > 0 && typeof postRepository.updateStatus === 'function') {
+        const anyScheduledOrPublishing = siblingVariants.some(
+          v => v.status === 'scheduled' || v.status === 'publishing'
+        );
+        const anyPublished = siblingVariants.some(v => v.status === 'published');
+        if (!anyScheduledOrPublishing) {
+          await postRepository.updateStatus(postId, anyPublished ? 'published' : 'failed');
+        } else if (anyPublished && post.status === 'scheduled') {
+          await postRepository.updateStatus(postId, 'published');
+        }
+      }
+    } catch (reconcileErr) {
+      logger.warn('Failed to reconcile parent post status after cascading variant publish', {
+        postId,
+        variantId,
+        error: reconcileErr,
+      });
+    }
+
+    if (!succeeded) {
+      const errMsg = result.ok ? result.value.error : result.error?.message;
+      if (!isPermanentPublishError(errMsg)) {
+        return NextResponse.json(
+          { success: false, retryable: true, error: errMsg || 'Transient variant publish failure' },
+          { status: 502 }
+        );
+      }
+    }
+
+    return NextResponse.json({ success: succeeded });
   }
 
   // ── Standard: publish all variants for this post ───────────────────────
+  if (isScheduled && typeof postRepository.claimForPublishing === 'function') {
+    const fromStatus =
+      post.status === 'publishing'
+        ? 'publishing'
+        : post.status === 'failed'
+          ? 'failed'
+          : 'scheduled';
+    const claimed = await postRepository.claimForPublishing(
+      postId,
+      fromStatus,
+      fromStatus === 'publishing' ? new Date(Date.now() - 5 * 60 * 1000) : undefined
+    );
+    if (!claimed) {
+      logger.info('QStash scheduled publish: post claim lost to concurrent worker — skipping', { postId });
+      return NextResponse.json({ skipped: true, reason: 'already_claimed' });
+    }
+  }
+
   logger.info('QStash background publish executing', { postId, workspaceId, isScheduled });
   const publishResults = await publishService.publishToAllPlatforms(postId, workspaceId);
 
   // ── Auto first-comment dispatch for Flight Plan / simultaneous variants ──
+  // Only dispatch when `v.autoFirstComment` was explicitly persisted (never `firstCommentHint`).
   try {
     const postVariants = await postRepository.findVariantsByPostId(postId);
     const { queueService } = await import('@/lib/services/QueueService');
     for (const v of postVariants) {
-      const comment = v.autoFirstComment || v.firstCommentHint;
+      const comment = v.autoFirstComment;
       if (v.status === 'published' && comment && v.platformPostId) {
         await queueService.enqueueScheduledPublishTask({
           postId,
@@ -237,7 +321,23 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
     logger.warn('Failed to enqueue auto first-comments after batch publish', { postId, error: err });
   }
 
-  return NextResponse.json({ success: true, results: publishResults });
+  const resultEntries = Object.values(publishResults || {});
+  const anySucceeded = resultEntries.some((r: any) => r?.success);
+  if (resultEntries.length > 0 && !anySucceeded) {
+    const hasTransientFailure = resultEntries.some((r: any) => !isPermanentPublishError(r?.error));
+    if (hasTransientFailure) {
+      logger.warn('All platform publishes failed with transient error — returning 502 for QStash retry', {
+        postId,
+        results: publishResults,
+      });
+      return NextResponse.json(
+        { success: false, retryable: true, results: publishResults },
+        { status: 502 }
+      );
+    }
+  }
+
+  return NextResponse.json({ success: anySucceeded || resultEntries.length === 0, results: publishResults });
 }
 
 export const POST = handler;

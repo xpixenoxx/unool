@@ -46,19 +46,33 @@ class QueueService {
     }
   }
 
+  private get baseAppUrl(): string {
+    const configured = config.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '');
+    if (configured && configured !== 'http://localhost:3000') {
+      return configured;
+    }
+    const vercelProdHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+    if (vercelProdHost) {
+      return vercelProdHost.startsWith('http')
+        ? vercelProdHost.replace(/\/+$/, '')
+        : `https://${vercelProdHost.replace(/\/+$/, '')}`;
+    }
+    return configured || 'http://localhost:3000';
+  }
+
   private get webhookUrl(): string {
-    return `${config.NEXT_PUBLIC_APP_URL}/api/webhooks/qstash/publish`;
+    return `${this.baseAppUrl}/api/webhooks/qstash/publish`;
   }
 
   private get instagramOutboundWebhookUrl(): string {
-    return `${config.NEXT_PUBLIC_APP_URL}/api/webhooks/qstash/instagram-outbound`;
+    return `${this.baseAppUrl}/api/webhooks/qstash/instagram-outbound`;
   }
 
   /**
    * Returns true if QStash is configured and available for background queuing.
    */
   isAvailable(): boolean {
-    return !!this.client && !!config.NEXT_PUBLIC_APP_URL;
+    return !!this.client && !!this.baseAppUrl;
   }
 
   /**

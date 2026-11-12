@@ -140,7 +140,7 @@ export class PublishService {
     const publishInput: PublishInput = {
       content: variant.adaptedContent,
       mediaUrls,
-      firstComment: variant.firstCommentHint || undefined,
+      firstComment: variant.autoFirstComment || undefined,
       platformUserId: connection.platformUserId || undefined,
       username: connection.username || undefined,
     };

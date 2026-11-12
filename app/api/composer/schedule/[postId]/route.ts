@@ -33,6 +33,7 @@ export async function GET(
     }
 
     const variants = await postRepository.findVariantsByPostId(postId);
+    const hasFailedVariants = variants.some(v => v.status === 'failed');
     const effectiveStatus = (post.status === 'published' || variants.some(v => v.status === 'published'))
       ? 'published'
       : post.status;
@@ -41,9 +42,11 @@ export async function GET(
       postId: post.id,
       content: post.content,
       status: effectiveStatus,
+      hasFailedVariants,
       scheduledAt: post.scheduledAt?.toISOString() ?? null,
       scheduleStrategy: post.scheduleStrategy,
       arcId: post.arcId,
+      arcBeat: post.arcBeat ?? null,
       createdAt: post.createdAt.toISOString(),
       platforms: variants.map(v => ({
         variantId: v.id,

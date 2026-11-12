@@ -18,6 +18,7 @@ export interface Post {
   qstashMessageId: string | null;
   scheduleStrategy: ScheduleStrategy;
   arcId: string | null;
+  arcBeat?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +33,7 @@ export interface ContentArc {
   startDate: string; // ISO date string YYYY-MM-DD
   endDate: string;
   status: ArcStatus;
+  idempotencyKey?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -75,6 +77,7 @@ export interface CreatePostInput {
   workspaceId: string;
   content: string;
   adaptationPromptVersion?: string;
+  arcBeat?: string | null;
 }
 
 export interface UpdatePostInput {
@@ -85,6 +88,7 @@ export interface UpdatePostInput {
   qstashMessageId?: string | null;
   scheduleStrategy?: ScheduleStrategy;
   arcId?: string | null;
+  arcBeat?: string | null;
 }
 
 export interface CreateContentArcInput {
@@ -95,6 +99,7 @@ export interface CreateContentArcInput {
   storyType: StoryType;
   startDate: string;
   endDate: string;
+  idempotencyKey?: string | null;
 }
 
 export interface UpdateContentArcInput {
@@ -131,13 +136,19 @@ export interface IPostRepository {
    */
   claimForPublishing(
     id: string,
-    fromStatus?: 'scheduled' | 'publishing',
+    fromStatus?: 'scheduled' | 'publishing' | 'failed',
     staleBefore?: Date,
   ): Promise<Post | null>;
   findVariantsByPostId(postId: string): Promise<PostVariant[]>;
   findVariantById(id: string): Promise<PostVariant | null>;
   createVariant(variant: CreatePostVariantInput): Promise<PostVariant>;
+  createVariantsBatch?(variants: CreatePostVariantInput[]): Promise<PostVariant[]>;
   updateVariant(id: string, data: UpdatePostVariantInput): Promise<PostVariant>;
+  claimVariantForPublishing?(
+    id: string,
+    fromStatus?: 'scheduled' | 'publishing' | 'failed',
+    staleBefore?: Date,
+  ): Promise<PostVariant | null>;
   getDraft(profileId: string, clientVersion: string): Promise<Post | null>;
   saveDraft(postId: string, content: string, clientVersion: string): Promise<void>;
   // Scheduling
@@ -150,6 +161,8 @@ export interface IPostRepository {
   updateContentArc(id: string, data: UpdateContentArcInput): Promise<ContentArc>;
   findContentArcsByWorkspace(workspaceId: string): Promise<ContentArc[]>;
   findContentArcById(id: string): Promise<ContentArc | null>;
+  findContentArcByIdempotencyKey?(workspaceId: string, idempotencyKey: string): Promise<ContentArc | null>;
+  findPostsByArcId?(arcId: string): Promise<Post[]>;
 }
 
 export interface CreatePostVariantInput {
@@ -160,6 +173,8 @@ export interface CreatePostVariantInput {
   characterCount: number;
   hashtagStrategy: string[];
   firstCommentHint?: string | null;
+  autoFirstComment?: string | null;
+  qstashMessageId?: string | null;
   status?: PostVariantStatus;
   scheduledAt?: Date | null;
   error?: PostError | null;

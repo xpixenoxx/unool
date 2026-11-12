@@ -35,6 +35,7 @@ export interface SchedulePostInput {
     schedulingOffsetMinutes?: number;  // For cascading: offset from base time
   }>;
   arcId?: string;            // Link post to a content arc
+  arcBeat?: string;          // Narrative beat label (e.g. "Hook", "Proof")
   postId?: string;           // Reuse existing post if scheduling from draft
 }
 
@@ -54,6 +55,7 @@ export interface ScheduleArcInput {
     arcBeat: string;
   }>;
   userTimezone: string;      // e.g. "Asia/Kolkata"
+  idempotencyKey?: string;   // Client-supplied key to prevent duplicate arc creation
 }
 
 export interface ScheduleResult {
@@ -74,7 +76,7 @@ export interface ScheduleArcResult {
 
 // ── Helper: compute scheduled timestamp ──────────────────────────────────
 
-function computeScheduledAt(
+export function computeScheduledAt(
   weekStart: Date,
   dayOffset: number,
   hour: number,
@@ -165,6 +167,7 @@ export class ScheduleService {
           scheduledAt: input.baseScheduledAt,
           scheduleStrategy: input.strategy,
           arcId: input.arcId ?? existing.arcId,
+          arcBeat: input.arcBeat ?? existing.arcBeat,
         });
         
         await supabaseAdmin.from('post_variants').delete().eq('post_id', existing.id);
@@ -177,11 +180,12 @@ export class ScheduleService {
         workspaceId: input.workspaceId,
         content: input.platforms[0]?.content ?? '',
         adaptationPromptVersion: input.arcId ? 'schedule-engine-v1' : 'schedule-engine-v1',
+        arcBeat: input.arcBeat ?? null,
       });
     }
 
-    // 2. For each platform variant, create the variant and enqueue in parallel
-    const variantResults = await Promise.all(
+    // 2. Prepare all variant inputs (media optimization runs in parallel)
+    const preparedVariants = await Promise.all(
       input.platforms.map(async (platformInput) => {
         const variantScheduledAt = input.strategy === 'cascading' && platformInput.schedulingOffsetMinutes
           ? new Date(input.baseScheduledAt.getTime() + platformInput.schedulingOffsetMinutes * 60_000)
@@ -190,20 +194,36 @@ export class ScheduleService {
         const normalizedMedia = (platformInput.mediaUrls ?? []).filter(m => Boolean(m.url));
         const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platformInput.platform);
 
-        const variant = await postRepository.createVariant({
-          postId: post.id,
-          platform: platformInput.platform,
-          adaptedContent: platformInput.content,
-          mediaUrls: finalMedia,
-          characterCount: platformInput.content.length,
-          hashtagStrategy: platformInput.hashtags,
-          firstCommentHint: platformInput.firstCommentHint,
-          status: 'scheduled',
-          scheduledAt: variantScheduledAt,
-        });
+        return {
+          platformInput,
+          variantScheduledAt,
+          createInput: {
+            postId: post.id,
+            platform: platformInput.platform,
+            adaptedContent: platformInput.content,
+            mediaUrls: finalMedia,
+            characterCount: platformInput.content.length,
+            hashtagStrategy: platformInput.hashtags,
+            firstCommentHint: platformInput.firstCommentHint,
+            autoFirstComment: platformInput.autoFirstComment ?? null,
+            status: 'scheduled' as const,
+            scheduledAt: variantScheduledAt,
+          },
+        };
+      })
+    );
 
-        // 3. In cascading mode, enqueue per-variant. In simultaneous mode, enqueue once combined for the post below.
+    // 3. Batch-insert all variants in a single DB round-trip (BUG-13 fix)
+    const createdVariants = postRepository.createVariantsBatch
+      ? await postRepository.createVariantsBatch(preparedVariants.map(pv => pv.createInput))
+      : await Promise.all(preparedVariants.map(pv => postRepository.createVariant(pv.createInput)));
+
+    // 4. In cascading mode, enqueue per-variant QStash tasks
+    const variantResults = await Promise.all(
+      createdVariants.map(async (variant, idx) => {
+        const { platformInput, variantScheduledAt } = preparedVariants[idx];
         let qstashMessageId: string | null = null;
+
         if (input.strategy === 'cascading') {
           qstashMessageId = await queueService.enqueueScheduledPublishTask({
             postId: post.id,
@@ -243,6 +263,7 @@ export class ScheduleService {
         qstashMessageId: combinedMessageId,
         scheduleStrategy: 'simultaneous',
         arcId: input.arcId,
+        arcBeat: input.arcBeat,
       });
     } else {
       // Cascading: update post status without a single combined message
@@ -251,6 +272,7 @@ export class ScheduleService {
         scheduledAt: input.baseScheduledAt,
         scheduleStrategy: 'cascading',
         arcId: input.arcId,
+        arcBeat: input.arcBeat,
       });
     }
 
@@ -267,8 +289,47 @@ export class ScheduleService {
   /**
    * Schedules a full 7-day content arc concurrently.
    * Creates a content_arc record and links all posts to it.
+   * Enforces idempotency when idempotencyKey is supplied so double-submits
+   * or network retries return the existing arc without duplicating posts.
    */
   async scheduleArc(input: ScheduleArcInput): Promise<ScheduleArcResult> {
+    if (input.idempotencyKey) {
+      const existingArc = await postRepository.findContentArcByIdempotencyKey(
+        input.workspaceId,
+        input.idempotencyKey
+      );
+      if (existingArc) {
+        const existingPosts = await postRepository.findPostsByArcId(existingArc.id);
+        if (existingPosts.length > 0) {
+          const allVariants = await postRepository.findVariantsByPostIds(
+            existingPosts.map(p => p.id)
+          );
+          const variantsByPostId = new Map<string, PostVariant[]>();
+          for (const v of allVariants) {
+            if (!variantsByPostId.has(v.postId)) variantsByPostId.set(v.postId, []);
+            variantsByPostId.get(v.postId)!.push(v);
+          }
+          const shapedResults: ScheduleResult[] = existingPosts.map(p => ({
+            postId: p.id,
+            scheduledAt: p.scheduledAt ?? p.createdAt,
+            variantResults: (variantsByPostId.get(p.id) ?? []).map(v => ({
+              variantId: v.id,
+              platform: v.platform,
+              scheduledAt: v.scheduledAt ?? p.scheduledAt ?? p.createdAt,
+              qstashMessageId: v.qstashMessageId ?? p.qstashMessageId ?? null,
+            })),
+          }));
+          shapedResults.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+          logger.info('Idempotent scheduleArc hit — returning existing arc and posts', {
+            arcId: existingArc.id,
+            idempotencyKey: input.idempotencyKey,
+            postCount: shapedResults.length,
+          });
+          return { arc: existingArc, posts: shapedResults };
+        }
+      }
+    }
+
     // 1. Create the content arc record
     const endDate = new Date(input.weekStartDate);
     endDate.setDate(endDate.getDate() + 6);
@@ -281,6 +342,7 @@ export class ScheduleService {
       storyType: input.storyType,
       startDate: input.weekStartDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
+      idempotencyKey: input.idempotencyKey ?? null,
     });
 
     // 2. Schedule each post in the arc in parallel
@@ -328,6 +390,7 @@ export class ScheduleService {
           strategy: arcPost.strategy,
           platforms: arcPost.platforms,
           arcId: arc.id,
+          arcBeat: arcPost.arcBeat,
         });
       })
     );
@@ -477,29 +540,57 @@ export class ScheduleService {
       errors: [] as Array<{ postId: string; error: string }>,
     };
 
+    // BUG-19: Bounded parallel execution — cap at 5 concurrent publishes so a cron
+    // flush with many due posts does not exhaust the serverless concurrency budget.
+    // Each publish attempt is self-contained (claim → publish → first-comment), so
+    // parallel execution is safe as long as the atomic claim prevents double-work.
+    const CONCURRENCY = 5;
+
+    /** Run tasks from `queue` with at most `limit` in-flight at once. */
+    async function runBounded<T>(
+      queue: Array<() => Promise<T>>,
+      limit: number,
+    ): Promise<T[]> {
+      const output: T[] = [];
+      const inFlight = new Set<Promise<void>>();
+      for (const task of queue) {
+        const p = (async () => { output.push(await task()); })();
+        inFlight.add(p);
+        p.finally(() => inFlight.delete(p));
+        if (inFlight.size >= limit) await Promise.race(inFlight);
+      }
+      await Promise.all(inFlight);
+      return output;
+    }
+
     try {
-      // 1. Process posts whose scheduled_at has arrived
+      // 1. Process posts whose scheduled_at has arrived — bounded parallel
       const duePosts = await postRepository.findDueScheduledPosts(now, workspaceId);
-      for (const post of duePosts) {
-        // Check if queue is held for this workspace
+
+      // Pre-load workspace hold state per unique workspaceId to avoid N+1 queries
+      const wsHoldCache = new Map<string, Date | null>();
+      const uniqueWsIds = [...new Set(duePosts.map(p => p.workspaceId))];
+      await Promise.all(uniqueWsIds.map(async (wsId) => {
         try {
-          const ws = await workspaceRepository.findById(post.workspaceId);
+          const ws = await workspaceRepository.findById(wsId);
           const heldUntil = (ws?.settings as Record<string, unknown> | null)?.queue_held_until;
-          if (heldUntil && new Date(heldUntil as string) > now) {
-            logger.info('Skipping due post because queue is held for workspace', {
-              postId: post.id,
-              workspaceId: post.workspaceId,
-              heldUntil,
-            });
-            continue;
-          }
-        } catch (wsErr) {
-          logger.warn('Failed to check workspace queue hold, proceeding with due post', { postId: post.id, error: wsErr });
+          wsHoldCache.set(wsId, heldUntil ? new Date(heldUntil as string) : null);
+        } catch {
+          wsHoldCache.set(wsId, null);
+        }
+      }));
+
+      const postTasks = duePosts.map((post) => async () => {
+        // Check queue hold
+        const holdUntil = wsHoldCache.get(post.workspaceId);
+        if (holdUntil && holdUntil > now) {
+          logger.info('Skipping due post because queue is held for workspace', {
+            postId: post.id, workspaceId: post.workspaceId, heldUntil: holdUntil.toISOString(),
+          });
+          return;
         }
 
-        // Prevent concurrent double-execution: atomic compare-and-set claim
-        // (UPDATE ... WHERE status = 'scheduled' [or stale 'publishing']). Only the worker
-        // whose UPDATE actually affected a row may publish; losers skip the post.
+        // Atomic claim — only the winner proceeds
         try {
           const claimed =
             post.status === 'publishing'
@@ -507,11 +598,11 @@ export class ScheduleService {
               : await postRepository.claimForPublishing(post.id, 'scheduled');
           if (!claimed) {
             logger.info('Skipping due post: claim lost to another worker', { postId: post.id });
-            continue;
+            return;
           }
         } catch (claimErr) {
           logger.warn('Failed to claim due post for publishing, skipping', { postId: post.id, error: claimErr });
-          continue;
+          return;
         }
 
         results.processed++;
@@ -528,12 +619,12 @@ export class ScheduleService {
             results.succeeded++;
             logger.info('Due scheduled post published successfully', { postId: post.id });
 
-            // Dispatch auto first-comments via QStash if configured
+            // Dispatch auto first-comments (only when explicitly set via autoFirstComment)
             if (config.QSTASH_TOKEN) {
               try {
                 const variants = await postRepository.findVariantsByPostId(post.id);
-                for (const v of variants) {
-                  const comment = v.autoFirstComment || v.firstCommentHint;
+                await Promise.all(variants.map(async (v) => {
+                  const comment = v.autoFirstComment;
                   if (v.status === 'published' && comment && v.platformPostId) {
                     await queueService.enqueueScheduledPublishTask({
                       postId: post.id,
@@ -543,7 +634,7 @@ export class ScheduleService {
                       autoFirstComment: comment,
                     });
                   }
-                }
+                }));
               } catch (fcErr) {
                 logger.warn('Failed to dispatch first comment in processDueScheduledPosts', { postId: post.id, error: fcErr });
               }
@@ -565,20 +656,71 @@ export class ScheduleService {
             error: publishErr instanceof Error ? publishErr : new Error(String(publishErr)),
           });
         }
-      }
+      });
 
-      // 2. Also check for any standalone scheduled variants (e.g. cascading offsets) whose parent post is not already handled
+      await runBounded(postTasks, CONCURRENCY);
+
+      // 2. Standalone scheduled variants (cascading offsets) — also bounded parallel
       const dueVariants = await postRepository.findDueScheduledVariants(now, workspaceId);
-      for (const variant of dueVariants) {
-        if (variant.status !== 'scheduled') continue;
 
-        // Find parent post to get workspaceId
-        const parentPost = await postRepository.findById(variant.postId);
-        if (!parentPost) continue;
-        if (parentPost.status === 'published' && variant.status === 'scheduled') {
-          // Cascading variant that was delayed after initial post publish
+      // Pre-fetch parent posts in bulk (avoid N+1 for variants)
+      const variantPostIds = [...new Set(
+        dueVariants
+          .filter(v => v.status === 'scheduled' || v.status === 'publishing')
+          .map(v => v.postId)
+      )];
+      const parentPostMap = new Map<string, Post>();
+      await Promise.all(variantPostIds.map(async (pid) => {
+        const p = await postRepository.findById(pid);
+        if (p) parentPostMap.set(pid, p);
+      }));
+
+      // Augment wsHoldCache with any workspaceIds from variants not already in cache
+      const variantWsIds = [...new Set(
+        [...parentPostMap.values()].map(p => p.workspaceId).filter(id => !wsHoldCache.has(id))
+      )];
+      await Promise.all(variantWsIds.map(async (wsId) => {
+        try {
+          const ws = await workspaceRepository.findById(wsId);
+          const heldUntil = (ws?.settings as Record<string, unknown> | null)?.queue_held_until;
+          wsHoldCache.set(wsId, heldUntil ? new Date(heldUntil as string) : null);
+        } catch {
+          wsHoldCache.set(wsId, null);
+        }
+      }));
+
+      const variantTasks = dueVariants
+        .filter(v => v.status === 'scheduled' || v.status === 'publishing')
+        .map((variant) => async () => {
+          const parentPost = parentPostMap.get(variant.postId);
+          if (!parentPost) return;
+          if (workspaceId && parentPost.workspaceId !== workspaceId) return;
+
+          // Check queue hold
+          const holdUntil = wsHoldCache.get(parentPost.workspaceId);
+          if (holdUntil && holdUntil > now) {
+            logger.info('Skipping due variant because queue is held for workspace', {
+              variantId: variant.id, workspaceId: parentPost.workspaceId,
+            });
+            return;
+          }
+
+          if (parentPost.status !== 'published' && parentPost.scheduleStrategy !== 'cascading') return;
+
           try {
-            await postRepository.updateVariant(variant.id, { status: 'publishing' });
+            const claimed =
+              variant.status === 'publishing'
+                ? await postRepository.claimVariantForPublishing(
+                    variant.id,
+                    'publishing',
+                    new Date(Date.now() - 5 * 60 * 1000),
+                  )
+                : await postRepository.claimVariantForPublishing(variant.id, 'scheduled');
+            if (!claimed) {
+              logger.info('Skipping due variant: claim lost to another worker', { variantId: variant.id });
+              return;
+            }
+
             results.processed++;
             const variantRes = await publishService.publishPost({
               postVariantId: variant.id,
@@ -587,6 +729,19 @@ export class ScheduleService {
             });
             if (variantRes.ok && variantRes.value.success) {
               results.succeeded++;
+              if (config.QSTASH_TOKEN && variant.autoFirstComment && variantRes.value.platformPostId) {
+                try {
+                  await queueService.enqueueScheduledPublishTask({
+                    postId: parentPost.id,
+                    workspaceId: parentPost.workspaceId,
+                    variantId: `first-comment:${variant.id}:${variantRes.value.platformPostId}`,
+                    scheduledAt: new Date(Date.now() + 90_000),
+                    autoFirstComment: variant.autoFirstComment,
+                  });
+                } catch (fcErr) {
+                  logger.warn('Failed to dispatch first comment for cascading variant', { variantId: variant.id, error: fcErr });
+                }
+              }
             } else {
               results.failed++;
               const err = variantRes.ok ? variantRes.value.error : variantRes.error?.message;
@@ -597,8 +752,10 @@ export class ScheduleService {
             const msg = varErr instanceof Error ? varErr.message : String(varErr);
             results.errors.push({ postId: variant.postId, error: msg });
           }
-        }
-      }
+        });
+
+      await runBounded(variantTasks, CONCURRENCY);
+
     } catch (err) {
       logger.error('Failed while processing due scheduled posts', {
         error: err instanceof Error ? err : new Error(String(err)),

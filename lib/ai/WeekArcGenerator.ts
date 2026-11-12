@@ -3,6 +3,9 @@ import { generateWithFallback } from '@/lib/ai/provider';
 import { logger } from '@/lib/logger';
 import type { StoryType } from '@/lib/repositories/interfaces/IPostRepository';
 import { PlatformType, buildOnboardingPrompt, PLATFORM_SPECS } from '@/lib/ai/PostAdapter';
+import { buildStudioContext } from '@/lib/ai/studioContext';
+import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
+import { FoldLinter } from '@/lib/ai/engines/FoldLinter';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 // ─── Zod Schema for one post in the arc ────────────────────────────────────
@@ -266,7 +269,10 @@ export function synthesizeFactGroundedArc(params: {
       }
 
       let sanitizedContent = ContentGuard.sanitizeOutput(content);
-      const filteredHashtags = ContentGuard.filterHashtags(hashtags, { maxCount: 10 });
+      sanitizedContent = ContentHumanizer.humanize(sanitizedContent, platform).humanized;
+      const foldReport = FoldLinter.lint(sanitizedContent, platform);
+      const maxTags = foldReport.spec.hashtagCap === 0 ? 0 : Math.min(10, foldReport.spec.hashtagCap || 10);
+      const filteredHashtags = maxTags === 0 ? [] : ContentGuard.filterHashtags(hashtags, { maxCount: maxTags });
       const spec = PLATFORM_SPECS[platform];
       if (spec?.maxChars && sanitizedContent.length > spec.maxChars) {
         const maxAllowed = spec.maxChars - 3;
@@ -355,7 +361,8 @@ export async function generateWeekArc(params: {
     }
   }
 
-  const onboardingPrompt = params.onboardingPrompt || (params.onboardingAnswers ? buildOnboardingPrompt(params.onboardingAnswers) : undefined);
+  const studioContext = params.onboardingAnswers ? buildStudioContext(params.onboardingAnswers) : '';
+  const onboardingPrompt = params.onboardingPrompt || studioContext || (params.onboardingAnswers ? buildOnboardingPrompt(params.onboardingAnswers) : undefined);
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
   const upcomingDays = getUpcomingDaysForArc(weekStartDate);
@@ -476,6 +483,7 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
           const existing = existingPlatforms.get(platform);
           if (existing) {
             let cleanContent = ContentGuard.sanitizeOutput(existing.content);
+            cleanContent = ContentHumanizer.humanize(cleanContent, platform).humanized;
             if (spec?.maxChars && cleanContent.length > spec.maxChars) {
               const maxAllowed = spec.maxChars - 3;
               const trimmed = cleanContent.slice(0, maxAllowed);
@@ -485,15 +493,18 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
                 cleanContent = cleanContent.slice(0, spec.maxChars);
               }
             }
+            const foldReport = FoldLinter.lint(cleanContent, platform);
+            const maxTags = foldReport.spec.hashtagCap === 0 ? 0 : Math.min(10, foldReport.spec.hashtagCap || 10);
             return {
               ...existing,
               content: cleanContent,
               characterCount: cleanContent.length,
-              hashtags: ContentGuard.filterHashtags(existing.hashtags || [], { maxCount: 10 }),
+              hashtags: maxTags === 0 ? [] : ContentGuard.filterHashtags(existing.hashtags || [], { maxCount: maxTags }),
               enabled: existing.enabled !== false,
             };
           }
           let fallbackContent = ContentGuard.sanitizeOutput(post.platforms[0]?.content || coreStory.slice(0, 280));
+          fallbackContent = ContentHumanizer.humanize(fallbackContent, platform).humanized;
           if (spec?.maxChars && fallbackContent.length > spec.maxChars) {
             const maxAllowed = spec.maxChars - 3;
             const trimmed = fallbackContent.slice(0, maxAllowed);
@@ -503,11 +514,13 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
               fallbackContent = fallbackContent.slice(0, spec.maxChars);
             }
           }
+          const fallbackFold = FoldLinter.lint(fallbackContent, platform);
+          const fallbackMaxTags = fallbackFold.spec.hashtagCap === 0 ? 0 : Math.min(10, fallbackFold.spec.hashtagCap || 10);
           return {
             platform,
             content: fallbackContent,
             characterCount: fallbackContent.length,
-            hashtags: ContentGuard.filterHashtags(post.platforms[0]?.hashtags || ['#BuildInPublic'], { maxCount: 10 }),
+            hashtags: fallbackMaxTags === 0 ? [] : ContentGuard.filterHashtags(post.platforms[0]?.hashtags || ['#BuildInPublic'], { maxCount: fallbackMaxTags }),
             firstCommentHint: null,
             autoFirstComment: null,
             schedulingOffsetMinutes: platform === 'linkedin' ? 45 : platform === 'threads' || platform === 'instagram' ? 120 : 0,

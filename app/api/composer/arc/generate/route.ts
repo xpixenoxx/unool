@@ -264,6 +264,19 @@ export async function POST(request: NextRequest) {
 
     const storyType = detectStoryType(coreStory);
 
+    // Record AI usage for monthly quota tracking (BUG-07)
+    try {
+      const { supabaseAdmin } = await import('@/lib/supabase/admin');
+      await supabaseAdmin.from('ai_usage').insert({
+        workspace_id: workspaceId,
+        user_id: userId,
+        action: 'flightplan_ai',
+        model: config.AI_DEFAULT_MODEL || 'gemini-2.0-flash',
+      });
+    } catch (usageErr) {
+      logger.warn('Failed to record ai_usage for flightplan_ai', { workspaceId, error: usageErr });
+    }
+
     return NextResponse.json({
       success: true,
       arc,

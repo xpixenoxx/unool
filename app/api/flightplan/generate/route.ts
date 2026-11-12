@@ -1,3 +1,15 @@
+/**
+ * @deprecated LEGACY ROUTE — DO NOT USE IN NEW FEATURES.
+ *
+ * This endpoint (`POST /api/flightplan/generate`) is an older code path that uses
+ * PostAdapter.generateFlightPlan with simple day-indexed posts. It is superseded by:
+ *   POST /api/composer/arc/generate  — uses WeekArcGenerator with AI quality engines,
+ *                                       content humanisation, hook scoring, and arc beats.
+ *
+ * This file is intentionally preserved for backward compatibility with any clients that
+ * may still reference it. Remove it only after confirming no external callers remain.
+ * Audit: BUG-EC-02 — identified as orphaned; kept pending caller confirmation.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { PostAdapter, PlatformType, PostSequence, AdaptationContext, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
 import { logger } from '@/lib/logger';
@@ -18,6 +30,7 @@ export const maxDuration = 300; // 5 mins for multi-post generation
 export async function POST(request: NextRequest) {
   return planEnforcement.useAI(request, async (request, planCtx) => {
     const traceId = crypto.randomUUID();
+    logger.warn('[DEPRECATED] POST /api/flightplan/generate called — migrate to POST /api/composer/arc/generate', { traceId });
 
     try {
       const flightplanGate = await enforcePlanLimit(request, 'flightplan_ai', planCtx);

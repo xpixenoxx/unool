@@ -221,24 +221,27 @@ describe('ScheduleService.scheduleArc & schedulePost', () => {
       updatedAt: new Date(),
     }));
 
-    vi.spyOn(SupabasePostRepository.prototype, 'createVariant').mockImplementation(async (input: any) => ({
-      id: `var-${Math.random().toString(36).slice(2, 7)}`,
-      postId: input.postId,
-      platform: input.platform,
-      adaptedContent: input.adaptedContent,
-      mediaUrls: input.mediaUrls || [],
-      characterCount: input.characterCount,
-      hashtagStrategy: input.hashtagStrategy || [],
-      firstCommentHint: input.firstCommentHint || null,
-      platformPostId: null,
-      status: input.status || 'scheduled',
-      scheduledAt: input.scheduledAt || null,
-      qstashMessageId: null,
-      autoFirstComment: null,
-      error: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    // BUG-13: schedulePost uses createVariantsBatch — mock batch method
+    vi.spyOn(SupabasePostRepository.prototype, 'createVariantsBatch').mockImplementation(async (inputs: any[]) =>
+      inputs.map((input: any) => ({
+        id: `var-${Math.random().toString(36).slice(2, 7)}`,
+        postId: input.postId,
+        platform: input.platform,
+        adaptedContent: input.adaptedContent,
+        mediaUrls: input.mediaUrls || [],
+        characterCount: input.characterCount,
+        hashtagStrategy: input.hashtagStrategy || [],
+        firstCommentHint: input.firstCommentHint || null,
+        platformPostId: null,
+        status: input.status || 'scheduled',
+        scheduledAt: input.scheduledAt || null,
+        qstashMessageId: null,
+        autoFirstComment: null,
+        error: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+    );
 
     vi.spyOn(SupabasePostRepository.prototype, 'updateVariant').mockResolvedValue({} as any);
     vi.spyOn(SupabasePostRepository.prototype, 'update').mockImplementation(async (id: string, data: any) => ({
@@ -303,24 +306,27 @@ describe('ScheduleService.scheduleArc & schedulePost', () => {
       updatedAt: new Date(),
     }));
 
-    vi.spyOn(SupabasePostRepository.prototype, 'createVariant').mockImplementation(async (input: any) => ({
-      id: `var-${Math.random().toString(36).slice(2, 7)}`,
-      postId: input.postId,
-      platform: input.platform,
-      adaptedContent: input.adaptedContent,
-      mediaUrls: input.mediaUrls || [],
-      characterCount: input.characterCount,
-      hashtagStrategy: input.hashtagStrategy || [],
-      firstCommentHint: null,
-      platformPostId: null,
-      status: 'scheduled',
-      scheduledAt: input.scheduledAt,
-      qstashMessageId: null,
-      autoFirstComment: null,
-      error: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    // BUG-13: schedulePost now uses createVariantsBatch; mock it too
+    vi.spyOn(SupabasePostRepository.prototype, 'createVariantsBatch').mockImplementation(async (inputs: any[]) =>
+      inputs.map((input: any, idx: number) => ({
+        id: `var-batch-${idx}`,
+        postId: input.postId,
+        platform: input.platform,
+        adaptedContent: input.adaptedContent,
+        mediaUrls: input.mediaUrls || [],
+        characterCount: input.characterCount,
+        hashtagStrategy: input.hashtagStrategy || [],
+        firstCommentHint: null,
+        platformPostId: null,
+        status: 'scheduled',
+        scheduledAt: input.scheduledAt,
+        qstashMessageId: null,
+        autoFirstComment: null,
+        error: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+    );
 
     vi.spyOn(SupabasePostRepository.prototype, 'update').mockResolvedValue({} as any);
 
@@ -345,5 +351,228 @@ describe('ScheduleService.scheduleArc & schedulePost', () => {
         workspaceId: 'ws-simul',
       })
     );
+  });
+
+  it('persists autoFirstComment on variants in simultaneous mode and arcBeat on parent post (BUG-02, BUG-03)', async () => {
+    const createSpy = vi.spyOn(SupabasePostRepository.prototype, 'create').mockImplementation(async (input: any) => ({
+      id: 'post-simul-fc',
+      profileId: input.profileId,
+      workspaceId: input.workspaceId,
+      content: input.content,
+      status: 'draft',
+      scheduledAt: null,
+      publishedAt: null,
+      adaptationPromptVersion: input.adaptationPromptVersion,
+      version: 1,
+      qstashMessageId: null,
+      scheduleStrategy: 'simultaneous',
+      arcId: null,
+      arcBeat: input.arcBeat ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    const createVariantSpy = vi.spyOn(SupabasePostRepository.prototype, 'createVariantsBatch').mockImplementation(async (inputs: any[]) =>
+      inputs.map((input: any) => ({
+        id: 'var-simul-fc',
+        postId: input.postId,
+        platform: input.platform,
+        adaptedContent: input.adaptedContent,
+        mediaUrls: input.mediaUrls || [],
+        characterCount: input.characterCount,
+        hashtagStrategy: input.hashtagStrategy || [],
+        firstCommentHint: input.firstCommentHint || null,
+        platformPostId: null,
+        status: 'scheduled',
+        scheduledAt: input.scheduledAt,
+        qstashMessageId: null,
+        autoFirstComment: input.autoFirstComment || null,
+        error: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+    );
+
+    const updateSpy = vi.spyOn(SupabasePostRepository.prototype, 'update').mockResolvedValue({} as any);
+
+    await scheduleService.schedulePost({
+      workspaceId: 'ws-simul',
+      profileId: 'prof-simul',
+      baseScheduledAt: new Date(Date.now() + 3600_000),
+      strategy: 'simultaneous',
+      arcBeat: 'Proof',
+      platforms: [
+        {
+          platform: 'linkedin',
+          content: 'LinkedIn proof post',
+          hashtags: ['#Proof'],
+          firstCommentHint: 'AI suggestion not approved',
+          autoFirstComment: 'Approved CTA link: https://unool.co',
+        },
+      ],
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arcBeat: 'Proof',
+      })
+    );
+    // createVariantsBatch receives an array — verify the first element contains the expected fields
+    expect(createVariantSpy).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          autoFirstComment: 'Approved CTA link: https://unool.co',
+          firstCommentHint: 'AI suggestion not approved',
+        }),
+      ])
+    );
+    expect(updateSpy).toHaveBeenCalledWith(
+      'post-simul-fc',
+      expect.objectContaining({
+        arcBeat: 'Proof',
+        scheduleStrategy: 'simultaneous',
+      })
+    );
+  });
+
+  it('deduplicates scheduleArc when idempotencyKey matches an existing arc with scheduled posts (BUG-01)', async () => {
+    const existingArc = {
+      id: 'arc-existing-99',
+      workspaceId: 'ws-1',
+      profileId: 'prof-1',
+      title: 'Weekly Launch Arc',
+      coreStory: 'We launched a new feature',
+      storyType: 'shipped' as const,
+      startDate: '2026-11-02',
+      endDate: '2026-11-08',
+      status: 'active' as const,
+      idempotencyKey: 'flightplan_2026-11-02_abc',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const existingPost = {
+      id: 'post-existing-1',
+      profileId: 'prof-1',
+      workspaceId: 'ws-1',
+      content: 'Day 1 content',
+      status: 'scheduled' as const,
+      scheduledAt: new Date('2026-11-02T10:00:00.000Z'),
+      publishedAt: null,
+      adaptationPromptVersion: 'schedule-engine-v1',
+      version: 1,
+      qstashMessageId: 'qstash-existing-1',
+      scheduleStrategy: 'simultaneous' as const,
+      arcId: 'arc-existing-99',
+      arcBeat: 'Hook',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.spyOn(SupabasePostRepository.prototype, 'findContentArcByIdempotencyKey').mockResolvedValue(existingArc);
+    vi.spyOn(SupabasePostRepository.prototype, 'findPostsByArcId').mockResolvedValue([existingPost]);
+    vi.spyOn(SupabasePostRepository.prototype, 'findVariantsByPostIds').mockResolvedValue([
+      {
+        id: 'var-existing-1',
+        postId: 'post-existing-1',
+        platform: 'linkedin',
+        adaptedContent: 'Day 1 content',
+        mediaUrls: [],
+        characterCount: 13,
+        hashtagStrategy: [],
+        firstCommentHint: null,
+        platformPostId: null,
+        status: 'scheduled',
+        scheduledAt: new Date('2026-11-02T10:00:00.000Z'),
+        qstashMessageId: null,
+        autoFirstComment: null,
+        error: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    const createArcSpy = vi.spyOn(SupabasePostRepository.prototype, 'createContentArc');
+    const createPostSpy = vi.spyOn(SupabasePostRepository.prototype, 'create');
+
+    const result = await scheduleService.scheduleArc({
+      workspaceId: 'ws-1',
+      profileId: 'prof-1',
+      arcTitle: 'Weekly Launch Arc',
+      coreStory: 'We launched a new feature',
+      storyType: 'shipped',
+      weekStartDate: new Date('2026-11-02T00:00:00.000Z'),
+      userTimezone: 'UTC',
+      idempotencyKey: 'flightplan_2026-11-02_abc',
+      posts: [
+        {
+          day: 0,
+          scheduledHour: 10,
+          scheduledMinute: 0,
+          strategy: 'simultaneous',
+          arcBeat: 'Hook',
+          platforms: [{ platform: 'linkedin', content: 'Day 1 content', hashtags: [] }],
+        },
+      ],
+    });
+
+    expect(result.arc.id).toBe('arc-existing-99');
+    expect(result.posts).toHaveLength(1);
+    expect(result.posts[0].postId).toBe('post-existing-1');
+    expect(createArcSpy).not.toHaveBeenCalled();
+    expect(createPostSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── DST / Timezone precision tests ──────────────────────────────────────────────
+// These tests verify that computeScheduledAt() converts a wall-clock time in a
+// specific IANA timezone to the correct UTC instant, including across DST boundaries.
+// A wrong conversion would cause posts to publish 1 hour early/late on transition dates.
+
+describe('computeScheduledAt — DST boundary correctness', () => {
+  it('schedules at correct UTC for US/Eastern during standard time (UTC-5)', async () => {
+    const { computeScheduledAt } = await import('../ScheduleService');
+    // 2026-01-07 is mid-January — EST (UTC-5), not daylight saving
+    const weekStart = new Date('2026-01-05T00:00:00.000Z'); // Monday
+    const result = computeScheduledAt(weekStart, 2, 9, 0, 'America/New_York');
+    // Day 2 from Monday = Wednesday 2026-01-07; 09:00 EST = 14:00 UTC
+    expect(result.toISOString()).toBe('2026-01-07T14:00:00.000Z');
+  });
+
+  it('schedules at correct UTC for US/Eastern during daylight saving time (UTC-4)', async () => {
+    const { computeScheduledAt } = await import('../ScheduleService');
+    // 2026-06-10 is mid-June — EDT (UTC-4)
+    const weekStart = new Date('2026-06-08T00:00:00.000Z'); // Monday
+    const result = computeScheduledAt(weekStart, 2, 9, 0, 'America/New_York');
+    // Day 2 from Monday = Wednesday 2026-06-10; 09:00 EDT = 13:00 UTC
+    expect(result.toISOString()).toBe('2026-06-10T13:00:00.000Z');
+  });
+
+  it('schedules at correct UTC across the US spring-forward DST boundary', async () => {
+    const { computeScheduledAt } = await import('../ScheduleService');
+    // US spring forward 2026: Sun 2026-03-08 at 02:00 → 03:00
+    // Schedule post for Monday 2026-03-09 at 09:00 America/New_York = UTC-4 (EDT has started)
+    const weekStart = new Date('2026-03-09T00:00:00.000Z');
+    const result = computeScheduledAt(weekStart, 0, 9, 0, 'America/New_York');
+    // 09:00 EDT = 13:00 UTC
+    expect(result.toISOString()).toBe('2026-03-09T13:00:00.000Z');
+  });
+
+  it('schedules at correct UTC across the EU spring-forward DST boundary', async () => {
+    const { computeScheduledAt } = await import('../ScheduleService');
+    // EU spring forward 2026: Sun 2026-03-29 at 02:00 → 03:00 (CEST starts, UTC+2)
+    // Schedule for Monday 2026-03-30 at 10:00 CEST = UTC+2
+    const weekStart = new Date('2026-03-30T00:00:00.000Z');
+    const result = computeScheduledAt(weekStart, 0, 10, 0, 'Europe/Berlin');
+    // 10:00 CEST = 08:00 UTC
+    expect(result.toISOString()).toBe('2026-03-30T08:00:00.000Z');
+  });
+
+  it('schedules at correct UTC for India (IST, no DST, UTC+5:30)', async () => {
+    const { computeScheduledAt } = await import('../ScheduleService');
+    // IST is always UTC+5:30 — no DST
+    const weekStart = new Date('2026-07-06T00:00:00.000Z'); // Monday
+    const result = computeScheduledAt(weekStart, 0, 10, 30, 'Asia/Kolkata');
+    // 10:30 IST = 05:00 UTC
+    expect(result.toISOString()).toBe('2026-07-06T05:00:00.000Z');
   });
 });

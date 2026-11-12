@@ -1,16 +1,17 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { format, addDays, startOfWeek, isToday } from 'date-fns';
+import { format, addDays, startOfWeek, startOfDay, isToday } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { ScheduledPostModal } from './ScheduledPostModal';
 import { ScheduleNewPostModal } from './ScheduleNewPostModal';
 import { BarcodeTicket } from './ui/BarcodeTicket';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { useFlightPlanActions } from '@/hooks/flightplan';
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import type { CanvasPost, PlatformType } from '@/types/flightplan';
-import { B, COL, BEAT_COLORS, PLATFORM_META } from './design-tokens';
+import { COL, PLATFORM_META } from './design-tokens';
 
 interface WeekCanvasProps {
   workspaceId: string;
@@ -21,6 +22,7 @@ interface WeekCanvasProps {
   autoTour?: boolean;
   onTourComplete?: () => void;
   isHoldActive?: boolean;
+  onHoldChange?: (held: boolean) => void;
   connectedPlatforms?: PlatformType[];
 }
 
@@ -38,6 +40,10 @@ import {
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 const memoryCanvasPostsByWeek = new Map<number, CanvasPost[]>();
 
+registerClientCacheReset(() => {
+  memoryCanvasPostsByWeek.clear();
+});
+
 export function invalidateFlightPlanCanvasCache(weekOffset?: number) {
   if (typeof weekOffset === 'number') {
     memoryCanvasPostsByWeek.delete(weekOffset);
@@ -47,7 +53,7 @@ export function invalidateFlightPlanCanvasCache(weekOffset?: number) {
 }
 
 export function WeekCanvas({
-  workspaceId,
+  workspaceId: _workspaceId,
   targetPostId,
   onNewArc,
   onPostCountChange,
@@ -55,6 +61,7 @@ export function WeekCanvas({
   autoTour = false,
   onTourComplete,
   isHoldActive = false,
+  onHoldChange,
   connectedPlatforms,
 }: WeekCanvasProps) {
   const { flags: featureFlags } = useFeatureFlags();
@@ -113,17 +120,33 @@ export function WeekCanvas({
       setIsLoading(true);
     }
     try {
-      const loadedPosts = await loadCanvas(weekOffset);
-      const safePosts = loadedPosts || [];
-      memoryCanvasPostsByWeek.set(weekOffset, safePosts);
-      setPosts(safePosts);
-      onPostCountChange?.(safePosts.length);
+      const now = new Date();
+      const monday = startOfWeek(now, { weekStartsOn: 1 });
+      const targetMonday = addDays(monday, weekOffset * 7);
+      const weekStartStr = format(targetMonday, 'yyyy-MM-dd');
+      const res = await fetch(`/api/composer/schedule/week?weekStart=${weekStartStr}`);
+      if (res.ok) {
+        const data = await res.json();
+        const safePosts: CanvasPost[] = data.posts ?? [];
+        if (typeof data.queueHeldUntil !== 'undefined') {
+          onHoldChange?.(Boolean(data.queueHeldUntil));
+        }
+        memoryCanvasPostsByWeek.set(weekOffset, safePosts);
+        setPosts(safePosts);
+        onPostCountChange?.(safePosts.length);
+      } else {
+        const loadedPosts = await loadCanvas(weekOffset);
+        const safePosts = loadedPosts || [];
+        memoryCanvasPostsByWeek.set(weekOffset, safePosts);
+        setPosts(safePosts);
+        onPostCountChange?.(safePosts.length);
+      }
     } catch {
       // silent
     } finally {
       setIsLoading(false);
     }
-  }, [weekOffset, loadCanvas, onPostCountChange]);
+  }, [weekOffset, loadCanvas, onPostCountChange, onHoldChange]);
 
   useEffect(() => {
     if (memoryCanvasPostsByWeek.has(weekOffset)) {
@@ -474,18 +497,21 @@ export function WeekCanvas({
   };
 
   // Selected day data
+  const todayStart = useMemo(() => startOfDay(new Date()), []);
   const selDate = weekDays[sel] || new Date();
+  const isSelPastDay = startOfDay(selDate) < todayStart;
   const selDateKey = format(selDate, 'yyyy-MM-dd');
   const selDayPosts = useMemo(() => postsByDay.get(selDateKey) || [], [postsByDay, selDateKey]);
   const activePostIndex = selectedPostIndexByDay[sel] ?? 0;
   const selPost = selDayPosts[activePostIndex] || selDayPosts[0] || null;
   const isSelScheduled = !!selPost;
   const isSelPublished = !!selPost && (selPost.status === 'published' || selPost.platforms?.some(p => p.status === 'published'));
-  const isSelFailed = !!selPost && (selPost.status === 'failed' || selPost.platforms?.some(p => p.status === 'failed' || !!p.error));
+  const isSelFailed = !!selPost && (selPost.status === 'failed' || selPost.hasFailedVariants || selPost.platforms?.some(p => p.status === 'failed' || !!p.error));
+  const isSelPartialFailure = isSelPublished && isSelFailed;
   const isSelGrounded = !isSelPublished && !isSelFailed && isHoldActive;
   const isSelDraft = !!selPost && (selPost.status === 'draft' || (!selPost.scheduledAt && !isSelPublished));
   const selColor = COL[sel] || '#C0607A';
-  const selBeat = BEATS[sel] || 'Hook';
+  const selBeat = selPost?.arcBeat || BEATS[sel] || 'Hook';
   const selSub = SUBS[sel] || 'The disruption';
 
   const formattedPlatforms = useMemo(() => {
@@ -578,6 +604,24 @@ export function WeekCanvas({
         >
           This week
         </button>
+        {scheduledCount > 0 && (
+          <button
+            type="button"
+            className="fp-btn"
+            onClick={async () => {
+              const nextHold = !isHoldActive;
+              const ok = await holdQueue(nextHold, 3);
+              if (ok) {
+                onHoldChange?.(nextHold);
+                invalidateFlightPlanCanvasCache(weekOffset);
+                loadWeekCanvas();
+              }
+            }}
+            title={isHoldActive ? 'Resume scheduled queue immediately' : 'Hold scheduled queue for 3 hours'}
+          >
+            {isHoldActive ? '▶ Resume queue' : '⏸ Hold queue (3h)'}
+          </button>
+        )}
         <span className="sp" />
         {isLoading && posts.length === 0 ? (
           <span className="fp-stat" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -615,6 +659,7 @@ export function WeekCanvas({
             <div className="fp-cg">
               {DN.map((name, i) => {
                 const dayDate = weekDays[i];
+                const isDayPast = startOfDay(dayDate) < todayStart;
                 const dayKey = format(dayDate, 'yyyy-MM-dd');
                 const dayPosts = postsByDay.get(dayKey) || [];
                 const isDayToday = isToday(dayDate);
@@ -658,28 +703,32 @@ export function WeekCanvas({
                       </div>
                     ) : dayPosts.length === 0 ? (
                       <div className="fp-empty-day">
-                        <span style={{ fontSize: 11, color: 'var(--mu)' }}>Open sky</span>
-                        <button
-                          type="button"
-                          className="fp-add-post-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDaySelect(i);
-                            setNewPostModalDate(dayDate);
-                            setIsNewPostModalOpen(true);
-                          }}
-                        >
-                          + Schedule
-                        </button>
+                        <span style={{ fontSize: 11, color: 'var(--mu)' }}>{isDayPast ? 'Past day' : 'Open sky'}</span>
+                        {!isDayPast && (
+                          <button
+                            type="button"
+                            className="fp-add-post-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDaySelect(i);
+                              setNewPostModalDate(dayDate);
+                              setIsNewPostModalOpen(true);
+                            }}
+                          >
+                            + Schedule
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <>
                         <div className="fp-day-posts-list">
                           {dayPosts.map((post, postIdx) => {
                             const isPostPublished = post.status === 'published' || post.platforms.some(p => p.status === 'published');
-                            const isPostFailed = post.status === 'failed' || post.platforms.some(p => p.status === 'failed' || !!p.error);
+                            const isPostFailed = post.status === 'failed' || post.hasFailedVariants || post.platforms.some(p => p.status === 'failed' || !!p.error);
                             const isPostGrounded = !isPostPublished && !isPostFailed && isHoldActive;
-                            const statusLabel = isPostPublished
+                            const statusLabel = isPostPublished && isPostFailed
+                              ? 'Landed (partial)'
+                              : isPostPublished
                               ? 'Landed'
                               : isPostFailed
                               ? 'Diverted'
@@ -721,19 +770,21 @@ export function WeekCanvas({
                             );
                           })}
                         </div>
-                        <button
-                          type="button"
-                          className="fp-add-post-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDaySelect(i);
-                            setNewPostModalDate(dayDate);
-                            setIsNewPostModalOpen(true);
-                          }}
-                          title="Schedule another post for this day"
-                        >
-                          + Add post
-                        </button>
+                        {!isDayPast && (
+                          <button
+                            type="button"
+                            className="fp-add-post-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDaySelect(i);
+                              setNewPostModalDate(dayDate);
+                              setIsNewPostModalOpen(true);
+                            }}
+                            title="Schedule another post for this day"
+                          >
+                            + Add post
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -1037,15 +1088,17 @@ export function WeekCanvas({
                 <em>Plan a new week or schedule a single dispatch.</em>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  className="fp-btn gold"
-                  onClick={() => {
-                    setNewPostModalDate(selDate);
-                    setIsNewPostModalOpen(true);
-                  }}
-                >
-                  + Schedule post for this day
-                </button>
+                {!isSelPastDay && (
+                  <button
+                    className="fp-btn gold"
+                    onClick={() => {
+                      setNewPostModalDate(selDate);
+                      setIsNewPostModalOpen(true);
+                    }}
+                  >
+                    + Schedule post for this day
+                  </button>
+                )}
                 <button className="fp-btn" onClick={onNewArc}>
                   + Plan new week
                 </button>
@@ -1165,7 +1218,11 @@ export function WeekCanvas({
                 </div>
                 <div className="fp-fld">
                   <span>FLIGHT STATUS</span>
-                  {isSelPublished ? (
+                  {isSelPartialFailure ? (
+                    <span className="fp-chip diverted" title="Some platform variants succeeded while at least one platform failed">
+                      Landed (partial failure)
+                    </span>
+                  ) : isSelPublished ? (
                     <span className="fp-chip landed">Landed, live</span>
                   ) : isSelGrounded ? (
                     <span className="fp-chip grounded">Grounded, hold</span>
@@ -1250,17 +1307,19 @@ export function WeekCanvas({
                     </button>
                   </>
                 )}
-                <button
-                  type="button"
-                  className="fp-btn gold"
-                  onClick={() => {
-                    setNewPostModalDate(selDate);
-                    setIsNewPostModalOpen(true);
-                  }}
-                  title={isToday(selDate) ? 'Schedule another dispatch for today' : 'Schedule another dispatch for this day'}
-                >
-                  + Schedule another post
-                </button>
+                {!isSelPastDay && (
+                  <button
+                    type="button"
+                    className="fp-btn gold"
+                    onClick={() => {
+                      setNewPostModalDate(selDate);
+                      setIsNewPostModalOpen(true);
+                    }}
+                    title={isToday(selDate) ? 'Schedule another dispatch for today' : 'Schedule another dispatch for this day'}
+                  >
+                    + Schedule another post
+                  </button>
+                )}
               </div>
 
               <BarcodeTicket

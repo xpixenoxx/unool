@@ -196,10 +196,11 @@ export interface CanvasPost {
   postId: string;
   content: string;
   status: 'draft' | 'scheduled' | 'published' | 'failed';
+  hasFailedVariants?: boolean;
   scheduledAt: string | null;
   scheduleStrategy: string;
   arcId: string | null;
-  arcBeat?: string;
+  arcBeat?: string | null;
   platforms: CanvasPlatformVariant[];
 }
 

@@ -1,6 +1,6 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { config } from '@/lib/config/schema';
+import { scheduleService } from '@/lib/services/ScheduleService';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -100,5 +100,18 @@ export async function DELETE(request: NextRequest) {
   }
 
   logger.info('Queue hold released', { workspaceId });
-  return NextResponse.json({ success: true });
+
+  // Immediately process any scheduled posts that became due while the queue was held (BUG-08)
+  let releasedResult = { processed: 0, succeeded: 0, failed: 0 };
+  try {
+    releasedResult = await scheduleService.processDueScheduledPosts(workspaceId);
+  } catch (err) {
+    logger.warn('Failed to process due posts on queue hold release', { workspaceId, error: err });
+  }
+
+  return NextResponse.json({
+    success: true,
+    processedOverdue: releasedResult.processed,
+    succeededOverdue: releasedResult.succeeded,
+  });
 }

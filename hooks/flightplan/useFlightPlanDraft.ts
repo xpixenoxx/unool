@@ -3,9 +3,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { StoryIntakeData, UseFlightPlanDraftResult } from '@/types/flightplan';
 import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
+import { registerClientCacheReset } from '@/lib/utils/clientCache';
 
 const STORAGE_KEY = FLIGHTPLAN_CONSTANTS.DRAFT_STORAGE_KEY;
 const DEBOUNCE_MS = FLIGHTPLAN_CONSTANTS.AUTO_SAVE_DEBOUNCE_MS;
+
+if (typeof window !== 'undefined') {
+  registerClientCacheReset(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore storage access errors
+    }
+  });
+}
 
 /**
  * Hook for managing Flight Plan story intake draft persistence
