@@ -8,7 +8,7 @@ import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolv
 
 export const dynamic = 'force-dynamic';
 
-export const DEFAULT_FACEBOOK_CONFIG = {
+const DEFAULT_FACEBOOK_CONFIG = {
   enabled: false,
   autoReplyComments: true,
   autoReplyPositive: true,

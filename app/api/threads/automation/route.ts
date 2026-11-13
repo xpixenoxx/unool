@@ -8,7 +8,7 @@ import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolv
 
 export const dynamic = 'force-dynamic';
 
-export const DEFAULT_THREADS_CONFIG = {
+const DEFAULT_THREADS_CONFIG = {
   enabled: false,
   autoReplyReplies: true,
   autoReplyMentions: true,
