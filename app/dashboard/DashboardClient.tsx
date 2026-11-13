@@ -609,11 +609,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   }, [data.workspaceId]);
 
   const handleConnectionChange = useCallback(
-    (newConns: Record<string, { status: string; username?: string }>) => {
+    (newConns: Record<string, { status: string; username?: string; accounts?: unknown[] }>) => {
       setConnections((prev) => {
         let changed = false;
         for (const [k, v] of Object.entries(newConns)) {
-          if (!prev[k] || prev[k].status !== v.status || prev[k].username !== v.username) {
+          const prevAccts = Array.isArray((prev[k] as any)?.accounts) ? (prev[k] as any).accounts.length : 0;
+          const nextAccts = Array.isArray(v.accounts) ? v.accounts.length : 0;
+          if (!prev[k] || prev[k].status !== v.status || prev[k].username !== v.username || prevAccts !== nextAccts) {
             changed = true;
             break;
           }

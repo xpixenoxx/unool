@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS post_variants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     platform TEXT NOT NULL CHECK (platform IN ('linkedin', 'x', 'threads', 'manual')),
+    platform_connection_id UUID REFERENCES platform_connections(id) ON DELETE SET NULL,
     adapted_content TEXT NOT NULL,
     media_urls JSONB NOT NULL DEFAULT '[]',
     character_count INTEGER NOT NULL DEFAULT 0,
@@ -117,6 +118,7 @@ CREATE TABLE IF NOT EXISTS post_variants (
 
 CREATE INDEX IF NOT EXISTS idx_post_variants_post_id ON post_variants(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_variants_platform ON post_variants(platform);
+CREATE INDEX IF NOT EXISTS idx_post_variants_platform_connection_id ON post_variants(platform_connection_id);
 CREATE INDEX IF NOT EXISTS idx_post_variants_status ON post_variants(status);
 
 -- ============================================================
@@ -128,6 +130,8 @@ CREATE TABLE IF NOT EXISTS platform_connections (
     platform TEXT NOT NULL CHECK (platform IN ('linkedin', 'x', 'threads', 'manual')),
     platform_user_id TEXT NOT NULL,
     username TEXT,
+    display_name TEXT,
+    avatar_url TEXT,
     access_token_encrypted TEXT NOT NULL,
     refresh_token_encrypted TEXT,
     expires_at TIMESTAMPTZ,
@@ -135,7 +139,7 @@ CREATE TABLE IF NOT EXISTS platform_connections (
     status TEXT NOT NULL DEFAULT 'connected' CHECK (status IN ('connected', 'expired', 'revoked', 'error')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(workspace_id, platform)
+    UNIQUE(workspace_id, platform, platform_user_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_platform_connections_workspace_id ON platform_connections(workspace_id);

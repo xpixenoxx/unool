@@ -6,8 +6,21 @@ import type { SupportedPlatformType } from '@/components/dashboard/previews/Plat
 
 export type PlatformType = SupportedPlatformType;
 
+export interface ConnectedAccount {
+  id: string;
+  platform: PlatformType;
+  platformUserId?: string;
+  username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  status: 'connected' | 'expired' | 'not_connected' | 'error';
+}
+
 export interface PlatformDraft {
   platform: PlatformType;
+  platformConnectionId?: string | null;
+  accountUsername?: string | null;
+  accountDisplayName?: string | null;
   content: string;
   characterCount: number;
   hashtags: string[];
@@ -23,9 +36,16 @@ export interface AdaptedPost {
   firstCommentHint?: string;
 }
 
+export interface TargetAdaptedPost extends AdaptedPost {
+  variantId?: string;
+  platform: PlatformType;
+  platformConnectionId?: string | null;
+}
+
 export interface AdaptResponse {
   postId: string;
   variants: Record<PlatformType, AdaptedPost>;
+  targetVariants?: TargetAdaptedPost[];
   results?: Record<string, { success: boolean; platformUrl?: string; error?: string }>;
 }
 

@@ -152,22 +152,39 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
       return NextResponse.json({ skipped: true, reason: 'variant_not_found' });
     }
 
-    // Find the platform connection for this variant's workspace
-    const { data: connections } = await supabaseAdmin
-      .from('platform_connections')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .eq('platform', variant.platform)
-      .eq('status', 'connected')
-      .limit(1);
+    // Find the exact platform connection for this variant (strict if platformConnectionId is set)
+    let connectionRow: Record<string, any> | null = null;
+    if (variant.platformConnectionId) {
+      const { data: specificConns } = await supabaseAdmin
+        .from('platform_connections')
+        .select('*')
+        .eq('id', variant.platformConnectionId)
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'connected')
+        .limit(1);
+      connectionRow = specificConns?.[0] ?? null;
+    } else {
+      const { data: connections } = await supabaseAdmin
+        .from('platform_connections')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .eq('platform', variant.platform)
+        .eq('status', 'connected')
+        .limit(1);
+      connectionRow = connections?.[0] ?? null;
+    }
 
-    if (!connections || connections.length === 0) {
-      logger.warn('QStash first-comment: no active platform connection', { workspaceId, platform: variant.platform });
+    if (!connectionRow) {
+      logger.warn('QStash first-comment: no active platform connection', {
+        workspaceId,
+        platform: variant.platform,
+        platformConnectionId: variant.platformConnectionId ?? undefined,
+      });
       return NextResponse.json({ skipped: true, reason: 'no_connection' });
     }
 
     try {
-      const accessToken = await decryptToken(connections[0].access_token_encrypted);
+      const accessToken = await decryptToken(connectionRow.access_token_encrypted);
       await postFirstComment(accessToken, platformPostId, autoFirstComment, variant.platform);
       logger.info('QStash first-comment: posted successfully', { platformPostId, platform: variant.platform });
     } catch (err) {
@@ -220,6 +237,7 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
     const result = await publishService.publishPost({
       postVariantId: variantId,
       platform: variant.platform,
+      platformConnectionId: variant.platformConnectionId,
       workspaceId,
     });
 

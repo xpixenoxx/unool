@@ -188,10 +188,36 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string; streamConfigured?: boolean }> = {};
-    for (const platform of SUPPORTED_PLATFORMS) {
-      result[platform] = { platform, status: 'not_connected' };
+    interface ConnectedAccountEntry {
+      id: string;
+      platform: string;
+      platformUserId?: string;
+      username?: string;
+      displayName?: string;
+      avatarUrl?: string;
+      status: string;
+      connectedAt?: string;
+      expiresAt?: string;
+      streamConfigured?: boolean;
     }
+
+    const result: Record<string, {
+      platform: string;
+      status: string;
+      username?: string;
+      displayName?: string;
+      connectedAt?: string;
+      expiresAt?: string;
+      streamConfigured?: boolean;
+      accounts?: ConnectedAccountEntry[];
+    }> = {};
+    for (const platform of SUPPORTED_PLATFORMS) {
+      result[platform] = { platform, status: 'not_connected', accounts: [] };
+    }
+
+    const accountsByPlatform: Record<string, ConnectedAccountEntry[]> = {};
+    const allAccounts: ConnectedAccountEntry[] = [];
+    const statusPriority: Record<string, number> = { connected: 3, expired: 2, not_connected: 1 };
 
     if (rows && rows.length > 0) {
       // Collect refresh promises for connections with expired access tokens
@@ -251,14 +277,47 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        result[row.platform] = {
+        const accountEntry: ConnectedAccountEntry = {
+          id: row.id as string,
           platform: row.platform,
-          status,
+          platformUserId: (row.platform_user_id as string | null) || undefined,
           username: row.username || undefined,
+          displayName: (row.display_name as string | null) || undefined,
+          avatarUrl: (row.avatar_url as string | null) || undefined,
+          status,
           connectedAt: row.created_at,
           expiresAt: row.expires_at || undefined,
           streamConfigured,
         };
+
+        if (status !== 'not_connected') {
+          const list = accountsByPlatform[row.platform] ?? [];
+          list.push(accountEntry);
+          accountsByPlatform[row.platform] = list;
+          allAccounts.push(accountEntry);
+        }
+
+        const current = result[row.platform];
+        const currentPriority = current ? (statusPriority[current.status] ?? 0) : 0;
+        const incomingPriority = statusPriority[status] ?? 0;
+
+        if (!current || incomingPriority >= currentPriority) {
+          result[row.platform] = {
+            platform: row.platform,
+            status,
+            username: row.username || current?.username || undefined,
+            displayName: (row.display_name as string | null) || current?.displayName || undefined,
+            connectedAt: row.created_at || current?.connectedAt,
+            expiresAt: row.expires_at || current?.expiresAt || undefined,
+            streamConfigured: streamConfigured ?? current?.streamConfigured,
+            accounts: accountsByPlatform[row.platform] || [],
+          };
+        } else {
+          result[row.platform] = {
+            ...current,
+            accounts: accountsByPlatform[row.platform] || [],
+          };
+        }
       }
 
       // Run all token refreshes in parallel (fire-and-forget with logging)
@@ -279,13 +338,60 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const totalFound = rows?.length || 0;
+    const totalFound = allAccounts.length;
     logger.info('Platform connections fetched', { traceId, workspaceId: auth.workspaceId, totalFound, debug });
-    return NextResponse.json({ connections: result, totalFound, userId: auth.userId, debug });
+    return NextResponse.json({
+      connections: result,
+      accounts: allAccounts,
+      totalFound,
+      userId: auth.userId,
+      debug,
+    });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     debug.push(`error:${err.message}`);
     logger.error('Failed to fetch platform connections', { traceId, error: err, debug });
     return NextResponse.json({ error: 'Failed to fetch connections', debug }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const traceId = crypto.randomUUID();
+  const connectionId = request.nextUrl.searchParams.get('connectionId');
+
+  try {
+    const auth = await getCurrentAuth(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!connectionId) {
+      return NextResponse.json({ error: 'connectionId is required' }, { status: 400 });
+    }
+
+    const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+    const { invalidateOverviewCache } = await import('@/lib/cache/overviewCache');
+    const platformRepository = new SupabasePlatformRepository();
+
+    const conn = await platformRepository.findById(connectionId);
+    if (!conn || conn.workspaceId !== auth.workspaceId) {
+      return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
+    }
+
+    await platformRepository.disconnect(conn.id);
+    invalidateOverviewCache(auth.workspaceId);
+
+    logger.info('Platform account disconnected', {
+      traceId,
+      workspaceId: auth.workspaceId,
+      platform: conn.platform,
+      connectionId: conn.id,
+    });
+
+    return NextResponse.json({ success: true, connectionId: conn.id, platform: conn.platform });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to disconnect platform account', { traceId, connectionId, error: err });
+    return NextResponse.json({ error: 'Failed to disconnect account' }, { status: 500 });
   }
 }

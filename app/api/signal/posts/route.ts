@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { config } from '@/lib/config/schema';
 import { extractNormalizedEngagement } from '@/lib/services/analytics/normalize';
@@ -91,6 +91,27 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const signalConnIds = Array.from(
+    new Set(
+      (variants || [])
+        .map((v: any) => v.platform_connection_id as string | null | undefined)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+  const connectionMetaById: Record<string, { username?: string | null; displayName?: string | null }> = {};
+  if (signalConnIds.length > 0) {
+    const { data: connRows } = await supabaseAdmin
+      .from('platform_connections')
+      .select('id, username, display_name')
+      .in('id', signalConnIds);
+    for (const row of connRows || []) {
+      connectionMetaById[row.id] = {
+        username: row.username ?? null,
+        displayName: row.display_name ?? null,
+      };
+    }
+  }
+
   // Group variants by post_id and attach real engagement
   const variantsByPost: Record<string, any[]> = {};
   for (const v of variants || []) {
@@ -98,10 +119,14 @@ export async function GET(request: NextRequest) {
     const ppList = platformPostsByVariant[v.id] || [];
     const primaryPp = ppList[0];
     const normalizedEngagement = extractNormalizedEngagement(primaryPp?.engagement);
+    const connMeta = v.platform_connection_id ? connectionMetaById[v.platform_connection_id] : undefined;
 
     variantsByPost[v.post_id].push({
       id: v.id,
       platform: v.platform,
+      platformConnectionId: v.platform_connection_id || primaryPp?.platform_connection_id || null,
+      accountUsername: connMeta?.username ?? null,
+      accountDisplayName: connMeta?.displayName ?? null,
       status: v.status,
       platformUrl: primaryPp?.platform_url || v.platform_url || null,
       platformPostId: primaryPp?.platform_post_id || v.platform_post_id || null,

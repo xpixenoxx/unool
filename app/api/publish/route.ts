@@ -90,21 +90,53 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // If edited drafts were provided from the composer, save updates before publishing
+      // If edited drafts were provided from the composer, sync updates (matching by variantId/platformConnectionId) before publishing
       if (Array.isArray(drafts) && drafts.length > 0) {
+        const matchedVariantIds = new Set<string>();
+        const { supabaseAdmin } = await import('@/lib/supabase/admin');
+
         for (const d of drafts) {
-          if (d.platform && d.content) {
-            const targetVariant = existingVariants.find(v => v.platform === d.platform);
-            if (targetVariant) {
-              await postRepository.updateVariant(targetVariant.id, {
-                status: 'publishing',
-                error: null,
-                adaptedContent: d.content,
-                characterCount: d.content.length,
-                hashtagStrategy: d.hashtags || targetVariant.hashtagStrategy,
-              });
-            }
+          if (!d.platform || typeof d.content !== 'string') continue;
+
+          const targetVariant = existingVariants.find(v => {
+            if (matchedVariantIds.has(v.id)) return false;
+            if (d.variantId && v.id === d.variantId) return true;
+            if (d.platformConnectionId && v.platformConnectionId === d.platformConnectionId) return true;
+            return !d.platformConnectionId && v.platform === d.platform;
+          });
+
+          if (targetVariant) {
+            matchedVariantIds.add(targetVariant.id);
+            await postRepository.updateVariant(targetVariant.id, {
+              status: 'publishing',
+              error: null,
+              platformConnectionId: d.platformConnectionId ?? targetVariant.platformConnectionId ?? null,
+              adaptedContent: d.content,
+              characterCount: d.content.length,
+              hashtagStrategy: d.hashtags || targetVariant.hashtagStrategy,
+            });
+          } else {
+            const templateVariant = existingVariants.find(v => v.platform === d.platform);
+            await postRepository.createVariant({
+              postId,
+              platform: d.platform,
+              platformConnectionId: d.platformConnectionId ?? null,
+              adaptedContent: d.content,
+              mediaUrls: templateVariant?.mediaUrls || [],
+              characterCount: d.content.length,
+              hashtagStrategy: d.hashtags || templateVariant?.hashtagStrategy || [],
+              firstCommentHint: d.firstCommentHint || templateVariant?.firstCommentHint || undefined,
+              status: 'publishing',
+            });
           }
+        }
+
+        // Remove unselected draft variants so unchecked accounts are not published
+        const unselectedVariantIds = existingVariants
+          .filter(v => !matchedVariantIds.has(v.id) && v.status === 'draft')
+          .map(v => v.id);
+        if (unselectedVariantIds.length > 0) {
+          await supabaseAdmin.from('post_variants').delete().in('id', unselectedVariantIds);
         }
       } else {
         for (const v of existingVariants) {

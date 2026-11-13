@@ -27,6 +27,7 @@ export interface SchedulePostInput {
   strategy: ScheduleStrategy;
   platforms: Array<{
     platform: PlatformType;
+    platformConnectionId?: string;
     content: string;
     hashtags: string[];
     firstCommentHint?: string;
@@ -64,6 +65,7 @@ export interface ScheduleResult {
   variantResults: Array<{
     variantId: string;
     platform: string;
+    platformConnectionId?: string | null;
     scheduledAt: Date;
     qstashMessageId: string | null;
   }>;
@@ -200,6 +202,7 @@ export class ScheduleService {
           createInput: {
             postId: post.id,
             platform: platformInput.platform,
+            platformConnectionId: platformInput.platformConnectionId ?? null,
             adaptedContent: platformInput.content,
             mediaUrls: finalMedia,
             characterCount: platformInput.content.length,
@@ -244,6 +247,7 @@ export class ScheduleService {
         return {
           variantId: variant.id,
           platform: platformInput.platform,
+          platformConnectionId: platformInput.platformConnectionId ?? null,
           scheduledAt: variantScheduledAt,
           qstashMessageId,
         };
@@ -725,6 +729,7 @@ export class ScheduleService {
             const variantRes = await publishService.publishPost({
               postVariantId: variant.id,
               platform: variant.platform,
+              platformConnectionId: variant.platformConnectionId,
               workspaceId: parentPost.workspaceId,
             });
             if (variantRes.ok && variantRes.value.success) {

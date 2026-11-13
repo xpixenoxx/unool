@@ -41,6 +41,7 @@ export interface PublishJobInput {
   postVariantId: string;
   platform: Platform;
   workspaceId: string;
+  platformConnectionId?: string | null;
 }
 
 export interface PublishJobResult {
@@ -61,8 +62,23 @@ export class PublishService {
       return err(new Error(`Unsupported platform: ${input.platform}`));
     }
 
-    // Get platform connection for workspace
-    const connection = await platformRepository.findByWorkspaceAndPlatform(input.workspaceId, input.platform);
+    // Load variant first so we can resolve its exact target platformConnectionId (if any)
+    const variant = await postRepository.findVariantById(input.postVariantId);
+    if (!variant) {
+      return err(new Error(`Post variant not found: ${input.postVariantId}`));
+    }
+
+    // Resolve connection: honor explicit platformConnectionId (on input or variant) strictly without cross-account fallback
+    const targetConnectionId = input.platformConnectionId ?? variant.platformConnectionId ?? null;
+    let connection = null;
+    if (targetConnectionId) {
+      const candidate = await platformRepository.findById(targetConnectionId);
+      if (candidate && candidate.workspaceId === input.workspaceId && candidate.platform === input.platform) {
+        connection = candidate;
+      }
+    } else {
+      connection = await platformRepository.findByWorkspaceAndPlatform(input.workspaceId, input.platform);
+    }
 
     let isKickStreamReady = false;
     if (input.platform === 'kick' && connection?.accessTokenEncrypted) {
@@ -89,19 +105,11 @@ export class PublishService {
     // Auto-heal connection status in DB if Kick stream credentials are ready
     if (input.platform === 'kick' && isKickStreamReady && connection.status !== 'connected') {
       try {
-        const { createClient } = await import('@supabase/supabase-js');
-        
         await supabaseAdmin
           .from('platform_connections')
           .update({ status: 'connected', updated_at: new Date().toISOString() })
           .eq('id', connection.id);
       } catch {}
-    }
-
-    // Get post variant with adapted content
-    const variant = await postRepository.findVariantById(input.postVariantId);
-    if (!variant) {
-      return err(new Error(`Post variant not found: ${input.postVariantId}`));
     }
 
     // If variant is marked as failed due to unresolvable media validation, do not attempt to publish
@@ -287,7 +295,7 @@ export class PublishService {
   async publishToAllPlatforms(
     postId: string,
     workspaceId: string
-  ): Promise<Record<Platform, PublishJobResult>> {
+  ): Promise<Record<string, PublishJobResult>> {
     // Lookup post to ensure guaranteed workspaceId
     const post = await postRepository.findById(postId);
     const resolvedWorkspaceId = post?.workspaceId || workspaceId;
@@ -298,6 +306,11 @@ export class PublishService {
     // Get all variants for this post
     const variants = await postRepository.findVariantsByPostId(postId);
     const results: Record<string, PublishJobResult> = {};
+
+    const platformCounts = new Map<Platform, number>();
+    for (const v of variants) {
+      platformCounts.set(v.platform, (platformCounts.get(v.platform) || 0) + 1);
+    }
 
     // Mark non-published variants as 'publishing' so UI reflects progress in real time
     for (const v of variants) {
@@ -317,13 +330,18 @@ export class PublishService {
     });
 
     const publishPromises = variants.map(async (variant) => {
+      const resultKey =
+        (platformCounts.get(variant.platform) || 0) > 1
+          ? `${variant.platform}:${variant.platformConnectionId || variant.id}`
+          : variant.platform;
+
       if (variant.status === 'published') {
         logger.info(`PublishService: variant ${variant.platform} already published — skipping duplicate dispatch`, {
           postId,
           variantId: variant.id,
         });
         return {
-          platform: variant.platform,
+          resultKey,
           result: ok({
             success: true,
             platformPostId: variant.platformPostId || undefined,
@@ -335,26 +353,29 @@ export class PublishService {
         postId,
         variantId: variant.id,
         platform: variant.platform,
+        platformConnectionId: variant.platformConnectionId ?? undefined,
       });
       const result = await this.publishPost({
         postVariantId: variant.id,
         platform: variant.platform,
+        platformConnectionId: variant.platformConnectionId,
         workspaceId: resolvedWorkspaceId,
       });
       const jobResult = result.ok ? result.value : { success: false, error: result.error?.message };
       logger.info(`PublishService: finished publish for ${variant.platform}`, {
         postId,
         platform: variant.platform,
+        platformConnectionId: variant.platformConnectionId ?? undefined,
         success: jobResult.success,
         error: jobResult.success ? undefined : jobResult.error,
       });
-      return { platform: variant.platform, result };
+      return { resultKey, result };
     });
 
     const publishedResults = await Promise.all(publishPromises);
 
-    for (const { platform, result } of publishedResults) {
-      results[platform] = result.ok ? result.value : { success: false, error: result.error?.message };
+    for (const { resultKey, result } of publishedResults) {
+      results[resultKey] = result.ok ? result.value : { success: false, error: result.error?.message };
     }
 
     // Update parent post status based on variant results

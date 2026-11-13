@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import {
   Loader2,
   Phone, AlertCircle, Unlink2, Link2, Lock, Globe2,
-  ArrowRight, Wifi, WifiOff, RefreshCw, ExternalLink, Radio
+  ArrowRight, Wifi, WifiOff, RefreshCw, ExternalLink, Radio, Plus, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -36,20 +36,35 @@ import { ManualIntegrationDialog } from './ManualIntegrationDialog';
 export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
 export type Platform = typeof SUPPORTED_PLATFORMS[number];
 
-interface PlatformConnection {
+export interface ConnectedAccountItem {
+  id: string;
   platform: Platform;
-  status: 'connected' | 'expired' | 'not_connected' | 'error';
+  platformUserId?: string;
   username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  status: 'connected' | 'expired' | 'not_connected' | 'error';
   connectedAt?: string;
   expiresAt?: string;
   streamConfigured?: boolean;
 }
 
+interface PlatformConnection {
+  platform: Platform;
+  status: 'connected' | 'expired' | 'not_connected' | 'error';
+  username?: string;
+  displayName?: string;
+  connectedAt?: string;
+  expiresAt?: string;
+  streamConfigured?: boolean;
+  accounts?: ConnectedAccountItem[];
+}
+
 interface PlatformConnectionsProps {
   workspaceId: string;
   userId?: string;
-  initialConnectionsProp?: Record<string, { status: string; username?: string }>;
-  onConnectionChange?: (connections: Record<string, { status: string; username?: string }>) => void;
+  initialConnectionsProp?: Record<string, { status: string; username?: string; accounts?: ConnectedAccountItem[] }>;
+  onConnectionChange?: (connections: Record<string, { status: string; username?: string; accounts?: ConnectedAccountItem[] }>) => void;
 }
 
 /* ─── Platform display config ──────────────────────────────── */
@@ -444,7 +459,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     return !hasCached && !hasProps;
   });
   const [connecting, setConnecting] = useState<Platform | null>(null);
-  const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(false);
   const [mastodonDialogOpen, setMastodonDialogOpen] = useState(false);
@@ -487,13 +502,38 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
             for (const [p, val] of Object.entries(data.connections)) {
               const platformKey = p as Platform;
               if (next[platformKey]) {
-                const newStatus = (val as any).status || 'not_connected';
-                const newUsername = (val as any).username;
-                if (next[platformKey].status !== newStatus || next[platformKey].username !== newUsername) {
+                const typedVal = val as {
+                  status?: string;
+                  username?: string;
+                  displayName?: string;
+                  connectedAt?: string;
+                  expiresAt?: string;
+                  streamConfigured?: boolean;
+                  accounts?: ConnectedAccountItem[];
+                };
+                const newStatus = (typedVal.status as PlatformConnection['status']) || 'not_connected';
+                const newUsername = typedVal.username;
+                const newAccounts = Array.isArray(typedVal.accounts) ? typedVal.accounts : [];
+                const prevAccounts = next[platformKey].accounts || [];
+                const accountsChanged =
+                  prevAccounts.length !== newAccounts.length ||
+                  prevAccounts.some((a, i) => a.id !== newAccounts[i]?.id || a.status !== newAccounts[i]?.status || a.username !== newAccounts[i]?.username);
+
+                if (
+                  next[platformKey].status !== newStatus ||
+                  next[platformKey].username !== newUsername ||
+                  next[platformKey].streamConfigured !== typedVal.streamConfigured ||
+                  accountsChanged
+                ) {
                   next[platformKey] = {
                     ...next[platformKey],
                     status: newStatus,
                     username: newUsername,
+                    displayName: typedVal.displayName,
+                    connectedAt: typedVal.connectedAt,
+                    expiresAt: typedVal.expiresAt,
+                    streamConfigured: typedVal.streamConfigured,
+                    accounts: newAccounts,
                   };
                   changed = true;
                 }
@@ -517,7 +557,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     }
   };
 
-  const handleConnect = useCallback((platform: Platform) => {
+  const handleConnect = useCallback((platform: Platform, options?: { addAccount?: boolean; reconnectConnectionId?: string }) => {
     const cfg = PLATFORM_CONFIG[platform];
     if (platform === 'manual') {
       setManualDialogOpen(true);
@@ -584,31 +624,30 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     const effectiveUserId = userId || initialUserId;
     const params = new URLSearchParams({ platform, workspaceId });
     if (effectiveUserId) params.set('userId', effectiveUserId);
+    if (options?.addAccount) params.set('addAccount', 'true');
+    if (options?.reconnectConnectionId) params.set('reconnectConnectionId', options.reconnectConnectionId);
     // Use window.location for the OAuth redirect (router.push doesn't handle external URLs)
     window.location.href = `/api/auth/platform/connect?${params.toString()}`;
   }, [workspaceId, userId, initialUserId]);
 
-  const handleDisconnect = async (platform: Platform) => {
+  const handleDisconnect = async (platform: Platform, connectionId?: string, accountLabel?: string) => {
     const cfg = PLATFORM_CONFIG[platform];
-    if (!confirm(`Disconnect ${cfg.name}? You can reconnect anytime.`)) return;
+    const targetLabel = accountLabel ? `@${accountLabel} on ${cfg.name}` : cfg.name;
+    if (!confirm(`Disconnect ${targetLabel}? You can reconnect anytime.`)) return;
 
-    setDisconnecting(platform);
+    const busyKey = connectionId || platform;
+    setDisconnecting(busyKey);
     try {
-      const res = await fetch(`/api/platform/connections/${platform}`, {
+      const url = connectionId
+        ? `/api/platform/connections/${platform}?connectionId=${encodeURIComponent(connectionId)}`
+        : `/api/platform/connections/${platform}`;
+      const res = await fetch(url, {
         method: 'DELETE',
         credentials: 'include',
       });
       if (res.ok) {
-        setConnections((prev) => {
-          const next = {
-            ...prev,
-            [platform]: { platform, status: 'not_connected' },
-          };
-          memoryConnectionsCache.set(workspaceId, next);
-          onConnectionChange?.(next);
-          return next;
-        });
-        toast.success(`${cfg.name} disconnected`);
+        await loadConnections();
+        toast.success(`${targetLabel} disconnected`);
         router.refresh();
       } else {
         toast.error('Failed to disconnect');
@@ -623,6 +662,15 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
   const connectedCount = connectablePlatforms.filter(
     (p) => connections[p]?.status === 'connected'
   ).length;
+
+  const totalConnectedAccountsCount = connectablePlatforms.reduce((sum, p) => {
+    const conn = connections[p];
+    if (!conn) return sum;
+    if (Array.isArray(conn.accounts) && conn.accounts.length > 0) {
+      return sum + conn.accounts.filter((a) => a.status === 'connected').length;
+    }
+    return sum + (conn.status === 'connected' ? 1 : 0);
+  }, 0);
 
   const comingSoonPlatforms = SUPPORTED_PLATFORMS.filter(
     (p) => !connectablePlatforms.includes(p)
@@ -857,7 +905,9 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
             {connectedCount > 0 && (
               <Badge variant="secondary" className="text-xs gap-1">
                 <Wifi className="h-3 w-3" />
-                {connectedCount} connected
+                {totalConnectedAccountsCount > connectedCount
+                  ? `${totalConnectedAccountsCount} accounts · ${connectedCount} platforms`
+                  : `${connectedCount} connected`}
               </Badge>
             )}
           </div>
@@ -919,24 +969,105 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                       </div>
                     </div>
 
-                    {/* Status + username */}
-                    <div className="mb-3">
-                      {isConnected ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-[#7dffb0] shadow-[0_0_6px_#7dffb0] flex-shrink-0" />
-                          <span className="text-xs font-medium text-white/95 truncate">
-                            {connection.username
-                              ? `@${connection.username}`
-                              : 'Connected'}
-                          </span>
-                        </div>
-                      ) : hasIssue ? (
-                        <div className="flex items-center gap-1.5">
-                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                            {isExpired ? 'Token expired — reconnect' : 'Connection error'}
-                          </span>
-                        </div>
+                    {/* Status + connected accounts list */}
+                    <div className="mb-3 space-y-1.5">
+                      {isConnected || hasIssue ? (
+                        (() => {
+                          const accountRows: ConnectedAccountItem[] =
+                            Array.isArray(connection.accounts) && connection.accounts.length > 0
+                              ? connection.accounts
+                              : [
+                                  {
+                                    id: `${platform}:default`,
+                                    platform,
+                                    username: connection.username,
+                                    displayName: connection.displayName,
+                                    status: connection.status,
+                                    streamConfigured: connection.streamConfigured,
+                                  },
+                                ];
+                          const hasRealAccountIds = Array.isArray(connection.accounts) && connection.accounts.length > 0;
+                          return accountRows.map((acct) => {
+                            const acctConnected = acct.status === 'connected';
+                            const acctExpired = acct.status === 'expired' || acct.status === 'error';
+                            const label = acct.username
+                              ? `@${acct.username}`
+                              : acct.displayName || (acctConnected ? 'Connected' : 'Reconnect');
+                            const busyId = hasRealAccountIds ? acct.id : platform;
+                            return (
+                              <div
+                                key={acct.id}
+                                className={cn(
+                                  'flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg',
+                                  isConnected
+                                    ? 'bg-white/10 border border-white/15'
+                                    : 'bg-amber-100/60 dark:bg-amber-900/30 border border-amber-300/60'
+                                )}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {acctConnected ? (
+                                    <span className="w-2 h-2 rounded-full bg-[#7dffb0] shadow-[0_0_6px_#7dffb0] flex-shrink-0" />
+                                  ) : (
+                                    <AlertCircle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                                  )}
+                                  <span
+                                    className={cn(
+                                      'text-xs font-medium truncate',
+                                      isConnected ? 'text-white/95' : 'text-amber-700 dark:text-amber-300'
+                                    )}
+                                    title={acct.displayName || acct.username || ''}
+                                  >
+                                    {label}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  {acctExpired && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleConnect(platform, {
+                                          reconnectConnectionId: hasRealAccountIds ? acct.id : undefined,
+                                        })
+                                      }
+                                      disabled={connecting === platform}
+                                      title="Reconnect this account"
+                                      className={cn(
+                                        'p-1 rounded hover:bg-white/20 transition-colors',
+                                        isConnected ? 'text-white/85 hover:text-white' : 'text-amber-700 hover:text-amber-900'
+                                      )}
+                                    >
+                                      <RefreshCw className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDisconnect(
+                                        platform,
+                                        hasRealAccountIds ? acct.id : undefined,
+                                        acct.username || acct.displayName
+                                      )
+                                    }
+                                    disabled={disconnecting === busyId || disconnecting === platform}
+                                    title={`Disconnect ${acct.username || cfg.name}`}
+                                    className={cn(
+                                      'p-1 rounded transition-colors',
+                                      isConnected
+                                        ? 'text-white/75 hover:text-white hover:bg-white/20'
+                                        : 'text-amber-700/80 hover:text-amber-900 hover:bg-amber-200/60'
+                                    )}
+                                  >
+                                    {disconnecting === busyId ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <X className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()
                       ) : (
                         <div className="flex items-center gap-1.5">
                           <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
@@ -968,48 +1099,56 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                         </Button>
                       )}
                       <div className="flex gap-2">
-                        {isExpired && (
+                        {platform !== 'manual' && (
                           <Button
                             size="sm"
-                            variant="default"
-                            className="flex-1 h-8 text-xs"
-                            onClick={() => handleConnect(platform)}
+                            variant={isExpired ? 'default' : 'outline'}
+                            className={cn(
+                              'flex-1 h-8 text-xs font-medium gap-1',
+                              isConnected &&
+                                (isBlue
+                                  ? 'border-white/30 bg-white/15 text-white hover:bg-white hover:text-blue-900'
+                                  : 'border-white/30 bg-white/15 text-white hover:bg-white hover:text-black')
+                            )}
+                            onClick={() => handleConnect(platform, { addAccount: true })}
                             disabled={connecting === platform}
+                            title={`Connect another ${cfg.name} account (switch accounts in ${cfg.name} if it re-selects your active session)`}
                           >
                             {connecting === platform ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               <>
-                                <RefreshCw className="mr-1 h-3 w-3" />
-                                Reconnect
+                                <Plus className="h-3 w-3" />
+                                Add account
                               </>
                             )}
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            'h-8 text-xs transition-all font-medium',
-                            !isExpired && 'flex-1',
-                            isConnected
-                              ? isBlue
-                                ? 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-blue-900'
-                                : 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-black'
-                              : 'text-muted-foreground'
-                          )}
-                          onClick={() => handleDisconnect(platform)}
-                          disabled={disconnecting === platform}
-                        >
-                          {disconnecting === platform ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <>
-                              <Unlink2 className="mr-1 h-3 w-3" />
-                              Disconnect
-                            </>
-                          )}
-                        </Button>
+                        {platform === 'manual' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              'flex-1 h-8 text-xs transition-all font-medium',
+                              isConnected
+                                ? isBlue
+                                  ? 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-blue-900'
+                                  : 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-black'
+                                : 'text-muted-foreground'
+                            )}
+                            onClick={() => handleDisconnect(platform)}
+                            disabled={disconnecting === platform}
+                          >
+                            {disconnecting === platform ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <Unlink2 className="mr-1 h-3 w-3" />
+                                Disconnect
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ) : (

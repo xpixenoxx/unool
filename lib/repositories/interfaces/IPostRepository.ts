@@ -42,6 +42,7 @@ export interface PostVariant {
   id: string;
   postId: string;
   platform: Platform;
+  platformConnectionId?: string | null;
   adaptedContent: string;
   mediaUrls: PostMedia[];
   characterCount: number;
@@ -168,6 +169,7 @@ export interface IPostRepository {
 export interface CreatePostVariantInput {
   postId: string;
   platform: Platform;
+  platformConnectionId?: string | null;
   adaptedContent: string;
   mediaUrls?: PostMedia[];
   characterCount: number;
@@ -181,6 +183,7 @@ export interface CreatePostVariantInput {
 }
 
 export interface UpdatePostVariantInput {
+  platformConnectionId?: string | null;
   adaptedContent?: string;
   mediaUrls?: PostMedia[];
   characterCount?: number;

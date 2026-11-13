@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       drafts = [],
       mediaItems = [],
       selectedPlatforms = [],
+      selectedTargets = [],
     } = body;
 
     const trimmedContent = typeof content === 'string' ? content.trim() : '';
@@ -59,14 +60,23 @@ export async function POST(request: NextRequest) {
       const existingVariants = await postRepository.findVariantsByPostId(activePostId);
 
       if (Array.isArray(drafts) && drafts.length > 0) {
+        const matchedVariantIds = new Set<string>();
         for (const d of drafts) {
           if (!d.platform) continue;
-          const targetVariant = existingVariants.find(v => v.platform === d.platform);
+          const targetVariant = existingVariants.find(v => {
+            if (matchedVariantIds.has(v.id)) return false;
+            if (d.variantId && v.id === d.variantId) return true;
+            if (d.platformConnectionId && v.platformConnectionId === d.platformConnectionId) return true;
+            return !d.platformConnectionId && !v.platformConnectionId && v.platform === d.platform;
+          });
+          if (targetVariant) matchedVariantIds.add(targetVariant.id);
+
           const platformMedia = await optimizeMediaForPlatform(normalizedMedia, d.platform as PlatformType);
 
           if (targetVariant) {
             await postRepository.updateVariant(targetVariant.id, {
               status: 'draft',
+              platformConnectionId: d.platformConnectionId ?? targetVariant.platformConnectionId ?? null,
               adaptedContent: d.content ?? targetVariant.adaptedContent,
               characterCount: (d.content ?? targetVariant.adaptedContent).length,
               hashtagStrategy: d.hashtags || targetVariant.hashtagStrategy,
@@ -77,10 +87,41 @@ export async function POST(request: NextRequest) {
             await postRepository.createVariant({
               postId: activePostId,
               platform: d.platform,
+              platformConnectionId: d.platformConnectionId ?? null,
               adaptedContent: d.content || trimmedContent,
               characterCount: (d.content || trimmedContent).length,
               hashtagStrategy: d.hashtags || [],
               firstCommentHint: d.firstCommentHint || undefined,
+              mediaUrls: platformMedia,
+              status: 'draft',
+            });
+          }
+        }
+      } else if (Array.isArray(selectedTargets) && selectedTargets.length > 0) {
+        for (const t of selectedTargets) {
+          if (!t?.platform) continue;
+          const targetVariant = existingVariants.find(v =>
+            t.platformConnectionId
+              ? v.platformConnectionId === t.platformConnectionId
+              : v.platform === t.platform
+          );
+          const platformMedia = await optimizeMediaForPlatform(normalizedMedia, t.platform as PlatformType);
+          if (targetVariant) {
+            await postRepository.updateVariant(targetVariant.id, {
+              status: 'draft',
+              platformConnectionId: t.platformConnectionId ?? targetVariant.platformConnectionId ?? null,
+              adaptedContent: trimmedContent || targetVariant.adaptedContent,
+              characterCount: (trimmedContent || targetVariant.adaptedContent).length,
+              mediaUrls: platformMedia.length > 0 ? platformMedia : targetVariant.mediaUrls,
+            });
+          } else {
+            await postRepository.createVariant({
+              postId: activePostId,
+              platform: t.platform,
+              platformConnectionId: t.platformConnectionId ?? null,
+              adaptedContent: trimmedContent,
+              characterCount: trimmedContent.length,
+              hashtagStrategy: [],
               mediaUrls: platformMedia,
               status: 'draft',
             });
@@ -131,10 +172,26 @@ export async function POST(request: NextRequest) {
           await postRepository.createVariant({
             postId: activePostId,
             platform: d.platform,
+            platformConnectionId: d.platformConnectionId ?? null,
             adaptedContent: d.content || trimmedContent,
             characterCount: (d.content || trimmedContent).length,
             hashtagStrategy: d.hashtags || [],
             firstCommentHint: d.firstCommentHint || undefined,
+            mediaUrls: platformMedia,
+            status: 'draft',
+          });
+        }
+      } else if (Array.isArray(selectedTargets) && selectedTargets.length > 0) {
+        for (const t of selectedTargets) {
+          if (!t?.platform) continue;
+          const platformMedia = await optimizeMediaForPlatform(normalizedMedia, t.platform as PlatformType);
+          await postRepository.createVariant({
+            postId: activePostId,
+            platform: t.platform,
+            platformConnectionId: t.platformConnectionId ?? null,
+            adaptedContent: trimmedContent,
+            characterCount: trimmedContent.length,
+            hashtagStrategy: [],
             mediaUrls: platformMedia,
             status: 'draft',
           });

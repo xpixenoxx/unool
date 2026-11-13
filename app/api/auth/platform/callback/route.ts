@@ -197,11 +197,15 @@ export async function GET(request: NextRequest) {
     }
 
 
-    // Preserve existing Kick stream settings if reconnecting
+    // Preserve existing Kick stream settings if reconnecting the same Kick account
     let finalAccessTokenToEncrypt = tokenResponse.accessToken;
     if (platform === 'kick') {
       try {
-        const existingConn = await platformRepository.findByWorkspaceAndPlatform(finalWorkspaceId, 'kick');
+        const existingConn = await platformRepository.findByWorkspacePlatformAndUser(
+          finalWorkspaceId,
+          'kick',
+          profile.platformUserId
+        );
         if (existingConn?.accessTokenEncrypted) {
           const { decryptToken } = await import('@/lib/crypto/encryption');
           const decrypted = await decryptToken(existingConn.accessTokenEncrypted);
@@ -244,19 +248,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Enforce plan channel limit before creating a new platform connection (allow reconnecting existing platform)
+    // Enforce plan channel limit before creating a new account connection (allow reconnecting the same account)
     const planCtx = await getPlanContext(userId, finalWorkspaceId);
     const channelLimit = planCtx?.limits?.channels;
     if (planCtx && typeof channelLimit === 'number' && channelLimit > 0) {
       const existingConnections = await platformRepository.findByWorkspaceId(finalWorkspaceId);
-      const activePlatforms = new Set(
-        existingConnections.filter(c => c.status === 'connected').map(c => c.platform)
+      const activeConnections = existingConnections.filter(c => c.status === 'connected');
+      const isReconnectingSameAccount = activeConnections.some(
+        c => c.platform === platform && c.platformUserId === profile.platformUserId
       );
-      if (!activePlatforms.has(platform) && activePlatforms.size >= channelLimit) {
+      if (!isReconnectingSameAccount && activeConnections.length >= channelLimit) {
         logger.warn('OAuth callback blocked: channel limit reached for plan', {
           workspaceId: finalWorkspaceId,
           plan: planCtx.plan,
-          connectedCount: activePlatforms.size,
+          connectedCount: activeConnections.length,
           channelLimit,
           platform,
         });
@@ -277,6 +282,8 @@ export async function GET(request: NextRequest) {
       platform,
       platformUserId: profile.platformUserId,
       username: profile.username,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
       accessToken: finalAccessTokenEncrypted,
       refreshToken: refreshTokenEncrypted || '',
       expiresAt,

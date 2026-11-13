@@ -71,13 +71,14 @@ export async function POST(request: NextRequest) {
     // Encrypt the token payload for storage
     const encryptedToken = await encryptToken(tokenPayload);
 
-    // Upsert platform connection
+    // Upsert platform connection (scope by bot + chat so multiple Telegram channels per bot are distinct)
     await platformRepo.create({
       workspaceId,
       userId: userId || workspaceId,
       platform: 'telegram',
-      platformUserId: profile.platformUserId,
-      username: profile.username || chatId,
+      platformUserId: `${profile.platformUserId}:${normalizedChatId}`,
+      username: normalizedChatId || profile.username || chatId,
+      displayName: profile.displayName || normalizedChatId,
       accessToken: encryptedToken,
       refreshToken: '', // not used
       expiresAt: undefined, // no expiration

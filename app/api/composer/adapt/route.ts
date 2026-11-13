@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       const { userId, workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems, selectedPlatforms, postId: existingPostId } = body;
+      const { content, profileId, mediaItems, selectedPlatforms, selectedTargets, postId: existingPostId } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -93,21 +93,44 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      let activePlatforms: PlatformType[] = [];
+      const { PLATFORM_SPECS } = await import('@/lib/ai/PostAdapter');
+      const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+      const platformRepo = new SupabasePlatformRepository();
+      const workspaceConnections = await platformRepo.findByWorkspaceId(workspaceId);
+      const validConnectionById = new Map(
+        workspaceConnections.filter(c => c.status === 'connected').map(c => [c.id, c])
+      );
 
-      if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
-        activePlatforms = selectedPlatforms as PlatformType[];
-      } else {
-        // Fetch active platform connections for this workspace
-        const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
-        const platformRepo = new SupabasePlatformRepository();
-        const connections = await platformRepo.findByWorkspaceId(workspaceId);
-        activePlatforms = connections
-          .filter(c => c.status === 'connected')
-          .map(c => c.platform as PlatformType);
+      interface AdaptTarget {
+        platform: PlatformType;
+        platformConnectionId?: string | null;
       }
 
-      if (activePlatforms.length === 0) {
+      let rawTargets: AdaptTarget[] = [];
+
+      if (Array.isArray(selectedTargets) && selectedTargets.length > 0) {
+        for (const t of selectedTargets) {
+          if (!t || !t.platform) continue;
+          if (t.platformConnectionId) {
+            const conn = validConnectionById.get(t.platformConnectionId);
+            if (!conn || conn.platform !== t.platform) continue;
+            rawTargets.push({ platform: t.platform as PlatformType, platformConnectionId: conn.id });
+          } else {
+            rawTargets.push({ platform: t.platform as PlatformType, platformConnectionId: null });
+          }
+        }
+      } else if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
+        rawTargets = (selectedPlatforms as PlatformType[]).map((platform) => {
+          const defaultConn = workspaceConnections.find(c => c.status === 'connected' && c.platform === platform);
+          return { platform, platformConnectionId: defaultConn?.id ?? null };
+        });
+      } else {
+        rawTargets = workspaceConnections
+          .filter(c => c.status === 'connected')
+          .map(c => ({ platform: c.platform as PlatformType, platformConnectionId: c.id }));
+      }
+
+      if (rawTargets.length === 0) {
         return NextResponse.json(
           { error: 'No active platform connections found' },
           { status: 400 }
@@ -115,8 +138,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Strip platforms that have no AI adaptation spec (e.g. 'manual') to avoid crashes
-      const { PLATFORM_SPECS } = await import('@/lib/ai/PostAdapter');
-      activePlatforms = activePlatforms.filter(p => p in PLATFORM_SPECS);
+      const activeTargets = rawTargets.filter(t => t.platform in PLATFORM_SPECS);
+      const activePlatforms: PlatformType[] = Array.from(new Set(activeTargets.map(t => t.platform)));
 
       if (activePlatforms.length === 0) {
         return NextResponse.json(
@@ -179,42 +202,53 @@ export async function POST(request: NextRequest) {
         activePostId = post.id;
       }
 
-      // Create variants — only for platforms that were successfully adapted
-      const successfulPlatforms = Object.keys(variants) as PlatformType[];
-      for (const platform of successfulPlatforms) {
-        const adapted = variants[platform];
+      // Create variants for each target account whose platform was successfully adapted
+      const createdTargetVariants: Array<{
+        variantId: string;
+        platform: string;
+        platformConnectionId: string | null;
+        content: string;
+        characterCount: number;
+        hashtags: string[];
+        firstCommentHint?: string;
+      }> = [];
+
+      const normalizedMedia = (mediaItems || []).map((m: any) => {
+        if (typeof m === 'string') {
+          return { url: m, type: 'image' as const };
+        }
+        return { url: m.url as string, type: (m.type || 'image') as 'image' | 'video' };
+      }).filter((m: any) => Boolean(m.url));
+
+      for (const target of activeTargets) {
+        const adapted = variants[target.platform];
+        if (!adapted) continue;
 
         let status: 'draft' | 'failed' | 'published' = 'draft';
         let errorObj: any = null;
-        const normalizedMedia = (mediaItems || []).map((m: any) => {
-          if (typeof m === 'string') {
-            return { url: m, type: 'image' as const };
-          }
-          return { url: m.url as string, type: (m.type || 'image') as 'image' | 'video' };
-        }).filter((m: any) => Boolean(m.url));
-
         const hasVideo = normalizedMedia.some((m: any) => m.type === 'video');
         const hasImage = normalizedMedia.some((m: any) => m.type === 'image');
 
-        if (platform === 'threads' && hasVideo) {
+        if (target.platform === 'threads' && hasVideo) {
           status = 'failed';
           errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Threads does not support video uploads.' };
-        } else if (platform === 'pinterest' && hasVideo) {
+        } else if (target.platform === 'pinterest' && hasVideo) {
           status = 'failed';
           errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Pinterest does not support video uploads.' };
-        } else if (platform === 'pinterest' && !hasImage) {
+        } else if (target.platform === 'pinterest' && !hasImage) {
           status = 'failed';
           errorObj = { code: 'MEDIA_REQUIRED', message: 'Pinterest requires at least one image to create a Pin.' };
-        } else if (platform === 'dribbble' && !hasImage) {
+        } else if (target.platform === 'dribbble' && !hasImage) {
           status = 'failed';
           errorObj = { code: 'MEDIA_REQUIRED', message: 'Dribbble requires an image to create a Shot.' };
         }
 
-        const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
+        const finalMedia = await optimizeMediaForPlatform(normalizedMedia, target.platform);
 
-        await postRepository.createVariant({
+        const created = await postRepository.createVariant({
           postId: activePostId,
-          platform,
+          platform: target.platform,
+          platformConnectionId: target.platformConnectionId ?? null,
           adaptedContent: adapted.content,
           mediaUrls: finalMedia,
           characterCount: adapted.characterCount,
@@ -222,6 +256,16 @@ export async function POST(request: NextRequest) {
           firstCommentHint: adapted.firstCommentHint || undefined,
           status,
           error: errorObj,
+        });
+
+        createdTargetVariants.push({
+          variantId: created.id,
+          platform: target.platform,
+          platformConnectionId: created.platformConnectionId ?? target.platformConnectionId ?? null,
+          content: adapted.content,
+          characterCount: adapted.characterCount,
+          hashtags: adapted.hashtags,
+          firstCommentHint: adapted.firstCommentHint ?? undefined,
         });
       }
 
@@ -239,6 +283,7 @@ export async function POST(request: NextRequest) {
         traceId,
         postId: activePostId,
         platforms: Object.keys(variants),
+        targetVariantCount: createdTargetVariants.length,
       });
 
       // Build dynamic response with all variants
@@ -255,6 +300,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         postId: activePostId,
         variants: responseVariants,
+        targetVariants: createdTargetVariants,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

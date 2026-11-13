@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapConnectionRows } from '../connectionStatus';
+import { mapConnectionRows, mapConnectionAccounts } from '../connectionStatus';
 
 describe('mapConnectionRows', () => {
   it('returns empty record when input is empty or null', () => {
@@ -106,6 +106,81 @@ describe('mapConnectionRows', () => {
 
     const result = mapConnectionRows([olderConnected, newerRevoked]);
     expect(result.instagram).toEqual({ status: 'not_connected' });
+  });
+
+  it('keeps platform connected when a second distinct account is revoked or expired', () => {
+    const primaryConnected = {
+      id: 'conn-ig-1',
+      platform: 'instagram',
+      platform_user_id: 'ig-user-1',
+      username: 'brand_main',
+      status: 'connected',
+      expires_at: null,
+      updated_at: '2026-10-01T10:00:00.000Z',
+    };
+    const secondaryRevoked = {
+      id: 'conn-ig-2',
+      platform: 'instagram',
+      platform_user_id: 'ig-user-2',
+      username: 'brand_alt',
+      status: 'revoked',
+      expires_at: null,
+      updated_at: '2026-10-01T12:00:00.000Z',
+    };
+
+    const result = mapConnectionRows([primaryConnected, secondaryRevoked]);
+    expect(result.instagram).toEqual({ status: 'connected' });
+  });
+});
+
+describe('mapConnectionAccounts', () => {
+  it('returns active and expired accounts per platform while omitting revoked rows', () => {
+    const rows = [
+      {
+        id: 'conn-1',
+        platform: 'instagram',
+        platform_user_id: 'ig-1',
+        username: 'main_brand',
+        display_name: 'Main Brand',
+        avatar_url: 'https://cdn.example.com/1.jpg',
+        status: 'connected',
+        expires_at: null,
+        created_at: '2026-10-01T08:00:00.000Z',
+      },
+      {
+        id: 'conn-2',
+        platform: 'instagram',
+        platform_user_id: 'ig-2',
+        username: 'founder_ig',
+        status: 'expired',
+        expires_at: null,
+      },
+      {
+        id: 'conn-3',
+        platform: 'instagram',
+        platform_user_id: 'ig-3',
+        username: 'old_revoked',
+        status: 'revoked',
+        expires_at: null,
+      },
+    ];
+
+    const grouped = mapConnectionAccounts(rows);
+    expect(grouped.instagram).toHaveLength(2);
+    expect(grouped.instagram[0]).toMatchObject({
+      id: 'conn-1',
+      platform: 'instagram',
+      platformUserId: 'ig-1',
+      username: 'main_brand',
+      displayName: 'Main Brand',
+      avatarUrl: 'https://cdn.example.com/1.jpg',
+      status: 'connected',
+    });
+    expect(grouped.instagram[1]).toMatchObject({
+      id: 'conn-2',
+      username: 'founder_ig',
+      status: 'expired',
+    });
   });
 });
 

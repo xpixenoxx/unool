@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { logger } from '@/lib/logger';
@@ -58,6 +58,24 @@ export async function GET(
       ? 'quick-broadcast'
       : 'ai-composer';
 
+    const connectionIds = Array.from(
+      new Set(allVariants.map(v => v.platformConnectionId).filter((id): id is string => Boolean(id)))
+    );
+    const connectionMetaById: Record<string, { username?: string | null; displayName?: string | null; avatarUrl?: string | null }> = {};
+    if (connectionIds.length > 0) {
+      const { data: connRows } = await supabaseAdmin
+        .from('platform_connections')
+        .select('id, username, display_name, avatar_url')
+        .in('id', connectionIds);
+      for (const row of connRows || []) {
+        connectionMetaById[row.id] = {
+          username: row.username ?? null,
+          displayName: row.display_name ?? null,
+          avatarUrl: row.avatar_url ?? null,
+        };
+      }
+    }
+
     return NextResponse.json({
       post: {
         id: post.id,
@@ -73,23 +91,30 @@ export async function GET(
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
       },
-      variants: allVariants.map((v) => ({
-        id: v.id,
-        postId: v.postId,
-        platform: v.platform,
-        adaptedContent: v.adaptedContent,
-        mediaUrls: v.mediaUrls ?? [],
-        characterCount: v.characterCount,
-        hashtagStrategy: v.hashtagStrategy ?? [],
-        firstCommentHint: v.firstCommentHint,
-        scheduledAt: v.scheduledAt?.toISOString() ?? null,
-        autoFirstComment: v.autoFirstComment,
-        status: v.status,
-        error: v.error,
-        platformUrl: variantPlatformUrls[v.id] || null,
-        createdAt: v.createdAt.toISOString(),
-        updatedAt: v.updatedAt.toISOString(),
-      })),
+      variants: allVariants.map((v) => {
+        const connMeta = v.platformConnectionId ? connectionMetaById[v.platformConnectionId] : undefined;
+        return {
+          id: v.id,
+          postId: v.postId,
+          platform: v.platform,
+          platformConnectionId: v.platformConnectionId ?? null,
+          accountUsername: connMeta?.username ?? null,
+          accountDisplayName: connMeta?.displayName ?? null,
+          accountAvatarUrl: connMeta?.avatarUrl ?? null,
+          adaptedContent: v.adaptedContent,
+          mediaUrls: v.mediaUrls ?? [],
+          characterCount: v.characterCount,
+          hashtagStrategy: v.hashtagStrategy ?? [],
+          firstCommentHint: v.firstCommentHint,
+          scheduledAt: v.scheduledAt?.toISOString() ?? null,
+          autoFirstComment: v.autoFirstComment,
+          status: v.status,
+          error: v.error,
+          platformUrl: variantPlatformUrls[v.id] || null,
+          createdAt: v.createdAt.toISOString(),
+          updatedAt: v.updatedAt.toISOString(),
+        };
+      }),
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

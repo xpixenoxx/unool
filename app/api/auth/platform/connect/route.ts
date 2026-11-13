@@ -88,6 +88,8 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
   const returnUrl = searchParams.get('returnUrl') || undefined;
+  const addAccount = searchParams.get('addAccount') === 'true';
+  const reconnectConnectionId = searchParams.get('reconnectConnectionId');
   const errorRedirect = returnUrl || '/dashboard';
 
   // Always resolve the authenticated user from session/middleware — never trust userId query param
@@ -122,25 +124,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`${errorRedirect}?error=unsupported_platform&platform=${platform}`, request.url));
   }
 
-  // Enforce plan channel limit (allow reconnecting an already-connected platform)
+  // Enforce plan channel limit across connected accounts (allow reconnecting an existing account)
   try {
     const planCtx = await getPlanContext(userId, workspaceId);
     const channelLimit = planCtx?.limits?.channels;
-    if (planCtx && typeof channelLimit === 'number' && channelLimit > 0) {
+    if (planCtx && typeof channelLimit === 'number' && channelLimit > 0 && !reconnectConnectionId) {
       const { data: connectedRows } = await supabaseAdmin
         .from('platform_connections')
-        .select('platform')
+        .select('id, platform')
         .eq('workspace_id', workspaceId)
         .eq('status', 'connected');
 
-      const connectedPlatforms = new Set((connectedRows || []).map((r: any) => r.platform));
-      if (!connectedPlatforms.has(platform) && connectedPlatforms.size >= channelLimit) {
+      const activeAccounts = connectedRows || [];
+      const connectedPlatforms = new Set(activeAccounts.map((r: { platform: string }) => r.platform));
+      const isImplicitReconnect = !addAccount && connectedPlatforms.has(platform);
+
+      if (!isImplicitReconnect && activeAccounts.length >= channelLimit) {
         logger.warn('Platform connect: channel limit reached for plan', {
           workspaceId,
           plan: planCtx.plan,
-          connectedCount: connectedPlatforms.size,
+          connectedCount: activeAccounts.length,
           channelLimit,
           platform,
+          addAccount,
         });
         return NextResponse.redirect(
           new URL(`${errorRedirect}?error=channel_limit_exceeded&limit=${channelLimit}&plan=${planCtx.plan}`, request.url)
@@ -187,6 +193,16 @@ export async function GET(request: NextRequest) {
     authUrl = result.url;
     if (result.pkceCookie) {
       resCookies.push(result.pkceCookie);
+    }
+  }
+
+  if (addAccount && platform === 'youtube') {
+    try {
+      const parsed = new URL(authUrl);
+      parsed.searchParams.set('prompt', 'select_account consent');
+      authUrl = parsed.toString();
+    } catch {
+      // keep generated authUrl as-is
     }
   }
 

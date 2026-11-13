@@ -50,6 +50,7 @@ export class SupabasePostRepository implements IPostRepository {
       id: row.id as string,
       postId: row.post_id as string,
       platform: row.platform as Platform,
+      platformConnectionId: (row.platform_connection_id as string | null) ?? null,
       adaptedContent: row.adapted_content as string,
       mediaUrls: (row.media_urls as PostMedia[]) || [],
       characterCount: row.character_count as number,
@@ -197,31 +198,7 @@ export class SupabasePostRepository implements IPostRepository {
   }
 
   async createVariant(input: CreatePostVariantInput): Promise<PostVariant> {
-    const { data, error } = await this.supabase
-      .from('post_variants')
-      .insert({
-        post_id: input.postId,
-        platform: input.platform,
-        adapted_content: input.adaptedContent,
-        media_urls: input.mediaUrls || [],
-        character_count: input.characterCount,
-        hashtag_strategy: input.hashtagStrategy,
-        first_comment_hint: input.firstCommentHint ?? null,
-        auto_first_comment: input.autoFirstComment ?? null,
-        qstash_message_id: input.qstashMessageId ?? null,
-        status: input.status ?? 'draft',
-        scheduled_at: input.scheduledAt ? input.scheduledAt.toISOString() : null,
-        error: input.error ?? null,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return this.mapVariantRow(data);
-  }
-
-  async createVariantsBatch(inputs: CreatePostVariantInput[]): Promise<PostVariant[]> {
-    if (inputs.length === 0) return [];
-    const rows = inputs.map((input) => ({
+    const insertRow: Record<string, unknown> = {
       post_id: input.postId,
       platform: input.platform,
       adapted_content: input.adaptedContent,
@@ -234,12 +211,57 @@ export class SupabasePostRepository implements IPostRepository {
       status: input.status ?? 'draft',
       scheduled_at: input.scheduledAt ? input.scheduledAt.toISOString() : null,
       error: input.error ?? null,
-    }));
+    };
+    if (input.platformConnectionId !== undefined) {
+      insertRow.platform_connection_id = input.platformConnectionId ?? null;
+    }
 
     const { data, error } = await this.supabase
       .from('post_variants')
-      .insert(rows)
+      .insert(insertRow)
+      .select()
+      .single();
+    if (error && input.platformConnectionId !== undefined && (error.code === '42703' || error.code === 'PGRST204' || String(error.message || '').includes('platform_connection_id'))) {
+      delete insertRow.platform_connection_id;
+      const retry = await this.supabase.from('post_variants').insert(insertRow).select().single();
+      if (retry.error) throw retry.error;
+      return { ...this.mapVariantRow(retry.data), platformConnectionId: input.platformConnectionId ?? null };
+    }
+    if (error) throw error;
+    return this.mapVariantRow(data);
+  }
+
+  async createVariantsBatch(inputs: CreatePostVariantInput[]): Promise<PostVariant[]> {
+    if (inputs.length === 0) return [];
+    const buildRows = (includeConnectionId: boolean) =>
+      inputs.map((input) => ({
+        post_id: input.postId,
+        platform: input.platform,
+        ...(includeConnectionId ? { platform_connection_id: input.platformConnectionId ?? null } : {}),
+        adapted_content: input.adaptedContent,
+        media_urls: input.mediaUrls || [],
+        character_count: input.characterCount,
+        hashtag_strategy: input.hashtagStrategy,
+        first_comment_hint: input.firstCommentHint ?? null,
+        auto_first_comment: input.autoFirstComment ?? null,
+        qstash_message_id: input.qstashMessageId ?? null,
+        status: input.status ?? 'draft',
+        scheduled_at: input.scheduledAt ? input.scheduledAt.toISOString() : null,
+        error: input.error ?? null,
+      }));
+
+    const { data, error } = await this.supabase
+      .from('post_variants')
+      .insert(buildRows(true))
       .select();
+    if (error && (error.code === '42703' || error.code === 'PGRST204' || String(error.message || '').includes('platform_connection_id'))) {
+      const retry = await this.supabase.from('post_variants').insert(buildRows(false)).select();
+      if (retry.error) throw retry.error;
+      return (retry.data || []).map((row, idx) => ({
+        ...this.mapVariantRow(row),
+        platformConnectionId: inputs[idx]?.platformConnectionId ?? null,
+      }));
+    }
     if (error) throw error;
     return (data || []).map(this.mapVariantRow.bind(this));
   }
@@ -268,6 +290,7 @@ export class SupabasePostRepository implements IPostRepository {
 
   async updateVariant(id: string, data: UpdatePostVariantInput): Promise<PostVariant> {
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (data.platformConnectionId !== undefined) updateData.platform_connection_id = data.platformConnectionId;
     if (data.adaptedContent !== undefined) updateData.adapted_content = data.adaptedContent;
     if (data.mediaUrls !== undefined) updateData.media_urls = data.mediaUrls;
     if (data.characterCount !== undefined) updateData.character_count = data.characterCount;

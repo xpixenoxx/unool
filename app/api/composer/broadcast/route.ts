@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PlatformType } from '@/lib/ai/PostAdapter';
 import { logger } from '@/lib/logger';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       const { workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems, selectedPlatforms, studioProfile: clientStudioProfile, postId: incomingPostId } = body;
+      const { content, profileId, mediaItems, selectedPlatforms, selectedTargets, studioProfile: clientStudioProfile, postId: incomingPostId } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -67,20 +67,45 @@ export async function POST(request: NextRequest) {
 
       const effectiveStudioProfile = clientStudioProfile || workspaceProfile?.studioProfile || null;
 
-      let activePlatforms: PlatformType[] = [];
+      const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+      const platformRepo = new SupabasePlatformRepository();
+      const workspaceConnections = await platformRepo.findByWorkspaceId(workspaceId);
+      const validConnectionById = new Map(
+        workspaceConnections.filter(c => c.status === 'connected').map(c => [c.id, c])
+      );
 
-      if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
-        activePlatforms = selectedPlatforms as PlatformType[];
-      } else {
-        const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
-        const platformRepo = new SupabasePlatformRepository();
-        const connections = await platformRepo.findByWorkspaceId(workspaceId);
-        activePlatforms = connections
-          .filter(c => c.status === 'connected')
-          .map(c => c.platform as PlatformType);
+      interface BroadcastTarget {
+        platform: PlatformType;
+        platformConnectionId?: string | null;
       }
 
-      if (activePlatforms.length === 0) {
+      let activeTargets: BroadcastTarget[] = [];
+
+      if (Array.isArray(selectedTargets) && selectedTargets.length > 0) {
+        for (const t of selectedTargets) {
+          if (!t || !t.platform) continue;
+          if (t.platformConnectionId) {
+            const conn = validConnectionById.get(t.platformConnectionId);
+            if (!conn || conn.platform !== t.platform) continue;
+            activeTargets.push({ platform: t.platform as PlatformType, platformConnectionId: conn.id });
+          } else {
+            activeTargets.push({ platform: t.platform as PlatformType, platformConnectionId: null });
+          }
+        }
+      } else if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
+        activeTargets = (selectedPlatforms as PlatformType[]).map((platform) => {
+          const defaultConn = workspaceConnections.find(c => c.status === 'connected' && c.platform === platform);
+          return { platform, platformConnectionId: defaultConn?.id ?? null };
+        });
+      } else {
+        activeTargets = workspaceConnections
+          .filter(c => c.status === 'connected')
+          .map(c => ({ platform: c.platform as PlatformType, platformConnectionId: c.id }));
+      }
+
+      const activePlatforms = activeTargets.map(t => t.platform);
+
+      if (activeTargets.length === 0) {
         return NextResponse.json(
           { error: 'No active platform connections found' },
           { status: 400 }
@@ -92,6 +117,7 @@ export async function POST(request: NextRequest) {
         workspaceId,
         contentLength: content.length,
         activePlatforms,
+        targetCount: activeTargets.length,
         personaRole: effectiveStudioProfile?.role,
         personaStage: effectiveStudioProfile?.businessStage,
         personaDomain: effectiveStudioProfile?.businessDomain || effectiveStudioProfile?.doing,
@@ -125,8 +151,9 @@ export async function POST(request: NextRequest) {
         await postRepository.updateStatus(post.id, 'publishing');
       }
 
-      // Create identical variants for ACTIVE platforms only with 'publishing' status
-      for (const platform of activePlatforms) {
+      // Create identical variants for each selected target account with 'publishing' status
+      for (const target of activeTargets) {
+        const { platform, platformConnectionId } = target;
         // Normalize mediaItems to PostMedia objects with {url, type}
         const normalizedMedia = (mediaItems || []).map((m: any) => {
           if (typeof m === 'string') {
@@ -161,6 +188,7 @@ export async function POST(request: NextRequest) {
         await postRepository.createVariant({
           postId: post.id,
           platform,
+          platformConnectionId: platformConnectionId ?? null,
           adaptedContent: rawContent,
           mediaUrls: finalMedia,
           characterCount: rawContent.length,

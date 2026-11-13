@@ -21,6 +21,8 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       platform: row.platform as Platform,
       platformUserId: row.platform_user_id as string,
       username: row.username as string,
+      displayName: (row.display_name as string | null) ?? undefined,
+      avatarUrl: (row.avatar_url as string | null) ?? undefined,
       accessTokenEncrypted: row.access_token_encrypted as string,
       refreshTokenEncrypted: row.refresh_token_encrypted as string,
       expiresAt: row.expires_at ? new Date(row.expires_at as string) : null,
@@ -65,8 +67,37 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .select('*')
       .eq('workspace_id', workspaceId)
       .eq('platform', platform)
+      .order('updated_at', { ascending: false })
       .limit(1);
     if (error) throw this.toDbError(error, 'Error finding connection by platform');
+    if (!data || data.length === 0) return null;
+    return this.mapConnectionRow(data[0]);
+  }
+
+  async findAllByWorkspaceAndPlatform(workspaceId: string, platform: Platform): Promise<PlatformConnection[]> {
+    const { data, error } = await this.supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('platform', platform)
+      .order('created_at', { ascending: true });
+    if (error) throw this.toDbError(error, 'Error finding connections by platform');
+    return (data || []).map(this.mapConnectionRow);
+  }
+
+  async findByWorkspacePlatformAndUser(
+    workspaceId: string,
+    platform: Platform,
+    platformUserId: string
+  ): Promise<PlatformConnection | null> {
+    const { data, error } = await this.supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('platform', platform)
+      .eq('platform_user_id', platformUserId)
+      .limit(1);
+    if (error) throw this.toDbError(error, 'Error finding connection by platform user');
     if (!data || data.length === 0) return null;
     return this.mapConnectionRow(data[0]);
   }
@@ -97,12 +128,13 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   }
 
   async create(input: CreatePlatformConnectionInput): Promise<PlatformConnection> {
-    // Check if connection already exists (by workspace + platform)
+    // Check if this specific account already exists (by workspace + platform + platform_user_id)
     const { data: existingData } = await this.supabase
       .from('platform_connections')
       .select('id')
       .eq('workspace_id', input.workspaceId)
       .eq('platform', input.platform)
+      .eq('platform_user_id', input.platformUserId)
       .limit(1);
 
     const existing = existingData?.[0];
@@ -111,7 +143,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     let lastError: unknown = null;
 
     if (existing) {
-      // Update existing record
+      // Update existing account record
       const updatePayload: Record<string, unknown> = {
         platform_user_id: input.platformUserId,
         username: input.username,
@@ -121,7 +153,13 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         status: 'connected',
         updated_at: new Date().toISOString(),
       };
-      
+
+      if (input.displayName !== undefined) {
+        updatePayload.display_name = input.displayName;
+      }
+      if (input.avatarUrl !== undefined) {
+        updatePayload.avatar_url = input.avatarUrl;
+      }
       if (input.refreshToken) {
         updatePayload.refresh_token_encrypted = input.refreshToken;
       }
@@ -139,32 +177,25 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         .select()
         .single();
 
-      // If update failed due to missing metadata/user_id column or constraint, progressively strip & retry
-      if (result.error && (result.error.code === '42703' || result.error.message?.includes('column') || result.error.code === '23503')) {
-        if ('metadata' in updatePayload) {
-          delete updatePayload.metadata;
-          result = await this.supabase
-            .from('platform_connections')
-            .update(updatePayload)
-            .eq('id', existing.id)
-            .select()
-            .single();
-        }
-        if (result.error && 'user_id' in updatePayload) {
-          delete updatePayload.user_id;
-          result = await this.supabase
-            .from('platform_connections')
-            .update(updatePayload)
-            .eq('id', existing.id)
-            .select()
-            .single();
+      // If update failed due to missing optional column or constraint, progressively strip & retry
+      if (result.error && (result.error.code === '42703' || result.error.code === 'PGRST204' || result.error.message?.includes('column') || result.error.code === '23503')) {
+        for (const col of ['display_name', 'avatar_url', 'metadata', 'user_id'] as const) {
+          if (result.error && col in updatePayload) {
+            delete updatePayload[col];
+            result = await this.supabase
+              .from('platform_connections')
+              .update(updatePayload)
+              .eq('id', existing.id)
+              .select()
+              .single();
+          }
         }
       }
 
       data = result.data;
       lastError = result.error;
     } else {
-      // Insert new record
+      // Insert new account record
       const insertPayload: Record<string, unknown> = {
         workspace_id: input.workspaceId,
         platform: input.platform,
@@ -176,6 +207,12 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         scopes: input.scopes || [],
         status: 'connected',
       };
+      if (input.displayName !== undefined) {
+        insertPayload.display_name = input.displayName;
+      }
+      if (input.avatarUrl !== undefined) {
+        insertPayload.avatar_url = input.avatarUrl;
+      }
       if (input.userId) {
         insertPayload.user_id = input.userId;
       }
@@ -189,23 +226,17 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         .select()
         .single();
 
-      // If insert failed because metadata or user_id column doesn't exist, progressively strip & retry
-      if (result.error && (result.error.code === '42703' || result.error.message?.includes('column') || result.error.code === '23503')) {
-        if ('metadata' in insertPayload) {
-          delete insertPayload.metadata;
-          result = await this.supabase
-            .from('platform_connections')
-            .insert(insertPayload)
-            .select()
-            .single();
-        }
-        if (result.error && 'user_id' in insertPayload) {
-          delete insertPayload.user_id;
-          result = await this.supabase
-            .from('platform_connections')
-            .insert(insertPayload)
-            .select()
-            .single();
+      // If insert failed because optional column doesn't exist yet, progressively strip & retry
+      if (result.error && (result.error.code === '42703' || result.error.code === 'PGRST204' || result.error.message?.includes('column') || result.error.code === '23503')) {
+        for (const col of ['display_name', 'avatar_url', 'metadata', 'user_id'] as const) {
+          if (result.error && col in insertPayload) {
+            delete insertPayload[col];
+            result = await this.supabase
+              .from('platform_connections')
+              .insert(insertPayload)
+              .select()
+              .single();
+          }
         }
       }
 

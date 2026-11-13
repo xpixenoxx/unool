@@ -57,13 +57,14 @@ export async function POST(request: NextRequest) {
     // Encrypt the token payload for storage
     const encryptedToken = await encryptToken(tokenPayload);
 
-    // Upsert platform connection
+    // Upsert platform connection (scope by bot + channel so multiple Slack channels/workspaces can be added)
     await platformRepo.create({
       workspaceId,
       userId: userId || workspaceId,
       platform: 'slack',
-      platformUserId: profile.platformUserId,
-      username: profile.username,
+      platformUserId: `${profile.platformUserId}:${formattedChannel}`,
+      username: profile.username ? `${profile.username} (${formattedChannel})` : formattedChannel,
+      displayName: profile.displayName || formattedChannel,
       accessToken: encryptedToken,
       refreshToken: '', // not used
       expiresAt: undefined, // no expiration

@@ -113,7 +113,7 @@ import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
 import PostBrandMaterialsCard from '@/components/dashboard/PostBrandMaterialsCard';
-import type { PlatformType, PlatformDraft, AdaptedPost, AdaptResponse, Profile, ComposerClientProps } from './types';
+import type { PlatformType, ConnectedAccount, PlatformDraft, AdaptedPost, AdaptResponse, Profile, ComposerClientProps } from './types';
 import { PLATFORM_CONFIG } from '@/lib/config/platformConfig';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 
@@ -136,10 +136,15 @@ import { registerClientCacheReset } from '@/lib/utils/clientCache';
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 let memoryComposerProfile: Profile | null = null;
 let memoryComposerConnections: PlatformType[] | null = null;
+let memoryComposerAccounts: ConnectedAccount[] | null = null;
 registerClientCacheReset(() => {
   memoryComposerProfile = null;
   memoryComposerConnections = null;
+  memoryComposerAccounts = null;
 });
+
+const getDraftKey = (draft: { platform: PlatformType; platformConnectionId?: string | null }) =>
+  draft.platformConnectionId || draft.platform;
 
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const { flags: featureFlags } = useFeatureFlags();
@@ -174,7 +179,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [isPublishing, setIsPublishing] = useState(false);
   const reviewSectionRef = useRef<HTMLDivElement | null>(null);
   const [postId, setPostId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<PlatformType>('linkedin');
+  const [activeTab, setActiveTab] = useState<string>('linkedin');
   const [profile, setProfile] = useState<Profile | null>(() => memoryComposerProfile);
   const [profileLoading, setProfileLoading] = useState(() => !memoryComposerProfile);
   const [planError, setPlanError] = useState<string | null>(null);
@@ -182,8 +187,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>(() => memoryComposerConnections || []);
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>(() => memoryComposerAccounts || []);
   const [connectionsLoading, setConnectionsLoading] = useState<boolean>(() => memoryComposerConnections === null);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>([]);
+  const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
+  const selectedAccounts = useMemo(
+    () => connectedAccounts.filter(a => selectedConnectionIds.includes(a.id)),
+    [connectedAccounts, selectedConnectionIds]
+  );
+  const selectedPlatforms = useMemo(
+    () => Array.from(new Set(selectedAccounts.map(a => a.platform))),
+    [selectedAccounts]
+  );
   const [previewPlatform, setPreviewPlatform] = useState<PlatformType>('linkedin');
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(() => {
@@ -215,7 +229,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [signalDmEnabled, setSignalDmEnabled] = useState(false);
   // ── Hook Scorer + Humanizer state ───────────────────────────────────────────
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
-  const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
+  const [humanizingPlatform, setHumanizingPlatform] = useState<string | null>(null);
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
   const [personalizeWithProfile, setPersonalizeWithProfile] = useState(true);
   const [isIdeaGeneratorOpen, setIsIdeaGeneratorOpen] = useState(false);
@@ -267,10 +281,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           setMedia(collectedMedia);
         }
 
-        // Set selected platforms from variants (deduplicated)
-        const postPlatforms: PlatformType[] = Array.from(new Set<PlatformType>(variants.map((v: any) => v.platform as PlatformType)));
-        if (postPlatforms.length > 0) {
-          setSelectedPlatforms(postPlatforms);
+        // Set selected account connections from variants (deduplicated by connectionId or platform)
+        const targetConnIds: string[] = Array.from(
+          new Set<string>(
+            variants
+              .map((v: any) => (v.platformConnectionId || v.platform) as string)
+              .filter(Boolean)
+          )
+        );
+        if (targetConnIds.length > 0) {
+          setSelectedConnectionIds(targetConnIds);
         }
 
         if (isQuick) {
@@ -281,16 +301,20 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           setMode('ai');
           setSourceContent(targetPost.content || '');
 
-          // Deduplicate variants by platform in case DB has multiple variant records for the same platform
-          const seenPlatforms = new Set<string>();
+          // Deduplicate variants by platformConnectionId (or platform when connectionId absent)
+          const seenKeys = new Set<string>();
           const uniqueVariants = variants.filter((v: any) => {
-            if (seenPlatforms.has(v.platform)) return false;
-            seenPlatforms.add(v.platform);
+            const k = v.platformConnectionId || v.platform;
+            if (seenKeys.has(k)) return false;
+            seenKeys.add(k);
             return true;
           });
 
           const loadedDrafts: PlatformDraft[] = uniqueVariants.map((v: any) => ({
             platform: v.platform as PlatformType,
+            platformConnectionId: v.platformConnectionId ?? null,
+            accountUsername: v.accountUsername ?? null,
+            accountDisplayName: v.accountDisplayName ?? null,
             content: v.adaptedContent || '',
             characterCount: typeof v.characterCount === 'number' ? v.characterCount : (v.adaptedContent || '').length,
             hashtags: Array.isArray(v.hashtagStrategy) ? v.hashtagStrategy : [],
@@ -301,7 +325,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
           setDrafts(loadedDrafts);
           if (loadedDrafts.length > 0) {
-            setActiveTab(loadedDrafts[0].platform);
+            setActiveTab(getDraftKey(loadedDrafts[0]));
             setPreviewPlatform(loadedDrafts[0].platform);
             setTimeout(() => {
               reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -353,12 +377,14 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           mode,
           drafts: drafts.filter(d => d.status === 'ready' || d.status === 'idle').map(d => ({
             platform: d.platform,
+            platformConnectionId: d.platformConnectionId ?? undefined,
             content: d.content,
             hashtags: d.hashtags,
             firstCommentHint: d.firstCommentHint,
           })),
           mediaItems: media,
           selectedPlatforms,
+          selectedTargets: selectedAccounts.map(a => ({ platform: a.platform, platformConnectionId: a.id })),
         }),
       });
 
@@ -439,11 +465,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   }, [sourceContent, previewPlatform]);
 
   // ── One-click humanizer ──────────────────────────────────────────────────────
-  const handleHumanizeDraft = useCallback(async (platform: PlatformType) => {
-    const targetDraft = drafts.find(d => d.platform === platform);
+  const handleHumanizeDraft = useCallback(async (draftKey: string) => {
+    const targetDraft = drafts.find(d => getDraftKey(d) === draftKey);
     if (!targetDraft || !targetDraft.content.trim()) return;
+    const platform = targetDraft.platform;
 
-    setHumanizingPlatform(platform);
+    setHumanizingPlatform(draftKey);
     try {
       const res = await fetch('/api/composer/humanize', {
         method: 'POST',
@@ -452,7 +479,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       });
       const data = await res.json();
       if (data.humanized) {
-        updateDraft(platform, data.humanized);
+        updateDraft(draftKey, data.humanized);
         const platformName = PLATFORM_CONFIG[platform]?.name || platform;
         if (data.changeCount > 0) {
           studioToast.success(`De-slopped ${platformName}: Rewritten in human expert voice · Score ${data.panelScore}/100`, { platforms: [platform] });
@@ -485,7 +512,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             });
             const data = await res.json();
             if (data.humanized) {
-              updateDraft(d.platform, data.humanized);
+              updateDraft(getDraftKey(d), data.humanized);
               totalChanges += data.changeCount || 0;
             }
           } catch {
@@ -504,31 +531,65 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   }, [drafts]);
 
   // Determine the live content for preview based on mode
+  const activeDraftForPreview = mode === 'ai'
+    ? drafts.find(d => getDraftKey(d) === activeTab) || drafts.find(d => d.platform === previewPlatform && d.status === 'ready')
+    : undefined;
   const liveContent = mode === 'ai'
-    ? (drafts.find(d => d.platform === previewPlatform && d.status === 'ready')?.content || sourceContent)
+    ? (activeDraftForPreview?.status === 'ready' ? activeDraftForPreview.content : sourceContent)
     : quickContent;
 
   const loadConnections = useCallback(async () => {
     try {
       const res = await fetch('/api/platform/connections', { credentials: 'include' });
       const data = await res.json();
-      if (data.connections) {
-        const active = Object.values(data.connections)
-          .filter((c: any) => c.status === 'connected')
-          .map((c: any) => c.platform as PlatformType)
-          // Only include platforms that have an AI adaptation spec in the composer
-          .filter((p: PlatformType) => p in PLATFORM_CONFIG);
+      if (data.connections || data.accounts) {
+        let accounts: ConnectedAccount[] = [];
+        if (Array.isArray(data.accounts) && data.accounts.length > 0) {
+          accounts = data.accounts
+            .filter((a: any) => a.status === 'connected' && a.platform in PLATFORM_CONFIG)
+            .map((a: any) => ({
+              id: a.id,
+              platform: a.platform as PlatformType,
+              platformUserId: a.platformUserId,
+              username: a.username,
+              displayName: a.displayName,
+              avatarUrl: a.avatarUrl,
+              status: a.status,
+            }));
+        } else if (data.connections) {
+          accounts = Object.values(data.connections)
+            .filter((c: any) => c.status === 'connected' && c.platform in PLATFORM_CONFIG)
+            .map((c: any) => ({
+              id: c.platform,
+              platform: c.platform as PlatformType,
+              username: c.username,
+              displayName: c.displayName,
+              status: 'connected' as const,
+            }));
+        }
+
+        const active: PlatformType[] = Array.from(new Set(accounts.map(a => a.platform)));
         memoryComposerConnections = active;
+        memoryComposerAccounts = accounts;
         setConnectedPlatforms(active);
-        setSelectedPlatforms(prev => prev.filter(p => active.includes(p)));
-        if (active.length > 0) {
-          setPreviewPlatform(prev => (active.includes(prev) ? prev : active[0]));
-          setActiveTab(prev => (active.includes(prev) ? prev : active[0]));
+        setConnectedAccounts(accounts);
+
+        const validIds = new Set(accounts.map(a => a.id));
+        setSelectedConnectionIds(prev => prev.filter(id => validIds.has(id) || active.includes(id as PlatformType)));
+
+        if (accounts.length > 0) {
+          setPreviewPlatform(prev => (active.includes(prev) ? prev : accounts[0].platform));
+          setActiveTab(prev => {
+            if (validIds.has(prev) || active.includes(prev as PlatformType) || prev.includes('-')) return prev;
+            return accounts[0].id;
+          });
         }
       } else {
         memoryComposerConnections = [];
+        memoryComposerAccounts = [];
         setConnectedPlatforms([]);
-        setSelectedPlatforms([]);
+        setConnectedAccounts([]);
+        setSelectedConnectionIds([]);
       }
     } catch {
       // Ignore
@@ -537,15 +598,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   }, [featureFlags.automationEnabled]);
 
-  const togglePlatform = (platform: PlatformType) => {
-    if (!connectedPlatforms.includes(platform)) return;
-    setSelectedPlatforms(prev => {
-      const willSelect = !prev.includes(platform);
+  const toggleAccount = (account: ConnectedAccount) => {
+    if (!connectedPlatforms.includes(account.platform)) return;
+    setSelectedConnectionIds(prev => {
+      const willSelect = !prev.includes(account.id);
       if (willSelect) {
-        setPreviewPlatform(platform);
-        return [...prev, platform];
+        setPreviewPlatform(account.platform);
+        return [...prev, account.id];
       }
-      return prev.filter(p => p !== platform);
+      return prev.filter(id => id !== account.id);
     });
   };
 
@@ -782,21 +843,21 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    // "Draft for All" generates for every connected platform.
-    // "Draft for Selected" generates for only the user-checked platforms.
-    if (useSelectedOnly && selectedPlatforms.length === 0) {
-      studioToast.error('Please select at least one platform first.');
+    // "Draft for All" generates for every connected account.
+    // "Draft for Selected" generates for only the user-checked accounts.
+    if (useSelectedOnly && selectedAccounts.length === 0) {
+      studioToast.error('Please select at least one account first.');
       return;
     }
 
-    const targetPlatforms = (useSelectedOnly ? selectedPlatforms : connectedPlatforms)
-      .filter(p => connectedPlatforms.includes(p));
+    const targetAccounts = useSelectedOnly ? selectedAccounts : connectedAccounts;
+    const targetPlatforms = Array.from(new Set(targetAccounts.map(a => a.platform)));
 
-    if (targetPlatforms.length === 0) {
+    if (targetAccounts.length === 0) {
       studioToast.error(
         useSelectedOnly
-          ? 'Please select at least one connected platform.'
-          : 'No connected platforms found. Please connect your accounts first.'
+          ? 'Please select at least one connected account.'
+          : 'No connected accounts found. Please connect your accounts first.'
       );
       return;
     }
@@ -809,8 +870,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
 
     const platformsToUse = getValidPlatformsForMedia(targetPlatforms);
-    if (platformsToUse.length === 0) {
-      studioToast.generationFailed('No platforms selected or all selected platforms reject this media.', {
+    const accountsToUse = targetAccounts.filter(a => platformsToUse.includes(a.platform));
+    if (accountsToUse.length === 0) {
+      studioToast.generationFailed('No accounts selected or all selected platforms reject this media.', {
         platforms: targetPlatforms,
         knowMoreUrl: '/terms',
       });
@@ -819,16 +881,19 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     setPlanError(null);
     setGeneratingType(useSelectedOnly ? 'selected' : 'all');
-    // Pre-populate drafts for all requested platforms in 'generating' state
-    setDrafts(platformsToUse.map(platform => ({
-      platform,
+    // Pre-populate drafts for all requested accounts in 'generating' state
+    setDrafts(accountsToUse.map(acct => ({
+      platform: acct.platform,
+      platformConnectionId: acct.id,
+      accountUsername: acct.username || null,
+      accountDisplayName: acct.displayName || null,
       content: '',
       characterCount: 0,
       hashtags: [],
       status: 'generating' as const,
     })));
-    setActiveTab(platformsToUse[0]);
-    setPreviewPlatform(platformsToUse[0]);
+    setActiveTab(accountsToUse[0].id);
+    setPreviewPlatform(accountsToUse[0].platform);
 
     try {
       const res = await fetch('/api/composer/adapt', {
@@ -840,6 +905,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           profileId: profile.id, 
           mediaItems: media,
           selectedPlatforms: platformsToUse,
+          selectedTargets: accountsToUse.map(a => ({ platform: a.platform, platformConnectionId: a.id })),
           disablePersonalization: !personalizeWithProfile,
           studioProfile: profile.studioProfile || null,
         }),
@@ -868,36 +934,48 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       setPostId(data.postId);
 
-      // Build drafts for ALL requested platforms — succeeded ones as 'ready', any that
-      // were excluded by the API (failed on the server) as 'error' so they show in the UI.
-      const succeededPlatforms = Object.keys(data.variants) as PlatformType[];
+      // Build drafts for ALL requested accounts — succeeded ones as 'ready', any that
+      // failed on the server as 'error' so they show in the UI.
+      const targetVariantList = Array.isArray(data.targetVariants) ? data.targetVariants : [];
+      const succeededPlatforms = Object.keys(data.variants || {}) as PlatformType[];
       const failedPlatforms = platformsToUse.filter(p => !succeededPlatforms.includes(p));
 
-      const allDrafts = [
-        ...succeededPlatforms.map(platform => {
-          const result = data.variants[platform];
+      const allDrafts: PlatformDraft[] = accountsToUse.map(acct => {
+        const matchedTarget = targetVariantList.find(
+          (tv: any) =>
+            (tv.platformConnectionId && tv.platformConnectionId === acct.id) ||
+            (!tv.platformConnectionId && tv.platform === acct.platform)
+        );
+        const result = matchedTarget || data.variants?.[acct.platform];
+        if (!result) {
           return {
-            platform,
-            content: result?.content ?? '',
-            characterCount: result?.characterCount ?? 0,
-            hashtags: result?.hashtags ?? [],
-            firstCommentHint: result?.firstCommentHint,
-            status: 'ready' as const,
+            platform: acct.platform,
+            platformConnectionId: acct.id,
+            accountUsername: acct.username || null,
+            accountDisplayName: acct.displayName || null,
+            content: '',
+            characterCount: 0,
+            hashtags: [] as string[],
+            firstCommentHint: undefined,
+            status: 'error' as const,
+            error: 'AI adaptation failed for this platform',
           };
-        }),
-        ...failedPlatforms.map(platform => ({
-          platform,
-          content: '',
-          characterCount: 0,
-          hashtags: [] as string[],
-          firstCommentHint: undefined,
-          status: 'error' as const,
-          error: 'AI adaptation failed for this platform',
-        })),
-      ];
+        }
+        return {
+          platform: acct.platform,
+          platformConnectionId: matchedTarget?.platformConnectionId ?? acct.id,
+          accountUsername: acct.username || null,
+          accountDisplayName: acct.displayName || null,
+          content: result?.content ?? '',
+          characterCount: result?.characterCount ?? 0,
+          hashtags: result?.hashtags ?? [],
+          firstCommentHint: result?.firstCommentHint,
+          status: 'ready' as const,
+        };
+      });
 
       if (allDrafts.length > 0) {
-        setActiveTab(allDrafts[0].platform);
+        setActiveTab(getDraftKey(allDrafts[0]));
         setPreviewPlatform(allDrafts[0].platform);
       }
       setDrafts(allDrafts);
@@ -913,8 +991,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           { platforms: succeededPlatforms }
         );
       } else {
+        const readyAcctsCount = allDrafts.filter(d => d.status === 'ready').length;
         studioToast.success(
-          `Generated drafts for all ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}!`,
+          `Generated drafts for ${readyAcctsCount} account${readyAcctsCount !== 1 ? 's' : ''}!`,
           { platforms: succeededPlatforms }
         );
       }
@@ -931,9 +1010,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   };
 
-  const retrySingleDraft = async (platform: PlatformType) => {
+  const retrySingleDraft = async (draftKey: string) => {
     if (!sourceContent.trim() || !profile) return;
-    setDrafts(prev => prev.map(d => d.platform === platform ? { ...d, status: 'generating' as const, error: undefined } : d));
+    const targetDraft = drafts.find(d => getDraftKey(d) === draftKey);
+    if (!targetDraft) return;
+    const platform = targetDraft.platform;
+
+    setDrafts(prev => prev.map(d => getDraftKey(d) === draftKey ? { ...d, status: 'generating' as const, error: undefined } : d));
     try {
       const res = await fetch('/api/composer/adapt', {
         method: 'POST',
@@ -944,6 +1027,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           profileId: profile.id,
           mediaItems: media,
           selectedPlatforms: [platform],
+          selectedTargets: targetDraft.platformConnectionId
+            ? [{ platform, platformConnectionId: targetDraft.platformConnectionId }]
+            : undefined,
           postId,
           onboardingAnswers: profile.onboardingAnswers || undefined,
         }),
@@ -956,8 +1042,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         setPostId(data.postId);
       }
       const v = data.variants[platform];
-      setDrafts(prev => prev.map(d => d.platform === platform ? {
-        platform,
+      setDrafts(prev => prev.map(d => getDraftKey(d) === draftKey ? {
+        ...d,
         content: v.content ?? '',
         characterCount: v.characterCount ?? 0,
         hashtags: v.hashtags ?? [],
@@ -969,7 +1055,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Retry failed';
-      setDrafts(prev => prev.map(d => d.platform === platform ? {
+      setDrafts(prev => prev.map(d => getDraftKey(d) === draftKey ? {
         ...d,
         status: 'error' as const,
         error: errorMsg,
@@ -981,13 +1067,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   };
 
-  const updateDraft = (platform: PlatformType, content: string) => {
+  const updateDraft = (draftKey: string, content: string) => {
     setDrafts(d => d.map(item =>
-      item.platform === platform ? { ...item, content, characterCount: content.length } : item
+      getDraftKey(item) === draftKey ? { ...item, content, characterCount: content.length } : item
     ));
   };
 
-  const addHashtag = (platform: PlatformType, rawTag: string) => {
+  const addHashtag = (draftKey: string, rawTag: string) => {
     const tagsToAdd = rawTag
       .split(/[\s,]+/)
       .map(t => t.trim().replace(/^#+/, ''))
@@ -997,7 +1083,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     if (tagsToAdd.length === 0) return;
 
     setDrafts(prev => prev.map(item => {
-      if (item.platform !== platform) return item;
+      if (getDraftKey(item) !== draftKey) return item;
       const current = item.hashtags || [];
       const lowerExisting = new Set(current.map(t => t.toLowerCase()));
       const uniqueNew = tagsToAdd.filter(t => !lowerExisting.has(t.toLowerCase()));
@@ -1009,9 +1095,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }));
   };
 
-  const removeHashtag = (platform: PlatformType, tagToRemove: string) => {
+  const removeHashtag = (draftKey: string, tagToRemove: string) => {
     setDrafts(prev => prev.map(item =>
-      item.platform === platform
+      getDraftKey(item) === draftKey
         ? { ...item, hashtags: (item.hashtags || []).filter(t => t !== tagToRemove) }
         : item
     ));
@@ -1022,12 +1108,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     const readyDrafts = drafts.filter(d => d.status === 'ready' && connectedPlatforms.includes(d.platform));
     if (readyDrafts.length === 0) {
-      studioToast.error('No drafts ready to publish for your connected platforms');
+      studioToast.error('No drafts ready to publish for your connected accounts');
       return;
     }
 
     if (postId) {
-      studioToast.info(`Publishing draft directly across ${readyDrafts.length} platform${readyDrafts.length > 1 ? 's' : ''}...`);
+      studioToast.info(`Publishing draft directly across ${readyDrafts.length} account${readyDrafts.length > 1 ? 's' : ''}...`);
     }
 
     setIsPublishing(true);
@@ -1042,6 +1128,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           mediaItems: media,
           drafts: readyDrafts.map(d => ({
             platform: d.platform,
+            platformConnectionId: d.platformConnectionId ?? undefined,
             content: d.content,
             hashtags: d.hashtags,
           })),
@@ -1133,6 +1220,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             strategy: scheduleStrategy,
             platforms: readyDrafts.map(d => ({
               platform: d.platform,
+              platformConnectionId: d.platformConnectionId ?? undefined,
               content: d.content,
               hashtags: d.hashtags,
               firstCommentHint: d.firstCommentHint,
@@ -1168,19 +1256,19 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    if (useSelectedOnly && selectedPlatforms.length === 0) {
-      studioToast.error('Please select at least one platform first.');
+    if (useSelectedOnly && selectedAccounts.length === 0) {
+      studioToast.error('Please select at least one account first.');
       return;
     }
 
-    const targetPlatforms = (useSelectedOnly ? selectedPlatforms : connectedPlatforms)
-      .filter(p => connectedPlatforms.includes(p));
+    const targetAccounts = useSelectedOnly ? selectedAccounts : connectedAccounts;
+    const targetPlatforms = Array.from(new Set(targetAccounts.map(a => a.platform)));
 
-    if (targetPlatforms.length === 0) {
+    if (targetAccounts.length === 0) {
       studioToast.error(
         useSelectedOnly
-          ? 'Please select at least one connected platform.'
-          : 'No connected platforms found. Please connect your accounts first.'
+          ? 'Please select at least one connected account.'
+          : 'No connected accounts found. Please connect your accounts first.'
       );
       return;
     }
@@ -1192,8 +1280,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
 
     const platformsToUse = getValidPlatformsForMedia(targetPlatforms);
-    if (platformsToUse.length === 0) {
-      studioToast.generationFailed('No platforms selected or all selected platforms reject this media.', {
+    const accountsToUse = targetAccounts.filter(a => platformsToUse.includes(a.platform));
+    if (accountsToUse.length === 0) {
+      studioToast.generationFailed('No accounts selected or all selected platforms reject this media.', {
         platforms: targetPlatforms,
         knowMoreUrl: '/terms',
       });
@@ -1204,7 +1293,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     setBroadcastingType(useSelectedOnly ? 'selected' : 'all');
 
     if (postId) {
-      studioToast.info(`Publishing draft directly to ${platformsToUse.length} platform${platformsToUse.length > 1 ? 's' : ''}...`);
+      studioToast.info(`Publishing draft directly to ${accountsToUse.length} account${accountsToUse.length > 1 ? 's' : ''}...`);
     }
 
     try {
@@ -1217,6 +1306,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           profileId: profile.id, 
           mediaItems: media,
           selectedPlatforms: platformsToUse,
+          selectedTargets: accountsToUse.map(a => ({ platform: a.platform, platformConnectionId: a.id })),
           studioProfile: profile.studioProfile || null,
           postId: postId || undefined,
         }),
@@ -1278,17 +1368,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const readyCount = drafts.filter(d => d.status === 'ready' && connectedPlatforms.includes(d.platform)).length;
 
   const PlatformSelector = () => {
-    const platformsToDisplay: PlatformType[] = connectedPlatforms;
+    const accountsToDisplay: ConnectedAccount[] = connectedAccounts;
 
     if (connectionsLoading) {
       return (
         <div className="mb-4 space-y-2.5">
-          <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
+          <p className="text-sm font-bold text-[#231C16]">Select Accounts to Post:</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
             {[1, 2, 3, 4].map(idx => (
               <div
                 key={idx}
-                className="h-11 rounded-xl border border-[#E8DEC8] bg-[#FAF8F5] animate-pulse"
+                className="h-12 rounded-xl border border-[#E8DEC8] bg-[#FAF8F5] animate-pulse"
               />
             ))}
           </div>
@@ -1296,14 +1386,14 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       );
     }
 
-    if (platformsToDisplay.length === 0) {
+    if (accountsToDisplay.length === 0) {
       return (
         <div className="mb-4 space-y-2.5">
-          <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
+          <p className="text-sm font-bold text-[#231C16]">Select Accounts to Post:</p>
           <div className="rounded-2xl border border-dashed border-[#E8DEC8] bg-[#FFFDF9] p-4 text-center">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
               <div>
-                <p className="text-xs font-bold text-[#231C16]">No connected platforms yet</p>
+                <p className="text-xs font-bold text-[#231C16]">No connected accounts yet</p>
                 <p className="text-[11px] text-[#7A6B5D] mt-0.5">
                   Connect your social accounts to select, preview, and broadcast across your networks.
                 </p>
@@ -1313,7 +1403,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#231C16] hover:bg-black text-white text-xs font-semibold transition-all shrink-0 shadow-2xs"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Connect Platforms</span>
+                <span>Connect Accounts</span>
               </Link>
             </div>
           </div>
@@ -1321,33 +1411,55 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       );
     }
 
-    const allSelected = platformsToDisplay.length > 0 && platformsToDisplay.every(p => selectedPlatforms.includes(p));
+    const allSelected = accountsToDisplay.length > 0 && accountsToDisplay.every(a => selectedConnectionIds.includes(a.id));
 
     return (
       <div className="mb-4 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
-          {platformsToDisplay.length > 1 && (
-            <button
-              type="button"
-              onClick={() => {
-                if (allSelected) {
-                  setSelectedPlatforms([]);
-                } else {
-                  setSelectedPlatforms([...platformsToDisplay]);
-                }
-              }}
-              className="text-[11px] font-semibold text-[#8B7355] hover:text-[#231C16] transition-colors cursor-pointer"
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-sm font-bold text-[#231C16]">
+            Select Accounts to Post
+            {selectedConnectionIds.length > 0 && (
+              <span className="ml-1.5 text-xs font-medium text-[#7A6B5D]">
+                ({selectedConnectionIds.length} selected)
+              </span>
+            )}
+            :
+          </p>
+          <div className="flex items-center gap-3">
+            {accountsToDisplay.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (allSelected) {
+                    setSelectedConnectionIds([]);
+                  } else {
+                    setSelectedConnectionIds(accountsToDisplay.map(a => a.id));
+                  }
+                }}
+                className="text-[11px] font-semibold text-[#8B7355] hover:text-[#231C16] transition-colors cursor-pointer"
+              >
+                {allSelected ? 'Clear all' : 'Select all'}
+              </button>
+            )}
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#604E38] hover:text-[#231C16] transition-colors"
+              title="Manage or add more accounts in Dashboard"
             >
-              {allSelected ? 'Clear all' : 'Select all'}
-            </button>
-          )}
+              <Plus className="w-3 h-3" />
+              <span>Add account</span>
+            </Link>
+          </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-          {platformsToDisplay.map(platform => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
+          {accountsToDisplay.map(account => {
+            const platform = account.platform;
             const cfg = PLATFORM_CONFIG[platform] || { name: platform, icon: PlatformSVGs[platform] || Linkedin, maxChars: 3000, color: 'bg-blue-600' };
-            const isSelected = selectedPlatforms.includes(platform);
+            const isSelected = selectedConnectionIds.includes(account.id);
             const limit = getPlatformLimit(platform);
+            const accountHandle = account.username
+              ? (account.username.startsWith('@') ? account.username : `@${account.username}`)
+              : account.displayName || 'Connected';
             
             let warningMsg: string | null = null;
             for (const m of media) {
@@ -1361,10 +1473,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
             return (
               <div
-                key={platform}
-                onClick={() => !warningMsg && togglePlatform(platform)}
+                key={account.id}
+                onClick={() => !warningMsg && toggleAccount(account)}
                 className={cn(
-                  "relative group flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer select-none overflow-hidden",
+                  "relative group flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all cursor-pointer select-none overflow-hidden",
                   warningMsg
                     ? "opacity-50 cursor-not-allowed bg-white border-[#E8DEC8]"
                     : isSelected
@@ -1372,11 +1484,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     : "bg-white border-[#E8DEC8] hover:border-[#C4A265] hover:bg-[#FAF7F2]"
                 )}
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 pr-1.5">
                   <span className={cn('flex items-center justify-center shrink-0 drop-shadow-xs', warningMsg ? 'grayscale opacity-50' : '')}>
-                    <PlatformBrandLogo platform={platform} size={18} />
+                    <PlatformBrandLogo platform={platform} size={20} />
                   </span>
-                  <span className="font-semibold text-xs text-[#231C16] truncate">{cfg.name}</span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-xs text-[#231C16] truncate leading-tight">{cfg.name}</p>
+                    <p className="text-[11px] text-[#7A6B5D] truncate leading-tight mt-0.5" title={accountHandle}>
+                      {accountHandle}
+                    </p>
+                  </div>
                 </div>
                 <div
                   className={cn(
@@ -2162,20 +2279,27 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       <Tabs
                         value={activeTab}
                         onValueChange={(value: string) => {
-                          setActiveTab(value as PlatformType);
-                          setPreviewPlatform(value as PlatformType);
+                          setActiveTab(value);
+                          const matched = drafts.find(d => getDraftKey(d) === value);
+                          if (matched) {
+                            setPreviewPlatform(matched.platform);
+                          }
                         }}
                       >
                         {/* Platform Pills Tabs Bar matching Screenshot 4 */}
                         <TabsList className="w-full mb-5 flex-wrap h-auto bg-transparent p-0 gap-2 justify-start border-none">
                           {drafts.map(draft => {
                             const platform = draft.platform;
+                            const draftKey = getDraftKey(draft);
                             const cfg = PLATFORM_CONFIG[platform];
-                            const isActive = activeTab === platform;
+                            const isActive = activeTab === draftKey;
+                            const acctBadge = draft.accountUsername
+                              ? (draft.accountUsername.startsWith('@') ? draft.accountUsername : `@${draft.accountUsername}`)
+                              : draft.accountDisplayName || null;
                             return (
                               <TabsTrigger
-                                key={platform}
-                                value={platform}
+                                key={draftKey}
+                                value={draftKey}
                                 className={cn(
                                   "inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer",
                                   isActive
@@ -2187,6 +2311,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   <PlatformBrandLogo platform={platform} size={18} />
                                 </span>
                                 <span>{cfg.name}</span>
+                                {acctBadge && (
+                                  <span className="text-[10px] font-medium text-[#7A6B5D] bg-[#FAF6EE] px-1.5 py-0.5 rounded-md border border-[#E8DEC8]">
+                                    {acctBadge}
+                                  </span>
+                                )}
                                 {draft.status === 'generating' && (
                                   <Loader2 className="h-3 w-3 animate-spin text-[#8B5CF6]" />
                                 )}
@@ -2203,11 +2332,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
                         {drafts.map(draft => {
                           const platform = draft.platform;
+                          const draftKey = getDraftKey(draft);
                           const cfg = PLATFORM_CONFIG[platform];
                           const isOverLimit = draft && draft.characterCount > cfg.maxChars;
+                          const acctBadge = draft.accountUsername
+                            ? (draft.accountUsername.startsWith('@') ? draft.accountUsername : `@${draft.accountUsername}`)
+                            : draft.accountDisplayName || null;
 
                           return (
-                            <TabsContent key={platform} value={platform} className="space-y-4 mt-0">
+                            <TabsContent key={draftKey} value={draftKey} className="space-y-4 mt-0">
                               <motion.div
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -2221,9 +2354,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                       <PlatformBrandLogo platform={platform} size={36} />
                                     </span>
                                     <div>
-                                      <p className="text-base font-bold text-[#231C16] leading-tight">
-                                        {cfg.name}
-                                      </p>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-base font-bold text-[#231C16] leading-tight">
+                                          {cfg.name}
+                                        </p>
+                                        {acctBadge && (
+                                          <span className="text-xs font-semibold text-[#735A42] bg-[#FAF6EE] px-2 py-0.5 rounded-lg border border-[#EADBBD]">
+                                            {acctBadge}
+                                          </span>
+                                        )}
+                                      </div>
                                       <p
                                         className={cn(
                                           'text-xs tabular-nums mt-0.5',
@@ -2240,12 +2380,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                     {draft?.status === 'ready' && (
                                       <button
                                         type="button"
-                                        onClick={() => handleHumanizeDraft(platform)}
-                                        disabled={humanizingPlatform === platform || !draft?.content?.trim()}
+                                        onClick={() => handleHumanizeDraft(draftKey)}
+                                        disabled={humanizingPlatform === draftKey || !draft?.content?.trim()}
                                         title={`Humanize and remove AI slop for ${cfg.name}`}
                                         className="h-8 px-3.5 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                                       >
-                                        {humanizingPlatform === platform ? (
+                                        {humanizingPlatform === draftKey ? (
                                           <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
                                         ) : (
                                           <PenTool className="w-3.5 h-3.5 text-[#231C16]" />
@@ -2312,7 +2452,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         size="sm"
                                         variant="outline"
                                         className="flex items-center gap-1.5 h-7 text-xs bg-white hover:bg-muted text-foreground flex-shrink-0 border-[#E8E0D4] rounded-xl"
-                                        onClick={() => retrySingleDraft(platform)}
+                                        onClick={() => retrySingleDraft(draftKey)}
                                       >
                                         <RefreshCw className="h-3 w-3" />
                                         Retry
@@ -2323,7 +2463,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
                                 <Textarea
                                   value={draft?.content ?? ''}
-                                  onChange={e => updateDraft(platform, e.target.value)}
+                                  onChange={e => updateDraft(draftKey, e.target.value)}
                                   className={cn(
                                     'min-h-[160px] resize-y font-mono text-sm select-text rounded-2xl border border-[#D8CEBE] p-4 text-[#231C16] bg-white focus-visible:ring-1 focus-visible:ring-[#8B5CF6] focus-visible:border-[#8B5CF6]',
                                     isOverLimit && 'border-destructive focus-visible:ring-destructive',
@@ -2350,8 +2490,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                 {draft && (
                                   <HashtagEditor
                                     hashtags={draft.hashtags || []}
-                                    onAdd={(tag) => addHashtag(platform, tag)}
-                                    onRemove={(tag) => removeHashtag(platform, tag)}
+                                    onAdd={(tag) => addHashtag(draftKey, tag)}
+                                    onRemove={(tag) => removeHashtag(draftKey, tag)}
                                     editable={draft.status === 'ready'}
                                   />
                                 )}

@@ -176,6 +176,7 @@ export async function POST(request: NextRequest) {
             }
             return {
               platform: pf.platform as PlatformType,
+              platformConnectionId: pf.platformConnectionId,
               content: sanitized,
               hashtags: ContentGuard.filterHashtags(pf.hashtags ?? []),
               firstCommentHint: pf.firstCommentHint,
@@ -213,6 +214,7 @@ export async function POST(request: NextRequest) {
           platforms: p.variantResults.map(v => ({
             variantId: v.variantId,
             platform: v.platform,
+            platformConnectionId: v.platformConnectionId ?? null,
             scheduledAt: v.scheduledAt.toISOString(),
           })),
         })),
@@ -260,6 +262,7 @@ export async function POST(request: NextRequest) {
         }
         return {
           platform: p.platform as PlatformType,
+          platformConnectionId: p.platformConnectionId,
           content: sanitized,
           hashtags: ContentGuard.filterHashtags(p.hashtags ?? []),
           firstCommentHint: p.firstCommentHint,
@@ -277,6 +280,7 @@ export async function POST(request: NextRequest) {
       platforms: result.variantResults.map(v => ({
         variantId: v.variantId,
         platform: v.platform,
+        platformConnectionId: v.platformConnectionId ?? null,
         scheduledAt: v.scheduledAt.toISOString(),
       })),
     });

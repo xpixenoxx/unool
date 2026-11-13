@@ -7,6 +7,8 @@ export interface PlatformConnection {
   platform: Platform;
   platformUserId: string;
   username: string | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
   accessTokenEncrypted: string;
   refreshTokenEncrypted: string | null;
   expiresAt: Date | null;
@@ -47,6 +49,8 @@ export interface CreatePlatformConnectionInput {
 export interface IPlatformRepository {
   findById(id: string): Promise<PlatformConnection | null>;
   findByWorkspaceAndPlatform(workspaceId: string, platform: Platform): Promise<PlatformConnection | null>;
+  findAllByWorkspaceAndPlatform?(workspaceId: string, platform: Platform): Promise<PlatformConnection[]>;
+  findByWorkspacePlatformAndUser?(workspaceId: string, platform: Platform, platformUserId: string): Promise<PlatformConnection | null>;
   findByWorkspaceId(workspaceId: string): Promise<PlatformConnection[]>;
   create(input: CreatePlatformConnectionInput): Promise<PlatformConnection>;
   update(id: string, data: Partial<PlatformConnection>): Promise<PlatformConnection>;

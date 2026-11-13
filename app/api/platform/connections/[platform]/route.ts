@@ -24,8 +24,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
+    const connectionId = request.nextUrl.searchParams.get('connectionId');
     const connections = await platformRepository.findByWorkspaceId(auth.workspaceId);
-    const matchingConns = connections.filter(c => c.platform === platform);
+    const matchingConns = connections.filter((c) => {
+      if (c.platform !== platform) return false;
+      if (connectionId) return c.id === connectionId;
+      return true;
+    });
     
     if (matchingConns.length === 0) {
       return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
@@ -37,7 +42,7 @@ export async function DELETE(
 
     invalidateOverviewCache(auth.workspaceId);
 
-    logger.info('Platform disconnected', { traceId, workspaceId: auth.workspaceId, platform });
+    logger.info('Platform disconnected', { traceId, workspaceId: auth.workspaceId, platform, connectionId: connectionId || 'all' });
 
     return NextResponse.json({ success: true });
   } catch (error) {

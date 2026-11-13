@@ -6,6 +6,7 @@ import { Plus, MoreVertical, Loader2, CheckCircle2, AlertCircle } from 'lucide-r
 import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
 
 interface Connection {
+  id?: string;
   platformId: string;
   username: string;
   platformName: string;
@@ -89,7 +90,25 @@ function ConnectPageContent() {
           clientDebug.push(...data.debug.map((d: string) => `srv:${d}`));
         }
 
-        if (data.connections) {
+        if (Array.isArray(data.accounts) && data.accounts.length > 0) {
+          const mappedConnections: Connection[] = data.accounts
+            .filter((acct: any) => acct.status === 'connected' || acct.status === 'expired' || acct.status === 'revoked')
+            .map((acct: any) => {
+              const platformName = acct.platform === 'x'
+                ? 'X (Twitter)'
+                : acct.platform.charAt(0).toUpperCase() + acct.platform.slice(1);
+              const isExpired = acct.status === 'expired' || acct.status === 'revoked';
+              return {
+                id: acct.id,
+                platformId: acct.platform,
+                username: acct.username || acct.displayName || acct.platform || 'User',
+                platformName: isExpired ? `${platformName} (Expired)` : platformName,
+                profileLogo: acct.avatarUrl || undefined,
+              };
+            });
+          clientDebug.push(`mappedAccounts:${mappedConnections.length}`);
+          setConnections(mappedConnections);
+        } else if (data.connections) {
           const mappedConnections: Connection[] = [];
           Object.entries(data.connections).forEach(([, conn]: [string, any]) => {
             if (conn.status === 'connected' || conn.status === 'expired' || conn.status === 'revoked') {
@@ -165,10 +184,13 @@ function ConnectPageContent() {
     router.push('/onboarding/start');
   };
 
-  const handleRemoveConnection = async (platformId: string) => {
+  const handleRemoveConnection = async (platformId: string, connectionId?: string) => {
     setOpenDropdown(null);
     try {
-      const res = await fetch(`/api/platform/connections/${encodeURIComponent(platformId)}`, {
+      const url = connectionId
+        ? `/api/platform/connections/${encodeURIComponent(platformId)}?connectionId=${encodeURIComponent(connectionId)}`
+        : `/api/platform/connections/${encodeURIComponent(platformId)}`;
+      const res = await fetch(url, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -176,7 +198,11 @@ function ConnectPageContent() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to remove account');
       }
-      setConnections((prev) => prev.filter((c) => c.platformId !== platformId));
+      setConnections((prev) =>
+        connectionId
+          ? prev.filter((c) => c.id !== connectionId)
+          : prev.filter((c) => c.platformId !== platformId)
+      );
       setToast({ type: 'success', message: 'Account disconnected.' });
     } catch (err) {
       setToast({
@@ -277,7 +303,7 @@ function ConnectPageContent() {
                   {openDropdown === index && (
                     <div className="absolute top-10 right-0 w-[160px] bg-white border border-zinc-100 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.08)] py-1.5 z-10 flex flex-col">
                       <button 
-                        onClick={() => handleRemoveConnection(connection.platformId)}
+                        onClick={() => handleRemoveConnection(connection.platformId, connection.id)}
                         className="text-[13px] text-red-500 hover:bg-zinc-50 w-full px-3 py-2 flex items-center justify-center gap-2 transition-colors"
                       >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path></svg>

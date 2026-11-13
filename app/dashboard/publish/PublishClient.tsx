@@ -27,6 +27,9 @@ interface PostVariant {
   id: string;
   postId: string;
   platform: Platform;
+  platformConnectionId?: string | null;
+  accountUsername?: string | null;
+  accountDisplayName?: string | null;
   adaptedContent: string;
   mediaUrls: { url: string; type: 'image' | 'video'; alt?: string }[];
   characterCount: number;
@@ -51,6 +54,9 @@ interface Post {
 
 interface PlatformDraft {
   platform: Platform;
+  platformConnectionId?: string | null;
+  accountUsername?: string | null;
+  accountDisplayName?: string | null;
   content: string;
   characterCount: number;
   maxChars: number;
@@ -137,6 +143,9 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
 
       const initialDrafts: PlatformDraft[] = (data.variants || []).map((v: PostVariant) => ({
         platform: v.platform,
+        platformConnectionId: v.platformConnectionId ?? null,
+        accountUsername: v.accountUsername ?? null,
+        accountDisplayName: v.accountDisplayName ?? null,
         content: v.adaptedContent || '',
         characterCount: typeof v.characterCount === 'number' ? v.characterCount : (v.adaptedContent || '').length,
         maxChars: PLATFORM_CONFIG[v.platform]?.maxChars ?? 10000,
@@ -185,12 +194,12 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
     return () => clearInterval(intervalId);
   }, [drafts, publishing, loadPost, fetchSubdomain]);
 
-  const updateDraft = (platform: Platform, content: string) => {
-    setDrafts(d => d.map(d => d.platform === platform ? { ...d, content, characterCount: content.length } : d));
-    setDirtyDrafts(prev => ({ ...prev, [platform]: true }));
+  const updateDraft = (variantId: string, content: string) => {
+    setDrafts(d => d.map(item => item.variantId === variantId ? { ...item, content, characterCount: content.length } : item));
+    setDirtyDrafts(prev => ({ ...prev, [variantId]: true }));
   };
 
-  const addHashtag = (platform: Platform, rawTag: string) => {
+  const addHashtag = (variantId: string, rawTag: string) => {
     const tagsToAdd = rawTag
       .split(/[\s,]+/)
       .map(t => t.trim().replace(/^#+/, ''))
@@ -200,7 +209,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
     if (tagsToAdd.length === 0) return;
 
     setDrafts(prev => prev.map(item => {
-      if (item.platform !== platform) return item;
+      if (item.variantId !== variantId) return item;
       const current = item.hashtags || [];
       const lowerExisting = new Set(current.map(t => t.toLowerCase()));
       const uniqueNew = tagsToAdd.filter(t => !lowerExisting.has(t.toLowerCase()));
@@ -210,26 +219,26 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         hashtags: [...current, ...uniqueNew],
       };
     }));
-    setDirtyDrafts(prev => ({ ...prev, [platform]: true }));
+    setDirtyDrafts(prev => ({ ...prev, [variantId]: true }));
   };
 
-  const removeHashtag = (platform: Platform, tagToRemove: string) => {
+  const removeHashtag = (variantId: string, tagToRemove: string) => {
     setDrafts(prev => prev.map(item => {
-      if (item.platform !== platform) return item;
+      if (item.variantId !== variantId) return item;
       return {
         ...item,
         hashtags: (item.hashtags || []).filter(t => t !== tagToRemove),
       };
     }));
-    setDirtyDrafts(prev => ({ ...prev, [platform]: true }));
+    setDirtyDrafts(prev => ({ ...prev, [variantId]: true }));
   };
 
   // Save a draft variant to the database
-  const saveDraft = async (platform: Platform) => {
-    const draft = drafts.find(d => d.platform === platform);
+  const saveDraft = async (variantId: string) => {
+    const draft = drafts.find(d => d.variantId === variantId);
     if (!draft || !draft.variantId) return;
 
-    setSavingDraft(prev => ({ ...prev, [platform]: true }));
+    setSavingDraft(prev => ({ ...prev, [variantId]: true }));
     try {
       const res = await fetch(`/api/publish/variants/${draft.variantId}`, {
         method: 'PATCH',
@@ -243,18 +252,18 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         throw new Error(errData.error || 'Save failed');
       }
 
-      setDirtyDrafts(prev => ({ ...prev, [platform]: false }));
-      toast.success(`${PLATFORM_CONFIG[platform]?.name || platform} draft saved`);
+      setDirtyDrafts(prev => ({ ...prev, [variantId]: false }));
+      toast.success(`${PLATFORM_CONFIG[draft.platform]?.name || draft.platform} draft saved`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
-      setSavingDraft(prev => ({ ...prev, [platform]: false }));
+      setSavingDraft(prev => ({ ...prev, [variantId]: false }));
     }
   };
 
   // Delete a draft variant
-  const deleteDraft = async (platform: Platform) => {
-    const draft = drafts.find(d => d.platform === platform);
+  const deleteDraft = async (variantId: string) => {
+    const draft = drafts.find(d => d.variantId === variantId);
     if (!draft || !draft.variantId) return;
 
     try {
@@ -268,8 +277,8 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         throw new Error(errData.error || 'Delete failed');
       }
 
-      setDrafts(d => d.filter(d => d.platform !== platform));
-      toast.success(`${PLATFORM_CONFIG[platform]?.name || platform} draft removed`);
+      setDrafts(d => d.filter(item => item.variantId !== variantId));
+      toast.success(`${PLATFORM_CONFIG[draft.platform]?.name || draft.platform} draft removed`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
     }
@@ -294,7 +303,9 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
           postId,
           workspaceId: post.workspaceId,
           drafts: readyDrafts.map(d => ({
+            variantId: d.variantId,
             platform: d.platform,
+            platformConnectionId: d.platformConnectionId ?? undefined,
             content: d.content,
             hashtags: d.hashtags,
           })),
@@ -332,7 +343,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
               const allDone = variants.length > 0 && variants.every(v => v.status === 'published' || v.status === 'failed');
 
               setDrafts(prevDrafts => prevDrafts.map(d => {
-                const matched = variants.find(v => v.platform === d.platform);
+                const matched = variants.find(v => v.id === d.variantId || v.platform === d.platform);
                 if (matched) {
                   return {
                     ...d,
@@ -664,11 +675,16 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                 const isOverLimit = (draft.characterCount || 0) > (draft.maxChars || 10000);
                 const isPublished = draft.status === 'published';
                 const isFailed = draft.status === 'failed';
-                const result = publishResults[draft.platform];
+                const resultKey = draft.platformConnectionId ? `${draft.platform}:${draft.platformConnectionId}` : draft.platform;
+                const result = publishResults[resultKey] || publishResults[draft.platform];
+                const draftKey = draft.variantId || draft.platform;
+                const accountLabel = draft.accountUsername
+                  ? `@${draft.accountUsername}`
+                  : draft.accountDisplayName || null;
 
                 return (
                   <motion.div
-                    key={draft.platform}
+                    key={draftKey}
                     className={cn(
                       'border rounded-xl p-4',
                       isPublished && 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900',
@@ -686,7 +702,14 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                           <PlatformBrandLogo platform={draft.platform} size={28} />
                         </span>
                         <Box>
-                          <Text weight="semibold">{config.name || draft.platform}</Text>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Text weight="semibold">{config.name || draft.platform}</Text>
+                            {accountLabel && (
+                              <Badge variant="secondary" className="text-[11px] font-medium px-1.5 py-0">
+                                {accountLabel}
+                              </Badge>
+                            )}
+                          </div>
                           <Text size="sm" color="muted">
                             {draft.characterCount || 0}/{draft.maxChars || 10000} characters
                             {(draft.hashtags?.length || 0) > 0 && ` • ${draft.hashtags.length} ${draft.hashtags.length === 1 ? 'hashtag' : 'hashtags'}`}
@@ -719,24 +742,24 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                         {/* Toggle buttons */}
                         <Flex gap={1} className="mb-2">
                           <Button
-                            variant={!previewMode[draft.platform] ? 'default' : 'ghost'}
+                            variant={!previewMode[draftKey] ? 'default' : 'ghost'}
                             size="sm"
-                            onClick={() => setPreviewMode(p => ({ ...p, [draft.platform]: false }))}
+                            onClick={() => setPreviewMode(p => ({ ...p, [draftKey]: false }))}
                           >
                             <Edit className="mr-1 h-3 w-3" />
                             Edit
                           </Button>
                           <Button
-                            variant={previewMode[draft.platform] ? 'default' : 'ghost'}
+                            variant={previewMode[draftKey] ? 'default' : 'ghost'}
                             size="sm"
-                            onClick={() => setPreviewMode(p => ({ ...p, [draft.platform]: true }))}
+                            onClick={() => setPreviewMode(p => ({ ...p, [draftKey]: true }))}
                           >
                             <Eye className="mr-1 h-3 w-3" />
                             Preview
                           </Button>
                         </Flex>
 
-                        {previewMode[draft.platform] ? (
+                        {previewMode[draftKey] ? (
                           <PlatformPreview
                             platform={draft.platform}
                             content={draft.content}
@@ -745,7 +768,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                         ) : (
                           <Textarea
                             value={draft.content}
-                            onChange={e => updateDraft(draft.platform, e.target.value)}
+                            onChange={e => updateDraft(draftKey, e.target.value)}
                             className={cn('min-h-[120px]', isOverLimit && 'border-destructive')}
                             rows={5}
                             disabled={isFailed}
@@ -759,23 +782,23 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => saveDraft(draft.platform)}
-                              disabled={savingDraft[draft.platform] || !dirtyDrafts[draft.platform]}
+                              onClick={() => saveDraft(draftKey)}
+                              disabled={savingDraft[draftKey] || !dirtyDrafts[draftKey]}
                               className="gap-1"
                             >
-                              {savingDraft[draft.platform] ? (
+                              {savingDraft[draftKey] ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
                                 <Check className="h-3 w-3" />
                               )}
-                              {dirtyDrafts[draft.platform] ? 'Save Changes' : 'Saved'}
+                              {dirtyDrafts[draftKey] ? 'Save Changes' : 'Saved'}
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => {
                                 if (window.confirm(`Remove ${config.name} draft?`)) {
-                                  deleteDraft(draft.platform);
+                                  deleteDraft(draftKey);
                                 }
                               }}
                               className="gap-1 text-destructive hover:text-destructive"
@@ -798,8 +821,8 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                     <HashtagEditor
                       className="mt-3"
                       hashtags={draft.hashtags || []}
-                      onAdd={(tag) => addHashtag(draft.platform, tag)}
-                      onRemove={(tag) => removeHashtag(draft.platform, tag)}
+                      onAdd={(tag) => addHashtag(draftKey, tag)}
+                      onRemove={(tag) => removeHashtag(draftKey, tag)}
                       editable={!isPublished}
                     />
 
@@ -861,7 +884,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                           <CheckCircle className="h-3.5 w-3.5 text-green-600" />
                           <Text size="sm" className="text-green-700 font-medium">
                             Ready to publish
-                            {dirtyDrafts[draft.platform] && (
+                            {dirtyDrafts[draftKey] && (
                               <span className="text-amber-600 ml-1">(unsaved changes)</span>
                             )}
                           </Text>
