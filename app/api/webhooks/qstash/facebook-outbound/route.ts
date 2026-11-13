@@ -111,6 +111,18 @@ async function handleJob(params: FacebookOutboundJobParams) {
     return NextResponse.json({ success: true, action: 'automation_disabled' });
   }
 
+  // ── Respect per-type toggle flags ──
+  if (jobType === 'comment_reply' && cfg?.auto_reply_comments === false) {
+    logger.info('Facebook auto_reply_comments disabled — skipping comment_reply job', { workspaceId, pageId });
+    await markJobSent(workspaceId, jobType, targetId);
+    return NextResponse.json({ success: true, action: 'auto_reply_comments_disabled' });
+  }
+  if (jobType === 'messenger_reply' && cfg?.auto_reply_dm === false) {
+    logger.info('Facebook auto_reply_dm disabled — skipping messenger_reply job', { workspaceId, pageId });
+    await markJobSent(workspaceId, jobType, targetId);
+    return NextResponse.json({ success: true, action: 'auto_reply_dm_disabled' });
+  }
+
   // ── Resolve platform connection & decrypt token ──
   let connQuery = supabaseAdmin
     .from('platform_connections')
@@ -394,7 +406,7 @@ async function handleJob(params: FacebookOutboundJobParams) {
 
 async function markJobSent(workspaceId: string, jobType: string, targetId: string) {
   await supabaseAdmin.from('facebook_outbound_jobs')
-    .update({ status: 'sent', sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({ status: 'sent', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('workspace_id', workspaceId).eq('job_type', jobType).eq('target_id', targetId);
 }
 
@@ -421,7 +433,7 @@ async function upsertCommentLog(
   workspaceId: string,
   commentId: string,
   params: FacebookOutboundJobParams,
-  classified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string },
+  classified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string; shouldFlagForReview?: boolean },
   finalReply: string | null,
   autoReplied: boolean,
   dmSent: boolean = false
@@ -440,8 +452,8 @@ async function upsertCommentLog(
     reasoning: classified.reasoning || null,
     auto_replied: autoReplied,
     delivery_status: autoReplied ? 'sent' : 'skipped',
+    flagged_for_review: classified.shouldFlagForReview ?? false,
     reply_sent_at: autoReplied ? new Date().toISOString() : null,
-    dm_sent: dmSent,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'comment_id' });

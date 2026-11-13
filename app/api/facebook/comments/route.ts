@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(params.get('limit') || '25', 10), 100);
     const classification = params.get('classification');
     const search = params.get('search');
+    const flagged = params.get('flagged') === 'true';
 
     if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
 
@@ -41,6 +42,10 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       query = query.ilike('comment_text', `%${search}%`);
+    }
+
+    if (flagged) {
+      query = query.eq('flagged_for_review', true);
     }
 
     const { data: comments, error, count } = await query;
