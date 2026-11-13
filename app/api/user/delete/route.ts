@@ -72,6 +72,48 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
+    // 2b. Best-effort cleanup of R2 brand-materials objects for owned workspaces (B-16)
+    if (
+      ownedWorkspaceIds.length > 0 &&
+      config.CF_R2_ACCOUNT_ID &&
+      config.CF_R2_ACCESS_KEY_ID &&
+      config.CF_R2_SECRET_ACCESS_KEY &&
+      config.CF_R2_BUCKET_NAME
+    ) {
+      try {
+        const { S3Client, ListObjectsV2Command, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+        const s3 = new S3Client({
+          region: 'auto',
+          endpoint: `https://${config.CF_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+          credentials: {
+            accessKeyId: config.CF_R2_ACCESS_KEY_ID,
+            secretAccessKey: config.CF_R2_SECRET_ACCESS_KEY,
+          },
+        });
+
+        for (const wsId of ownedWorkspaceIds) {
+          const prefix = `brand-materials/${wsId}/`;
+          let continuationToken: string | undefined;
+          do {
+            const listRes = await s3.send(new ListObjectsV2Command({
+              Bucket: config.CF_R2_BUCKET_NAME!,
+              Prefix: prefix,
+              ContinuationToken: continuationToken,
+            }));
+            const keys = (listRes.Contents || []).map((o: any) => o.Key).filter(Boolean);
+            await Promise.allSettled(
+              keys.map((key: string) =>
+                s3.send(new DeleteObjectCommand({ Bucket: config.CF_R2_BUCKET_NAME!, Key: key }))
+              )
+            );
+            continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined;
+          } while (continuationToken);
+        }
+      } catch (r2BmErr) {
+        logger.warn('Non-fatal R2 brand-materials cleanup warning during account deletion', { error: r2BmErr, userId });
+      }
+    }
+
     // 3. Try atomic RPC deletion first (if migration is applied)
     for (const targetWsId of ownedWorkspaceIds) {
       try {

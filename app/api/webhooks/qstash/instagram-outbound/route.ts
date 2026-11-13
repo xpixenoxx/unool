@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutomation';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
@@ -228,6 +229,13 @@ async function handleJob(params: InstagramOutboundJobParams) {
         .eq('workspace_id', workspaceId)
         .single();
 
+      // B-08: Respect enabled flag — skip processing if automation is disabled
+      if (cfg?.enabled === false) {
+        logger.info('Instagram automation disabled — skipping queued comment_reply job', { workspaceId, commentId });
+        await markJobSent(workspaceId, jobType, targetId);
+        return NextResponse.json({ success: true, action: 'automation_disabled' }, { status: 200 });
+      }
+
       const canReply = await velocityThrottle.canReply(workspaceId, cfg?.max_replies_per_hour || 30);
       if (!canReply) {
         const delaySeconds = velocityThrottle.getSecondsUntilNextHourBucket(30, 180);
@@ -321,6 +329,9 @@ async function handleJob(params: InstagramOutboundJobParams) {
         // use raw
       }
 
+      // B-05: Sanitize AI output before posting to Meta
+      finalReply = ContentGuard.sanitizeOutput(finalReply);
+
       if (lexicalEntropyGuard.isTooSimilar(finalReply, recentReplies)) {
         const errorMsg = 'Generated reply too similar to recent replies — flagged for review';
         await flagCommentForDeadLetter(workspaceId, params, errorMsg, finalReply);
@@ -329,16 +340,22 @@ async function handleJob(params: InstagramOutboundJobParams) {
       }
 
       // Post public reply via Graph API (threaded under specific comment)
-      const replyResult = await automation.postPublicReply(
-        accessToken,
-        mediaId || '',
-        commentId,
-        finalReply,
-        commenterUsername
-      );
+      // B-07: When follow-gate is active and DM is needed, skip posting finalReply here —
+      // we will post only the follow-ask public reply below, to avoid a double public reply.
+      const willPostFollowGate = !!(classified.shouldSendDM && cfg?.require_follow_for_dm);
+      let replyResult: { replyId: string } | null = null;
+      if (!willPostFollowGate) {
+        replyResult = await automation.postPublicReply(
+          accessToken,
+          mediaId || '',
+          commentId,
+          finalReply,
+          commenterUsername
+        );
 
-      if (!replyResult) {
-        throw new Error('Meta API rejected comment reply or returned null');
+        if (!replyResult) {
+          throw new Error('Meta API rejected comment reply or returned null');
+        }
       }
 
       // CONFIRMED SUCCESS: Update all tables
@@ -350,8 +367,8 @@ async function handleJob(params: InstagramOutboundJobParams) {
         try {
           const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
           if (cfg?.require_follow_for_dm) {
-            // Follow-gate is active: post a PUBLIC comment reply to preserve Meta's one-time
-            // private reply slot per comment until the user follows and DMs us.
+            // B-07: Follow-gate active — post ONE public follow-ask reply (finalReply was skipped above).
+            // This is the ONLY public reply on this comment.
             const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
             const pubGateRes = await automation.postPublicReply(
               accessToken,
@@ -403,8 +420,8 @@ async function handleJob(params: InstagramOutboundJobParams) {
       await velocityThrottle.recordReply(workspaceId);
       lexicalEntropyGuard.recordReply(workspaceId, finalReply, mediaId);
 
-      logger.info('QStash outbound worker: comment reply confirmed sent', { commentId, replyId: replyResult.replyId });
-      return NextResponse.json({ success: true, replyId: replyResult.replyId }, { status: 200 });
+      logger.info('QStash outbound worker: comment reply confirmed sent', { commentId, replyId: replyResult?.replyId });
+      return NextResponse.json({ success: true, replyId: replyResult?.replyId }, { status: 200 });
     }
 
     if (jobType === 'dm_reply') {
@@ -709,6 +726,9 @@ async function handleJob(params: InstagramOutboundJobParams) {
       } catch {
         // use raw
       }
+
+      // B-05: Sanitize AI output before sending to Meta DM
+      finalReply = ContentGuard.sanitizeOutput(finalReply);
 
       // Send private message via Graph API
       const sendRes = await automation.sendPrivateMessage(

@@ -10,11 +10,22 @@ export const dynamic = 'force-dynamic';
 // ── GET ────────────────────────────────────────────────────────────────────────
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ gateId: string }> }
 ) {
   try {
+    // B-22: Require authentication — gate details include unlocked_content
+    const userClient = await createSupabaseServerClient();
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { gateId } = await params;
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
+    if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
+
+    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const gate = await getGate(gateId);
     if (!gate) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ gate });

@@ -245,6 +245,11 @@ async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void
         if (value) {
           await processThreadsPost(value);
         }
+      } else if (change.field === 'messages' || change.field === 'dm') {
+        // B-12: Threads has no DM/messaging API — log and discard gracefully
+        logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API — discarding', {
+          field: change.field,
+        });
       }
     }
   }
