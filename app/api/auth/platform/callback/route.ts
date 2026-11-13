@@ -317,6 +317,35 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // For Facebook: subscribe the connected page to our webhook fields (feed + messages)
+    // This is CRITICAL — without it Meta will not send any webhook events to the app
+    if (platform === 'facebook') {
+      try {
+        const { facebookAdapter } = await import('@/lib/platforms/FacebookAdapter');
+        // getUserPages returns pages with their own accessTokens (page-scoped tokens)
+        const pages = await facebookAdapter.getUserPages(tokenResponse.accessToken);
+        for (const page of pages) {
+          try {
+            // page.accessToken is already the page-scoped access token
+            await facebookAdapter.subscribePageWebhook(page.accessToken, page.id);
+            logger.info('Facebook page webhook subscription successful', { pageId: page.id, pageName: page.name });
+          } catch (pageErr) {
+            logger.warn('Failed to subscribe Facebook page to webhook', {
+              pageId: page.id,
+              error: pageErr instanceof Error ? pageErr.message : String(pageErr),
+            });
+          }
+        }
+      } catch (webhookError) {
+        // Non-fatal: page is connected, but webhook events won't arrive until page is subscribed
+        logger.error('Failed to subscribe Facebook pages to webhook — user should reconnect to enable automation', {
+          error: webhookError instanceof Error ? webhookError : new Error(String(webhookError)),
+          platformUserId: profile.platformUserId,
+        });
+        // Continue — don't block the OAuth callback
+      }
+    }
+
     // Invalidate dashboard overview cache so the newly connected platform shows immediately
     try {
       invalidateOverviewCache(workspaceId);

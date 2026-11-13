@@ -110,6 +110,18 @@ async function handleJob(params: ThreadsOutboundJobParams) {
     return NextResponse.json({ success: true, action: 'automation_disabled' });
   }
 
+  // ── Respect per-type toggle flags ──
+  if (eventType === 'reply' && cfg?.auto_reply_replies === false) {
+    logger.info('Threads auto_reply_replies disabled — skipping reply job', { workspaceId, threadsUserId });
+    await markJobSent(workspaceId, jobType, replyId);
+    return NextResponse.json({ success: true, action: 'auto_reply_replies_disabled' });
+  }
+  if (eventType === 'mention' && cfg?.auto_reply_mentions === false) {
+    logger.info('Threads auto_reply_mentions disabled — skipping mention job', { workspaceId, threadsUserId });
+    await markJobSent(workspaceId, jobType, replyId);
+    return NextResponse.json({ success: true, action: 'auto_reply_mentions_disabled' });
+  }
+
   // ── Dedup check in reply logs ──
   const { data: existingLog } = await supabaseAdmin
     .from('threads_reply_logs')
@@ -273,7 +285,7 @@ async function handleJob(params: ThreadsOutboundJobParams) {
 
 async function markJobSent(workspaceId: string, jobType: string, targetId: string) {
   await supabaseAdmin.from('threads_outbound_jobs')
-    .update({ status: 'sent', sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({ status: 'sent', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('workspace_id', workspaceId).eq('job_type', jobType).eq('target_id', targetId);
 }
 
@@ -299,7 +311,7 @@ async function markDeadLetter(
 async function upsertReplyLog(
   workspaceId: string,
   params: ThreadsOutboundJobParams,
-  classified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string },
+  classified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string; shouldFlagForReview?: boolean },
   finalReply: string | null,
   autoReplied: boolean
 ) {
@@ -317,6 +329,7 @@ async function upsertReplyLog(
     reasoning: classified.reasoning || null,
     auto_replied: autoReplied,
     delivery_status: autoReplied ? 'sent' : 'skipped',
+    flagged_for_review: classified.shouldFlagForReview ?? false,
     reply_sent_at: autoReplied ? new Date().toISOString() : null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

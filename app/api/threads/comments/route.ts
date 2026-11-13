@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(params.get('limit') || '25', 10), 100);
     const classification = params.get('classification');
     const search = params.get('search');
+    const flagged = params.get('flagged') === 'true';
 
     if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
 
@@ -43,6 +44,10 @@ export async function GET(request: NextRequest) {
       query = query.ilike('reply_text', `%${search}%`);
     }
 
+    if (flagged) {
+      query = query.eq('flagged_for_review', true);
+    }
+
     const { data: replies, error, count } = await query;
 
     if (error) {
@@ -53,7 +58,7 @@ export async function GET(request: NextRequest) {
     // Aggregate stats
     const { data: statsData } = await supabaseAdmin
       .from('threads_reply_logs')
-      .select('classification, auto_replied, event_type')
+      .select('classification, auto_replied, event_type, flagged_for_review')
       .eq('workspace_id', workspaceId)
       .not('reply_id', 'like', 'test_%');
 
@@ -72,6 +77,7 @@ export async function GET(request: NextRequest) {
       autoReplied: 0,
       repliesCount: 0,
       mentionsCount: 0,
+      flagged: 0,
     };
 
     for (const row of statsData || []) {
@@ -80,6 +86,7 @@ export async function GET(request: NextRequest) {
         stats.byClassification[cls]++;
       }
       if (row.auto_replied) stats.autoReplied++;
+      if (row.flagged_for_review) stats.flagged++;
       if (row.event_type === 'mention') {
         stats.mentionsCount++;
       } else {
