@@ -177,8 +177,14 @@ async function handleJob(params: FacebookOutboundJobParams) {
     // COMMENT_REPLY flow
     // ════════════════════════════════════════════════════════════
     if (jobType === 'comment_reply') {
-      if (!commentId || !commentText) {
-        throw new Error('Missing commentId or commentText for comment_reply');
+      if (!commentId) {
+        throw new Error('Missing commentId for comment_reply');
+      }
+
+      if (!commentText || !commentText.trim()) {
+        logger.info('Facebook comment event has no text (sticker/GIF/photo attachment) — skipping reply', { commentId });
+        await markJobSent(workspaceId, jobType, targetId);
+        return NextResponse.json({ success: true, action: 'empty_comment_text' });
       }
 
       // Dedup against comment logs
@@ -310,8 +316,14 @@ async function handleJob(params: FacebookOutboundJobParams) {
     // MESSENGER_REPLY flow
     // ════════════════════════════════════════════════════════════
     if (jobType === 'messenger_reply') {
-      if (!messageId || !senderId || !dmText) {
-        throw new Error('Missing messageId, senderId, or dmText for messenger_reply');
+      if (!messageId || !senderId) {
+        throw new Error('Missing messageId or senderId for messenger_reply');
+      }
+
+      if (!dmText || !dmText.trim()) {
+        logger.info('Facebook Messenger DM event has no text (attachment/sticker/audio) — skipping reply', { messageId });
+        await markJobSent(workspaceId, jobType, targetId);
+        return NextResponse.json({ success: true, action: 'empty_dm_text' });
       }
 
       const { data: dmLog } = await supabaseAdmin

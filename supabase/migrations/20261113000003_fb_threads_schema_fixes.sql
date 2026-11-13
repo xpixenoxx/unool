@@ -23,3 +23,4 @@ CREATE INDEX IF NOT EXISTS idx_fb_comment_logs_flagged
 CREATE INDEX IF NOT EXISTS idx_threads_reply_logs_flagged
   ON public.threads_reply_logs(workspace_id, flagged_for_review)
   WHERE flagged_for_review = true;
+

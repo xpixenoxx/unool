@@ -300,6 +300,12 @@ async function processThreadsReplyEvent(
     return;
   }
 
+  // Skip self-authored replies / mentions (account replying to its own posts or its own comments)
+  if (replierId && replierId === threadsUserId) {
+    logger.debug('Threads webhook: skipping self-authored reply', { replyId, threadsUserId });
+    return;
+  }
+
   try {
     // Load threads automation config by threadsUserId
     const { data: cfg } = await supabaseAdmin
