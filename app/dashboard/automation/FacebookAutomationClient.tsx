@@ -53,7 +53,7 @@ const DEFAULT_CONFIG: FacebookAutomationConfig = {
   autoReplyDm: true,
   linkUrl: null,
   customInstructions: 'Never mention competitor platforms. Keep replies under 2 sentences. Direct technical queries to our documentation.',
-  brandPersona: 'Thoughtful, conversational founder tone. Clear, helpful, and professional. Reflects high standards without corporate jargon.',
+  brandPersona: 'Thoughtful, consultative founder tone. Direct, insightful, and authoritative. Never corporate jargon or sycophantic. Reflects high standards.',
   flagNegative: true,
   flagSpam: true,
   maxRepliesPerHour: 20,
@@ -70,16 +70,89 @@ const FACEBOOK_COMMENT_PRESETS = [
   { label: 'Spam / Promotion', text: 'MAKE $10,000 PER WEEK FROM HOME CLICK MY PROFILE RIGHT NOW!!', caption: 'Community updates and live stream announcement.' },
 ];
 
-const CLASSIFICATION_STYLES: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  positive:        { label: 'Positive / Praise', bg: '#ECFDF5', color: '#065F46', border: '#A7F3D0' },
-  question:        { label: 'Audience Question', bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE' },
-  link_request:    { label: 'Resource / Link Ask', bg: '#F5F3FF', color: '#5B21B6', border: '#DDD6FE' },
-  purchase_intent: { label: 'Commercial / Buyer Intent', bg: '#FFFBEB', color: '#92400E', border: '#FDE68A' },
-  negative:        { label: 'Negative / Critical', bg: '#FFF1F2', color: '#9F1239', border: '#FECDD3' },
-  spam:            { label: 'Spam / Automated', bg: '#FEF2F2', color: '#991B1B', border: '#FECACA' },
-  harmful:         { label: 'Flagged / Moderation', bg: '#450A0A', color: '#FEE2E2', border: '#7F1D1D' },
-  unrelated:       { label: 'General Remark', bg: '#F8FAFC', color: '#475569', border: '#E2E8F0' },
+const CLASSIFICATION_STYLES: Record<string, { label: string; bg: string; color: string; border: string; dot: string }> = {
+  positive:        { label: 'Positive / Praise',        bg: '#ECFDF5', color: '#065F46', border: '#A7F3D0', dot: '#10B981' },
+  question:        { label: 'Audience Question',         bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE', dot: '#3B82F6' },
+  link_request:    { label: 'Resource / Link Ask',       bg: '#F5F3FF', color: '#5B21B6', border: '#DDD6FE', dot: '#8B5CF6' },
+  purchase_intent: { label: 'Commercial / Buyer Intent', bg: '#FFFBEB', color: '#92400E', border: '#FDE68A', dot: '#F59E0B' },
+  negative:        { label: 'Negative / Critical',       bg: '#FFF1F2', color: '#9F1239', border: '#FECDD3', dot: '#EF4444' },
+  spam:            { label: 'Spam / Automated',          bg: '#FEF2F2', color: '#991B1B', border: '#FECACA', dot: '#94A3B8' },
+  harmful:         { label: 'Flagged / Moderation',      bg: '#450A0A', color: '#FEE2E2', border: '#7F1D1D', dot: '#F43F5E' },
+  unrelated:       { label: 'General Remark',            bg: '#F8FAFC', color: '#475569', border: '#E2E8F0', dot: '#94A3B8' },
 };
+
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+const SvgGrid = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+const SvgPlay = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <path d="M4 3l9 5-9 5V3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+  </svg>
+);
+const SvgLedger = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3 3 3-3h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+const SvgTriage = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <path d="M8 2l1.5 3H13l-2.5 2 1 3L8 8.5 5.5 10l1-3L4 5h3.5L8 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+  </svg>
+);
+const SvgMessage = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <path d="M13 1H3a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2v3l4-3h4a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+const SvgClock = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.6"/>
+    <path d="M8 4.5V8l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+  </svg>
+);
+const SvgPen = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <path d="M12 2l2 2-9 9H3v-2l9-9z" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+const SvgMail = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M1 4l7 5 7-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+// ─── Capsule Toggle ───────────────────────────────────────────────────────────
+function CapsuleToggle({
+  checked,
+  onChange,
+  color = 'color-blue',
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  color?: string;
+}) {
+  return (
+    <label className={`un-capsule-toggle ${color}`} style={{ cursor: 'pointer', flexShrink: 0 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+        style={{ display: 'none' }}
+      />
+      <div className="un-capsule-track" />
+      <div className="un-capsule-thumb" />
+    </label>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function FacebookAutomationClient({
   workspaceId,
@@ -90,7 +163,7 @@ export default function FacebookAutomationClient({
 }) {
   const [config, setConfig] = useState<FacebookAutomationConfig>(DEFAULT_CONFIG);
   const [fbConnection, setFbConnection] = useState<{ status: 'connected' | 'not_connected' | 'expired'; username?: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'control' | 'simulator' | 'feed'>('control');
+  const [activeTab, setActiveTab] = useState<'control' | 'simulator' | 'feed' | 'triage'>('control');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -99,6 +172,10 @@ export default function FacebookAutomationClient({
   const [comments, setComments] = useState<FacebookCommentLog[]>([]);
   const [commentStats, setCommentStats] = useState<{ total: number; autoReplied: number; flagged: number } | null>(null);
   const [loadingComments, setLoadingComments] = useState(false);
+
+  // Triage (flagged)
+  const [triageItems, setTriageItems] = useState<FacebookCommentLog[]>([]);
+  const [loadingTriage, setLoadingTriage] = useState(false);
 
   // Simulator
   const [simComment, setSimComment] = useState(FACEBOOK_COMMENT_PRESETS[0].text);
@@ -117,6 +194,10 @@ export default function FacebookAutomationClient({
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const updateConfig = (patch: Partial<FacebookAutomationConfig>) => {
+    setConfig(prev => ({ ...prev, ...patch }));
   };
 
   // ── Load Platform Connection Status ──
@@ -157,15 +238,31 @@ export default function FacebookAutomationClient({
       if (res.ok) {
         const data = await res.json();
         setComments(data.comments || []);
+        setTriageItems((data.comments || []).filter((c: FacebookCommentLog) => c.flagged_for_review));
         if (data.stats) setCommentStats(data.stats);
       }
     } catch {}
     finally { setLoadingComments(false); }
   }, [workspaceId]);
 
+  // ── Load Triage ──
+  const loadTriage = useCallback(async () => {
+    if (!workspaceId) return;
+    setLoadingTriage(true);
+    try {
+      const res = await fetch(`/api/facebook/comments?workspaceId=${workspaceId}&flagged=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setTriageItems(data.comments || []);
+      }
+    } catch {}
+    finally { setLoadingTriage(false); }
+  }, [workspaceId]);
+
   useEffect(() => {
     if (activeTab === 'feed') loadComments();
-  }, [activeTab, loadComments]);
+    if (activeTab === 'triage') loadTriage();
+  }, [activeTab, loadComments, loadTriage]);
 
   // ── Save Config ──
   const handleSave = async (overrides?: Partial<FacebookAutomationConfig>) => {
@@ -219,6 +316,8 @@ export default function FacebookAutomationClient({
     }
   };
 
+  const flaggedCount = commentStats?.flagged ?? triageItems.length;
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '90px 0', background: '#FDFBF7' }}>
@@ -257,15 +356,13 @@ export default function FacebookAutomationClient({
               </div>
             </div>
 
-            {/* Status Jewel & Connection Actions */}
+            {/* Status Jewel & Connection */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {fbConnection?.status === 'connected' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 20, background: '#EFF6FF', border: '1px solid #BFDBFE', fontSize: 12.5, fontWeight: 600, color: '#1D4ED8' }}>
-                    <span className="un-pulse-dot" style={{ background: '#1877F2' }} />
-                    <span>@{fbConnection.username || 'facebook_page'}</span>
-                    <span style={{ color: '#1E40AF', opacity: 0.7, fontSize: 11 }}>Active API</span>
-                  </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 20, background: '#EFF6FF', border: '1px solid #BFDBFE', fontSize: 12.5, fontWeight: 600, color: '#1D4ED8' }}>
+                  <span className="un-pulse-dot" style={{ background: '#1877F2' }} />
+                  <span>@{fbConnection.username || 'facebook_page'}</span>
+                  <span style={{ color: '#1E40AF', opacity: 0.7, fontSize: 11 }}>Active API</span>
                 </div>
               ) : (
                 <a href={`/api/auth/platform/connect?platform=facebook&workspaceId=${workspaceId || ''}&userId=${userId || ''}`} className="un-btn un-btn-primary" style={{ padding: '6px 14px', fontSize: 12.5, background: '#1877F2' }}>
@@ -278,14 +375,15 @@ export default function FacebookAutomationClient({
           {/* Sub-tabs Navigation */}
           <div className="un-tabs-bar">
             {[
-              { id: 'control',   label: 'Engine Controls', icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/></svg> },
-              { id: 'simulator', label: 'Intent Lab',       icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
-              { id: 'feed',      label: 'Dispatch Ledger',  icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3 3 3-3h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" strokeWidth="1.5"/></svg>, badge: commentStats?.total },
+              { id: 'control',   label: 'Engine Controls', icon: <SvgGrid /> },
+              { id: 'simulator', label: 'Intent Lab',       icon: <SvgPlay /> },
+              { id: 'feed',      label: 'Dispatch Ledger',  icon: <SvgLedger />, badge: commentStats?.total },
+              { id: 'triage',    label: 'Triage Queue',     icon: <SvgTriage />, badge: flaggedCount || undefined },
             ].map(tab => (
               <button
                 key={tab.id}
                 className={`un-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'control' | 'simulator' | 'feed' | 'triage')}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -302,6 +400,7 @@ export default function FacebookAutomationClient({
         {/* ════ TAB 1: ENGINE CONTROLS ════ */}
         {activeTab === 'control' && (
           <div>
+            {/* Not Connected Banner */}
             {fbConnection?.status !== 'connected' && (
               <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 16, padding: '16px 22px', marginBottom: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                 <div>
@@ -312,7 +411,7 @@ export default function FacebookAutomationClient({
               </div>
             )}
 
-            {/* Master Hero */}
+            {/* Master Hero Toggle */}
             <div className="un-master-hero">
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div>
@@ -327,19 +426,17 @@ export default function FacebookAutomationClient({
                   </div>
                   <p style={{ fontSize: 13, color: '#8B7355', margin: '4px 0 0', fontWeight: 500 }}>
                     {config.enabled
-                      ? 'Inbound Facebook Page comments are filtered by AI intent, verified for safety, and replied to with humanized pacing.'
+                      ? 'Inbound Facebook Page comments are classified by AI intent, verified for safety, and replied with humanized Poisson pacing.'
                       : 'Automation is paused. New Facebook comments will be logged in the dispatch ledger without auto-replying.'}
                   </p>
                 </div>
               </div>
-
-              {/* Master Toggle */}
               <button
                 type="button"
                 className={`un-rocker ${config.enabled ? 'checked' : ''}`}
                 onClick={() => {
                   const nextVal = !config.enabled;
-                  setConfig(prev => ({ ...prev, enabled: nextVal }));
+                  updateConfig({ enabled: nextVal });
                   handleSave({ enabled: nextVal });
                 }}
                 aria-label="Toggle Facebook Automation"
@@ -348,84 +445,166 @@ export default function FacebookAutomationClient({
               </button>
             </div>
 
-            {/* Protocols Grid */}
+            {/* Two-Column Grid */}
             <div className="un-grid-2" style={{ marginTop: 22 }}>
 
-              {/* Card 1: Intent Controls */}
-              <div className="un-panel">
-                <div className="un-panel-header">
-                  <h4 className="un-panel-title">Comment Intent Recognition Protocols</h4>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* ── Column 1 ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                {/* Comment Intent Recognition */}
+                <div className="un-card">
+                  <div className="un-card-header">
+                    <div className="un-card-title">
+                      <div className="un-card-title-icon" style={{ background: '#EBF5FF', color: '#1877F2' }}><SvgMessage /></div>
+                      <span>Comment Intent Recognition Protocols</span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', background: '#F5EFE2', padding: '2px 8px', borderRadius: 6 }}>Bespoke Rocker Controls</span>
+                  </div>
+
                   {[
-                    { key: 'autoReplyPositive', label: 'Praise & Community Delight', desc: 'Positive affirmations, compliments, and thank-yous.' },
-                    { key: 'autoReplyQuestions', label: 'Knowledge Queries', desc: 'Product, pricing, and how-to questions from audience.' },
-                    { key: 'autoReplyLinkRequests', label: 'Resource & Link Dispatch', desc: 'Auto-reply with canonical resource link + optional private reply.' },
-                    { key: 'autoReplyPurchaseIntent', label: 'Commercial & Buyer Intent', desc: 'High-intent buying signals routed with priority response.' },
-                    { key: 'autoHideSpam', label: 'Spam Auto-Hide Filter', desc: 'Automatically hides spam comments using Facebook Page moderation API.' },
-                    { key: 'autoReplyDm', label: 'Messenger Private Reply', desc: 'Sends a private Messenger reply on comments requesting resource links (within 7-day Meta window).' },
-                  ].map(item => (
-                    <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F3EFE6' }}>
-                      <div style={{ paddingRight: 14 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 600, color: '#3D2B1F' }}>{item.label}</div>
-                        <div style={{ fontSize: 12, color: '#8B7355', marginTop: 2 }}>{item.desc}</div>
+                    { key: 'autoReplyPositive',      color: 'color-emerald',  label: 'Praise & Community Delight',   desc: 'Warm acknowledgments for testimonials, applause, and appreciation.' },
+                    { key: 'autoReplyQuestions',     color: 'color-sapphire', label: 'Direct Knowledge Queries',     desc: 'Context-aware factual replies to product & technical questions.' },
+                    { key: 'autoReplyLinkRequests',  color: 'color-amethyst', label: 'Resource & Link Dispatch',     desc: 'Public reply + optional private Messenger delivery for resource requests.' },
+                    { key: 'autoReplyPurchaseIntent',color: 'color-amber',    label: 'Buyer & Commercial Intent',    desc: 'High-priority routing for pricing asks and purchase signals.' },
+                    { key: 'flagNegative',           color: 'color-coral',    label: 'Flag Negative Sentiment',      desc: 'Route dissatisfied remarks directly to human triage queue.' },
+                    { key: 'flagSpam',               color: 'color-coral',    label: 'Filter Spam & Bot Comments',   desc: 'Auto-quarantine repetitive scams, bots, and malicious links.' },
+                    { key: 'autoHideSpam',           color: 'color-coral',    label: 'Spam Auto-Hide via Page API',  desc: 'Hides confirmed spam from your Page using Facebook moderation API.' },
+                  ].map(({ key, color, label, desc }) => (
+                    <div className="un-rule-row" key={key}>
+                      <div style={{ paddingRight: 16 }}>
+                        <div className="un-rule-name">{label}</div>
+                        <div className="un-rule-desc">{desc}</div>
                       </div>
-                      <button
-                        type="button"
-                        className={`un-rocker ${(config as any)[item.key] ? 'checked' : ''}`}
-                        onClick={() => {
-                          const nextVal = !(config as any)[item.key];
-                          setConfig(prev => ({ ...prev, [item.key]: nextVal }));
-                          handleSave({ [item.key]: nextVal });
-                        }}
-                      >
-                        <span className="un-rocker-thumb" />
-                      </button>
+                      <CapsuleToggle
+                        checked={!!(config as unknown as Record<string, unknown>)[key]}
+                        onChange={v => { updateConfig({ [key]: v } as Partial<FacebookAutomationConfig>); handleSave({ [key]: v } as Partial<FacebookAutomationConfig>); }}
+                        color={color}
+                      />
                     </div>
                   ))}
                 </div>
+
+                {/* Delivery Rate Safeguards */}
+                <div className="un-card">
+                  <div className="un-card-header">
+                    <div className="un-card-title">
+                      <div className="un-card-title-icon" style={{ background: '#FEF3C7', color: '#D97706' }}><SvgClock /></div>
+                      <span>Delivery Rate Safeguards &amp; Natural Jitter</span>
+                    </div>
+                  </div>
+
+                  <div className="un-field">
+                    <label className="un-label">Maximum Hourly Comment Reply Velocity</label>
+                    <div className="un-slider-container">
+                      <input
+                        type="range"
+                        className="un-slider"
+                        min={5}
+                        max={60}
+                        value={config.maxRepliesPerHour}
+                        onChange={e => updateConfig({ maxRepliesPerHour: parseInt(e.target.value) })}
+                        onMouseUp={() => handleSave({ maxRepliesPerHour: config.maxRepliesPerHour })}
+                      />
+                      <span className="un-slider-pill">{config.maxRepliesPerHour} / hr</span>
+                    </div>
+                  </div>
+
+                  <div className="un-field">
+                    <label className="un-label">Maximum Hourly Messenger DM Velocity</label>
+                    <div className="un-slider-container">
+                      <input
+                        type="range"
+                        className="un-slider"
+                        min={1}
+                        max={30}
+                        value={config.dmMaxRepliesPerHour}
+                        onChange={e => updateConfig({ dmMaxRepliesPerHour: parseInt(e.target.value) })}
+                        onMouseUp={() => handleSave({ dmMaxRepliesPerHour: config.dmMaxRepliesPerHour })}
+                      />
+                      <span className="un-slider-pill">{config.dmMaxRepliesPerHour} / hr</span>
+                    </div>
+                  </div>
+
+                  <div className="un-field" style={{ marginBottom: 4 }}>
+                    <label className="un-label">Human Timing Variance (Poisson Latency)</label>
+                    <div className="un-slider-container">
+                      <input
+                        type="range"
+                        className="un-slider"
+                        min={5}
+                        max={120}
+                        value={config.jitterMinSeconds}
+                        onChange={e => updateConfig({ jitterMinSeconds: parseInt(e.target.value) })}
+                        onMouseUp={() => handleSave({ jitterMinSeconds: config.jitterMinSeconds })}
+                      />
+                      <span className="un-slider-pill">{config.jitterMinSeconds}s</span>
+                      <span style={{ color: '#A69279', fontWeight: 700 }}>–</span>
+                      <input
+                        type="range"
+                        className="un-slider"
+                        min={60}
+                        max={300}
+                        value={config.jitterMaxSeconds}
+                        onChange={e => updateConfig({ jitterMaxSeconds: parseInt(e.target.value) })}
+                        onMouseUp={() => handleSave({ jitterMaxSeconds: config.jitterMaxSeconds })}
+                      />
+                      <span className="un-slider-pill">{config.jitterMaxSeconds}s</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#8B7355', marginTop: 8 }}>
+                      Introduces randomized delay between detection and posting, preserving natural creator timing profiles and avoiding Meta rate-limit flags.
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Card 2: Brand Voice & Resource Delivery */}
-              <div className="un-panel">
-                <div className="un-panel-header">
-                  <h4 className="un-panel-title">Brand Voice &amp; Resource Delivery</h4>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label className="un-label">Canonical Resource Link</label>
+              {/* ── Column 2 ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                {/* Brand Voice Studio */}
+                <div className="un-card">
+                  <div className="un-card-header">
+                    <div className="un-card-title">
+                      <div className="un-card-title-icon" style={{ background: '#F5F3FF', color: '#7C3AED' }}><SvgPen /></div>
+                      <span>Brand Voice &amp; Resource Delivery</span>
+                    </div>
+                  </div>
+
+                  <div className="un-field">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <label className="un-label" style={{ margin: 0 }}>Canonical Resource Link (Dispatched for link requests)</label>
+                    </div>
                     <input
                       type="url"
                       className="un-input"
                       placeholder="https://unool.co/u/yourbrand"
                       value={config.linkUrl || ''}
-                      onChange={e => setConfig(prev => ({ ...prev, linkUrl: e.target.value }))}
-                      onBlur={() => handleSave()}
+                      onChange={e => updateConfig({ linkUrl: e.target.value || null })}
+                      onBlur={() => handleSave({ linkUrl: config.linkUrl })}
                     />
-                    <p style={{ fontSize: 11.5, color: '#8B7355', margin: '4px 0 0' }}>Delivered when audience members ask for links, templates, or resources.</p>
+                    <p style={{ fontSize: 11.5, color: '#8B7355', margin: '4px 0 0' }}>Delivered when audience members ask for links, templates, or resources in comments.</p>
                   </div>
 
-                  <div>
+                  <div className="un-field">
                     <label className="un-label">Brand Editorial Persona</label>
                     <textarea
-                      className="un-textarea"
+                      className="un-input un-textarea"
                       rows={3}
                       value={config.brandPersona || ''}
-                      onChange={e => setConfig(prev => ({ ...prev, brandPersona: e.target.value }))}
-                      onBlur={() => handleSave()}
-                      placeholder="Describe the tone and voice for your Facebook Page replies..."
+                      onChange={e => updateConfig({ brandPersona: e.target.value || null })}
+                      onBlur={() => handleSave({ brandPersona: config.brandPersona })}
+                      placeholder="Thoughtful, consultative founder tone. Direct, insightful, and authoritative. Never corporate jargon or sycophantic."
                     />
                   </div>
 
-                  <div>
+                  <div className="un-field">
                     <label className="un-label">Boundary Instructions &amp; Prohibitions</label>
                     <textarea
-                      className="un-textarea"
+                      className="un-input un-textarea"
                       rows={3}
                       value={config.customInstructions || ''}
-                      onChange={e => setConfig(prev => ({ ...prev, customInstructions: e.target.value }))}
-                      onBlur={() => handleSave()}
-                      placeholder="e.g. Never mention competitors. Direct technical issues to support..."
+                      onChange={e => updateConfig({ customInstructions: e.target.value || null })}
+                      onBlur={() => handleSave({ customInstructions: config.customInstructions })}
+                      placeholder="Never mention competitor platforms. Keep replies under 2 sentences. Direct technical queries to our documentation."
                     />
                   </div>
 
@@ -441,6 +620,38 @@ export default function FacebookAutomationClient({
                     </button>
                   </div>
                 </div>
+
+                {/* Messenger Private Reply Concierge */}
+                <div className="un-card">
+                  <div className="un-card-header">
+                    <div className="un-card-title">
+                      <div className="un-card-title-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}><SvgMail /></div>
+                      <span>Messenger Private Reply Concierge</span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+                    <div style={{ fontSize: 12.5, color: '#1E40AF', lineHeight: 1.5 }}>
+                      <strong>Meta 7-Day Messaging Window:</strong> Private Messenger replies can only be sent to users who have interacted with your Page within the last 7 days. All Messenger dispatches are strictly policy-compliant.
+                    </div>
+                  </div>
+
+                  {[
+                    { key: 'autoReplyDm', color: 'color-sapphire', label: 'Messenger Private Reply on Link Requests', desc: 'Sends a private Messenger DM to commenters requesting resource links, within the 7-day Meta window.' },
+                  ].map(({ key, color, label, desc }) => (
+                    <div className="un-rule-row" key={key}>
+                      <div style={{ paddingRight: 16 }}>
+                        <div className="un-rule-name">{label}</div>
+                        <div className="un-rule-desc">{desc}</div>
+                      </div>
+                      <CapsuleToggle
+                        checked={!!(config as unknown as Record<string, unknown>)[key]}
+                        onChange={v => { updateConfig({ [key]: v } as Partial<FacebookAutomationConfig>); handleSave({ [key]: v } as Partial<FacebookAutomationConfig>); }}
+                        color={color}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -448,13 +659,16 @@ export default function FacebookAutomationClient({
 
         {/* ════ TAB 2: INTENT LAB / SIMULATOR ════ */}
         {activeTab === 'simulator' && (
-          <div className="un-panel">
-            <div className="un-panel-header">
-              <div>
-                <h4 className="un-panel-title">Facebook Intent Lab (Live Simulator)</h4>
-                <p style={{ fontSize: 12.5, color: '#8B7355', margin: '4px 0 0' }}>
-                  Test how the AI categorizes Facebook comments and drafts responses based on your current settings before going live.
-                </p>
+          <div className="un-card">
+            <div className="un-card-header">
+              <div className="un-card-title">
+                <div className="un-card-title-icon" style={{ background: '#ECFDF5', color: '#059669' }}><SvgPlay /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#3D2B1F' }}>Facebook Intent Lab (Live Simulator)</div>
+                  <div style={{ fontSize: 12.5, color: '#8B7355', marginTop: 2 }}>
+                    Test how the AI categorizes Facebook comments and drafts responses based on your current settings before going live.
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -469,6 +683,7 @@ export default function FacebookAutomationClient({
                   onClick={() => {
                     setSimComment(p.text);
                     setSimCaption(p.caption);
+                    setSimResult(null);
                   }}
                 >
                   {p.label}
@@ -478,17 +693,17 @@ export default function FacebookAutomationClient({
 
             <div className="un-grid-2">
               <div>
-                <div style={{ marginBottom: 12 }}>
+                <div className="un-field">
                   <label className="un-label">Simulated Facebook Comment</label>
                   <textarea
-                    className="un-textarea"
+                    className="un-input un-textarea"
                     rows={4}
                     value={simComment}
                     onChange={e => setSimComment(e.target.value)}
                     placeholder="Enter a comment to test..."
                   />
                 </div>
-                <div style={{ marginBottom: 16 }}>
+                <div className="un-field">
                   <label className="un-label">Simulated Post Context</label>
                   <input
                     type="text"
@@ -553,6 +768,17 @@ export default function FacebookAutomationClient({
                       </div>
                     )}
 
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: simResult.shouldAutoReply ? '#ECFDF5' : '#FEF2F2', color: simResult.shouldAutoReply ? '#059669' : '#991B1B' }}>
+                        {simResult.shouldAutoReply ? '✓ Will Auto-Reply' : '✗ Skipped by Policy'}
+                      </span>
+                      {simResult.shouldSendDM && (
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: '#EFF6FF', color: '#1D4ED8' }}>
+                          + Messenger DM
+                        </span>
+                      )}
+                    </div>
+
                     <div style={{ fontSize: 12, color: '#8B7355', fontStyle: 'italic', marginTop: 10 }}>
                       Reasoning: {simResult.reasoning}
                     </div>
@@ -569,29 +795,39 @@ export default function FacebookAutomationClient({
 
         {/* ════ TAB 3: DISPATCH LEDGER ════ */}
         {activeTab === 'feed' && (
-          <div className="un-panel">
-            <div className="un-panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <h4 className="un-panel-title">Facebook Dispatch Ledger</h4>
-                <p style={{ fontSize: 12.5, color: '#8B7355', margin: '4px 0 0' }}>
-                  Real-time audit log of Facebook comments processed by the autonomous engine.
-                </p>
+          <div className="un-card">
+            <div className="un-card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <div className="un-card-title">
+                <div className="un-card-title-icon" style={{ background: '#F0FDF4', color: '#16A34A' }}><SvgLedger /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#3D2B1F' }}>Facebook Dispatch Ledger</div>
+                  <div style={{ fontSize: 12.5, color: '#8B7355', marginTop: 2 }}>Real-time audit log of Facebook comments processed by the autonomous engine.</div>
+                </div>
               </div>
-              <button
-                type="button"
-                className="un-btn un-btn-secondary"
-                onClick={loadComments}
-                disabled={loadingComments}
-                style={{ fontSize: 12 }}
-              >
-                {loadingComments ? 'Refreshing...' : 'Refresh Ledger'}
-              </button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {commentStats && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: '#F0FDF4', color: '#059669', border: '1px solid #A7F3D0' }}>{commentStats.autoReplied} replied</span>
+                    {commentStats.flagged > 0 && <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>{commentStats.flagged} flagged</span>}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="un-btn un-btn-secondary"
+                  onClick={loadComments}
+                  disabled={loadingComments}
+                  style={{ fontSize: 12 }}
+                >
+                  {loadingComments ? 'Refreshing...' : 'Refresh Ledger'}
+                </button>
+              </div>
             </div>
 
             {loadingComments ? (
               <div style={{ textAlign: 'center', padding: 40 }}><div className="un-spinner" /></div>
             ) : comments.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '50px 20px', color: '#8B7355' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#3D2B1F', marginBottom: 6 }}>No Facebook Comments Recorded Yet</div>
                 <div style={{ fontSize: 13 }}>When audience members comment on your Facebook Page posts, interactions will be logged here automatically.</div>
               </div>
@@ -604,32 +840,30 @@ export default function FacebookAutomationClient({
                       <th style={{ padding: '10px 12px' }}>Comment</th>
                       <th style={{ padding: '10px 12px' }}>Intent</th>
                       <th style={{ padding: '10px 12px' }}>AI Reply</th>
+                      <th style={{ padding: '10px 12px' }}>DM</th>
                       <th style={{ padding: '10px 12px' }}>Status</th>
                       <th style={{ padding: '10px 12px' }}>Time</th>
                     </tr>
                   </thead>
                   <tbody>
                     {comments.map((c) => {
-                      const style = CLASSIFICATION_STYLES[c.classification || 'unrelated'] || CLASSIFICATION_STYLES.unrelated;
+                      const cls = CLASSIFICATION_STYLES[c.classification || 'unrelated'] || CLASSIFICATION_STYLES.unrelated;
                       return (
                         <tr key={c.id} style={{ borderBottom: '1px solid #F3EFE6' }}>
-                          <td style={{ padding: '12px', fontWeight: 600, color: '#3D2B1F' }}>
-                            {c.commenter_name || 'Community Member'}
-                          </td>
-                          <td style={{ padding: '12px', color: '#3D2B1F', maxWidth: 220 }}>
-                            {c.comment_text}
-                          </td>
+                          <td style={{ padding: '12px', fontWeight: 600, color: '#3D2B1F' }}>{c.commenter_name || 'Community Member'}</td>
+                          <td style={{ padding: '12px', color: '#3D2B1F', maxWidth: 200 }}>{c.comment_text}</td>
                           <td style={{ padding: '12px' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: style.bg, color: style.color, border: `1px solid ${style.border}` }}>
-                              {style.label}
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: cls.bg, color: cls.color, border: `1px solid ${cls.border}` }}>
+                              {cls.label}
                             </span>
                           </td>
-                          <td style={{ padding: '12px', color: '#8B7355', maxWidth: 260 }}>
-                            {c.suggested_reply || <span style={{ fontStyle: 'italic', opacity: 0.6 }}>No reply sent</span>}
+                          <td style={{ padding: '12px', color: '#8B7355', maxWidth: 240 }}>{c.suggested_reply || <span style={{ fontStyle: 'italic', opacity: 0.6 }}>No reply sent</span>}</td>
+                          <td style={{ padding: '12px' }}>
+                            {c.dm_sent ? <span style={{ fontSize: 11, fontWeight: 600, color: '#1D4ED8', background: '#EFF6FF', padding: '2px 7px', borderRadius: 8 }}>DM Sent</span> : <span style={{ fontSize: 11, color: '#8B7355' }}>—</span>}
                           </td>
                           <td style={{ padding: '12px' }}>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: c.auto_replied ? '#059669' : '#8B7355' }}>
-                              {c.auto_replied ? 'Auto-Replied' : 'Logged'}
+                            <span style={{ fontSize: 11, fontWeight: 600, color: c.auto_replied ? '#059669' : c.flagged_for_review ? '#DC2626' : '#8B7355' }}>
+                              {c.auto_replied ? 'Auto-Replied' : c.flagged_for_review ? 'Flagged' : 'Logged'}
                             </span>
                           </td>
                           <td style={{ padding: '12px', color: '#8B7355', fontSize: 12 }}>
@@ -645,8 +879,92 @@ export default function FacebookAutomationClient({
           </div>
         )}
 
+        {/* ════ TAB 4: TRIAGE QUEUE ════ */}
+        {activeTab === 'triage' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', margin: 0 }}>
+                  Human Triage Queue
+                </h4>
+                <p style={{ fontSize: 13, color: '#8B7355', margin: '4px 0 0' }}>
+                  Comments flagged for negative sentiment, escalations, or edge cases requiring your personal attention.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="un-btn un-btn-secondary"
+                onClick={loadTriage}
+                disabled={loadingTriage}
+                style={{ fontSize: 12 }}
+              >
+                {loadingTriage ? 'Loading...' : 'Refresh Queue'}
+              </button>
+            </div>
+
+            {loadingTriage ? (
+              <div style={{ textAlign: 'center', padding: 40 }}><div className="un-spinner" /></div>
+            ) : triageItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#FFFDF9', borderRadius: 16, border: '1px dashed #D5CCA8' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#3D2B1F', marginBottom: 6 }}>Triage Queue Clear</div>
+                <div style={{ fontSize: 13, color: '#8B7355' }}>No comments currently require your review. The AI engine is handling all inbound interactions.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {triageItems.map(item => {
+                  const cls = CLASSIFICATION_STYLES[item.classification || 'negative'] || CLASSIFICATION_STYLES.negative;
+                  return (
+                    <div
+                      key={item.id}
+                      className="un-triage-card"
+                      style={{
+                        background: '#FFFDF9',
+                        border: `1.5px solid ${item.flagged_for_review ? '#FECDD3' : '#EBE5D8'}`,
+                        borderRadius: 14,
+                        padding: '16px 20px',
+                        display: 'flex',
+                        gap: 16,
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: cls.bg, color: cls.color, border: `1px solid ${cls.border}` }}>
+                            {cls.label}
+                          </span>
+                          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#3D2B1F' }}>{item.commenter_name || 'Community Member'}</span>
+                          <span style={{ fontSize: 11, color: '#8B7355' }}>{new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div style={{ fontSize: 14, color: '#3D2B1F', lineHeight: 1.5, marginBottom: 8 }}>
+                          &ldquo;{item.comment_text}&rdquo;
+                        </div>
+                        {item.reasoning && (
+                          <div style={{ fontSize: 12, color: '#8B7355', fontStyle: 'italic' }}>
+                            AI Reasoning: {item.reasoning}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <a
+                          href={`https://www.facebook.com/${item.post_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="un-btn un-btn-secondary"
+                          style={{ fontSize: 11.5, padding: '5px 12px' }}
+                        >
+                          View on Facebook
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );
 }
-
