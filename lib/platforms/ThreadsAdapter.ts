@@ -370,7 +370,7 @@ export class ThreadsAdapter implements PlatformAdapter {
     throw new Error('Container processing timeout');
   }
 
-  private async postReply(accessToken: string, parentId: string, content: string): Promise<void> {
+  async postReply(accessToken: string, parentId: string, content: string): Promise<{ id?: string }> {
     const replyParams = new URLSearchParams({
       text: content,
       access_token: accessToken,
@@ -386,6 +386,50 @@ export class ThreadsAdapter implements PlatformAdapter {
       logger.error('Threads reply failed', { errorMessage: error, status: response.status });
       throw new Error(`Reply failed: ${error}`);
     }
+    return response.json().catch(() => ({})) as Promise<{ id?: string }>;
+  }
+
+  /**
+   * Hide or unhide a Threads reply (spam management).
+   * Requires threads_manage_replies scope.
+   */
+  async hideReply(accessToken: string, replyId: string, hide: boolean = true): Promise<void> {
+    return platformFetch('threads', async () => {
+      const params = new URLSearchParams({
+        hide: String(hide),
+        access_token: accessToken,
+      });
+      const response = await fetchWithRetry(`${THREADS_API_BASE}/${replyId}/manage_reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('Threads hide reply failed', { errorMessage: error, replyId });
+        throw new Error(`Hide reply failed: ${error}`);
+      }
+    });
+  }
+
+  /**
+   * Get replies to a Threads post.
+   * Returns reply objects: { id, text, username, timestamp }
+   */
+  async getPostReplies(accessToken: string, postId: string): Promise<Array<{ id: string; text: string; username: string; timestamp: string }>> {
+    return platformFetch('threads', async () => {
+      const response = await fetchWithRetry(
+        `${THREADS_API_BASE}/${postId}/replies?fields=id,text,username,timestamp&access_token=${accessToken}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('Threads get post replies failed', { errorMessage: error, postId });
+        return [];
+      }
+      const data = await response.json().catch(() => ({ data: [] }));
+      return (data.data || []) as Array<{ id: string; text: string; username: string; timestamp: string }>;
+    });
   }
 
   async deletePost(accessToken: string, platformPostId: string): Promise<void> {

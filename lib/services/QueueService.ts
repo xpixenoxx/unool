@@ -35,6 +35,41 @@ export interface InstagramOutboundJobParams {
   delaySeconds?: number;
 }
 
+export interface FacebookOutboundJobParams {
+  jobId: string;
+  jobType: 'comment_reply' | 'messenger_reply';
+  workspaceId: string;
+  connectionId: string;
+  pageId: string;
+  // Comment fields
+  commentId?: string;
+  postId?: string;
+  commentText?: string;
+  commenterName?: string;
+  commenterId?: string;
+  commentTimestamp?: string;
+  // Messenger DM fields
+  messageId?: string;
+  senderId?: string;
+  senderName?: string;
+  dmText?: string;
+  delaySeconds?: number;
+}
+
+export interface ThreadsOutboundJobParams {
+  jobId: string;
+  jobType: 'reply';
+  workspaceId: string;
+  connectionId: string;
+  threadsUserId: string;
+  replyId: string;
+  postId?: string;
+  replyText?: string;
+  replierId?: string;
+  eventType: 'reply' | 'mention';
+  delaySeconds?: number;
+}
+
 class QueueService {
   private client: Client | null = null;
 
@@ -66,6 +101,14 @@ class QueueService {
 
   private get instagramOutboundWebhookUrl(): string {
     return `${this.baseAppUrl}/api/webhooks/qstash/instagram-outbound`;
+  }
+
+  private get facebookOutboundWebhookUrl(): string {
+    return `${this.baseAppUrl}/api/webhooks/qstash/facebook-outbound`;
+  }
+
+  private get threadsOutboundWebhookUrl(): string {
+    return `${this.baseAppUrl}/api/webhooks/qstash/threads-outbound`;
   }
 
   /**
@@ -223,6 +266,89 @@ class QueueService {
       return res.messageId;
     } catch (error) {
       logger.error('Failed to enqueue Instagram outbound task via QStash', {
+        error: new Error(error instanceof Error ? error.message : String(error)),
+        jobId: params.jobId,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Enqueues an asynchronous durable task for Facebook outbound comment reply or Messenger DM.
+   */
+  async enqueueFacebookOutboundTask(params: FacebookOutboundJobParams): Promise<string | null> {
+    if (!this.client) {
+      logger.error('Cannot enqueue Facebook outbound task: QStash client is not initialized');
+      return null;
+    }
+    try {
+      const targetId = params.commentId || params.messageId;
+      const delaySec = params.delaySeconds && params.delaySeconds > 0 ? Math.floor(params.delaySeconds) : 0;
+      const notBeforeSeconds = delaySec > 0 ? Math.floor(Date.now() / 1000) + delaySec : undefined;
+      const bucketSuffix = notBeforeSeconds ? `-defer-${Math.floor(notBeforeSeconds / 3600)}` : '';
+      const dedupeKey = `fb-outbound-${params.jobType}-${targetId}${bucketSuffix}`;
+
+      const publishOptions: Parameters<Client['publishJSON']>[0] = {
+        url: this.facebookOutboundWebhookUrl,
+        body: params,
+        retries: 3,
+        headers: { 'Upstash-Timeout': '60s' },
+        deduplicationId: dedupeKey,
+        ...(notBeforeSeconds ? { notBefore: notBeforeSeconds } : {}),
+      };
+
+      const res = await this.client.publishJSON(publishOptions);
+      logger.info('Enqueued Facebook outbound task via QStash', {
+        messageId: res.messageId,
+        jobId: params.jobId,
+        jobType: params.jobType,
+        targetId,
+        delaySeconds: delaySec,
+      });
+      return res.messageId;
+    } catch (error) {
+      logger.error('Failed to enqueue Facebook outbound task via QStash', {
+        error: new Error(error instanceof Error ? error.message : String(error)),
+        jobId: params.jobId,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Enqueues an asynchronous durable task for Threads outbound reply.
+   */
+  async enqueueThreadsOutboundTask(params: ThreadsOutboundJobParams): Promise<string | null> {
+    if (!this.client) {
+      logger.error('Cannot enqueue Threads outbound task: QStash client is not initialized');
+      return null;
+    }
+    try {
+      const delaySec = params.delaySeconds && params.delaySeconds > 0 ? Math.floor(params.delaySeconds) : 0;
+      const notBeforeSeconds = delaySec > 0 ? Math.floor(Date.now() / 1000) + delaySec : undefined;
+      const bucketSuffix = notBeforeSeconds ? `-defer-${Math.floor(notBeforeSeconds / 3600)}` : '';
+      const dedupeKey = `threads-outbound-${params.jobType}-${params.replyId}${bucketSuffix}`;
+
+      const publishOptions: Parameters<Client['publishJSON']>[0] = {
+        url: this.threadsOutboundWebhookUrl,
+        body: params,
+        retries: 3,
+        headers: { 'Upstash-Timeout': '60s' },
+        deduplicationId: dedupeKey,
+        ...(notBeforeSeconds ? { notBefore: notBeforeSeconds } : {}),
+      };
+
+      const res = await this.client.publishJSON(publishOptions);
+      logger.info('Enqueued Threads outbound task via QStash', {
+        messageId: res.messageId,
+        jobId: params.jobId,
+        jobType: params.jobType,
+        replyId: params.replyId,
+        delaySeconds: delaySec,
+      });
+      return res.messageId;
+    } catch (error) {
+      logger.error('Failed to enqueue Threads outbound task via QStash', {
         error: new Error(error instanceof Error ? error.message : String(error)),
         jobId: params.jobId,
       });
