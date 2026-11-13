@@ -135,6 +135,13 @@ async function handleJob(params: ThreadsOutboundJobParams) {
     return NextResponse.json({ success: true, message: 'Already replied' });
   }
 
+  // ── Self-reply guard ──
+  if (params.replierId && params.replierId === threadsUserId) {
+    logger.info('Threads outbound: skipping self-authored reply (infinite loop prevention)', { replyId, threadsUserId });
+    await markJobSent(workspaceId, jobType, replyId);
+    return NextResponse.json({ success: true, action: 'self_reply_skipped' });
+  }
+
   // ── Load platform connection & decrypt token ──
   let connQuery = supabaseAdmin
     .from('platform_connections')

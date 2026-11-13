@@ -370,23 +370,66 @@ export class ThreadsAdapter implements PlatformAdapter {
     throw new Error('Container processing timeout');
   }
 
+  /**
+   * Post a reply to a Threads post or inbound reply.
+   * In Meta Threads Graph API, replying requires the 2-step container flow:
+   * 1. Create a TEXT container with reply_to_id pointing to the parent post or reply ID
+   * 2. Publish the container via /me/threads_publish
+   */
   async postReply(accessToken: string, parentId: string, content: string): Promise<{ id?: string }> {
-    const replyParams = new URLSearchParams({
-      text: content,
-      access_token: accessToken,
-    });
-    const response = await fetchWithRetry(`${THREADS_API_BASE}/${parentId}/replies`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: replyParams.toString(),
-    });
+    return platformFetch('threads', async () => {
+      // Step 1: Create a TEXT container with reply_to_id
+      const containerParams = new URLSearchParams({
+        media_type: 'TEXT',
+        text: clampThreadsText(content),
+        reply_to_id: parentId,
+        access_token: accessToken,
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      logger.error('Threads reply failed', { errorMessage: error, status: response.status });
-      throw new Error(`Reply failed: ${error}`);
-    }
-    return response.json().catch(() => ({})) as Promise<{ id?: string }>;
+      const containerRes = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: containerParams.toString(),
+      });
+
+      if (!containerRes.ok) {
+        const error = await containerRes.text();
+        logger.error('Threads reply container creation failed', { errorMessage: error, parentId, status: containerRes.status });
+        throw new Error(`Reply container creation failed: ${error}`);
+      }
+
+      const containerData = await containerRes.json();
+      const creationId = containerData.id;
+
+      // Text containers process fast (usually instant); brief wait/poll if needed
+      try {
+        await this.waitForContainerReady(accessToken, creationId, 5);
+      } catch {
+        logger.debug('Threads reply container ready check skipped/timed out, attempting publish', { creationId });
+      }
+
+      // Step 2: Publish the container
+      const publishParams = new URLSearchParams({
+        creation_id: creationId,
+        access_token: accessToken,
+      });
+
+      const publishRes = await fetchWithRetry(`${THREADS_API_BASE}/me/threads_publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: publishParams.toString(),
+      });
+
+      if (!publishRes.ok) {
+        const error = await publishRes.text();
+        logger.error('Threads reply publish failed', { errorMessage: error, parentId, status: publishRes.status });
+        throw new Error(`Reply publish failed: ${error}`);
+      }
+
+      const publishData = await publishRes.json();
+      logger.info('Threads reply published successfully', { parentId, replyId: publishData.id });
+      return { id: publishData.id };
+    });
   }
 
   /**
