@@ -3,8 +3,36 @@ import { logger } from '@/lib/logger';
 import { verifyWebhookSignature, extractWebhookSignature } from '@/lib/webhooks/verify';
 import { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { config } from '@/lib/config/schema';
+import { queueService, type FacebookOutboundJobParams, type ThreadsOutboundJobParams } from '@/lib/services/QueueService';
 
 const platformRepository = new SupabasePlatformRepository();
+
+// ── GET: Meta hub.challenge verification for Facebook and Threads webhooks ──
+export async function GET(request: NextRequest) {
+  const mode = request.nextUrl.searchParams.get('hub.mode');
+  const token = request.nextUrl.searchParams.get('hub.verify_token');
+  const challenge = request.nextUrl.searchParams.get('hub.challenge');
+  const platform = request.nextUrl.searchParams.get('platform');
+
+  if (mode !== 'subscribe' || !challenge) {
+    return NextResponse.json({ error: 'Invalid verification request' }, { status: 400 });
+  }
+
+  const expectedToken =
+    platform === 'facebook'
+      ? (config.FACEBOOK_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET || config.META_WEBHOOK_VERIFY_TOKEN || '')
+      : (config.THREADS_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET || config.META_WEBHOOK_VERIFY_TOKEN || '');
+
+  if (token === expectedToken) {
+    logger.info('Meta webhook hub.challenge verified', { platform });
+    return new Response(challenge, { status: 200 });
+  }
+
+  logger.warn('Meta webhook hub.challenge token mismatch', { platform });
+  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const platform = platformParam.toLowerCase() as Platform;
-    const validPlatforms: Platform[] = ['linkedin', 'x', 'threads'];
+    const validPlatforms: Platform[] = ['linkedin', 'x', 'threads', 'facebook'];
 
     if (!validPlatforms.includes(platform)) {
       return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 });
@@ -54,6 +82,9 @@ export async function POST(request: NextRequest) {
           break;
         case 'threads':
           await handleThreadsWebhook(data);
+          break;
+        case 'facebook':
+          await handleFacebookWebhook(data);
           break;
       }
     } catch (handlerError) {
@@ -221,32 +252,289 @@ async function processXTweetUpdate(tweet: Record<string, unknown>): Promise<void
 }
 
 async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void> {
-  logger.info('Threads webhook received', { data });
+  logger.info('Threads webhook received', { object: data.object });
 
-  // Threads webhook via Meta Graph API subscriptions
-  // Format: { object: 'thread', entry: [{ id: '...', changes: [{ field: 'thread', value: { ... } }] }] }
-
-  const objectType = data.object as string;
-  if (objectType !== 'thread') {
-    logger.debug('Threads webhook: not a thread object', { objectType });
-    return;
-  }
-
+  // Real Threads webhook shape:
+  // { object: 'threads', entry: [{ id: '<threadsUserId>', changes: [{ field: 'replies'|'mentions', value: { id, text, from: {id}, media: {id}, timestamp } }] }] }
   const entries = data.entry as Array<Record<string, unknown>> | undefined;
   if (!entries || !Array.isArray(entries)) return;
 
   for (const entry of entries) {
     const changes = entry.changes as Array<Record<string, unknown>> | undefined;
-    if (!changes || !Array.isArray(changes)) continue;
+    if (!Array.isArray(changes)) continue;
 
     for (const change of changes) {
-      if (change.field === 'thread') {
+      if (change.field === 'replies' || change.field === 'mentions') {
+        await processThreadsReplyEvent(
+          entry.id as string,
+          change.value as Record<string, unknown>,
+          change.field as 'replies' | 'mentions'
+        );
+      } else if (change.field === 'messages' || change.field === 'dm') {
+        logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API — discarding', {
+          field: change.field,
+        });
+      } else {
+        // Legacy engagement update path (field === 'thread')
         const value = change.value as Record<string, unknown> | undefined;
-        if (value) {
+        if (value && change.field === 'thread') {
           await processThreadsPost(value);
         }
       }
     }
+  }
+}
+
+async function processThreadsReplyEvent(
+  threadsUserId: string,
+  value: Record<string, unknown>,
+  field: 'replies' | 'mentions'
+): Promise<void> {
+  const replyId = value?.id as string | undefined;
+  const replyText = value?.text as string | undefined;
+  const replierId = (value?.from as Record<string, unknown> | undefined)?.id as string | undefined;
+  const postId = (value?.media as Record<string, unknown> | undefined)?.id as string | undefined;
+
+  if (!replyId || !threadsUserId) {
+    logger.debug('Threads reply event missing id or threadsUserId — skipping', { replyId, threadsUserId });
+    return;
+  }
+
+  try {
+    // Load threads automation config by threadsUserId
+    const { data: cfg } = await supabaseAdmin
+      .from('threads_automation_config')
+      .select('*')
+      .eq('threads_user_id', threadsUserId)
+      .eq('enabled', true)
+      .maybeSingle();
+
+    if (!cfg) {
+      logger.debug('Threads automation not configured or disabled for user', { threadsUserId });
+      return;
+    }
+
+    // Dedup check
+    const { data: existing } = await supabaseAdmin
+      .from('threads_reply_logs')
+      .select('id')
+      .eq('reply_id', replyId)
+      .maybeSingle();
+
+    if (existing) {
+      logger.debug('Threads reply already processed (dedup)', { replyId });
+      return;
+    }
+
+    // Load platform connection
+    const { data: connections } = await supabaseAdmin
+      .from('platform_connections')
+      .select('id')
+      .eq('workspace_id', cfg.workspace_id)
+      .eq('platform', 'threads')
+      .eq('status', 'connected')
+      .limit(1);
+
+    const connectionId = connections?.[0]?.id;
+    if (!connectionId) {
+      logger.warn('No active Threads connection for workspace', { workspaceId: cfg.workspace_id });
+      return;
+    }
+
+    const jobParams: ThreadsOutboundJobParams = {
+      jobId: `threads-${replyId}-${Date.now()}`,
+      jobType: 'reply',
+      workspaceId: cfg.workspace_id,
+      connectionId,
+      threadsUserId,
+      replyId,
+      postId: postId || undefined,
+      replyText: replyText || undefined,
+      replierId: replierId || undefined,
+      eventType: field === 'mentions' ? 'mention' : 'reply',
+    };
+
+    await queueService.enqueueThreadsOutboundTask(jobParams);
+    logger.info('Threads reply event enqueued', { replyId, threadsUserId, field });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Error processing Threads reply event', { replyId, threadsUserId, error: err });
+  }
+}
+
+async function handleFacebookWebhook(data: Record<string, unknown>): Promise<void> {
+  logger.info('Facebook webhook received', { object: data.object });
+
+  const entries = data.entry as Array<Record<string, unknown>> | undefined;
+  if (!entries || !Array.isArray(entries)) return;
+
+  for (const entry of entries) {
+    const pageId = entry.id as string | undefined;
+    if (!pageId) continue;
+
+    // ── Feed (comment) events ──
+    const changes = entry.changes as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(changes)) {
+      for (const change of changes) {
+        if (change.field === 'feed') {
+          const value = change.value as Record<string, unknown> | undefined;
+          if (value?.item === 'comment' && value?.verb === 'add') {
+            await processFacebookCommentEvent(pageId, value);
+          }
+        }
+      }
+    }
+
+    // ── Messenger events ──
+    const messaging = entry.messaging as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(messaging)) {
+      for (const msg of messaging) {
+        const msgObj = msg.message as Record<string, unknown> | undefined;
+        const sender = msg.sender as Record<string, unknown> | undefined;
+        if (msgObj?.mid && sender?.id) {
+          await processFacebookMessengerEvent(pageId, msg);
+        }
+      }
+    }
+  }
+}
+
+async function processFacebookCommentEvent(pageId: string, value: Record<string, unknown>): Promise<void> {
+  const commentId = value.comment_id as string | undefined;
+  const postId = value.post_id as string | undefined;
+  const commentText = value.message as string | undefined;
+  const from = value.from as Record<string, unknown> | undefined;
+  const commenterId = from?.id as string | undefined;
+  const commenterName = from?.name as string | undefined;
+
+  if (!commentId || !pageId) return;
+
+  // Skip self-authored comments (page replying to itself)
+  if (commenterId === pageId) {
+    logger.debug('Facebook webhook: skipping self-authored comment', { commentId, pageId });
+    return;
+  }
+
+  try {
+    // Load facebook automation config
+    const { data: cfg } = await supabaseAdmin
+      .from('facebook_automation_config')
+      .select('*')
+      .eq('page_id', pageId)
+      .eq('enabled', true)
+      .maybeSingle();
+
+    if (!cfg) {
+      logger.debug('Facebook automation not configured or disabled for page', { pageId });
+      return;
+    }
+
+    // Dedup check
+    const { data: existing } = await supabaseAdmin
+      .from('facebook_comment_logs')
+      .select('id')
+      .eq('comment_id', commentId)
+      .maybeSingle();
+
+    if (existing) {
+      logger.debug('Facebook comment already processed (dedup)', { commentId });
+      return;
+    }
+
+    // Load platform connection
+    const { data: connections } = await supabaseAdmin
+      .from('platform_connections')
+      .select('id')
+      .eq('workspace_id', cfg.workspace_id)
+      .eq('platform', 'facebook')
+      .eq('status', 'connected')
+      .limit(1);
+
+    const connectionId = connections?.[0]?.id;
+    if (!connectionId) {
+      logger.warn('No active Facebook connection for workspace', { workspaceId: cfg.workspace_id });
+      return;
+    }
+
+    const jobParams: FacebookOutboundJobParams = {
+      jobId: `fb-comment-${commentId}-${Date.now()}`,
+      jobType: 'comment_reply',
+      workspaceId: cfg.workspace_id,
+      connectionId,
+      pageId,
+      commentId,
+      postId: postId || undefined,
+      commentText: commentText || undefined,
+      commenterName: commenterName || undefined,
+      commenterId: commenterId || undefined,
+      commentTimestamp: new Date().toISOString(),
+    };
+
+    await queueService.enqueueFacebookOutboundTask(jobParams);
+    logger.info('Facebook comment event enqueued', { commentId, pageId });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Error processing Facebook comment event', { commentId, pageId, error: err });
+  }
+}
+
+async function processFacebookMessengerEvent(pageId: string, msg: Record<string, unknown>): Promise<void> {
+  const msgObj = msg.message as Record<string, unknown> | undefined;
+  const sender = msg.sender as Record<string, unknown> | undefined;
+  const messageId = msgObj?.mid as string | undefined;
+  const senderId = sender?.id as string | undefined;
+  const dmText = msgObj?.text as string | undefined;
+
+  if (!messageId || !senderId || senderId === pageId) return;
+
+  try {
+    const { data: cfg } = await supabaseAdmin
+      .from('facebook_automation_config')
+      .select('*')
+      .eq('page_id', pageId)
+      .eq('enabled', true)
+      .maybeSingle();
+
+    if (!cfg) return;
+
+    const { data: existing } = await supabaseAdmin
+      .from('facebook_dm_logs')
+      .select('id')
+      .eq('message_id', messageId)
+      .maybeSingle();
+
+    if (existing) {
+      logger.debug('Facebook Messenger DM already processed (dedup)', { messageId });
+      return;
+    }
+
+    const { data: connections } = await supabaseAdmin
+      .from('platform_connections')
+      .select('id')
+      .eq('workspace_id', cfg.workspace_id)
+      .eq('platform', 'facebook')
+      .eq('status', 'connected')
+      .limit(1);
+
+    const connectionId = connections?.[0]?.id;
+    if (!connectionId) return;
+
+    const jobParams: FacebookOutboundJobParams = {
+      jobId: `fb-dm-${messageId}-${Date.now()}`,
+      jobType: 'messenger_reply',
+      workspaceId: cfg.workspace_id,
+      connectionId,
+      pageId,
+      messageId,
+      senderId,
+      dmText: dmText || undefined,
+    };
+
+    await queueService.enqueueFacebookOutboundTask(jobParams);
+    logger.info('Facebook Messenger event enqueued', { messageId, pageId });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Error processing Facebook Messenger event', { messageId, pageId, error: err });
   }
 }
 

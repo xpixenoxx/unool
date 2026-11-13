@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import LinkedInAutomationClient from './LinkedInAutomationClient';
+import FacebookAutomationClient from './FacebookAutomationClient';
+import ThreadsAutomationClient from './ThreadsAutomationClient';
 import BrandMaterialsSection from './BrandMaterialsSection';
 import './automation.css';
 import type { AutomationConfig, CommentLog, DmLog, FlaggedComment, SimulateResult } from './types';
@@ -79,13 +81,13 @@ export default function AutomationClient({
     }
   }, [featureFlags.automationEnabled, router]);
 
-  const [platform, setPlatform] = useState<'instagram' | 'linkedin'>('instagram');
+  const [platform, setPlatform] = useState<'instagram' | 'linkedin' | 'facebook' | 'threads'>('instagram');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const p = params.get('platform');
-      if (p === 'linkedin' || p === 'instagram') {
+      if (p === 'linkedin' || p === 'instagram' || p === 'facebook' || p === 'threads') {
         setPlatform(p);
       }
       const t = params.get('tab');
@@ -95,7 +97,7 @@ export default function AutomationClient({
     }
   }, []);
 
-  const handlePlatformChange = (p: 'instagram' | 'linkedin') => {
+  const handlePlatformChange = (p: 'instagram' | 'linkedin' | 'facebook' | 'threads') => {
     setPlatform(p);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -472,7 +474,7 @@ export default function AutomationClient({
       
       <div className="un-root">
 
-        {/* ── Top Platform Navigation (Instagram vs LinkedIn) matching reference design ── */}
+        {/* ── Top Platform Navigation (Instagram vs LinkedIn vs Facebook vs Threads) ── */}
         <div className="un-platform-bar">
           <div className="un-platform-bar-inner">
             <button
@@ -489,11 +491,29 @@ export default function AutomationClient({
             >
               LinkedIn
             </button>
+            <button
+              type="button"
+              className={`un-platform-tab ${platform === 'facebook' ? 'active' : ''}`}
+              onClick={() => handlePlatformChange('facebook')}
+            >
+              Facebook
+            </button>
+            <button
+              type="button"
+              className={`un-platform-tab ${platform === 'threads' ? 'active' : ''}`}
+              onClick={() => handlePlatformChange('threads')}
+            >
+              Threads
+            </button>
           </div>
         </div>
 
         {platform === 'linkedin' ? (
           <LinkedInAutomationClient workspaceId={workspaceId} userId={userId} />
+        ) : platform === 'facebook' ? (
+          <FacebookAutomationClient workspaceId={workspaceId} userId={userId} />
+        ) : platform === 'threads' ? (
+          <ThreadsAutomationClient workspaceId={workspaceId} userId={userId} />
         ) : (
           (loading || !config) ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>

@@ -8,8 +8,8 @@ import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Automation – Instagram & LinkedIn | UNOOL',
-  description: 'AI-powered comment and DM automation for Instagram and LinkedIn. Classify intent, auto-reply, and convert audience to leads.',
+  title: 'Automation – Instagram, LinkedIn, Facebook & Threads | UNOOL',
+  description: 'AI-powered comment and DM automation for Instagram, LinkedIn, Facebook, and Threads. Classify intent, auto-reply, and convert audience to leads.',
 };
 
 export default async function AutomationPage() {

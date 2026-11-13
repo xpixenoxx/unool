@@ -1,4 +1,4 @@
-﻿import { Metadata } from 'next';
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { config } from '@/lib/config/schema';
 import BrandMaterialsPageView, { BrandMaterialsPageData, CreatorProfile } from './BrandMaterialsPageView';
@@ -93,12 +93,13 @@ export default async function BrandMaterialsSlugPage({ params, searchParams }: P
     );
   }
 
-  // Fetch brand materials page for this workspace and slug
+  // Fetch brand materials page for this workspace and slug — only published pages (B-14)
   const { data: pageData } = await supabaseAdmin
     .from('brand_materials_pages')
     .select('*')
     .eq('workspace_id', profile.workspace_id)
     .eq('slug', slug)
+    .eq('is_published', true)
     .maybeSingle();
 
   // If page not published or not found yet

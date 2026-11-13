@@ -22,7 +22,7 @@ export class FacebookAdapter implements PlatformAdapter {
     clientId: config.FACEBOOK_CLIENT_ID || '',
     clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
     redirectUri: config.FACEBOOK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['public_profile', 'email', 'pages_show_list', 'pages_read_engagement', 'pages_manage_posts'],
+    scopes: ['public_profile', 'email', 'pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_manage_engagement', 'pages_messaging', 'pages_manage_metadata'],
   };
 
   getAuthUrl(state: string): string {
@@ -519,6 +519,135 @@ export class FacebookAdapter implements PlatformAdapter {
         shares: results.post_shares || 0,
         videoViews: results.post_video_views || 0,
       };
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Comment & Messenger automation methods (B-11)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Subscribe a Facebook Page to webhook fields (feed + messages).
+   * Must be called after OAuth with the Page Access Token.
+   */
+  async subscribePageWebhook(pageAccessToken: string, pageId: string): Promise<void> {
+    return platformFetch('facebook', async () => {
+      const params = new URLSearchParams({
+        subscribed_fields: 'feed,messages',
+        access_token: pageAccessToken,
+      });
+      const response = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${pageId}/subscribed_apps`,
+        { method: 'POST', body: params }
+      );
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('Facebook page webhook subscription failed', { errorMessage: error, pageId });
+        throw new Error(`Page webhook subscription failed: ${error}`);
+      }
+      logger.info('Facebook page webhook subscribed', { pageId });
+    });
+  }
+
+  /**
+   * Post a public reply to a comment on a Facebook Page post.
+   * Requires Page Access Token and pages_manage_engagement scope.
+   */
+  async postCommentReply(pageAccessToken: string, commentId: string, message: string): Promise<{ id: string }> {
+    return platformFetch('facebook', async () => {
+      const params = new URLSearchParams({ message, access_token: pageAccessToken });
+      const response = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${commentId}/comments`,
+        { method: 'POST', body: params }
+      );
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('Facebook comment reply failed', { errorMessage: error, commentId });
+        throw new Error(`Comment reply failed: ${error}`);
+      }
+      return response.json() as Promise<{ id: string }>;
+    });
+  }
+
+  /**
+   * Send a Messenger private reply initiated from a Page comment.
+   * Requires Page Access Token and pages_messaging scope.
+   * Meta allows this within 7 days of the original comment.
+   */
+  async sendPrivateReplyFromComment(
+    pageAccessToken: string,
+    pageId: string,
+    commentId: string,
+    message: string
+  ): Promise<{ message_id: string }> {
+    return platformFetch('facebook', async () => {
+      const body = JSON.stringify({
+        recipient: { comment_id: commentId },
+        message: { text: message },
+        messaging_type: 'RESPONSE',
+        access_token: pageAccessToken,
+      });
+      const response = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${pageId}/messages`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+      );
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('Facebook private reply from comment failed', { errorMessage: error, commentId, pageId });
+        throw new Error(`Private reply failed: ${error}`);
+      }
+      return response.json() as Promise<{ message_id: string }>;
+    });
+  }
+
+  /**
+   * Send a Messenger message to a user (24-hour window after last user message).
+   */
+  async sendMessengerMessage(
+    pageAccessToken: string,
+    pageId: string,
+    recipientId: string,
+    message: string
+  ): Promise<{ message_id: string }> {
+    return platformFetch('facebook', async () => {
+      const body = JSON.stringify({
+        recipient: { id: recipientId },
+        message: { text: message },
+        messaging_type: 'RESPONSE',
+        access_token: pageAccessToken,
+      });
+      const response = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${pageId}/messages`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+      );
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('Facebook Messenger message failed', { errorMessage: error, recipientId, pageId });
+        throw new Error(`Messenger message failed: ${error}`);
+      }
+      return response.json() as Promise<{ message_id: string }>;
+    });
+  }
+
+  /**
+   * Hide or unhide a comment on a Facebook Page post.
+   * Requires Page Access Token and pages_manage_engagement scope.
+   */
+  async hideComment(pageAccessToken: string, commentId: string, hide: boolean): Promise<void> {
+    return platformFetch('facebook', async () => {
+      const params = new URLSearchParams({
+        is_hidden: String(hide),
+        access_token: pageAccessToken,
+      });
+      const response = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${commentId}`,
+        { method: 'POST', body: params }
+      );
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('Facebook hide comment failed', { errorMessage: error, commentId, hide });
+        throw new Error(`Hide comment failed: ${error}`);
+      }
     });
   }
 }

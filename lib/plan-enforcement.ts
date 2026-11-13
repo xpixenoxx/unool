@@ -364,7 +364,7 @@ export async function getUsageSnapshot(workspaceId: string): Promise<UsageSnapsh
       .from('instagram_comment_logs')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
-      .eq('replied', true)
+      .eq('auto_replied', true)
       .gte('created_at', monthStart.toISOString()),
 
     supabaseAdmin

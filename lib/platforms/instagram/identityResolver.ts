@@ -166,8 +166,11 @@ export async function resolveInstagramConnection(
           if (!accessToken) continue;
 
           // Introspect /me for both user_id and id
-          const meUrl = `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,user_id&access_token=${encodeURIComponent(accessToken)}`;
-          const meRes = await fetch(meUrl);
+          // B-23: Pass access_token in Authorization header, not URL query param (avoids token leaks in logs/CDN)
+          const meUrl = `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,user_id`;
+          const meRes = await fetch(meUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
           if (meRes.ok) {
             const meData = await meRes.json();
             const matchedIgId = meData.user_id ? String(meData.user_id) : null;
