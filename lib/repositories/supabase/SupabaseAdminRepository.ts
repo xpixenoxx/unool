@@ -1,4 +1,4 @@
-﻿import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getDefaultAdminPlans } from '@/lib/billing/plans';
 import { config } from '@/lib/config/schema';
 import type {
@@ -638,26 +638,76 @@ export class SupabaseAdminRepository implements IAdminRepository {
     return ws;
   }
 
-  async updateWorkspacePlan(workspaceId: string, plan: string, adminUserId: string): Promise<WorkspaceAdminView | null> {
-    const { data, error } = await supabaseAdmin.rpc('admin_update_workspace_plan', {
-      p_workspace_id: workspaceId,
-      p_new_plan: plan,
-      p_admin_user_id: adminUserId,
-    });
+  async updateWorkspacePlan(workspaceId: string, plan: string, _adminUserId?: string): Promise<WorkspaceAdminView | null> {
+    const normalizedPlan = plan.toLowerCase().trim();
+    const now = new Date().toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('workspaces')
+      .update({
+        plan: normalizedPlan,
+        updated_at: now,
+      })
+      .eq('id', workspaceId)
+      .select('*')
+      .maybeSingle();
 
     if (error) throw error;
-    return data ? this.mapWorkspace(data) : null;
+    if (!data) return null;
+
+    try {
+      await supabaseAdmin
+        .from('subscriptions')
+        .update({
+          plan_id: normalizedPlan,
+          updated_at: now,
+        })
+        .eq('workspace_id', workspaceId);
+    } catch (syncErr) {
+      console.warn('[updateWorkspacePlan] Failed to sync subscription:', syncErr);
+    }
+
+    return this.mapWorkspace(data);
   }
 
-  async updateWorkspacePlanStatus(workspaceId: string, status: string, adminUserId: string): Promise<WorkspaceAdminView | null> {
-    const { data, error } = await supabaseAdmin.rpc('admin_update_workspace_plan_status', {
-      p_workspace_id: workspaceId,
-      p_new_status: status,
-      p_admin_user_id: adminUserId,
-    });
+  async updateWorkspacePlanStatus(workspaceId: string, status: string, _adminUserId?: string): Promise<WorkspaceAdminView | null> {
+    let dbStatus = status.toLowerCase().trim();
+    if (dbStatus === 'cancelled') {
+      dbStatus = 'canceled';
+    }
+
+    const now = new Date().toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('workspaces')
+      .update({
+        plan_status: dbStatus,
+        updated_at: now,
+      })
+      .eq('id', workspaceId)
+      .select('*')
+      .maybeSingle();
 
     if (error) throw error;
-    return data ? this.mapWorkspace(data) : null;
+    if (!data) return null;
+
+    try {
+      let subStatus = dbStatus;
+      if (subStatus === 'canceled') subStatus = 'cancelled';
+      if (subStatus === 'trialing') subStatus = 'active';
+
+      await supabaseAdmin
+        .from('subscriptions')
+        .update({
+          status: subStatus,
+          updated_at: now,
+        })
+        .eq('workspace_id', workspaceId);
+    } catch (syncErr) {
+      console.warn('[updateWorkspacePlanStatus] Failed to sync subscription:', syncErr);
+    }
+
+    return this.mapWorkspace(data);
   }
 
   // ===== Analytics =====

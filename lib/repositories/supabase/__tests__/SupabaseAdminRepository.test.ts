@@ -1176,4 +1176,107 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
       expect(mockAuthAdmin.listUsers).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('SupabaseAdminRepository - updateWorkspacePlan and updateWorkspacePlanStatus', () => {
+    let repository: SupabaseAdminRepository;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      repository = new SupabaseAdminRepository();
+    });
+
+    it('updates workspace plan directly without calling non-existent RPC', async () => {
+      const mockWorkspaceRow = {
+        id: 'ws-123',
+        name: 'Test Workspace',
+        plan: 'pro',
+        plan_status: 'active',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-11-14T00:00:00Z',
+      };
+
+      const workspaceUpdateSpy = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: mockWorkspaceRow, error: null }),
+          }),
+        }),
+      });
+
+      const subscriptionUpdateSpy = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workspaces') {
+          return { update: workspaceUpdateSpy };
+        }
+        if (table === 'subscriptions') {
+          return { update: subscriptionUpdateSpy };
+        }
+        return {};
+      });
+
+      const result = await repository.updateWorkspacePlan('ws-123', 'PRO', 'admin-1');
+
+      expect(mockRpc).not.toHaveBeenCalled();
+      expect(mockFrom).toHaveBeenCalledWith('workspaces');
+      expect(workspaceUpdateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ plan: 'pro' })
+      );
+      expect(mockFrom).toHaveBeenCalledWith('subscriptions');
+      expect(subscriptionUpdateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ plan_id: 'pro' })
+      );
+      expect(result).not.toBeNull();
+      expect(result?.plan).toBe('pro');
+    });
+
+    it('updates workspace plan status and normalizes "cancelled" to "canceled" for workspaces and "cancelled" for subscriptions', async () => {
+      const mockWorkspaceRow = {
+        id: 'ws-456',
+        name: 'Another Workspace',
+        plan: 'pro',
+        plan_status: 'canceled',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-11-14T00:00:00Z',
+      };
+
+      const workspaceUpdateSpy = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: mockWorkspaceRow, error: null }),
+          }),
+        }),
+      });
+
+      const subscriptionUpdateSpy = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workspaces') {
+          return { update: workspaceUpdateSpy };
+        }
+        if (table === 'subscriptions') {
+          return { update: subscriptionUpdateSpy };
+        }
+        return {};
+      });
+
+      const result = await repository.updateWorkspacePlanStatus('ws-456', 'cancelled', 'admin-1');
+
+      expect(mockRpc).not.toHaveBeenCalled();
+      expect(mockFrom).toHaveBeenCalledWith('workspaces');
+      expect(workspaceUpdateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ plan_status: 'canceled' })
+      );
+      expect(mockFrom).toHaveBeenCalledWith('subscriptions');
+      expect(subscriptionUpdateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'cancelled' })
+      );
+      expect(result).not.toBeNull();
+      expect(result?.planStatus).toBe('canceled');
+    });
+  });
 });

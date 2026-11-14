@@ -1,8 +1,8 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import { clearPlanCache } from '@/lib/plan-enforcement';
-import { config } from '@/lib/config/schema';
+import { clearPlanCache as clearEnforcementCache } from '@/lib/plan-enforcement';
+import { clearPlanCache as clearBillingCache } from '@/lib/billing/plans';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 
@@ -90,64 +90,117 @@ export async function PATCH(
     const body = await request.json();
     const { plan, planStatus, planExpiresAt } = body;
 
-    let workspace = null;
+    const existing = await adminRepository.getWorkspaceById(id);
+    if (!existing) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
 
-    if (plan) {
-      workspace = await adminRepository.updateWorkspacePlan(id, plan, auth.admin.userId);
-      if (!workspace) {
-        return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = {
+      updated_at: now,
+    };
+
+    if (plan !== undefined) {
+      updates.plan = typeof plan === 'string' ? plan.toLowerCase().trim() : plan;
+    }
+
+    if (planStatus !== undefined) {
+      let dbStatus = typeof planStatus === 'string' ? planStatus.toLowerCase().trim() : planStatus;
+      if (dbStatus === 'cancelled') {
+        dbStatus = 'canceled';
+      }
+      updates.plan_status = dbStatus;
+    }
+
+    if (planExpiresAt !== undefined) {
+      updates.plan_expires_at = planExpiresAt;
+    }
+
+    const { data: updatedWs, error: updateError } = await supabaseAdmin
+      .from('workspaces')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Sync subscriptions table if one exists for this workspace
+    try {
+      const subUpdates: Record<string, unknown> = {
+        updated_at: now,
+      };
+      if (updates.plan !== undefined) {
+        subUpdates.plan_id = updates.plan;
+      }
+      if (updates.plan_status !== undefined) {
+        let subStatus = updates.plan_status as string;
+        if (subStatus === 'canceled') subStatus = 'cancelled';
+        if (subStatus === 'trialing') subStatus = 'active';
+        subUpdates.status = subStatus;
+      }
+      if (planExpiresAt !== undefined) {
+        subUpdates.current_period_end = planExpiresAt;
       }
 
+      await supabaseAdmin
+        .from('subscriptions')
+        .update(subUpdates)
+        .eq('workspace_id', id);
+    } catch (subErr) {
+      console.warn('[PATCH /api/admin/workspaces/[id]] Failed to sync subscription:', subErr);
+    }
+
+    // Log admin actions
+    if (plan !== undefined) {
       await adminRepository.logAdminAction(
         auth.admin.userId,
         'workspace_plan_change',
         'workspace',
         id,
-        { newPlan: plan }
+        { oldPlan: existing.plan, newPlan: updates.plan }
       );
-
-      clearPlanCache(plan);
     }
 
-    if (planStatus) {
-      workspace = await adminRepository.updateWorkspacePlanStatus(id, planStatus, auth.admin.userId);
-      if (!workspace) {
-        return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
-      }
-
+    if (planStatus !== undefined) {
       await adminRepository.logAdminAction(
         auth.admin.userId,
         'workspace_status_change',
         'workspace',
         id,
-        { newStatus: planStatus }
+        { oldStatus: existing.planStatus, newStatus: updates.plan_status }
       );
     }
 
     if (planExpiresAt !== undefined) {
-      const { data, error } = await supabaseAdmin
-        .from('workspaces')
-        .update({ plan_expires_at: planExpiresAt, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select('*')
-        .single();
-
-      if (error) throw error;
-      workspace = data;
-
       await adminRepository.logAdminAction(
         auth.admin.userId,
         'workspace_expiry_change',
         'workspace',
         id,
-        { newExpiresAt: planExpiresAt }
+        { oldExpiresAt: existing.planExpiresAt, newExpiresAt: planExpiresAt }
       );
     }
 
-    return NextResponse.json(workspace);
+    // Clear caches
+    try {
+      clearEnforcementCache(id);
+      if (typeof plan === 'string') {
+        clearEnforcementCache(plan);
+        clearBillingCache(plan);
+      }
+    } catch (cacheErr) {
+      console.warn('[PATCH /api/admin/workspaces/[id]] Cache clear warning:', cacheErr);
+    }
+
+    const result = await adminRepository.getWorkspaceById(id);
+    return NextResponse.json(result || updatedWs);
   } catch (error) {
     console.error('Failed to update workspace:', error);
-    return NextResponse.json({ error: 'Failed to update workspace' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update workspace' },
+      { status: 500 }
+    );
   }
 }
 

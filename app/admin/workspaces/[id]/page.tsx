@@ -147,7 +147,7 @@ export default function WorkspaceDetailPage() {
       const data = await res.json();
       setWorkspace(data);
       setNewPlan(data.plan || 'spark');
-      setNewStatus(data.planStatus || 'active');
+      setNewStatus(data.planStatus === 'cancelled' ? 'canceled' : (data.planStatus || 'active'));
       setNewExpiresAt(data.planExpiresAt ? data.planExpiresAt.split('T')[0] : '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch workspace');
@@ -172,7 +172,10 @@ export default function WorkspaceDetailPage() {
           planExpiresAt: newExpiresAt ? new Date(newExpiresAt).toISOString() : null,
         }),
       });
-      if (!res.ok) throw new Error('Update failed');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || 'Update failed');
+      }
       setEditDialogOpen(false);
       await fetchWorkspace();
     } catch (err) {
@@ -585,7 +588,7 @@ export default function WorkspaceDetailPage() {
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="trialing">Trialing</SelectItem>
                   <SelectItem value="past_due">Past Due</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
