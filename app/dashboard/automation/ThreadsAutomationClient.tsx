@@ -193,7 +193,7 @@ export default function ThreadsAutomationClient({
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), type === 'error' ? 5500 : 3500);
   };
 
   const updateConfig = (patch: Partial<ThreadsAutomationConfig>) => {
@@ -275,11 +275,13 @@ export default function ThreadsAutomationClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      const data = await res.json().catch(() => null);
       if (res.ok) {
         if (overrides) setConfig(prev => ({ ...prev, ...overrides }));
         showToast('Threads automation settings saved!', 'success');
       } else {
-        showToast('Failed to save settings', 'error');
+        const errorMsg = data?.error || data?.message || 'Failed to save settings';
+        showToast(errorMsg, 'error');
       }
     } catch {
       showToast('Error saving settings', 'error');

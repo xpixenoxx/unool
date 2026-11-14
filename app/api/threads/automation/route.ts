@@ -51,12 +51,39 @@ export async function GET(request: NextRequest) {
 
     const resolvedDefaultLink = await resolveCreatorDeliveryLink(workspaceId, { userId: user.id });
 
-    const { data: configRow } = await supabaseAdmin
-      .from('threads_automation_config')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .limit(1)
-      .maybeSingle();
+    let configRow: Record<string, any> | null = null;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('threads_automation_config')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        configRow = data;
+      }
+    } catch {
+      configRow = null;
+    }
+
+    // Fallback: check workspaces.settings if dedicated table not populated or not created yet
+    if (!configRow) {
+      try {
+        const { data: ws } = await supabaseAdmin
+          .from('workspaces')
+          .select('settings')
+          .eq('id', workspaceId)
+          .maybeSingle();
+
+        const wsSettings = (ws?.settings as Record<string, any>) || {};
+        if (wsSettings.threads_automation) {
+          configRow = wsSettings.threads_automation;
+        }
+      } catch {
+        // Ignore fallback error
+      }
+    }
 
     if (!configRow) {
       return NextResponse.json({
@@ -68,22 +95,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ...DEFAULT_THREADS_CONFIG,
       enabled: configRow.enabled ?? false,
-      autoReplyReplies: configRow.auto_reply_replies ?? true,
-      autoReplyMentions: configRow.auto_reply_mentions ?? true,
-      autoReplyPositive: configRow.auto_reply_positive ?? true,
-      autoReplyQuestions: configRow.auto_reply_questions ?? true,
-      autoReplyLinkRequests: configRow.auto_reply_link_requests ?? true,
-      autoReplyPurchaseIntent: configRow.auto_reply_purchase_intent ?? true,
-      autoHideSpam: configRow.auto_hide_spam ?? true,
-      linkUrl: configRow.link_url || resolvedDefaultLink || null,
-      customInstructions: configRow.custom_instructions || DEFAULT_THREADS_CONFIG.customInstructions,
-      brandPersona: configRow.brand_persona || DEFAULT_THREADS_CONFIG.brandPersona,
-      flagNegative: configRow.flag_negative ?? true,
-      flagSpam: configRow.flag_spam ?? true,
-      maxRepliesPerHour: configRow.max_replies_per_hour ?? 20,
-      jitterMinSeconds: configRow.jitter_min_seconds ?? 20,
-      jitterMaxSeconds: configRow.jitter_max_seconds ?? 90,
-      threadsUserId: configRow.threads_user_id,
+      autoReplyReplies: configRow.auto_reply_replies ?? configRow.autoReplyReplies ?? true,
+      autoReplyMentions: configRow.auto_reply_mentions ?? configRow.autoReplyMentions ?? true,
+      autoReplyPositive: configRow.auto_reply_positive ?? configRow.autoReplyPositive ?? true,
+      autoReplyQuestions: configRow.auto_reply_questions ?? configRow.autoReplyQuestions ?? true,
+      autoReplyLinkRequests: configRow.auto_reply_link_requests ?? configRow.autoReplyLinkRequests ?? true,
+      autoReplyPurchaseIntent: configRow.auto_reply_purchase_intent ?? configRow.autoReplyPurchaseIntent ?? true,
+      autoHideSpam: configRow.auto_hide_spam ?? configRow.autoHideSpam ?? true,
+      linkUrl: configRow.link_url || configRow.linkUrl || resolvedDefaultLink || null,
+      customInstructions: configRow.custom_instructions || configRow.customInstructions || DEFAULT_THREADS_CONFIG.customInstructions,
+      brandPersona: configRow.brand_persona || configRow.brandPersona || DEFAULT_THREADS_CONFIG.brandPersona,
+      flagNegative: configRow.flag_negative ?? configRow.flagNegative ?? true,
+      flagSpam: configRow.flag_spam ?? configRow.flagSpam ?? true,
+      maxRepliesPerHour: configRow.max_replies_per_hour ?? configRow.maxRepliesPerHour ?? 20,
+      jitterMinSeconds: configRow.jitter_min_seconds ?? configRow.jitterMinSeconds ?? 20,
+      jitterMaxSeconds: configRow.jitter_max_seconds ?? configRow.jitterMaxSeconds ?? 90,
+      threadsUserId: configRow.threads_user_id || configRow.threadsUserId,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -121,7 +148,31 @@ export async function PUT(request: NextRequest) {
       threadsUserId = conn?.platform_user_id || 'default_threads_user';
     }
 
-    const payload = {
+    // Full payload with all intent toggles and safeguards
+    const fullPayload: Record<string, any> = {
+      workspace_id: workspaceId,
+      threads_user_id: String(threadsUserId),
+      enabled: rest.enabled ?? true,
+      auto_reply_replies: rest.autoReplyReplies ?? true,
+      auto_reply_mentions: rest.autoReplyMentions ?? true,
+      auto_reply_positive: rest.autoReplyPositive ?? true,
+      auto_reply_questions: rest.autoReplyQuestions ?? true,
+      auto_reply_link_requests: rest.autoReplyLinkRequests ?? true,
+      auto_reply_purchase_intent: rest.autoReplyPurchaseIntent ?? true,
+      auto_hide_spam: rest.autoHideSpam ?? true,
+      flag_negative: rest.flagNegative ?? true,
+      flag_spam: rest.flagSpam ?? true,
+      custom_instructions: rest.customInstructions || null,
+      brand_persona: rest.brandPersona || null,
+      link_url: rest.linkUrl || null,
+      max_replies_per_hour: rest.maxRepliesPerHour ?? 20,
+      jitter_min_seconds: rest.jitterMinSeconds ?? 20,
+      jitter_max_seconds: rest.jitterMaxSeconds ?? 90,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Minimal core payload matching initial schema
+    const corePayload: Record<string, any> = {
       workspace_id: workspaceId,
       threads_user_id: String(threadsUserId),
       enabled: rest.enabled ?? true,
@@ -137,17 +188,81 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabaseAdmin
-      .from('threads_automation_config')
-      .upsert(payload, { onConflict: 'workspace_id,threads_user_id' });
+    let tableSaveSuccess = false;
+    let tableError: any = null;
 
-    if (error) {
-      logger.error('Failed to update Threads automation config', { error, workspaceId });
-      return NextResponse.json({ error: error.message || 'Failed to save config' }, { status: 500 });
+    try {
+      // 1. Check if a row already exists for this workspace
+      const { data: existingRow, error: checkError } = await supabaseAdmin
+        .from('threads_automation_config')
+        .select('id, threads_user_id')
+        .eq('workspace_id', workspaceId)
+        .limit(1)
+        .maybeSingle();
+
+      const tableExists = !checkError || (checkError.code !== '42P01' && checkError.code !== 'PGRST205');
+
+      if (tableExists) {
+        let attempt = existingRow?.id
+          ? await supabaseAdmin.from('threads_automation_config').update(fullPayload).eq('id', existingRow.id).select().maybeSingle()
+          : await supabaseAdmin.from('threads_automation_config').insert(fullPayload).select().maybeSingle();
+
+        // If insert hit unique conflict on concurrent request, fallback to update by workspace_id
+        if (attempt.error && attempt.error.code === '23505') {
+          attempt = await supabaseAdmin.from('threads_automation_config').update(fullPayload).eq('workspace_id', workspaceId).select().maybeSingle();
+        }
+
+        // If error was missing column in older DB schema, retry with core payload
+        if (attempt.error && (attempt.error.code === 'PGRST204' || attempt.error.message?.includes('column'))) {
+          logger.warn('threads_automation_config column mismatch, retrying with core columns', { error: attempt.error });
+          attempt = existingRow?.id
+            ? await supabaseAdmin.from('threads_automation_config').update(corePayload).eq('id', existingRow.id).select().maybeSingle()
+            : await supabaseAdmin.from('threads_automation_config').insert(corePayload).select().maybeSingle();
+
+          if (attempt.error && attempt.error.code === '23505') {
+            attempt = await supabaseAdmin.from('threads_automation_config').update(corePayload).eq('workspace_id', workspaceId).select().maybeSingle();
+          }
+        }
+
+        if (!attempt.error) {
+          tableSaveSuccess = true;
+        } else {
+          tableError = attempt.error;
+        }
+      } else {
+        tableError = checkError;
+      }
+    } catch (err: any) {
+      tableError = err;
     }
 
-    logger.info('Threads automation config saved', { workspaceId, enabled: payload.enabled });
-    return NextResponse.json({ success: true, data: payload });
+    // Always persist to workspaces.settings as resilient backup (or primary store if table is missing)
+    try {
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('settings')
+        .eq('id', workspaceId)
+        .maybeSingle();
+
+      const currentSettings = (ws?.settings as Record<string, any>) || {};
+      const updatedSettings = {
+        ...currentSettings,
+        threads_automation: fullPayload,
+      };
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ settings: updatedSettings })
+        .eq('id', workspaceId);
+    } catch (wsErr) {
+      logger.warn('Failed to mirror threads_automation in workspaces.settings', { error: wsErr });
+      if (!tableSaveSuccess && tableError) {
+        return NextResponse.json({ error: tableError.message || 'Failed to save settings' }, { status: 500 });
+      }
+    }
+
+    logger.info('Threads automation config saved successfully', { workspaceId, enabled: fullPayload.enabled, tableSaveSuccess });
+    return NextResponse.json({ success: true, data: fullPayload, savedToTable: tableSaveSuccess });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('PUT /api/threads/automation error', { error: err });

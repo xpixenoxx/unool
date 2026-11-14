@@ -53,13 +53,39 @@ export async function GET(request: NextRequest) {
     // Resolve default canonical link
     const resolvedDefaultLink = await resolveCreatorDeliveryLink(workspaceId, { userId: user.id });
 
-    // Fetch config from table
-    const { data: configRow } = await supabaseAdmin
-      .from('facebook_automation_config')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .limit(1)
-      .maybeSingle();
+    let configRow: Record<string, any> | null = null;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('facebook_automation_config')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        configRow = data;
+      }
+    } catch {
+      configRow = null;
+    }
+
+    // Fallback: check workspaces.settings if dedicated table not populated or not created yet
+    if (!configRow) {
+      try {
+        const { data: ws } = await supabaseAdmin
+          .from('workspaces')
+          .select('settings')
+          .eq('id', workspaceId)
+          .maybeSingle();
+
+        const wsSettings = (ws?.settings as Record<string, any>) || {};
+        if (wsSettings.facebook_automation) {
+          configRow = wsSettings.facebook_automation;
+        }
+      } catch {
+        // Ignore fallback error
+      }
+    }
 
     if (!configRow) {
       return NextResponse.json({
@@ -71,23 +97,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ...DEFAULT_FACEBOOK_CONFIG,
       enabled: configRow.enabled ?? false,
-      autoReplyComments: configRow.auto_reply_comments ?? true,
-      autoReplyPositive: configRow.auto_reply_positive ?? true,
-      autoReplyQuestions: configRow.auto_reply_questions ?? true,
-      autoReplyLinkRequests: configRow.auto_reply_link_requests ?? true,
-      autoReplyPurchaseIntent: configRow.auto_reply_purchase_intent ?? true,
-      autoHideSpam: configRow.auto_hide_spam ?? true,
-      autoReplyDm: configRow.auto_reply_dm ?? true,
-      linkUrl: configRow.link_url || resolvedDefaultLink || null,
-      customInstructions: configRow.custom_instructions || DEFAULT_FACEBOOK_CONFIG.customInstructions,
-      brandPersona: configRow.brand_persona || DEFAULT_FACEBOOK_CONFIG.brandPersona,
-      flagNegative: configRow.flag_negative ?? true,
-      flagSpam: configRow.flag_spam ?? true,
-      maxRepliesPerHour: configRow.max_replies_per_hour ?? 20,
-      dmMaxRepliesPerHour: configRow.dm_max_replies_per_hour ?? 20,
-      jitterMinSeconds: configRow.jitter_min_seconds ?? 20,
-      jitterMaxSeconds: configRow.jitter_max_seconds ?? 90,
-      pageId: configRow.page_id,
+      autoReplyComments: configRow.auto_reply_comments ?? configRow.autoReplyComments ?? true,
+      autoReplyPositive: configRow.auto_reply_positive ?? configRow.autoReplyPositive ?? true,
+      autoReplyQuestions: configRow.auto_reply_questions ?? configRow.autoReplyQuestions ?? true,
+      autoReplyLinkRequests: configRow.auto_reply_link_requests ?? configRow.autoReplyLinkRequests ?? true,
+      autoReplyPurchaseIntent: configRow.auto_reply_purchase_intent ?? configRow.autoReplyPurchaseIntent ?? true,
+      autoHideSpam: configRow.auto_hide_spam ?? configRow.autoHideSpam ?? true,
+      autoReplyDm: configRow.auto_reply_dm ?? configRow.autoReplyDm ?? true,
+      linkUrl: configRow.link_url || configRow.linkUrl || resolvedDefaultLink || null,
+      customInstructions: configRow.custom_instructions || configRow.customInstructions || DEFAULT_FACEBOOK_CONFIG.customInstructions,
+      brandPersona: configRow.brand_persona || configRow.brandPersona || DEFAULT_FACEBOOK_CONFIG.brandPersona,
+      flagNegative: configRow.flag_negative ?? configRow.flagNegative ?? true,
+      flagSpam: configRow.flag_spam ?? configRow.flagSpam ?? true,
+      maxRepliesPerHour: configRow.max_replies_per_hour ?? configRow.maxRepliesPerHour ?? 20,
+      dmMaxRepliesPerHour: configRow.dm_max_replies_per_hour ?? configRow.dmMaxRepliesPerHour ?? 20,
+      jitterMinSeconds: configRow.jitter_min_seconds ?? configRow.jitterMinSeconds ?? 20,
+      jitterMaxSeconds: configRow.jitter_max_seconds ?? configRow.jitterMaxSeconds ?? 90,
+      pageId: configRow.page_id || configRow.pageId,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -126,7 +152,30 @@ export async function PUT(request: NextRequest) {
       pageId = conn?.platform_user_id || (conn?.metadata as Record<string, unknown>)?.page_id || 'default_page';
     }
 
-    const payload = {
+    const fullPayload: Record<string, any> = {
+      workspace_id: workspaceId,
+      page_id: String(pageId),
+      enabled: rest.enabled ?? true,
+      auto_reply_comments: rest.autoReplyComments ?? true,
+      auto_reply_positive: rest.autoReplyPositive ?? true,
+      auto_reply_questions: rest.autoReplyQuestions ?? true,
+      auto_reply_link_requests: rest.autoReplyLinkRequests ?? true,
+      auto_reply_purchase_intent: rest.autoReplyPurchaseIntent ?? true,
+      auto_hide_spam: rest.autoHideSpam ?? true,
+      auto_reply_dm: rest.autoReplyDm ?? true,
+      flag_negative: rest.flagNegative ?? true,
+      flag_spam: rest.flagSpam ?? true,
+      custom_instructions: rest.customInstructions || null,
+      brand_persona: rest.brandPersona || null,
+      link_url: rest.linkUrl || null,
+      max_replies_per_hour: rest.maxRepliesPerHour ?? 20,
+      dm_max_replies_per_hour: rest.dmMaxRepliesPerHour ?? 20,
+      jitter_min_seconds: rest.jitterMinSeconds ?? 20,
+      jitter_max_seconds: rest.jitterMaxSeconds ?? 90,
+      updated_at: new Date().toISOString(),
+    };
+
+    const corePayload: Record<string, any> = {
       workspace_id: workspaceId,
       page_id: String(pageId),
       enabled: rest.enabled ?? true,
@@ -141,17 +190,78 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabaseAdmin
-      .from('facebook_automation_config')
-      .upsert(payload, { onConflict: 'workspace_id,page_id' });
+    let tableSaveSuccess = false;
+    let tableError: any = null;
 
-    if (error) {
-      logger.error('Failed to update Facebook automation config', { error, workspaceId });
-      return NextResponse.json({ error: error.message || 'Failed to save config' }, { status: 500 });
+    try {
+      const { data: existingRow, error: checkError } = await supabaseAdmin
+        .from('facebook_automation_config')
+        .select('id, page_id')
+        .eq('workspace_id', workspaceId)
+        .limit(1)
+        .maybeSingle();
+
+      const tableExists = !checkError || (checkError.code !== '42P01' && checkError.code !== 'PGRST205');
+
+      if (tableExists) {
+        let attempt = existingRow?.id
+          ? await supabaseAdmin.from('facebook_automation_config').update(fullPayload).eq('id', existingRow.id).select().maybeSingle()
+          : await supabaseAdmin.from('facebook_automation_config').insert(fullPayload).select().maybeSingle();
+
+        if (attempt.error && attempt.error.code === '23505') {
+          attempt = await supabaseAdmin.from('facebook_automation_config').update(fullPayload).eq('workspace_id', workspaceId).select().maybeSingle();
+        }
+
+        if (attempt.error && (attempt.error.code === 'PGRST204' || attempt.error.message?.includes('column'))) {
+          logger.warn('facebook_automation_config column mismatch, retrying with core columns', { error: attempt.error });
+          attempt = existingRow?.id
+            ? await supabaseAdmin.from('facebook_automation_config').update(corePayload).eq('id', existingRow.id).select().maybeSingle()
+            : await supabaseAdmin.from('facebook_automation_config').insert(corePayload).select().maybeSingle();
+
+          if (attempt.error && attempt.error.code === '23505') {
+            attempt = await supabaseAdmin.from('facebook_automation_config').update(corePayload).eq('workspace_id', workspaceId).select().maybeSingle();
+          }
+        }
+
+        if (!attempt.error) {
+          tableSaveSuccess = true;
+        } else {
+          tableError = attempt.error;
+        }
+      } else {
+        tableError = checkError;
+      }
+    } catch (err: any) {
+      tableError = err;
     }
 
-    logger.info('Facebook automation config saved', { workspaceId, enabled: payload.enabled });
-    return NextResponse.json({ success: true, data: payload });
+    // Always mirror to workspaces.settings as backup
+    try {
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('settings')
+        .eq('id', workspaceId)
+        .maybeSingle();
+
+      const currentSettings = (ws?.settings as Record<string, any>) || {};
+      const updatedSettings = {
+        ...currentSettings,
+        facebook_automation: fullPayload,
+      };
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ settings: updatedSettings })
+        .eq('id', workspaceId);
+    } catch (wsErr) {
+      logger.warn('Failed to mirror facebook_automation in workspaces.settings', { error: wsErr });
+      if (!tableSaveSuccess && tableError) {
+        return NextResponse.json({ error: tableError.message || 'Failed to save settings' }, { status: 500 });
+      }
+    }
+
+    logger.info('Facebook automation config saved successfully', { workspaceId, enabled: fullPayload.enabled, tableSaveSuccess });
+    return NextResponse.json({ success: true, data: fullPayload, savedToTable: tableSaveSuccess });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('PUT /api/facebook/automation error', { error: err });
