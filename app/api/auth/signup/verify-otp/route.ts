@@ -204,7 +204,7 @@ async function logUserInAndRedirect(userId: string, email: string) {
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
         getAll() { return cookieStore.getAll(); },
-        setAll(toSet) { 
+        setAll(toSet: Array<{ name: string; value: string; options?: any }>) { 
           toSet.forEach(({ name, value, options }) => {
             // Must mutate both request cookies and response cookies in Next.js
             cookieStore.set(name, value, options);

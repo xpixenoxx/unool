@@ -62,7 +62,6 @@ const configSchema = z.object({
   FACEBOOK_CLIENT_ID: z.string().optional(),
   FACEBOOK_CLIENT_SECRET: z.string().optional(),
   FACEBOOK_REDIRECT_URI: z.union([z.string().url(), z.literal('')]).optional(),
-  FACEBOOK_WEBHOOK_SECRET: z.string().optional(),
 
   // Instagram OAuth
   INSTAGRAM_CLIENT_ID: z.string().optional(),
