@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
-import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
+import { PlatformConnections, ConnectedAccountItem } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
 import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegrationDialog';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
@@ -44,11 +44,18 @@ interface UsageStats {
   linkClicksThisWeek?: number;
 }
 
+interface DashboardConnectionEntry {
+  status: 'connected' | 'not_connected' | 'expired' | string;
+  username?: string;
+  displayName?: string;
+  accounts?: ConnectedAccountItem[];
+}
+
 interface DashboardData {
   profile: Profile | null;
   recentPosts: Post[];
   usageStats: UsageStats;
-  connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
+  connections: Record<string, DashboardConnectionEntry>;
   planTier: 'free' | 'spark' | 'creator' | 'pro' | 'studio' | 'enterprise';
   userId: string;
   workspaceId: string;
@@ -175,7 +182,7 @@ export const ALL_EXISTING_PLATFORMS: NetworkPlatformDef[] = [
 ].filter(Boolean);
 
 export function getSortedBroadcastPlatforms(
-  connections: Record<string, { status: string; username?: string }>
+  connections: Record<string, DashboardConnectionEntry>
 ) {
   const isConn = (id: string) => connections[id]?.status?.toLowerCase() === 'connected';
 
@@ -196,6 +203,23 @@ export function getSortedBroadcastPlatforms(
 
   return displayList.map((p) => {
     const isConnected = isConn(p.id);
+    const connEntry = connections[p.id];
+    const rawAccounts = Array.isArray(connEntry?.accounts) ? connEntry.accounts : [];
+    const hasRealAccountIds = rawAccounts.length > 0;
+    const accounts: ConnectedAccountItem[] =
+      rawAccounts.length > 0
+        ? rawAccounts
+        : isConnected
+        ? [
+            {
+              id: `${p.id}:default`,
+              platform: p.id as any,
+              username: connEntry?.username,
+              displayName: connEntry?.displayName,
+              status: 'connected',
+            },
+          ]
+        : [];
     const theme = PLATFORM_BRAND_THEMES[p.id] || {
       color: '#1565d8',
       gradient: 'linear-gradient(145deg, #1d6bf3, #0a3fb5)',
@@ -203,6 +227,8 @@ export function getSortedBroadcastPlatforms(
     return {
       ...p,
       connected: isConnected,
+      accounts,
+      hasRealAccountIds,
       color: theme.color,
       gradient: theme.gradient,
     };
@@ -624,7 +650,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   };
 
   // Dynamic connections state auto-updated when connections change
-  const [connections, setConnections] = useState<Record<string, { status: string; username?: string }>>(
+  const [connections, setConnections] = useState<Record<string, DashboardConnectionEntry>>(
     data.connections || {}
   );
 
@@ -663,7 +689,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   }, [data.workspaceId]);
 
   const handleConnectionChange = useCallback(
-    (newConns: Record<string, { status: string; username?: string; accounts?: unknown[] }>) => {
+    (newConns: Record<string, { status: string; username?: string; accounts?: ConnectedAccountItem[] }>) => {
       setConnections((prev) => {
         let changed = false;
         for (const [k, v] of Object.entries(newConns)) {
@@ -749,6 +775,58 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         window.location.href = `/api/auth/platform/connect?platform=${platformId}&workspaceId=${data.workspaceId}&userId=${data.userId}&returnUrl=${encodeURIComponent('/dashboard')}`;
       }
     }
+  };
+
+  const handleAddPlatformAccount = (platformId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (platformId === 'bluesky') {
+      setBlueskyDialogOpen(true);
+      return;
+    }
+    if (platformId === 'manual') {
+      setManualDialogOpen(true);
+      return;
+    }
+    setConnectingPlatform(platformId);
+    window.location.href = `/api/auth/platform/connect?platform=${platformId}&workspaceId=${data.workspaceId}&userId=${data.userId}&addAccount=true&returnUrl=${encodeURIComponent('/dashboard')}`;
+  };
+
+  const handleDisconnectPlatformAccount = (
+    platformId: string,
+    connectionId: string | undefined,
+    accountLabel: string | undefined,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    const pDef = platforms.find((p) => p.id === platformId);
+    const label = accountLabel ? `@${accountLabel}` : pDef?.name || platformId;
+    if (!confirm(`Disconnect ${label}? You can reconnect anytime.`)) return;
+
+    const url = connectionId
+      ? `/api/platform/connections/${encodeURIComponent(platformId)}?connectionId=${encodeURIComponent(connectionId)}`
+      : `/api/platform/connections/${encodeURIComponent(platformId)}`;
+
+    fetch(url, { method: 'DELETE', credentials: 'include' })
+      .then(async (res) => {
+        if (res.ok) {
+          showToast(`${label} disconnected`);
+          const refreshRes = await fetch(`/api/platform/connections?workspaceId=${data.workspaceId}&_t=${Date.now()}`, {
+            credentials: 'include',
+          });
+          if (refreshRes.ok) {
+            const resData = await refreshRes.json();
+            if (resData?.connections) {
+              setConnections((prev) => ({ ...prev, ...resData.connections }));
+            }
+          }
+          router.refresh();
+        } else {
+          showToast('Failed to disconnect');
+        }
+      })
+      .catch(() => {
+        showToast('Failed to disconnect');
+      });
   };
 
   // Weekly Flight Plan days
@@ -1108,20 +1186,74 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <span className="lg">
                       <PlatformBrandLogo platform={p.id} size={34} />
                     </span>
-                    <span className="st">{p.connected ? 'Connected' : 'Not connected'}</span>
+                    <span className="st">
+                      {p.connected
+                        ? p.accounts.length > 1
+                          ? `${p.accounts.length} Accounts`
+                          : 'Connected'
+                        : 'Not connected'}
+                    </span>
                   </div>
+
+                  {p.connected && p.accounts.length > 0 && (
+                    <div className="tile-accts" onClick={(e) => e.stopPropagation()}>
+                      {p.accounts.map((acct) => {
+                        const acctLabel = acct.username
+                          ? `@${acct.username.replace(/^@/, '')}`
+                          : acct.displayName || 'Connected';
+                        return (
+                          <span key={acct.id} className="tile-acct-pill" title={acctLabel}>
+                            <span className="tile-acct-dot" />
+                            <span className="tile-acct-txt">{acctLabel}</span>
+                            <button
+                              type="button"
+                              className="tile-acct-rm"
+                              onClick={(e) =>
+                                handleDisconnectPlatformAccount(
+                                  p.id,
+                                  p.hasRealAccountIds ? acct.id : undefined,
+                                  acct.username || acct.displayName,
+                                  e
+                                )
+                              }
+                              title={`Disconnect ${acctLabel}`}
+                              aria-label={`Disconnect ${acctLabel}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   <div className="tb">
                     <b>{p.name}</b>
                     {p.connected ? (
-                      <button
-                        type="button"
-                        className="tbtn g"
-                        onClick={(e) => handlePlatformClick(p.id, true, e)}
-                        aria-label={`Disconnect ${p.name}`}
-                      >
-                        Disconnect
-                      </button>
+                      <div className="tb-actions">
+                        {p.id !== 'manual' && (
+                          <button
+                            type="button"
+                            className="tbtn g add-acct"
+                            disabled={isPending}
+                            onClick={(e) => handleAddPlatformAccount(p.id, e)}
+                            title={`Connect another ${p.name} account`}
+                            aria-label={`Add ${p.name} account`}
+                          >
+                            {isPending ? <span className="sp2" /> : <span>+ Add account</span>}
+                          </button>
+                        )}
+                        {p.id === 'manual' && (
+                          <button
+                            type="button"
+                            className="tbtn g"
+                            onClick={(e) => handlePlatformClick(p.id, true, e)}
+                            aria-label={`Disconnect ${p.name}`}
+                          >
+                            Disconnect
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       <button
                         type="button"

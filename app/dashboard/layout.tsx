@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, LayoutGrid, Radio, Network, BarChart3, Bell, CalendarDays, Zap, CreditCard, Lock, Gift, Copy, Check, ExternalLink } from 'lucide-react';
+import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, LayoutGrid, Radio, Network, BarChart3, Bell, CalendarDays, Zap, CreditCard, Lock, Gift, Copy, Check, ExternalLink, UserPlus, Loader2, X } from 'lucide-react';
 import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
 import { FeatureFlagsProvider, useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { SignalStrip } from './signal/SignalStrip';
@@ -71,6 +71,43 @@ interface NavSection {
   items: NavItem[];
 }
 
+interface SavedUnoolAccount {
+  userId: string;
+  email: string;
+  displayName: string;
+  subdomain?: string | null;
+  avatarUrl?: string | null;
+  switchToken: string;
+  lastActiveAt: number;
+}
+
+const SAVED_ACCOUNTS_STORAGE_KEY = 'unool_saved_accounts_v1';
+
+function readSavedAccountsFromStorage(): SavedUnoolAccount[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SAVED_ACCOUNTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is SavedUnoolAccount =>
+        Boolean(item && typeof item.userId === 'string' && typeof item.email === 'string' && typeof item.switchToken === 'string')
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedAccountsToStorage(accounts: SavedUnoolAccount[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SAVED_ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
 function DashboardSidebar({
   sidebarOpen,
   setSidebarOpen,
@@ -78,12 +115,122 @@ function DashboardSidebar({
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
-  const { user, profile, workspace, pendingPostsCount, loading } = useUserContext();
+  const { user, profile, workspace, pendingPostsCount, loading, refetch } = useUserContext();
   const { flags: featureFlags } = useFeatureFlags();
   const pathname = usePathname();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [dynamicPendingCount, setDynamicPendingCount] = useState<number>(pendingPostsCount || 0);
+  const [savedAccounts, setSavedAccounts] = useState<SavedUnoolAccount[]>([]);
+  const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null);
+
+  // Sync current logged-in Unool user into the Instagram-style multi-account switcher vault
+  useEffect(() => {
+    setSavedAccounts(readSavedAccountsFromStorage());
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id || !user?.email) return;
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/switch-account', { credentials: 'include' });
+        if (!res.ok || !isMounted) return;
+        const data = await res.json();
+        const acct = data?.account;
+        if (!acct?.userId || !acct?.switchToken) return;
+
+        const existing = readSavedAccountsFromStorage();
+        const nextEntry: SavedUnoolAccount = {
+          userId: acct.userId,
+          email: acct.email,
+          displayName: acct.displayName || profile?.name || acct.email.split('@')[0],
+          subdomain: acct.subdomain ?? profile?.subdomain ?? null,
+          avatarUrl: acct.avatarUrl ?? user?.avatarUrl ?? null,
+          switchToken: acct.switchToken,
+          lastActiveAt: Date.now(),
+        };
+
+        const filtered = existing.filter((a) => a.userId !== nextEntry.userId && a.email.toLowerCase() !== nextEntry.email.toLowerCase());
+        const updated = [nextEntry, ...filtered].slice(0, 8);
+        writeSavedAccountsToStorage(updated);
+        if (isMounted) {
+          setSavedAccounts(updated);
+        }
+      } catch {
+        // Ignore transient sync errors
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, user?.email, user?.avatarUrl, profile?.name, profile?.subdomain]);
+
+  const handleSwitchUnoolAccount = async (targetAccount: SavedUnoolAccount) => {
+    if (!targetAccount || targetAccount.userId === user?.id || switchingAccountId) return;
+    setSwitchingAccountId(targetAccount.userId);
+    try {
+      const res = await fetch('/api/auth/switch-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ switchToken: targetAccount.switchToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        // Remove invalid/expired saved token and redirect to sign-in with email prefilled
+        const remaining = readSavedAccountsFromStorage().filter((a) => a.userId !== targetAccount.userId);
+        writeSavedAccountsToStorage(remaining);
+        setSavedAccounts(remaining);
+        toast.error(data?.message || 'Session expired for that account. Please sign in again.');
+        window.location.href = `/signin?addAccount=true&email=${encodeURIComponent(targetAccount.email)}`;
+        return;
+      }
+
+      if (data.switchToken) {
+        const current = readSavedAccountsFromStorage();
+        const updated = current.map((a) =>
+          a.userId === targetAccount.userId ? { ...a, switchToken: data.switchToken, lastActiveAt: Date.now() } : a
+        );
+        writeSavedAccountsToStorage(updated);
+        setSavedAccounts(updated);
+      }
+
+      if (data.session?.access_token && data.session?.refresh_token) {
+        try {
+          const { getSupabaseBrowserClient } = await import('@/lib/supabase/browser');
+          const supabase = getSupabaseBrowserClient();
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+        } catch {
+          // Non-fatal
+        }
+      }
+
+      clearAllClientCaches();
+      toast.success(`Switched to ${targetAccount.displayName}`);
+      await refetch();
+      window.location.reload();
+    } catch {
+      toast.error('Failed to switch account');
+    } finally {
+      setSwitchingAccountId(null);
+    }
+  };
+
+  const handleRemoveSavedAccount = (targetUserId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const updated = readSavedAccountsFromStorage().filter((a) => a.userId !== targetUserId);
+    writeSavedAccountsToStorage(updated);
+    setSavedAccounts(updated);
+    toast.success('Removed saved account from switcher');
+  };
 
   // Sync with context updates
   useEffect(() => {
@@ -568,17 +715,105 @@ function DashboardSidebar({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-60 bg-[#FFFDF9] border border-[#E8DFD5] text-[#231C16] shadow-xl p-1.5 rounded-xl z-50"
+              className="w-68 bg-[#FFFDF9] border border-[#E8DFD5] text-[#231C16] shadow-xl p-1.5 rounded-xl z-50"
               align="start"
               side="top"
               sideOffset={8}
             >
-              <DropdownMenuLabel className="font-normal px-2.5 py-2">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-semibold text-[#231C16]">{displayName}</p>
-                  <p className="text-xs text-[#7A6B60] truncate">{displayEmail || 'usha@unool.co'}</p>
+              <DropdownMenuLabel className="font-normal px-2.5 py-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#7A6B60]">
+                    Switch Accounts
+                  </span>
+                  {savedAccounts.length > 1 && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F3EAD9] text-[#C8613D]">
+                      {savedAccounts.length} saved
+                    </span>
+                  )}
                 </div>
               </DropdownMenuLabel>
+
+              <div className="max-h-48 overflow-y-auto space-y-1 px-1 py-0.5">
+                {(savedAccounts.length > 0
+                  ? savedAccounts
+                  : [
+                      {
+                        userId: user?.id || 'current',
+                        email: displayEmail || 'usha@unool.co',
+                        displayName,
+                        subdomain: currentSubdomain || null,
+                        avatarUrl: user?.avatarUrl || null,
+                        switchToken: '',
+                        lastActiveAt: Date.now(),
+                      },
+                    ]
+                ).map((acct) => {
+                  const isCurrent = Boolean(user?.id && acct.userId === user.id);
+                  const isSwitching = switchingAccountId === acct.userId;
+                  const acctLetter = (acct.displayName || acct.email || 'U').charAt(0).toUpperCase();
+                  const acctSubLabel = acct.subdomain ? `${acct.subdomain}.unool.co` : acct.email;
+
+                  return (
+                    <div
+                      key={acct.userId}
+                      onClick={() => {
+                        if (!isCurrent && acct.switchToken) {
+                          handleSwitchUnoolAccount(acct);
+                        }
+                      }}
+                      className={cn(
+                        'flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors',
+                        isCurrent
+                          ? 'bg-[#F3EAD9]/75 border border-[#E8DFD5] cursor-default'
+                          : 'hover:bg-[#F3EAD9] cursor-pointer'
+                      )}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[#C8613D] text-white flex items-center justify-center font-serif text-sm font-bold flex-shrink-0 overflow-hidden">
+                        {acct.avatarUrl ? (
+                          <img src={acct.avatarUrl} alt={acct.displayName} className="w-full h-full object-cover" />
+                        ) : (
+                          acctLetter
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-[#231C16] truncate leading-tight">
+                          {acct.displayName}
+                        </p>
+                        <p className="text-[11px] text-[#7A6B60] truncate leading-tight">
+                          {acctSubLabel}
+                        </p>
+                      </div>
+                      {isSwitching ? (
+                        <Loader2 className="w-3.5 h-3.5 text-[#C8613D] animate-spin flex-shrink-0" />
+                      ) : isCurrent ? (
+                        <span className="w-5 h-5 rounded-full bg-[#C8613D] text-white flex items-center justify-center flex-shrink-0">
+                          <Check className="w-3 h-3" />
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveSavedAccount(acct.userId, e)}
+                          title="Remove from saved accounts"
+                          className="p-1 rounded-md text-[#7A6B60] hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <DropdownMenuItem
+                onClick={() => {
+                  window.location.href = '/signin?addAccount=true';
+                }}
+                className="flex items-center gap-2.5 px-2.5 py-2 mt-0.5 text-xs font-semibold text-[#C8613D] hover:bg-[#F3EAD9] rounded-lg cursor-pointer transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-[#C8613D]" />
+                <span>Add Unool account</span>
+              </DropdownMenuItem>
+
               <DropdownMenuSeparator className="bg-[#E8DFD5]" />
               <DropdownMenuItem
                 onClick={handleCopyUrl}

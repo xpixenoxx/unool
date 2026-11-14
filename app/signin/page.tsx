@@ -30,7 +30,8 @@ function SignInComponent() {
   const searchParams = useSearchParams();
 
   // Auth States
-  const [email, setEmail] = useState('');
+  const isAddAccountFlow = searchParams.get('addAccount') === 'true';
+  const [email, setEmail] = useState(() => searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [stage, setStage] = useState<'form' | 'otp'>('form');
@@ -340,14 +341,18 @@ function SignInComponent() {
                 {stage === 'form' ? (
                   <>
                     <span className="tag" id="tag">
-                      Welcome back
+                      {isAddAccountFlow ? 'Add another account' : 'Welcome back'}
                     </span>
                     <h1>
                       <span>One link.</span>
                       <br />
                       One click<em>.</em>
                     </h1>
-                    <p className="sub">Raw idea in, posts out. Everywhere, one click.</p>
+                    <p className="sub">
+                      {isAddAccountFlow
+                        ? 'Sign in to add another Unool account and switch anytime from your sidebar.'
+                        : 'Raw idea in, posts out. Everywhere, one click.'}
+                    </p>
 
                     <button className="g" type="button" onClick={handleGoogleSignIn} disabled={busy}>
                       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">

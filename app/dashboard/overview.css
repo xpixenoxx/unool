@@ -972,6 +972,81 @@
   box-shadow: 0 0 8px #7dffb0;
 }
 
+#ov-root .tile-accts {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  margin: -8px 0 -4px;
+  max-height: 76px;
+  overflow-y: auto;
+}
+
+#ov-root .tile-acct-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+
+#ov-root .tile-acct-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #7dffb0;
+  box-shadow: 0 0 6px #7dffb0;
+  flex-shrink: 0;
+}
+
+#ov-root .tile-acct-txt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ov-root .tile-acct-rm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.85);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+#ov-root .tile-acct-rm:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+#ov-root .tb-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+#ov-root .tbtn.add-acct {
+  padding: 7px 12px;
+  font-size: 12.5px;
+}
+
 #ov-root .tb {
   display: flex;
   align-items: flex-end;

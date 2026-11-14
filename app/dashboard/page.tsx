@@ -5,7 +5,8 @@ import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseP
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { getCurrentUsage, getLimitsForTier, Tier } from '@/lib/limits/freeTier';
 import { getOverviewCache, setOverviewCache } from '@/lib/cache/overviewCache';
-import { mapConnectionRows } from '@/lib/platforms/connectionStatus';
+import { mapConnectionRows, mapConnectionAccounts } from '@/lib/platforms/connectionStatus';
+import { ConnectedAccountItem } from '@/components/dashboard/PlatformConnections';
 import DashboardClient from './DashboardClient';
 
 
@@ -37,7 +38,15 @@ async function getDashboardData(): Promise<{
     linkClicks: number;
     linkClicksThisWeek?: number;
   };
-  connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
+  connections: Record<
+    string,
+    {
+      status: 'connected' | 'not_connected' | 'expired';
+      username?: string;
+      displayName?: string;
+      accounts?: ConnectedAccountItem[];
+    }
+  >;
   planTier: Tier;
   userId: string;
   workspaceId: string;
@@ -94,15 +103,15 @@ async function getDashboardData(): Promise<{
     // 4. Usage stats (internally also runs its queries in parallel)
     getCurrentUsage(supabaseAdmin, workspaceId, userId),
 
-    // 5. Platform connections (lightweight)
+    // 5. Platform connections (including multi-account metadata)
     (workspaceId !== userId
       ? supabaseAdmin
           .from('platform_connections')
-          .select('platform, expires_at, status, updated_at, refresh_token_encrypted, refresh_token, access_token_encrypted')
+          .select('id, platform, platform_user_id, username, display_name, avatar_url, created_at, expires_at, status, updated_at, refresh_token_encrypted, refresh_token, access_token_encrypted')
           .or(`workspace_id.eq.${workspaceId},workspace_id.eq.${userId}`)
       : supabaseAdmin
           .from('platform_connections')
-          .select('platform, expires_at, status, updated_at, refresh_token_encrypted, refresh_token, access_token_encrypted')
+          .select('id, platform, platform_user_id, username, display_name, avatar_url, created_at, expires_at, status, updated_at, refresh_token_encrypted, refresh_token, access_token_encrypted')
           .eq('workspace_id', workspaceId)
     ),
 
@@ -134,7 +143,26 @@ async function getDashboardData(): Promise<{
     updatedAt: post.updatedAt.toISOString(),
   }));
 
-  const connections = mapConnectionRows(connectionsResult.data);
+  const rawConnections = mapConnectionRows(connectionsResult.data);
+  const groupedAccounts = mapConnectionAccounts(connectionsResult.data);
+  const connections: Record<
+    string,
+    {
+      status: 'connected' | 'not_connected' | 'expired';
+      username?: string;
+      displayName?: string;
+      accounts?: ConnectedAccountItem[];
+    }
+  > = {};
+  for (const [plat, entry] of Object.entries(rawConnections)) {
+    const accts = (groupedAccounts[plat] || []) as ConnectedAccountItem[];
+    connections[plat] = {
+      status: entry.status,
+      username: accts[0]?.username,
+      displayName: accts[0]?.displayName,
+      accounts: accts,
+    };
+  }
 
   const result = {
     profile: profile
