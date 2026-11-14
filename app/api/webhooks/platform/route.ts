@@ -20,12 +20,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid verification request' }, { status: 400 });
   }
 
-  const expectedToken =
-    platform === 'facebook'
-      ? (config.FACEBOOK_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET || config.META_WEBHOOK_VERIFY_TOKEN || '')
-      : (config.THREADS_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET || config.META_WEBHOOK_VERIFY_TOKEN || '');
+  const expectedTokens = [
+    config.FACEBOOK_WEBHOOK_SECRET,
+    config.META_WEBHOOK_SECRET,
+    config.META_WEBHOOK_VERIFY_TOKEN,
+    config.THREADS_WEBHOOK_SECRET,
+    config.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,
+    process.env.META_WEBHOOK_VERIFY_TOKEN,
+    process.env.FACEBOOK_WEBHOOK_SECRET,
+    process.env.META_WEBHOOK_SECRET,
+    process.env.FACEBOOK_CLIENT_SECRET,
+  ].filter(Boolean) as string[];
 
-  if (token === expectedToken) {
+  if (token && expectedTokens.includes(token)) {
     logger.info('Meta webhook hub.challenge verified', { platform });
     return new Response(challenge, { status: 200 });
   }
@@ -36,15 +43,30 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const platformParam = request.nextUrl.searchParams.get('platform');
+    let platformParam = request.nextUrl.searchParams.get('platform');
     const body = await request.text();
 
-    if (!platformParam) {
-      return NextResponse.json({ error: 'Platform parameter required' }, { status: 400 });
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      logger.warn('Invalid webhook payload JSON', { platform: platformParam });
+      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    }
+
+    // Auto-detect platform if query param was omitted in Meta Webhook Callback URL
+    if (!platformParam && data) {
+      if (data.object === 'page') platformParam = 'facebook';
+      else if (data.object === 'threads') platformParam = 'threads';
+      else if (data.object === 'instagram') platformParam = 'instagram';
+    }
+
+    if (!platformParam || !data) {
+      return NextResponse.json({ error: 'Platform parameter required or invalid payload' }, { status: 400 });
     }
 
     const platform = platformParam.toLowerCase() as Platform;
-    const validPlatforms: Platform[] = ['linkedin', 'x', 'threads', 'facebook'];
+    const validPlatforms: Platform[] = ['linkedin', 'x', 'threads', 'facebook', 'instagram'];
 
     if (!validPlatforms.includes(platform)) {
       return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 });
@@ -61,14 +83,6 @@ export async function POST(request: NextRequest) {
     if (!isValid) {
       logger.warn('Invalid webhook signature', { platform });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    }
-
-    let data: Record<string, unknown>;
-    try {
-      data = JSON.parse(body);
-    } catch {
-      logger.warn('Invalid webhook payload JSON', { platform });
-      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 
     // Handle different platform webhook payloads
@@ -422,13 +436,33 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
   }
 
   try {
-    // Load facebook automation config
-    const { data: cfg } = await supabaseAdmin
+    // Load facebook automation config (by page_id first, then fallback to workspace connection)
+    let { data: cfg } = await supabaseAdmin
       .from('facebook_automation_config')
       .select('*')
       .eq('page_id', pageId)
       .eq('enabled', true)
       .maybeSingle();
+
+    if (!cfg) {
+      const { data: conn } = await supabaseAdmin
+        .from('platform_connections')
+        .select('workspace_id')
+        .eq('platform', 'facebook')
+        .eq('platform_user_id', pageId)
+        .eq('status', 'connected')
+        .maybeSingle();
+
+      if (conn?.workspace_id) {
+        const { data: fallbackCfg } = await supabaseAdmin
+          .from('facebook_automation_config')
+          .select('*')
+          .eq('workspace_id', conn.workspace_id)
+          .eq('enabled', true)
+          .maybeSingle();
+        cfg = fallbackCfg;
+      }
+    }
 
     if (!cfg) {
       logger.debug('Facebook automation not configured or disabled for page', { pageId });
@@ -476,8 +510,19 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
       commentTimestamp: new Date().toISOString(),
     };
 
-    await queueService.enqueueFacebookOutboundTask(jobParams);
-    logger.info('Facebook comment event enqueued', { commentId, pageId });
+    const enqueued = await queueService.enqueueFacebookOutboundTask(jobParams);
+    if (!enqueued) {
+      logger.warn('Facebook outbound task could not be enqueued to QStash, executing direct fallback', { commentId, pageId });
+      try {
+        const { processFacebookOutboundJob } = await import('@/lib/services/automation/facebookOutbound');
+        await processFacebookOutboundJob(jobParams);
+        logger.info('Facebook comment handled via direct fallback execution', { commentId, pageId });
+      } catch (directErr) {
+        logger.error('Direct fallback execution failed for Facebook comment', { commentId, error: directErr });
+      }
+    } else {
+      logger.info('Facebook comment event enqueued', { commentId, pageId });
+    }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Error processing Facebook comment event', { commentId, pageId, error: err });
@@ -494,12 +539,32 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
   if (!messageId || !senderId || senderId === pageId) return;
 
   try {
-    const { data: cfg } = await supabaseAdmin
+    let { data: cfg } = await supabaseAdmin
       .from('facebook_automation_config')
       .select('*')
       .eq('page_id', pageId)
       .eq('enabled', true)
       .maybeSingle();
+
+    if (!cfg) {
+      const { data: conn } = await supabaseAdmin
+        .from('platform_connections')
+        .select('workspace_id')
+        .eq('platform', 'facebook')
+        .eq('platform_user_id', pageId)
+        .eq('status', 'connected')
+        .maybeSingle();
+
+      if (conn?.workspace_id) {
+        const { data: fallbackCfg } = await supabaseAdmin
+          .from('facebook_automation_config')
+          .select('*')
+          .eq('workspace_id', conn.workspace_id)
+          .eq('enabled', true)
+          .maybeSingle();
+        cfg = fallbackCfg;
+      }
+    }
 
     if (!cfg) return;
 
@@ -536,8 +601,19 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
       dmText: dmText || undefined,
     };
 
-    await queueService.enqueueFacebookOutboundTask(jobParams);
-    logger.info('Facebook Messenger event enqueued', { messageId, pageId });
+    const enqueued = await queueService.enqueueFacebookOutboundTask(jobParams);
+    if (!enqueued) {
+      logger.warn('Facebook Messenger DM task could not be enqueued to QStash, executing direct fallback', { messageId, pageId });
+      try {
+        const { processFacebookOutboundJob } = await import('@/lib/services/automation/facebookOutbound');
+        await processFacebookOutboundJob(jobParams);
+        logger.info('Facebook Messenger DM handled via direct fallback execution', { messageId, pageId });
+      } catch (directErr) {
+        logger.error('Direct fallback execution failed for Facebook Messenger DM', { messageId, error: directErr });
+      }
+    } else {
+      logger.info('Facebook Messenger event enqueued', { messageId, pageId });
+    }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Error processing Facebook Messenger event', { messageId, pageId, error: err });

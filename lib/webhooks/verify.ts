@@ -24,7 +24,16 @@ export async function verifyWebhookSignature(
       case 'x':
         return await verifyXSignature(payload, signature, secret);
       case 'threads':
-        return await verifyMetaSignature(payload, signature, secret);
+      case 'facebook':
+      case 'instagram': {
+        const candidateSecrets = getCandidateSecrets(platform);
+        for (const candidate of candidateSecrets) {
+          if (await verifyMetaSignature(payload, signature, candidate)) {
+            return true;
+          }
+        }
+        return false;
+      }
       default:
         logger.warn('Unknown platform for webhook verification', { platform });
         return false;
@@ -40,10 +49,10 @@ function getWebhookSecret(platform: Platform): string | undefined {
   const secretMap: Partial<Record<Platform, string | undefined>> = {
     linkedin:  config.LINKEDIN_WEBHOOK_SECRET,
     x:         config.X_WEBHOOK_SECRET,
-    // Each Meta app has its own App Secret — with fallback to META_WEBHOOK_SECRET
-    instagram: config.INSTAGRAM_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET,
-    facebook:  config.FACEBOOK_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET,
-    threads:   config.THREADS_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET,
+    // Each Meta app has its own App Secret — with fallback to META_WEBHOOK_SECRET or client/app secrets
+    instagram: config.INSTAGRAM_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET || config.INSTAGRAM_CLIENT_SECRET || process.env.INSTAGRAM_CLIENT_SECRET,
+    facebook:  config.FACEBOOK_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET || config.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || process.env.META_APP_SECRET,
+    threads:   config.THREADS_WEBHOOK_SECRET || config.META_WEBHOOK_SECRET || config.THREADS_CLIENT_SECRET || process.env.THREADS_CLIENT_SECRET,
     youtube: undefined,
     pinterest: undefined,
     bluesky: undefined,
@@ -54,6 +63,30 @@ function getWebhookSecret(platform: Platform): string | undefined {
     twitch: undefined,
   };
   return secretMap[platform];
+}
+
+function getCandidateSecrets(platform: Platform): string[] {
+  const primary = getWebhookSecret(platform);
+  const candidates: (string | undefined)[] = [primary];
+
+  if (platform === 'facebook' || platform === 'threads' || platform === 'instagram') {
+    candidates.push(
+      config.FACEBOOK_WEBHOOK_SECRET,
+      config.META_WEBHOOK_SECRET,
+      config.FACEBOOK_CLIENT_SECRET,
+      config.THREADS_WEBHOOK_SECRET,
+      config.INSTAGRAM_WEBHOOK_SECRET,
+      process.env.FACEBOOK_WEBHOOK_SECRET,
+      process.env.META_WEBHOOK_SECRET,
+      process.env.FACEBOOK_CLIENT_SECRET,
+      process.env.FACEBOOK_APP_SECRET,
+      process.env.META_APP_SECRET,
+      process.env.THREADS_WEBHOOK_SECRET,
+      process.env.THREADS_CLIENT_SECRET
+    );
+  }
+
+  return Array.from(new Set(candidates.filter((s): s is string => typeof s === 'string' && s.length > 0)));
 }
 
 /**

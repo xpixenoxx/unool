@@ -260,6 +260,34 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Ensure Facebook page webhook is subscribed on Meta's servers when enabled
+    if (fullPayload.enabled) {
+      try {
+        const { data: conn } = await supabaseAdmin
+          .from('platform_connections')
+          .select('access_token_encrypted, platform_user_id')
+          .eq('workspace_id', workspaceId)
+          .eq('platform', 'facebook')
+          .eq('status', 'connected')
+          .limit(1)
+          .maybeSingle();
+
+        if (conn?.access_token_encrypted) {
+          const { decryptToken } = await import('@/lib/crypto/encryption');
+          const userToken = await decryptToken(conn.access_token_encrypted);
+          const { facebookAdapter } = await import('@/lib/platforms/FacebookAdapter');
+          const targetPageId = String(pageId || conn.platform_user_id);
+          if (targetPageId && targetPageId !== 'default_page') {
+            const pageToken = await facebookAdapter.getPageAccessToken(userToken, targetPageId);
+            await facebookAdapter.subscribePageWebhook(pageToken, targetPageId);
+            logger.info('Facebook page webhook subscribed on config save', { pageId: targetPageId });
+          }
+        }
+      } catch (subErr) {
+        logger.warn('Failed to ensure Facebook page webhook subscription on config save', { error: subErr, pageId });
+      }
+    }
+
     logger.info('Facebook automation config saved successfully', { workspaceId, enabled: fullPayload.enabled, tableSaveSuccess });
     return NextResponse.json({ success: true, data: fullPayload, savedToTable: tableSaveSuccess });
   } catch (error) {
