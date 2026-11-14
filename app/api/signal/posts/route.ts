@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       after(async () => {
         try {
           await scheduleService.processDueScheduledPosts(workspaceId);
+          await syncWorkspaceEngagement(workspaceId, { maxPosts: 35, forceRefresh: false });
         } catch {
           // Non-blocking self-healing error
         }
@@ -36,11 +37,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Trigger live engagement sync if requested
-
-  // Trigger live engagement sync if requested
   if (shouldSync) {
     try {
-      await syncWorkspaceEngagement(workspaceId, { maxPosts: 15, forceRefresh: true });
+      await syncWorkspaceEngagement(workspaceId, { maxPosts: 50, forceRefresh: true });
     } catch {
       // Non-blocking sync error
     }

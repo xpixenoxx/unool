@@ -250,11 +250,20 @@ export class XAdapter implements PlatformAdapter {
 
       const data = await response.json();
       const metrics = data.data?.public_metrics || {};
+      const views = Number(metrics.impression_count || 0);
+      const likes = Number(metrics.like_count || 0);
+      const retweets = Number(metrics.retweet_count || 0);
+      const replies = Number(metrics.reply_count || 0);
+      const quotes = Number(metrics.quote_count || 0);
+
       return {
-        likes: metrics.like_count || 0,
-        retweets: metrics.retweet_count || 0,
-        replies: metrics.reply_count || 0,
-        quotes: metrics.quote_count || 0,
+        likes,
+        retweets,
+        replies,
+        quotes,
+        views,
+        impressions: views,
+        hasRealData: (likes + retweets + replies + quotes + views) > 0,
       };
     });
   }

@@ -471,26 +471,57 @@ function parseLinkedInPublishError(status: number, statusText: string, rawBody: 
 
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('linkedin', async () => {
-      const response = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/socialActions/${platformPostId}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'X-Restli-Protocol-Version': '2.0.0',
-          'LinkedIn-Version': '202606',
-        },
-      });
+      if (!platformPostId) return {};
 
-      if (!response.ok) {
-        const error = await response.text();
-        logger.error('LinkedIn engagement fetch failed', { errorMessage: error, status: response.status });
-        return {};
+      const rawId = platformPostId.trim();
+      const primaryUrn = rawId.startsWith('urn:') ? rawId : `urn:li:share:${rawId}`;
+
+      const candidateUrns = [primaryUrn];
+      if (!rawId.startsWith('urn:li:ugcPost:')) {
+        const cleanId = rawId.replace(/^urn:li:[^:]+:/, '');
+        candidateUrns.push(`urn:li:ugcPost:${cleanId}`);
       }
 
-      const data = await response.json();
-      return {
-        likes: data.likesSummary?.totalLikes || 0,
-        comments: data.commentsSummary?.totalComments || 0,
-        shares: data.sharesSummary?.totalShares || 0,
-      };
+      for (const urn of candidateUrns) {
+        try {
+          const response = await fetchWithRetry(
+            `${LINKEDIN_V1_API_BASE}/socialActions/${encodeURIComponent(urn)}`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'X-Restli-Protocol-Version': '2.0.0',
+                'LinkedIn-Version': '202606',
+              },
+            },
+            { maxRetries: 1 }
+          );
+
+          if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const likes = Number(data.likesSummary?.totalLikes ?? data.likesSummary?.aggregatedTotalLikes ?? 0);
+            const comments = Number(data.commentsSummary?.totalFirstLevelComments ?? data.commentsSummary?.totalComments ?? 0);
+            const shares = Number(data.sharesSummary?.totalShares ?? 0);
+
+            return {
+              likes,
+              comments,
+              shares,
+              views: 0, // Note: LinkedIn API does not expose views/impressions for personal member posts (w_member_social)
+              hasRealData: (likes + comments + shares) > 0,
+            };
+          } else if (response.status === 404) {
+            // Try next candidate URN format
+            continue;
+          } else {
+            const error = await response.text().catch(() => '');
+            logger.warn('LinkedIn engagement fetch non-ok', { urn, status: response.status, error });
+          }
+        } catch (fetchErr) {
+          logger.warn('LinkedIn engagement candidate threw', { urn, error: fetchErr });
+        }
+      }
+
+      return {};
     });
   }
 

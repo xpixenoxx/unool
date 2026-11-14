@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { config } from '@/lib/config/schema';
 import { extractNormalizedEngagement, UniversalEngagement } from '@/lib/services/analytics/normalize';
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   // If requested or on demand, attempt a live sync of recent engagement from platform APIs
   if (shouldSync) {
     try {
-      await syncWorkspaceEngagement(workspaceId, { maxPosts: 20, forceRefresh: true });
+      await syncWorkspaceEngagement(workspaceId, { maxPosts: 50, forceRefresh: true });
     } catch {
       // Non-blocking sync failure — proceed with stored data
     }

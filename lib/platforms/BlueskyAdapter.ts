@@ -302,11 +302,117 @@ export class BlueskyAdapter implements PlatformAdapter {
   }
 
   /**
-   * Bluesky doesn't have a simple engagement API in the same way,
-   * so we return an empty record for now.
+   * Fetches real-time post engagement (likes, replies, reposts, quotes) from Bluesky.
+   * Bluesky AT Protocol provides real-time counts for all social interactions.
+   * Note: Views/impressions are not supported by the public AT Protocol.
    */
-  async getEngagement(_accessToken: string, _platformPostId: string): Promise<Record<string, unknown>> {
-    return {};
+  async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
+    try {
+      if (!platformPostId) return {};
+
+      let targetUri = platformPostId.trim();
+
+      // Normalize web URL to AT URI if needed
+      // e.g. https://bsky.app/profile/alice.bsky.social/post/3k...
+      if (targetUri.startsWith('http://') || targetUri.startsWith('https://')) {
+        const match = targetUri.match(/profile\/([^/]+)\/post\/([^/?#]+)/);
+        if (match) {
+          const [, handleOrDid, rkey] = match;
+          if (handleOrDid.startsWith('did:')) {
+            targetUri = `at://${handleOrDid}/app.bsky.feed.post/${rkey}`;
+          } else {
+            // Resolve handle to DID
+            try {
+              const resolveRes = await fetch(
+                `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handleOrDid)}`
+              );
+              if (resolveRes.ok) {
+                const resolveData = await resolveRes.json();
+                if (resolveData.did) {
+                  targetUri = `at://${resolveData.did}/app.bsky.feed.post/${rkey}`;
+                }
+              }
+            } catch {
+              // Ignore resolve error and keep targetUri
+            }
+          }
+        }
+      }
+
+      // If just an rkey was stored without at://, prefix with handle from token if possible
+      if (!targetUri.startsWith('at://') && !targetUri.startsWith('http')) {
+        try {
+          const { handle } = this.parseToken(accessToken);
+          if (handle) {
+            targetUri = `at://${handle}/app.bsky.feed.post/${targetUri}`;
+          }
+        } catch {
+          // Token parse failed, proceed
+        }
+      }
+
+      // Attempt 1: Fetch via public Bluesky AppView
+      try {
+        const publicUrl = `https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(targetUri)}`;
+        const res = await fetch(publicUrl, { headers: { Accept: 'application/json' } });
+        if (res.ok) {
+          const data = await res.json();
+          const post = data.posts?.[0];
+          if (post) {
+            const likes = Number(post.likeCount || 0);
+            const replies = Number(post.replyCount || 0);
+            const reposts = Number(post.repostCount || 0);
+            const quotes = Number(post.quoteCount || 0);
+            return {
+              likes,
+              comments: replies,
+              replies,
+              shares: reposts + quotes,
+              reposts,
+              quotes,
+              views: 0,
+              hasRealData: (likes + replies + reposts + quotes) > 0,
+            };
+          }
+        }
+      } catch (publicErr) {
+        logger.warn('Bluesky public AppView getPosts threw', { targetUri, error: publicErr });
+      }
+
+      // Attempt 2: Fallback to authenticated agent session if token is provided
+      if (accessToken) {
+        try {
+          const { handle, appPassword } = this.parseToken(accessToken);
+          const agent = new AtpAgent({ service: BSKY_SERVICE });
+          await agent.login({ identifier: handle, password: appPassword });
+          const res = await agent.getPosts({ uris: [targetUri] });
+          const post = res.data.posts?.[0];
+          if (post) {
+            const likes = Number(post.likeCount || 0);
+            const replies = Number(post.replyCount || 0);
+            const reposts = Number(post.repostCount || 0);
+            const quotes = Number(post.quoteCount || 0);
+            return {
+              likes,
+              comments: replies,
+              replies,
+              shares: reposts + quotes,
+              reposts,
+              quotes,
+              views: 0,
+              hasRealData: (likes + replies + reposts + quotes) > 0,
+            };
+          }
+        } catch (agentErr) {
+          logger.warn('Bluesky authenticated agent getPosts threw', { targetUri, error: agentErr });
+        }
+      }
+
+      return {};
+    } catch (err) {
+      logger.error('Bluesky getEngagement unexpected error', { platformPostId, error: err });
+      return {};
+    }
   }
 
   // ─── Helpers ────────────────────────────────────────────────

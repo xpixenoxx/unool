@@ -61,6 +61,7 @@ export async function syncWorkspaceEngagement(
     }
 
     // 2. Fetch platform_posts for published posts in this workspace
+    const fetchLimit = Math.max(maxPosts * 3, 100);
     let query = supabaseAdmin
       .from('platform_posts')
       .select(`
@@ -80,16 +81,44 @@ export async function syncWorkspaceEngagement(
       .eq('post_variant.post.workspace_id', workspaceId)
       .not('platform_post_id', 'is', null)
       .order('created_at', { ascending: false })
-      .limit(maxPosts);
+      .limit(fetchLimit);
 
     if (postIds && postIds.length > 0) {
       query = query.in('post_variant.post_id', postIds);
     }
 
-    const { data: pPosts, error: ppError } = await query;
-    if (ppError || !pPosts || pPosts.length === 0) {
+    const { data: rawPPosts, error: ppError } = await query;
+    if (ppError || !rawPPosts || rawPPosts.length === 0) {
       return result;
     }
+
+    // Partition posts by platform to ensure multi-platform balance
+    // (Prevents one active platform like Threads from starving LinkedIn, Bluesky, Facebook, etc.)
+    const postsByPlatform = new Map<string, any[]>();
+    for (const pp of rawPPosts as any[]) {
+      const variantObj = Array.isArray(pp.post_variant) ? pp.post_variant[0] : pp.post_variant;
+      const p = String(variantObj?.platform || '').toLowerCase();
+      if (!postsByPlatform.has(p)) {
+        postsByPlatform.set(p, []);
+      }
+      postsByPlatform.get(p)!.push(pp);
+    }
+
+    const selectedPosts: any[] = [];
+    const maxPerPlatform = Math.max(Math.floor(maxPosts / Math.max(postsByPlatform.size, 1)), 10);
+
+    for (const [, platPosts] of postsByPlatform.entries()) {
+      platPosts.sort((a, b) => {
+        const aSynced = a.engagement?.syncedAt ? new Date(a.engagement.syncedAt).getTime() : 0;
+        const bSynced = b.engagement?.syncedAt ? new Date(b.engagement.syncedAt).getTime() : 0;
+        if (!aSynced && bSynced) return -1;
+        if (aSynced && !bSynced) return 1;
+        return (new Date(b.created_at).getTime() || 0) - (new Date(a.created_at).getTime() || 0);
+      });
+      selectedPosts.push(...platPosts.slice(0, maxPerPlatform));
+    }
+
+    const pPosts = selectedPosts.length > 0 ? selectedPosts : rawPPosts.slice(0, maxPosts);
 
     const now = Date.now();
     const thirtyMinutesAgo = now - 30 * 60 * 1000;

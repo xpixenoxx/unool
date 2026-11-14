@@ -557,45 +557,69 @@ export class FacebookAdapter implements PlatformAdapter {
 
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('facebook', async () => {
-      const metrics = [
-        'post_impressions',
-        'post_engaged_users',
-        'post_reactions_like_total',
-        'post_clicks_total',
-        'post_shares',
-        'post_video_views',
-      ];
+      let likes = 0;
+      let comments = 0;
+      let shares = 0;
+      let impressions = 0;
+      let engagedUsers = 0;
+      let clicks = 0;
+      let videoViews = 0;
 
-      const response = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/${platformPostId}/insights?metric=${metrics.join(',')}&access_token=${accessToken}`,
-        {}
-      );
+      // Step 1: Query standard Graph API post object fields (reactions, comments, shares)
+      // This is supported on all Facebook Page posts without requiring read_insights permission.
+      try {
+        const basicRes = await fetchWithRetry(
+          `${FACEBOOK_API_BASE}/${platformPostId}?fields=shares,reactions.summary(total_count),comments.summary(total_count)&access_token=${accessToken}`,
+          { method: 'GET' },
+          { maxRetries: 1 }
+        );
 
-      if (!response.ok) {
-        const error = await response.text();
-        logger.error('Facebook engagement fetch failed', { errorMessage: error, status: response.status });
-        return {};
-      }
-
-      const data = await response.json();
-      const results: Record<string, unknown> = {};
-
-      for (const metric of data.data || []) {
-        const values = metric.values || [];
-        const latest = values[values.length - 1];
-        if (latest?.value !== undefined) {
-          results[metric.name] = latest.value;
+        if (basicRes.ok) {
+          const basicData = await basicRes.json().catch(() => ({}));
+          likes = Number(basicData.reactions?.summary?.total_count ?? 0);
+          comments = Number(basicData.comments?.summary?.total_count ?? 0);
+          shares = Number(basicData.shares?.count ?? 0);
         }
+      } catch (basicErr) {
+        logger.warn('Facebook basic post engagement fetch threw', { platformPostId, error: basicErr });
       }
 
-      // Map to friendly names
+      // Step 2: Query Page Post Insights for reach/impressions and engaged users.
+      // Metrics are separated so that an unsupported video metric on a text/image post
+      // does not cause Meta API #100 error and fail the entire request.
+      try {
+        const insightRes = await fetchWithRetry(
+          `${FACEBOOK_API_BASE}/${platformPostId}/insights?metric=post_impressions,post_engaged_users,post_clicks_total,post_reactions_like_total&access_token=${accessToken}`,
+          { method: 'GET' },
+          { maxRetries: 1 }
+        );
+
+        if (insightRes.ok) {
+          const insightData = await insightRes.json().catch(() => ({}));
+          for (const metric of insightData.data || []) {
+            const values = metric.values || [];
+            const latest = values[values.length - 1];
+            const val = Number(latest?.value ?? 0);
+            if (metric.name === 'post_impressions' && val > 0) impressions = val;
+            if (metric.name === 'post_engaged_users' && val > 0) engagedUsers = val;
+            if (metric.name === 'post_clicks_total' && val > 0) clicks = val;
+            if (metric.name === 'post_reactions_like_total' && val > 0 && likes === 0) likes = val;
+          }
+        }
+      } catch (insightErr) {
+        logger.warn('Facebook insights fetch threw (non-critical)', { platformPostId, error: insightErr });
+      }
+
       return {
-        impressions: results.post_impressions || 0,
-        engagedUsers: results.post_engaged_users || 0,
-        likes: results.post_reactions_like_total || 0,
-        clicks: results.post_clicks_total || 0,
-        shares: results.post_shares || 0,
-        videoViews: results.post_video_views || 0,
+        impressions,
+        views: impressions,
+        engagedUsers,
+        likes,
+        comments,
+        clicks,
+        shares,
+        videoViews,
+        hasRealData: (likes + comments + shares + impressions) > 0,
       };
     });
   }
