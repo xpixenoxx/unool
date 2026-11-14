@@ -43,6 +43,7 @@ export interface OAuthStateData {
   platform: string;
   createdAt: number;
   returnUrl?: string;
+  redirectUri?: string;
 }
 
 /**
@@ -81,7 +82,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 /**
  * Stores OAuth state in Redis with TTL (with 350ms timeout guard)
  */
-export async function storeOAuthState(state: string, workspaceId: string, userId: string, platform: string, returnUrl?: string): Promise<void> {
+export async function storeOAuthState(
+  state: string,
+  workspaceId: string,
+  userId: string,
+  platform: string,
+  returnUrl?: string,
+  redirectUri?: string
+): Promise<void> {
   const key = `${STATE_PREFIX}${state}`;
   const data: OAuthStateData = {
     workspaceId,
@@ -89,6 +97,7 @@ export async function storeOAuthState(state: string, workspaceId: string, userId
     platform,
     createdAt: Date.now(),
     returnUrl,
+    redirectUri,
   };
 
   try {
@@ -108,7 +117,10 @@ export async function storeOAuthState(state: string, workspaceId: string, userId
  * Verifies and consumes OAuth state (deletes after verification, with 350ms timeout guard)
  * Returns workspaceId, userId and platform if valid
  */
-export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: string | null): Promise<{ workspaceId: string; userId: string; platform: string; returnUrl?: string } | null> {
+export async function verifyAndConsumeOAuthState(
+  state: string,
+  cookieHeader?: string | null
+): Promise<{ workspaceId: string; userId: string; platform: string; returnUrl?: string; redirectUri?: string } | null> {
   const key = `${STATE_PREFIX}${state}`;
 
   let data: OAuthStateData | null = null;
@@ -150,14 +162,28 @@ export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: s
   // Backwards compatibility for cookies created before this deployment
   const resolvedUserId = data.userId || data.workspaceId;
 
-  return { workspaceId: data.workspaceId, userId: resolvedUserId, platform: data.platform, returnUrl: data.returnUrl };
+  return {
+    workspaceId: data.workspaceId,
+    userId: resolvedUserId,
+    platform: data.platform,
+    returnUrl: data.returnUrl,
+    redirectUri: data.redirectUri,
+  };
 }
 
 /**
  * Creates a secure HMAC-signed cookie for OAuth flow containing all required state data
  */
-export function createOAuthCookie(state: string, workspaceId: string, userId: string, platform: string, returnUrl?: string, maxAgeSeconds: number = STATE_TTL_SECONDS): string {
-  const data: OAuthStateData = { workspaceId, userId, platform, returnUrl, createdAt: Date.now() };
+export function createOAuthCookie(
+  state: string,
+  workspaceId: string,
+  userId: string,
+  platform: string,
+  returnUrl?: string,
+  redirectUri?: string,
+  maxAgeSeconds: number = STATE_TTL_SECONDS
+): string {
+  const data: OAuthStateData = { workspaceId, userId, platform, returnUrl, redirectUri, createdAt: Date.now() };
   const payload = Buffer.from(JSON.stringify({ s: state, d: data }), 'utf8').toString('base64url');
   const signature = signOAuthPayload(payload);
   const value = `${payload}.${signature}`;

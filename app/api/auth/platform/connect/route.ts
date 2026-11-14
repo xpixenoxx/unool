@@ -160,9 +160,11 @@ export async function GET(request: NextRequest) {
   // Ensure adapter has credentials configured before redirecting to provider
   if (!adapter.authConfig.clientId) {
     logger.error('Platform connect: missing client ID credentials', { platform });
-    return NextResponse.redirect(
-      new URL(`${errorRedirect}?error=missing_credentials&platform=${platform}&detail=missing_${platform}_client_id`, request.url)
-    );
+    const redirectUrl = new URL(errorRedirect, request.url);
+    redirectUrl.searchParams.set('error', 'missing_credentials');
+    redirectUrl.searchParams.set('platform', platform);
+    redirectUrl.searchParams.set('detail', `missing_${platform}_client_id`);
+    return NextResponse.redirect(redirectUrl);
   }
 
   // Platforms with custom connect flows are handled entirely on the frontend.
@@ -174,17 +176,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl);
   }
 
+  // Derive the effective redirect URI.
+  // If explicitly configured for this platform in env, respect it.
+  // Otherwise, default to the caller's origin (so localhost, preview, and prod all redirect back to themselves).
+  const explicitPlatformRedirect = platform === 'facebook'
+    ? (config.FACEBOOK_REDIRECT_URI || process.env.FACEBOOK_REDIRECT_URI)
+    : undefined;
+  const effectiveRedirectUri = explicitPlatformRedirect || `${request.nextUrl.origin}/api/auth/platform/callback`;
+
   // Generate cryptographically secure state
   const state = generateOAuthState(workspaceId, platform);
 
   // Store OAuth state in Redis + generate auth URL in parallel (zero wasted round-trips)
   const [, authUrlResult] = await Promise.all([
-    storeOAuthState(state, workspaceId, userId, platform, returnUrl),
-    Promise.resolve(adapter.getAuthUrl(state)),
+    storeOAuthState(state, workspaceId, userId, platform, returnUrl, effectiveRedirectUri),
+    Promise.resolve(
+      typeof (adapter as any).getAuthUrl === 'function' && platform === 'facebook'
+        ? (adapter as any).getAuthUrl(state, effectiveRedirectUri)
+        : adapter.getAuthUrl(state)
+    ),
   ]);
 
   let authUrl: string;
-  const resCookies: string[] = [createOAuthCookie(state, workspaceId, userId, platform, returnUrl)];
+  const resCookies: string[] = [createOAuthCookie(state, workspaceId, userId, platform, returnUrl, effectiveRedirectUri)];
 
   if (typeof authUrlResult === 'string') {
     authUrl = authUrlResult;

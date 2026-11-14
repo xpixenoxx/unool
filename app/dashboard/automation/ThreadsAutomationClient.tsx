@@ -439,18 +439,33 @@ export default function ThreadsAutomationClient({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                className={`un-rocker ${config.enabled ? 'checked' : ''}`}
-                onClick={() => {
-                  const nextVal = !config.enabled;
-                  updateConfig({ enabled: nextVal });
-                  handleSave({ enabled: nextVal });
-                }}
-                aria-label="Toggle Threads Automation"
+              <label
+                className="un-master-switch"
+                title={config.enabled ? 'Click to pause automation' : 'Click to activate automation'}
+                style={{ cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}
               >
-                <span className="un-rocker-thumb" />
-              </button>
+                <input
+                  type="checkbox"
+                  checked={config.enabled}
+                  disabled={saving}
+                  onChange={e => {
+                    const nextVal = e.target.checked;
+                    updateConfig({ enabled: nextVal });
+                    handleSave({ enabled: nextVal });
+                  }}
+                />
+                <div className="un-master-track" />
+                <div className="un-master-thumb">
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                    <path
+                      d="M7 1v5M3.5 3.5A5 5 0 1010.5 3.5"
+                      stroke={config.enabled ? '#C4A265' : '#A69279'}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </label>
             </div>
 
             {/* Two-Column Grid */}

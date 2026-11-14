@@ -18,7 +18,7 @@ export default async function PublishPage({ searchParams }: { searchParams?: Pro
 
   const data = await getPublishData();
   if (!data) {
-    redirect('/');
+    redirect('/signin?redirect=/dashboard/publish');
   }
 
   return <PublishClientWrapper userId={data.userId} workspaceId={data.workspaceId} />;

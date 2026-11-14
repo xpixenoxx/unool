@@ -19,7 +19,7 @@ export default async function ProfilePage() {
   const data = await getPresenceData();
 
   if (!data) {
-    redirect('/');
+    redirect('/signin?redirect=/dashboard/profile');
   }
 
   return <PresenceClientWrapper userId={data.userId} workspaceId={data.workspaceId} />;

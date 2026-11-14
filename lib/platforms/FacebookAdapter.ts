@@ -18,17 +18,49 @@ const FACEBOOK_API_BASE = `https://graph.facebook.com/${API_VERSIONS.facebook}`;
 export class FacebookAdapter implements PlatformAdapter {
   readonly platform = 'facebook' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.FACEBOOK_CLIENT_ID || '',
-    clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
-    redirectUri: config.FACEBOOK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['public_profile', 'email', 'pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_manage_engagement', 'pages_messaging', 'pages_manage_metadata'],
-  };
+  get authConfig(): PlatformAuthConfig {
+    const clientId =
+      config.FACEBOOK_CLIENT_ID ||
+      process.env.FACEBOOK_CLIENT_ID ||
+      process.env.FACEBOOK_APP_ID ||
+      process.env.META_CLIENT_ID ||
+      process.env.META_APP_ID ||
+      '';
+    const clientSecret =
+      config.FACEBOOK_CLIENT_SECRET ||
+      process.env.FACEBOOK_CLIENT_SECRET ||
+      process.env.FACEBOOK_APP_SECRET ||
+      process.env.META_CLIENT_SECRET ||
+      process.env.META_APP_SECRET ||
+      '';
+    const redirectUri =
+      config.FACEBOOK_REDIRECT_URI ||
+      process.env.FACEBOOK_REDIRECT_URI ||
+      process.env.META_REDIRECT_URI ||
+      `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`;
 
-  getAuthUrl(state: string): string {
+    return {
+      clientId,
+      clientSecret,
+      redirectUri,
+      scopes: [
+        'public_profile',
+        'email',
+        'pages_show_list',
+        'pages_read_engagement',
+        'pages_manage_posts',
+        'pages_manage_engagement',
+        'pages_messaging',
+        'pages_manage_metadata',
+      ],
+    };
+  }
+
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       scope: this.authConfig.scopes.join(','),
       response_type: 'code',
       auth_type: 'rerequest',
@@ -37,11 +69,12 @@ export class FacebookAdapter implements PlatformAdapter {
     return `${META_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       grant_type: 'authorization_code',
       code,
     });

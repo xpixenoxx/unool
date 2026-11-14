@@ -9,6 +9,6 @@ export const metadata = {
 
 export default async function SignalPage() {
   const auth = await getAuthContext();
-  if (!auth) redirect('/');
+  if (!auth) redirect('/signin?redirect=/dashboard/signal');
   return <SignalClient />;
 }

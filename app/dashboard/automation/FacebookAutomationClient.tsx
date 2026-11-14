@@ -200,8 +200,33 @@ export default function FacebookAutomationClient({
     setConfig(prev => ({ ...prev, ...patch }));
   };
 
-  // ── Load Platform Connection Status ──
+  // ── Load Platform Connection Status and Handle OAuth Feedback ──
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#_=_' || window.location.hash === '#_') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      const params = new URLSearchParams(window.location.search);
+      const connected = params.get('connected');
+      const err = params.get('error');
+      const detail = params.get('detail') || params.get('description');
+      if (connected === 'facebook') {
+        showToast('Facebook Page connected successfully!', 'success');
+        params.delete('connected');
+        window.history.replaceState(null, '', `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`);
+      } else if (err) {
+        const msg = err === 'missing_credentials'
+          ? 'Missing Facebook App ID (FACEBOOK_CLIENT_ID). Please check your .env.local file.'
+          : `Facebook connection failed: ${detail || err}`;
+        showToast(msg, 'error');
+        params.delete('error');
+        params.delete('detail');
+        params.delete('description');
+        params.delete('platform');
+        window.history.replaceState(null, '', `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`);
+      }
+    }
+
     fetch('/api/platform/connections', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -365,7 +390,7 @@ export default function FacebookAutomationClient({
                   <span style={{ color: '#1E40AF', opacity: 0.7, fontSize: 11 }}>Active API</span>
                 </div>
               ) : (
-                <a href={`/api/auth/platform/connect?platform=facebook&workspaceId=${workspaceId || ''}&userId=${userId || ''}`} className="un-btn un-btn-primary" style={{ padding: '6px 14px', fontSize: 12.5, background: '#1877F2' }}>
+                <a href={`/api/auth/platform/connect?platform=facebook&workspaceId=${workspaceId || ''}&userId=${userId || ''}&returnUrl=${encodeURIComponent('/dashboard/automation?platform=facebook')}`} className="un-btn un-btn-primary" style={{ padding: '6px 14px', fontSize: 12.5, background: '#1877F2' }}>
                   Connect Facebook Page
                 </a>
               )}
@@ -407,7 +432,7 @@ export default function FacebookAutomationClient({
                   <div style={{ color: '#1E40AF', fontWeight: 700, fontSize: 14 }}>Facebook Page Not Linked</div>
                   <div style={{ color: '#1E3A8A', fontSize: 12.5, marginTop: 2 }}>Connect your Facebook Page to enable autonomous comment replies, spam filtering, and private Messenger follow-ups.</div>
                 </div>
-                <a href={`/api/auth/platform/connect?platform=facebook&workspaceId=${workspaceId || ''}&userId=${userId || ''}`} className="un-btn un-btn-primary" style={{ fontSize: 12.5, background: '#1877F2' }}>Connect Page</a>
+                <a href={`/api/auth/platform/connect?platform=facebook&workspaceId=${workspaceId || ''}&userId=${userId || ''}&returnUrl=${encodeURIComponent('/dashboard/automation?platform=facebook')}`} className="un-btn un-btn-primary" style={{ fontSize: 12.5, background: '#1877F2' }}>Connect Page</a>
               </div>
             )}
 
@@ -431,18 +456,33 @@ export default function FacebookAutomationClient({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                className={`un-rocker ${config.enabled ? 'checked' : ''}`}
-                onClick={() => {
-                  const nextVal = !config.enabled;
-                  updateConfig({ enabled: nextVal });
-                  handleSave({ enabled: nextVal });
-                }}
-                aria-label="Toggle Facebook Automation"
+              <label
+                className="un-master-switch"
+                title={config.enabled ? 'Click to pause automation' : 'Click to activate automation'}
+                style={{ cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}
               >
-                <span className="un-rocker-thumb" />
-              </button>
+                <input
+                  type="checkbox"
+                  checked={config.enabled}
+                  disabled={saving}
+                  onChange={e => {
+                    const nextVal = e.target.checked;
+                    updateConfig({ enabled: nextVal });
+                    handleSave({ enabled: nextVal });
+                  }}
+                />
+                <div className="un-master-track" />
+                <div className="un-master-thumb">
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                    <path
+                      d="M7 1v5M3.5 3.5A5 5 0 1010.5 3.5"
+                      stroke={config.enabled ? '#C4A265' : '#A69279'}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </label>
             </div>
 
             {/* Two-Column Grid */}

@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const data = await getSettingsData();
 
   if (!data) {
-    redirect('/');
+    redirect('/signin?redirect=/dashboard/settings');
   }
 
   return <SettingsClientWrapper userId={data.userId} workspaceId={data.workspaceId} />;

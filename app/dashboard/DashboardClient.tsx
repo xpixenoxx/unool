@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
 import { getHourlyGreetingForDate } from '@/lib/utils/hourlyGreetings';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
+import { toast } from 'sonner';
 import './overview.css';
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -554,11 +555,64 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   // Toast state
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const showToast = useCallback((msg: string) => {
+  const showToast = useCallback((msg: string, duration = 3000) => {
     setToastMsg(msg);
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    toastTimeoutRef.current = setTimeout(() => setToastMsg(null), 2200);
+    toastTimeoutRef.current = setTimeout(() => setToastMsg(null), duration);
   }, []);
+
+  // Handle OAuth callback redirect parameters and Meta hash
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Clean up Meta / Facebook #_=_ or #_ hash
+    if (window.location.hash === '#_=_' || window.location.hash === '#_') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+
+    const connectedParam = searchParams.get('connected');
+    const errorParam = searchParams.get('error');
+    const platformParam = searchParams.get('platform');
+    const detailParam = searchParams.get('detail');
+    const descriptionParam = searchParams.get('description');
+
+    if (connectedParam) {
+      const pName = connectedParam.charAt(0).toUpperCase() + connectedParam.slice(1);
+      const msg = `${pName} connected successfully!`;
+      showToast(msg, 3500);
+      toast.success(msg);
+      router.refresh();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('connected');
+      window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
+    } else if (errorParam) {
+      let msg = 'Connection failed';
+      if (errorParam === 'missing_credentials') {
+        const plat = platformParam ? platformParam.charAt(0).toUpperCase() + platformParam.slice(1) : 'Platform';
+        msg = `${plat} credentials missing. Please set FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET in your .env.local file.`;
+      } else if (errorParam === 'unauthorized') {
+        msg = 'Session expired. Please sign in again to connect platforms.';
+      } else if (errorParam === 'channel_limit_exceeded') {
+        msg = 'Connected channel limit reached for your plan. Please upgrade or disconnect another channel.';
+      } else if (errorParam === 'invalid_state') {
+        msg = 'OAuth session expired or state mismatch. Please try connecting again.';
+      } else if (descriptionParam || detailParam) {
+        msg = `Connection failed: ${decodeURIComponent(descriptionParam || detailParam || errorParam)}`;
+      } else {
+        msg = `Connection failed: ${errorParam}`;
+      }
+      showToast(msg, 5000);
+      toast.error(msg);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('error');
+      url.searchParams.delete('platform');
+      url.searchParams.delete('detail');
+      url.searchParams.delete('description');
+      url.searchParams.delete('limit');
+      url.searchParams.delete('plan');
+      window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
+    }
+  }, [searchParams, router, showToast]);
 
   // Copy URL action
   const handleCopyUrl = () => {
@@ -692,7 +746,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         setManualDialogOpen(true);
       } else {
         setConnectingPlatform(platformId);
-        window.location.href = `/api/auth/platform/connect?platform=${platformId}&workspaceId=${data.workspaceId}&userId=${data.userId}`;
+        window.location.href = `/api/auth/platform/connect?platform=${platformId}&workspaceId=${data.workspaceId}&userId=${data.userId}&returnUrl=${encodeURIComponent('/dashboard')}`;
       }
     }
   };

@@ -470,15 +470,48 @@ export default function LinkedInAutomationClient({
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <label className="un-toggle-switch">
+                <label
+                  className="un-master-switch"
+                  title={config.enabled ? 'Click to pause automation' : 'Click to activate automation'}
+                  style={{ cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}
+                >
                   <input
                     type="checkbox"
                     checked={config.enabled}
-                    onChange={e => updateConfig({ enabled: e.target.checked })}
+                    disabled={saving}
+                    onChange={e => {
+                      const nextVal = e.target.checked;
+                      updateConfig({ enabled: nextVal });
+                      if (workspaceId) {
+                        setSaving(true);
+                        fetch('/api/linkedin/automation', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ workspaceId, ...config, enabled: nextVal }),
+                        })
+                          .then(r => r.json())
+                          .then(data => {
+                            if (data?.success) {
+                              showToast(nextVal ? 'LinkedIn automation activated!' : 'LinkedIn automation paused!');
+                            } else {
+                              showToast(data?.error || 'Failed to save configuration', 'error');
+                            }
+                          })
+                          .catch(() => showToast('Error connecting to automation service', 'error'))
+                          .finally(() => setSaving(false));
+                      }
+                    }}
                   />
-                  <div className="un-toggle-track" />
-                  <div className="un-toggle-thumb">
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2v6M4.5 4.5A5.5 5.5 0 1 0 11.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                  <div className="un-master-track" />
+                  <div className="un-master-thumb">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                      <path
+                        d="M7 1v5M3.5 3.5A5 5 0 1010.5 3.5"
+                        stroke={config.enabled ? '#C4A265' : '#A69279'}
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
                   </div>
                 </label>
               </div>

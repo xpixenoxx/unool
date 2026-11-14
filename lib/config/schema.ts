@@ -61,7 +61,8 @@ const configSchema = z.object({
   // Facebook OAuth (Meta Graph API)
   FACEBOOK_CLIENT_ID: z.string().optional(),
   FACEBOOK_CLIENT_SECRET: z.string().optional(),
-  FACEBOOK_REDIRECT_URI: z.string().url().optional(),
+  FACEBOOK_REDIRECT_URI: z.union([z.string().url(), z.literal('')]).optional(),
+  FACEBOOK_WEBHOOK_SECRET: z.string().optional(),
 
   // Instagram OAuth
   INSTAGRAM_CLIENT_ID: z.string().optional(),
@@ -182,6 +183,11 @@ const env = {
   THREADS_CLIENT_ID: process.env.THREADS_CLIENT_ID || process.env.META_CLIENT_ID || process.env.THREADS_APP_ID || process.env.META_APP_ID,
   THREADS_CLIENT_SECRET: process.env.THREADS_CLIENT_SECRET || process.env.META_CLIENT_SECRET || process.env.THREADS_APP_SECRET || process.env.META_APP_SECRET,
   THREADS_REDIRECT_URI: process.env.THREADS_REDIRECT_URI || process.env.META_REDIRECT_URI,
+  // Facebook OAuth: support FACEBOOK_CLIENT_ID, FACEBOOK_APP_ID, META_CLIENT_ID, META_APP_ID variants
+  FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || process.env.META_CLIENT_ID || process.env.META_APP_ID,
+  FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || process.env.META_CLIENT_SECRET || process.env.META_APP_SECRET,
+  FACEBOOK_REDIRECT_URI: process.env.FACEBOOK_REDIRECT_URI || process.env.META_REDIRECT_URI,
+  FACEBOOK_WEBHOOK_SECRET: process.env.FACEBOOK_WEBHOOK_SECRET || process.env.META_WEBHOOK_SECRET,
   // Instagram OAuth: support INSTAGRAM_CLIENT_ID, INSTAGRAM_APP_ID, META_CLIENT_ID, META_APP_ID variants
   INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID || process.env.INSTAGRAM_APP_ID || process.env.META_CLIENT_ID || process.env.META_APP_ID,
   INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET || process.env.INSTAGRAM_APP_SECRET || process.env.META_CLIENT_SECRET || process.env.META_APP_SECRET,

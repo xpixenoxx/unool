@@ -626,6 +626,10 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     if (effectiveUserId) params.set('userId', effectiveUserId);
     if (options?.addAccount) params.set('addAccount', 'true');
     if (options?.reconnectConnectionId) params.set('reconnectConnectionId', options.reconnectConnectionId);
+    if (typeof window !== 'undefined') {
+      const currentReturnUrl = window.location.pathname || '/dashboard';
+      params.set('returnUrl', currentReturnUrl);
+    }
     // Use window.location for the OAuth redirect (router.push doesn't handle external URLs)
     window.location.href = `/api/auth/platform/connect?${params.toString()}`;
   }, [workspaceId, userId, initialUserId]);

@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { workspaceId, userId, platform: platformFromState, returnUrl } = verified;
+  const { workspaceId, userId, platform: platformFromState, returnUrl, redirectUri: storedRedirectUri } = verified;
 
   // Validate platform is supported
   if (!SUPPORTED_PLATFORMS.includes(platformFromState as (typeof SUPPORTED_PLATFORMS)[number])) {
@@ -125,7 +125,9 @@ export async function GET(request: NextRequest) {
     logger.info('Exchanging OAuth code for token', { platform, workspaceId, userId });
     const tokenResponse = (platform === 'x' || platform === 'kick') && codeVerifier
       ? await adapter.exchangeCodeForToken(code, codeVerifier)
-      : await adapter.exchangeCodeForToken(code);
+      : typeof (adapter as any).exchangeCodeForToken === 'function' && platform === 'facebook' && storedRedirectUri
+        ? await (adapter as any).exchangeCodeForToken(code, storedRedirectUri)
+        : await adapter.exchangeCodeForToken(code);
 
     logger.info('Token exchange successful', {
       platform,

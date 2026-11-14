@@ -19,7 +19,7 @@ export default async function StudioPage() {
   const data = await getComposerData();
 
   if (!data) {
-    redirect('/');
+    redirect('/signin?redirect=/dashboard/studio');
   }
 
   return <ComposerClient userId={data.userId} workspaceId={data.workspaceId} />;
