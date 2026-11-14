@@ -9,6 +9,7 @@ import type {
 } from '../interfaces/IPlatformRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
+import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
 
 export class SupabasePlatformRepository implements IPlatformRepository {
   private supabase = supabaseAdmin;
@@ -35,12 +36,14 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   }
 
   private mapPostRow(row: Record<string, unknown>): PlatformPost {
+    const rawUrl = (row.platform_url as string) || '';
+    const rawPostId = (row.platform_post_id as string) || '';
     return {
       id: row.id as string,
       postVariantId: row.post_variant_id as string,
       platformConnectionId: row.platform_connection_id as string,
-      platformPostId: row.platform_post_id as string,
-      platformUrl: row.platform_url as string,
+      platformPostId: rawPostId,
+      platformUrl: normalizeFacebookUrl(rawUrl, rawPostId),
       engagement: row.engagement as Record<string, unknown>,
       createdAt: new Date(row.created_at as string),
     };
@@ -363,13 +366,14 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   }
 
   async createPlatformPost(input: CreatePlatformPostInput): Promise<PlatformPost> {
+    const sanitizedUrl = normalizeFacebookUrl(input.platformUrl, input.platformPostId);
     const { data, error } = await this.supabase
       .from('platform_posts')
       .insert({
         post_variant_id: input.postVariantId,
         platform_connection_id: input.platformConnectionId,
         platform_post_id: input.platformPostId,
-        platform_url: input.platformUrl,
+        platform_url: sanitizedUrl,
         engagement: input.engagement || {},
       })
       .select()

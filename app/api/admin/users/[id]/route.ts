@@ -451,6 +451,8 @@ export async function DELETE(
       { reason }
     );
 
+    adminRepository.invalidateUsersCache?.();
+
     return NextResponse.json({ success: true, message: 'Account archived to deleted_accounts table' });
   } catch (error) {
     console.error('Failed to delete user:', error);

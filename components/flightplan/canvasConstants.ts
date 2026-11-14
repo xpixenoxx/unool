@@ -1,3 +1,5 @@
+import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
+
 export const BEATS = [
   'Departure Hook',
   'Cruising Altitude',
@@ -43,12 +45,17 @@ export function getLivePlatformUrl(v: {
   platformUrl?: string | null;
   platformPostId?: string | null;
 }): string {
+  const p = v.platform?.toLowerCase() || '';
+
+  if (p === 'facebook') {
+    return normalizeFacebookUrl(v.platformUrl, v.platformPostId);
+  }
+
   if (v.platformUrl && typeof v.platformUrl === 'string' && v.platformUrl.trim().startsWith('http')) {
     return v.platformUrl.trim();
   }
 
   const rawId = v.platformPostId?.trim() || '';
-  const p = v.platform?.toLowerCase() || '';
 
   switch (p) {
     case 'linkedin':
@@ -61,7 +68,7 @@ export function getLivePlatformUrl(v: {
       if (rawId.includes('/')) return `https://bsky.app/profile/${rawId}`;
       return rawId ? `https://bsky.app/profile/${rawId}` : 'https://bsky.app';
     case 'facebook':
-      return rawId ? `https://www.facebook.com/${rawId}` : 'https://www.facebook.com';
+      return normalizeFacebookUrl(v.platformUrl, rawId);
     case 'instagram':
       return rawId ? `https://www.instagram.com/p/${rawId}/` : 'https://www.instagram.com';
     case 'threads':

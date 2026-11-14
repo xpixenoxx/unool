@@ -154,6 +154,27 @@ export async function GET(request: NextRequest) {
       const plan = getPlan(subscription.plan_id);
       const currency = (subscription.currency || 'INR') as Currency;
 
+      // Auto-heal: Ensure workspaces table stays synchronized with active subscription
+      try {
+        Promise.resolve(
+          adminClient
+            .from('workspaces')
+            .update({
+              plan: subscription.plan_id,
+              plan_status: subscription.status,
+              plan_expires_at: subscription.current_period_end,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', auth.workspaceId)
+        )
+          .then(() => { })
+          .catch((healErr: unknown) => {
+            logger.warn('Failed to auto-heal workspace in /api/billing/current', { error: healErr, workspaceId: auth.workspaceId });
+          });
+      } catch {
+        // non-fatal
+      }
+
       return NextResponse.json({
         plan: {
           id: subscription.plan_id,

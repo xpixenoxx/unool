@@ -7,6 +7,7 @@ import { SupabasePlatformRepository } from '@/lib/repositories/supabase/Supabase
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
+import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
 
 const profileRepository = new SupabaseProfileRepository();
 
@@ -39,7 +40,7 @@ async function checkRateLimit(request: NextRequest): Promise<{ limited: boolean;
     if (count === 1) {
       fetch(`${url}/expire/${key}/60`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
+      }).catch(() => { });
     }
     const limit = 60; // 60 requests per minute
     const remaining = Math.max(0, limit - (Number.isFinite(count) ? count : 0));
@@ -161,7 +162,14 @@ export async function GET(
         const platformItems = await Promise.all(
           targetVariants.map(async v => {
             const platformPosts = await platformRepo.findPlatformPostsByVariant(v.id);
-            const liveUrl = platformPosts[0]?.platformUrl ?? (v as any).platformUrl ?? `https://${v.platform}.com`;
+            const rawUrl = platformPosts[0]?.platformUrl ?? (v as any).platformUrl;
+            const rawPostId = platformPosts[0]?.platformPostId ?? (v as any).platformPostId;
+            let liveUrl = rawUrl;
+            if (v.platform?.toLowerCase() === 'facebook') {
+              liveUrl = normalizeFacebookUrl(rawUrl, rawPostId);
+            } else if (!liveUrl) {
+              liveUrl = `https://${v.platform}.com`;
+            }
             return { platform: v.platform, url: liveUrl, adaptedContent: v.adaptedContent };
           })
         );

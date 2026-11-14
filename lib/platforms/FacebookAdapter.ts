@@ -10,6 +10,7 @@ import {
   PublishResult,
 } from './adapter';
 import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
+import { formatFacebookPostUrl, normalizeFacebookUrl } from './facebookUrl';
 
 const META_AUTH_URL = `https://www.facebook.com/${API_VERSIONS.facebook}/dialog/oauth`;
 const META_TOKEN_URL = `https://graph.facebook.com/${API_VERSIONS.facebook}/oauth/access_token`;
@@ -255,7 +256,7 @@ export class FacebookAdapter implements PlatformAdapter {
       if (!pagesData.data || pagesData.data.length === 0) {
         throw new Error('No Facebook Pages found. You must create at least one Facebook Page to publish.');
       }
-      
+
       const page = pagesData.data[0];
       const pageAccessToken = page.access_token;
       const pageId = page.id;
@@ -268,7 +269,7 @@ export class FacebookAdapter implements PlatformAdapter {
         // Text post
         const result = await this.publishTextPost(pageAccessToken, pageId, input.content);
         platformPostId = result.id;
-        platformUrl = `https://www.facebook.com/${platformPostId}`;
+        platformUrl = await this.resolvePostPermalink(pageAccessToken, platformPostId, pageId);
       } else if (mediaUrls.length === 1) {
         const mediaUrl = mediaUrls[0];
         const isVideo = this.isVideoUrl(mediaUrl);
@@ -277,18 +278,18 @@ export class FacebookAdapter implements PlatformAdapter {
           // Video post
           const result = await this.publishVideoPost(pageAccessToken, pageId, mediaUrl, input.content);
           platformPostId = result.id;
-          platformUrl = `https://www.facebook.com/${platformPostId}`;
+          platformUrl = await this.resolvePostPermalink(pageAccessToken, platformPostId, pageId, true);
         } else {
           // Image post
           const result = await this.publishImagePost(pageAccessToken, pageId, mediaUrl, input.content);
           platformPostId = result.id;
-          platformUrl = `https://www.facebook.com/${platformPostId}`;
+          platformUrl = await this.resolvePostPermalink(pageAccessToken, platformPostId, pageId);
         }
       } else {
         // Multiple images - use multi-photo post
         const result = await this.publishMultiImagePost(pageAccessToken, pageId, mediaUrls, input.content);
         platformPostId = result.id;
-        platformUrl = `https://www.facebook.com/${platformPostId}`;
+        platformUrl = await this.resolvePostPermalink(pageAccessToken, platformPostId, pageId);
       }
 
       // If firstComment is provided, add it as a comment using the Page Access Token
@@ -495,6 +496,50 @@ export class FacebookAdapter implements PlatformAdapter {
     return videoExtensions.some(ext => lowerUrl.includes(ext)) || lowerUrl.includes('video/');
   }
 
+  /**
+   * Resolves the canonical live URL for a published Facebook post or video.
+   * Queries the Graph API for the post's permalink_url using the Page Access Token.
+   * If Graph API returns permalink_url, returns it directly.
+   * Otherwise, falls back to the deterministic canonical post URL (facebook.com/{pageId}/posts/{postId}).
+   */
+  async resolvePostPermalink(
+    pageAccessToken: string,
+    platformPostId: string,
+    pageId?: string,
+    isVideo = false
+  ): Promise<string> {
+    const fallbackUrl = formatFacebookPostUrl(platformPostId, pageId, isVideo);
+
+    try {
+      const response = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${platformPostId}?fields=permalink_url&access_token=${pageAccessToken}`,
+        { method: 'GET' },
+        { maxRetries: 0 }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && typeof data.permalink_url === 'string' && data.permalink_url.trim().length > 0) {
+          return data.permalink_url.trim();
+        }
+      } else {
+        const errText = await response.text();
+        logger.warn('Facebook permalink_url query returned non-ok status, using canonical fallback', {
+          status: response.status,
+          error: errText,
+          platformPostId,
+        });
+      }
+    } catch (err) {
+      logger.warn('Facebook permalink_url query failed, using canonical fallback', {
+        error: err instanceof Error ? err.message : String(err),
+        platformPostId,
+      });
+    }
+
+    return fallbackUrl;
+  }
+
   async deletePost(accessToken: string, platformPostId: string): Promise<void> {
     return platformFetch('facebook', async () => {
       const response = await fetchWithRetry(`${FACEBOOK_API_BASE}/${platformPostId}`, {
@@ -686,3 +731,4 @@ export class FacebookAdapter implements PlatformAdapter {
 }
 
 export const facebookAdapter = new FacebookAdapter();
+export { formatFacebookPostUrl, normalizeFacebookUrl } from './facebookUrl';

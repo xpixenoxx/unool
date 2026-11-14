@@ -4,6 +4,7 @@ import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import type { RecentActivityPlatform } from '@/components/profile/RecentActivitySection';
+import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
 
 /**
  * Activity Variants Configuration
@@ -19,35 +20,35 @@ export const PLATFORM_CONFIG: Record<
   string,
   { icon: any; name: string; cta: string; color: string; bg: string }
 > = {
-  linkedin:  { icon: PlatformSVGs.linkedin,  name: 'LinkedIn',    cta: 'View Post',     color: '#FFFFFF', bg: '#0A66C2' },
-  x:         { icon: PlatformSVGs.x,         name: 'X',           cta: 'View Post',     color: '#FFFFFF', bg: '#000000' },
-  twitter:   { icon: PlatformSVGs.x,         name: 'X',           cta: 'View Post',     color: '#FFFFFF', bg: '#000000' },
-  threads:   { icon: PlatformSVGs.threads,   name: 'Threads',     cta: 'View Thread',   color: '#FFFFFF', bg: '#101010' },
-  facebook:  { icon: PlatformSVGs.facebook,  name: 'Facebook',    cta: 'View Post',     color: '#FFFFFF', bg: '#1877F2' },
-  instagram: { icon: PlatformSVGs.instagram, name: 'Instagram',   cta: 'View Post',     color: '#FFFFFF', bg: '#E1306C' },
-  youtube:   { icon: PlatformSVGs.youtube,   name: 'YouTube',     cta: 'Watch Video',   color: '#FFFFFF', bg: '#FF0000' },
-  bluesky:   { icon: PlatformSVGs.bluesky,   name: 'Bluesky',     cta: 'View Post',     color: '#FFFFFF', bg: '#0085FF' },
-  mastodon:  { icon: PlatformSVGs.mastodon,  name: 'Mastodon',    cta: 'View Post',     color: '#FFFFFF', bg: '#6364FF' },
-  telegram:  { icon: PlatformSVGs.telegram,  name: 'Telegram',    cta: 'View Channel',  color: '#FFFFFF', bg: '#229ED9' },
-  discord:   { icon: PlatformSVGs.discord,   name: 'Discord',     cta: 'Join Server',   color: '#FFFFFF', bg: '#5865F2' },
-  pinterest: { icon: PlatformSVGs.pinterest, name: 'Pinterest',   cta: 'View Pin',      color: '#FFFFFF', bg: '#E60023' },
-  twitch:    { icon: PlatformSVGs.twitch,    name: 'Twitch',      cta: 'Watch Stream',  color: '#FFFFFF', bg: '#9146FF' },
-  dribbble:  { icon: PlatformSVGs.dribbble,  name: 'Dribbble',    cta: 'View Shot',     color: '#FFFFFF', bg: '#EA4C89' },
-  skool:     { icon: PlatformSVGs.skool,     name: 'Skool',       cta: 'View Post',     color: '#FFFFFF', bg: '#E2AD44' },
-  whop:      { icon: PlatformSVGs.whop,      name: 'Whop',        cta: 'View Post',     color: '#FFFFFF', bg: '#FF5A00' },
-  kick:      { icon: PlatformSVGs.kick,      name: 'Kick',        cta: 'Watch Stream',  color: '#0A0A0A', bg: '#53FC18' },
-  warpcast:  { icon: PlatformSVGs.warpcast,  name: 'Farcaster',   cta: 'View Cast',     color: '#FFFFFF', bg: '#8A63D2' },
-  farcaster: { icon: PlatformSVGs.warpcast,  name: 'Farcaster',   cta: 'View Cast',     color: '#FFFFFF', bg: '#8A63D2' },
-  mewe:      { icon: PlatformSVGs.mewe,      name: 'MeWe',        cta: 'View Post',     color: '#FFFFFF', bg: '#2F435E' },
-  nostr:     { icon: PlatformSVGs.nostr,      name: 'Nostr',       cta: 'View Note',     color: '#FFFFFF', bg: '#9B51E0' },
-  medium:    { icon: PlatformSVGs.medium,    name: 'Medium',      cta: 'Read Story',    color: '#FFFFFF', bg: '#12100E' },
-  tiktok:    { icon: PlatformSVGs.tiktok,    name: 'TikTok',      cta: 'Watch Video',   color: '#FFFFFF', bg: '#000000' },
-  hashnode:  { icon: PlatformSVGs.hashnode,  name: 'Hashnode',    cta: 'Read Article',  color: '#FFFFFF', bg: '#2962FF' },
-  listmonk:  { icon: PlatformSVGs.listmonk,  name: 'Listmonk',    cta: 'Read Update',   color: '#FFFFFF', bg: '#0045FF' },
-  lemmy:     { icon: PlatformSVGs.lemmy,     name: 'Lemmy',       cta: 'View on Lemmy', color: '#FFFFFF', bg: '#00BC8C' },
-  devto:     { icon: PlatformSVGs.devto,     name: 'DEV.to',      cta: 'Read Article',  color: '#FFFFFF', bg: '#0A0A0A' },
-  reddit:    { icon: PlatformSVGs.reddit,    name: 'Reddit',      cta: 'View Post',     color: '#FFFFFF', bg: '#FF4500' },
-  slack:     { icon: PlatformSVGs.slack,     name: 'Slack',       cta: 'Open Channel',  color: '#FFFFFF', bg: '#4A154B' },
+  linkedin: { icon: PlatformSVGs.linkedin, name: 'LinkedIn', cta: 'View Post', color: '#FFFFFF', bg: '#0A66C2' },
+  x: { icon: PlatformSVGs.x, name: 'X', cta: 'View Post', color: '#FFFFFF', bg: '#000000' },
+  twitter: { icon: PlatformSVGs.x, name: 'X', cta: 'View Post', color: '#FFFFFF', bg: '#000000' },
+  threads: { icon: PlatformSVGs.threads, name: 'Threads', cta: 'View Thread', color: '#FFFFFF', bg: '#101010' },
+  facebook: { icon: PlatformSVGs.facebook, name: 'Facebook', cta: 'View Post', color: '#FFFFFF', bg: '#1877F2' },
+  instagram: { icon: PlatformSVGs.instagram, name: 'Instagram', cta: 'View Post', color: '#FFFFFF', bg: '#E1306C' },
+  youtube: { icon: PlatformSVGs.youtube, name: 'YouTube', cta: 'Watch Video', color: '#FFFFFF', bg: '#FF0000' },
+  bluesky: { icon: PlatformSVGs.bluesky, name: 'Bluesky', cta: 'View Post', color: '#FFFFFF', bg: '#0085FF' },
+  mastodon: { icon: PlatformSVGs.mastodon, name: 'Mastodon', cta: 'View Post', color: '#FFFFFF', bg: '#6364FF' },
+  telegram: { icon: PlatformSVGs.telegram, name: 'Telegram', cta: 'View Channel', color: '#FFFFFF', bg: '#229ED9' },
+  discord: { icon: PlatformSVGs.discord, name: 'Discord', cta: 'Join Server', color: '#FFFFFF', bg: '#5865F2' },
+  pinterest: { icon: PlatformSVGs.pinterest, name: 'Pinterest', cta: 'View Pin', color: '#FFFFFF', bg: '#E60023' },
+  twitch: { icon: PlatformSVGs.twitch, name: 'Twitch', cta: 'Watch Stream', color: '#FFFFFF', bg: '#9146FF' },
+  dribbble: { icon: PlatformSVGs.dribbble, name: 'Dribbble', cta: 'View Shot', color: '#FFFFFF', bg: '#EA4C89' },
+  skool: { icon: PlatformSVGs.skool, name: 'Skool', cta: 'View Post', color: '#FFFFFF', bg: '#E2AD44' },
+  whop: { icon: PlatformSVGs.whop, name: 'Whop', cta: 'View Post', color: '#FFFFFF', bg: '#FF5A00' },
+  kick: { icon: PlatformSVGs.kick, name: 'Kick', cta: 'Watch Stream', color: '#0A0A0A', bg: '#53FC18' },
+  warpcast: { icon: PlatformSVGs.warpcast, name: 'Farcaster', cta: 'View Cast', color: '#FFFFFF', bg: '#8A63D2' },
+  farcaster: { icon: PlatformSVGs.warpcast, name: 'Farcaster', cta: 'View Cast', color: '#FFFFFF', bg: '#8A63D2' },
+  mewe: { icon: PlatformSVGs.mewe, name: 'MeWe', cta: 'View Post', color: '#FFFFFF', bg: '#2F435E' },
+  nostr: { icon: PlatformSVGs.nostr, name: 'Nostr', cta: 'View Note', color: '#FFFFFF', bg: '#9B51E0' },
+  medium: { icon: PlatformSVGs.medium, name: 'Medium', cta: 'Read Story', color: '#FFFFFF', bg: '#12100E' },
+  tiktok: { icon: PlatformSVGs.tiktok, name: 'TikTok', cta: 'Watch Video', color: '#FFFFFF', bg: '#000000' },
+  hashnode: { icon: PlatformSVGs.hashnode, name: 'Hashnode', cta: 'Read Article', color: '#FFFFFF', bg: '#2962FF' },
+  listmonk: { icon: PlatformSVGs.listmonk, name: 'Listmonk', cta: 'Read Update', color: '#FFFFFF', bg: '#0045FF' },
+  lemmy: { icon: PlatformSVGs.lemmy, name: 'Lemmy', cta: 'View on Lemmy', color: '#FFFFFF', bg: '#00BC8C' },
+  devto: { icon: PlatformSVGs.devto, name: 'DEV.to', cta: 'Read Article', color: '#FFFFFF', bg: '#0A0A0A' },
+  reddit: { icon: PlatformSVGs.reddit, name: 'Reddit', cta: 'View Post', color: '#FFFFFF', bg: '#FF4500' },
+  slack: { icon: PlatformSVGs.slack, name: 'Slack', cta: 'Open Channel', color: '#FFFFFF', bg: '#4A154B' },
 };
 
 export const DEFAULT_PLATFORM_CFG = { icon: ExternalLink, name: 'Link', cta: 'View', color: '#FFFFFF', bg: '#555555' };
@@ -863,10 +864,11 @@ export function renderPlatformButtons(
         {published.map(({ platform, url }) => {
           const cfg = getPlatformCfg(platform);
           const Icon = cfg.icon;
+          const targetUrl = platform?.toLowerCase() === 'facebook' ? normalizeFacebookUrl(url) : url;
           return (
             <a
               key={platform}
-              href={url}
+              href={targetUrl}
               target="_blank"
               rel="noopener noreferrer"
               title={`${cfg.cta} on ${cfg.name}`}
@@ -904,11 +906,12 @@ export function renderPlatformButtons(
         const Icon = cfg.icon;
         const buttonStyle = config.platformButtonStyle?.(cfg, isDark);
         const iconWrapper = config.platformIconWrapper;
+        const targetUrl = platform?.toLowerCase() === 'facebook' ? normalizeFacebookUrl(url) : url;
 
         return (
           <a
             key={platform}
-            href={url}
+            href={targetUrl}
             target="_blank"
             rel="noopener noreferrer"
             className={config.platformButtonClassName}

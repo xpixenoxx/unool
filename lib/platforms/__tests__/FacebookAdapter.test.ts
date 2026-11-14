@@ -156,6 +156,105 @@ describe('FacebookAdapter', () => {
     await adapter.subscribePageWebhook(pages[0].accessToken, pages[0].id);
     expect(subscribedAppCalled).toBe(true);
   });
+
+  it('publishes text post and resolves canonical permalink from Graph API', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/me/accounts')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: [
+              {
+                id: 'page_12345',
+                name: 'Brand Page',
+                category: 'Brand',
+                access_token: 'page_token_xyz',
+                tasks: ['MANAGE', 'CREATE_CONTENT'],
+              },
+            ],
+          }),
+          headers: new Headers(),
+        } as unknown as Response;
+      }
+      if (url.includes('/page_12345/feed') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ id: 'page_12345_9876543210' }),
+          headers: new Headers(),
+        } as unknown as Response;
+      }
+      if (url.includes('/page_12345_9876543210?fields=permalink_url')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: 'page_12345_9876543210',
+            permalink_url: 'https://www.facebook.com/BrandPage/posts/9876543210',
+          }),
+          headers: new Headers(),
+        } as unknown as Response;
+      }
+      return { ok: false, status: 404 } as unknown as Response;
+    });
+
+    const adapter = new FacebookAdapter();
+    const result = await adapter.publish('user_token_123', {
+      content: 'Hello world from unool!',
+    });
+
+    expect(result.platformPostId).toBe('page_12345_9876543210');
+    expect(result.platformUrl).toBe('https://www.facebook.com/BrandPage/posts/9876543210');
+  });
+
+  it('publishes text post and falls back to deterministic canonical post url if permalink query fails', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/me/accounts')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: [
+              {
+                id: 'page_12345',
+                name: 'Brand Page',
+                category: 'Brand',
+                access_token: 'page_token_xyz',
+                tasks: ['MANAGE', 'CREATE_CONTENT'],
+              },
+            ],
+          }),
+          headers: new Headers(),
+        } as unknown as Response;
+      }
+      if (url.includes('/page_12345/feed') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ id: 'page_12345_9876543210' }),
+          headers: new Headers(),
+        } as unknown as Response;
+      }
+      if (url.includes('fields=permalink_url')) {
+        return {
+          ok: false,
+          status: 500,
+          text: async () => 'Internal error',
+          headers: new Headers(),
+        } as unknown as Response;
+      }
+      return { ok: false, status: 404 } as unknown as Response;
+    });
+
+    const adapter = new FacebookAdapter();
+    const result = await adapter.publish('user_token_123', {
+      content: 'Hello world from unool!',
+    });
+
+    expect(result.platformPostId).toBe('page_12345_9876543210');
+    expect(result.platformUrl).toBe('https://www.facebook.com/page_12345/posts/9876543210');
+  });
 });
 
 describe('OAuth State redirectUri persistence', () => {

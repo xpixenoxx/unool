@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatFacebookPostUrl } from '@/lib/platforms/facebookUrl';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -71,60 +72,60 @@ const FACEBOOK_COMMENT_PRESETS = [
 ];
 
 const CLASSIFICATION_STYLES: Record<string, { label: string; bg: string; color: string; border: string; dot: string }> = {
-  positive:        { label: 'Positive / Praise',        bg: '#ECFDF5', color: '#065F46', border: '#A7F3D0', dot: '#10B981' },
-  question:        { label: 'Audience Question',         bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE', dot: '#3B82F6' },
-  link_request:    { label: 'Resource / Link Ask',       bg: '#F5F3FF', color: '#5B21B6', border: '#DDD6FE', dot: '#8B5CF6' },
+  positive: { label: 'Positive / Praise', bg: '#ECFDF5', color: '#065F46', border: '#A7F3D0', dot: '#10B981' },
+  question: { label: 'Audience Question', bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE', dot: '#3B82F6' },
+  link_request: { label: 'Resource / Link Ask', bg: '#F5F3FF', color: '#5B21B6', border: '#DDD6FE', dot: '#8B5CF6' },
   purchase_intent: { label: 'Commercial / Buyer Intent', bg: '#FFFBEB', color: '#92400E', border: '#FDE68A', dot: '#F59E0B' },
-  negative:        { label: 'Negative / Critical',       bg: '#FFF1F2', color: '#9F1239', border: '#FECDD3', dot: '#EF4444' },
-  spam:            { label: 'Spam / Automated',          bg: '#FEF2F2', color: '#991B1B', border: '#FECACA', dot: '#94A3B8' },
-  harmful:         { label: 'Flagged / Moderation',      bg: '#450A0A', color: '#FEE2E2', border: '#7F1D1D', dot: '#F43F5E' },
-  unrelated:       { label: 'General Remark',            bg: '#F8FAFC', color: '#475569', border: '#E2E8F0', dot: '#94A3B8' },
+  negative: { label: 'Negative / Critical', bg: '#FFF1F2', color: '#9F1239', border: '#FECDD3', dot: '#EF4444' },
+  spam: { label: 'Spam / Automated', bg: '#FEF2F2', color: '#991B1B', border: '#FECACA', dot: '#94A3B8' },
+  harmful: { label: 'Flagged / Moderation', bg: '#450A0A', color: '#FEE2E2', border: '#7F1D1D', dot: '#F43F5E' },
+  unrelated: { label: 'General Remark', bg: '#F8FAFC', color: '#475569', border: '#E2E8F0', dot: '#94A3B8' },
 };
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const SvgGrid = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 const SvgPlay = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <path d="M4 3l9 5-9 5V3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    <path d="M4 3l9 5-9 5V3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
   </svg>
 );
 const SvgLedger = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3 3 3-3h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3 3 3-3h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 const SvgTriage = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <path d="M8 2l1.5 3H13l-2.5 2 1 3L8 8.5 5.5 10l1-3L4 5h3.5L8 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+    <path d="M8 2l1.5 3H13l-2.5 2 1 3L8 8.5 5.5 10l1-3L4 5h3.5L8 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
   </svg>
 );
 const SvgMessage = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <path d="M13 1H3a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2v3l4-3h4a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M13 1H3a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2v3l4-3h4a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 const SvgClock = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.6"/>
-    <path d="M8 4.5V8l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M8 4.5V8l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
   </svg>
 );
 const SvgPen = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <path d="M12 2l2 2-9 9H3v-2l9-9z" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M12 2l2 2-9 9H3v-2l9-9z" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 const SvgMail = () => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-    <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <path d="M1 4l7 5 7-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M1 4l7 5 7-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 
@@ -250,7 +251,7 @@ export default function FacebookAutomationClient({
           setConfig({ ...DEFAULT_CONFIG, ...data });
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [workspaceId]);
 
@@ -266,7 +267,7 @@ export default function FacebookAutomationClient({
         setTriageItems((data.comments || []).filter((c: FacebookCommentLog) => c.flagged_for_review));
         if (data.stats) setCommentStats(data.stats);
       }
-    } catch {}
+    } catch { }
     finally { setLoadingComments(false); }
   }, [workspaceId]);
 
@@ -280,7 +281,7 @@ export default function FacebookAutomationClient({
         const data = await res.json();
         setTriageItems(data.comments || []);
       }
-    } catch {}
+    } catch { }
     finally { setLoadingTriage(false); }
   }, [workspaceId]);
 
@@ -402,10 +403,10 @@ export default function FacebookAutomationClient({
           {/* Sub-tabs Navigation */}
           <div className="un-tabs-bar">
             {[
-              { id: 'control',   label: 'Engine Controls', icon: <SvgGrid /> },
-              { id: 'simulator', label: 'Intent Lab',       icon: <SvgPlay /> },
-              { id: 'feed',      label: 'Dispatch Ledger',  icon: <SvgLedger />, badge: commentStats?.total },
-              { id: 'triage',    label: 'Triage Queue',     icon: <SvgTriage />, badge: flaggedCount || undefined },
+              { id: 'control', label: 'Engine Controls', icon: <SvgGrid /> },
+              { id: 'simulator', label: 'Intent Lab', icon: <SvgPlay /> },
+              { id: 'feed', label: 'Dispatch Ledger', icon: <SvgLedger />, badge: commentStats?.total },
+              { id: 'triage', label: 'Triage Queue', icon: <SvgTriage />, badge: flaggedCount || undefined },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -504,13 +505,13 @@ export default function FacebookAutomationClient({
                   </div>
 
                   {[
-                    { key: 'autoReplyPositive',      color: 'color-emerald',  label: 'Praise & Community Delight',   desc: 'Warm acknowledgments for testimonials, applause, and appreciation.' },
-                    { key: 'autoReplyQuestions',     color: 'color-sapphire', label: 'Direct Knowledge Queries',     desc: 'Context-aware factual replies to product & technical questions.' },
-                    { key: 'autoReplyLinkRequests',  color: 'color-amethyst', label: 'Resource & Link Dispatch',     desc: 'Public reply + optional private Messenger delivery for resource requests.' },
-                    { key: 'autoReplyPurchaseIntent',color: 'color-amber',    label: 'Buyer & Commercial Intent',    desc: 'High-priority routing for pricing asks and purchase signals.' },
-                    { key: 'flagNegative',           color: 'color-coral',    label: 'Flag Negative Sentiment',      desc: 'Route dissatisfied remarks directly to human triage queue.' },
-                    { key: 'flagSpam',               color: 'color-coral',    label: 'Filter Spam & Bot Comments',   desc: 'Auto-quarantine repetitive scams, bots, and malicious links.' },
-                    { key: 'autoHideSpam',           color: 'color-coral',    label: 'Spam Auto-Hide via Page API',  desc: 'Hides confirmed spam from your Page using Facebook moderation API.' },
+                    { key: 'autoReplyPositive', color: 'color-emerald', label: 'Praise & Community Delight', desc: 'Warm acknowledgments for testimonials, applause, and appreciation.' },
+                    { key: 'autoReplyQuestions', color: 'color-sapphire', label: 'Direct Knowledge Queries', desc: 'Context-aware factual replies to product & technical questions.' },
+                    { key: 'autoReplyLinkRequests', color: 'color-amethyst', label: 'Resource & Link Dispatch', desc: 'Public reply + optional private Messenger delivery for resource requests.' },
+                    { key: 'autoReplyPurchaseIntent', color: 'color-amber', label: 'Buyer & Commercial Intent', desc: 'High-priority routing for pricing asks and purchase signals.' },
+                    { key: 'flagNegative', color: 'color-coral', label: 'Flag Negative Sentiment', desc: 'Route dissatisfied remarks directly to human triage queue.' },
+                    { key: 'flagSpam', color: 'color-coral', label: 'Filter Spam & Bot Comments', desc: 'Auto-quarantine repetitive scams, bots, and malicious links.' },
+                    { key: 'autoHideSpam', color: 'color-coral', label: 'Spam Auto-Hide via Page API', desc: 'Hides confirmed spam from your Page using Facebook moderation API.' },
                   ].map(({ key, color, label, desc }) => (
                     <div className="un-rule-row" key={key}>
                       <div style={{ paddingRight: 16 }}>
@@ -989,7 +990,7 @@ export default function FacebookAutomationClient({
                       </div>
                       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <a
-                          href={`https://www.facebook.com/${item.post_id}`}
+                          href={formatFacebookPostUrl(item.post_id)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="un-btn un-btn-secondary"

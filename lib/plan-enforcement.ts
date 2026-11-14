@@ -279,15 +279,41 @@ export async function getWorkspacePlanInfo(workspaceId: string): Promise<Workspa
 
     if (!ws) return null;
 
-    const normalizedPlan = normalizePlanId(ws.plan);
+    let normalizedPlan = normalizePlanId(ws.plan);
+    let planStatus = ws.plan_status || 'active';
+    let planExpiresAt = ws.plan_expires_at;
+
+    // Cross-check subscriptions table if workspace row shows spark or expired
+    const isExpired = Boolean(planExpiresAt && new Date(planExpiresAt) < new Date());
+    if (normalizedPlan === 'spark' || planStatus !== 'active' || isExpired) {
+      try {
+        const { data: sub } = await supabaseAdmin
+          .from('subscriptions')
+          .select('plan_id, status, current_period_end')
+          .eq('workspace_id', workspaceId)
+          .maybeSingle();
+
+        if (sub && sub.status === 'active') {
+          const isSubExpired = Boolean(sub.current_period_end && new Date(sub.current_period_end) < new Date());
+          if (!isSubExpired && sub.plan_id) {
+            normalizedPlan = normalizePlanId(sub.plan_id);
+            planStatus = 'active';
+            planExpiresAt = sub.current_period_end;
+          }
+        }
+      } catch {
+        // fallback to workspace values
+      }
+    }
+
     const plan = await getPlanFromCache(normalizedPlan);
     if (!plan) return null;
 
     return {
       planId: plan.id,
       planName: plan.name,
-      planStatus: ws.plan_status || 'active',
-      planExpiresAt: ws.plan_expires_at,
+      planStatus: planStatus,
+      planExpiresAt: planExpiresAt,
       limits: plan.limits as PlanLimits,
       features: plan.features as PlanFeatures,
     };

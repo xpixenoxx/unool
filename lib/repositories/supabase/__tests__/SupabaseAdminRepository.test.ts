@@ -1026,4 +1026,154 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
       expect(ws?.postsThisMonth).toBe(12);
     });
   });
+
+  describe('SupabaseAdminRepository - listAllUsers (Searchbar & Pagination)', () => {
+    let repository: SupabaseAdminRepository;
+
+    const sampleUsers = [
+      {
+        id: 'u-1',
+        email: 'alice@domain.com',
+        created_at: '2026-01-01T10:00:00Z',
+        user_metadata: { full_name: 'Alice Wonder' },
+      },
+      {
+        id: 'u-2',
+        email: 'bob@example.com',
+        created_at: '2026-02-01T10:00:00Z',
+        user_metadata: { name: 'Bob Builder' },
+      },
+      {
+        id: 'u-3',
+        email: 'charlie@domain.com',
+        created_at: '2026-03-01T10:00:00Z',
+        user_metadata: { full_name: 'Charlie Chaplin' },
+      },
+      {
+        id: 'u-4',
+        email: 'deleted@domain.com',
+        created_at: '2026-04-01T10:00:00Z',
+        user_metadata: { is_deleted: true },
+      },
+      {
+        id: 'u-5',
+        email: 'dave@domain.com',
+        created_at: '2026-05-01T10:00:00Z',
+        banned_until: '2099-01-01T00:00:00Z',
+        user_metadata: { full_name: 'Dave Suspended' },
+      },
+    ];
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      repository = new SupabaseAdminRepository();
+      repository.invalidateUsersCache();
+
+      mockAuthAdmin.listUsers.mockResolvedValue({
+        data: { users: sampleUsers },
+        error: null,
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workspace_members') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { user_id: 'u-1', workspaces: { plan: 'creator' } },
+                  { user_id: 'u-2', workspaces: [{ plan: 'pro' }] },
+                  { user_id: 'u-3', workspaces: null },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      });
+    });
+
+    it('returns all active users paginated with exact total count, excluding soft-deleted', async () => {
+      const result = await repository.listAllUsers({ page: 1, pageSize: 10 });
+      expect(result.total).toBe(4); // u-1, u-2, u-3, u-5 (u-4 is deleted)
+      expect(result.data.length).toBe(4);
+      expect(result.data.some((u) => u.id === 'u-4')).toBe(false);
+
+      // Check workspace plan extraction (both object and array foreign key shapes)
+      const u1 = result.data.find((u) => u.id === 'u-1');
+      expect(u1?.plan).toBe('creator');
+      expect(u1?.workspaceCount).toBe(1);
+
+      const u2 = result.data.find((u) => u.id === 'u-2');
+      expect(u2?.plan).toBe('pro');
+      expect(u2?.workspaceCount).toBe(1);
+
+      const u5 = result.data.find((u) => u.id === 'u-5');
+      expect(u5?.suspended).toBe(true);
+    });
+
+    it('accurately searches by partial email (substring, case-insensitive)', async () => {
+      const result = await repository.listAllUsers({ search: 'BOB' });
+      expect(result.total).toBe(1);
+      expect(result.data[0].email).toBe('bob@example.com');
+    });
+
+    it('accurately searches by whitespace-padded email', async () => {
+      const result = await repository.listAllUsers({ search: '   alice@domain.com   ' });
+      expect(result.total).toBe(1);
+      expect(result.data[0].email).toBe('alice@domain.com');
+    });
+
+    it('searches by user id', async () => {
+      const result = await repository.listAllUsers({ search: 'u-3' });
+      expect(result.total).toBe(1);
+      expect(result.data[0].id).toBe('u-3');
+      expect(result.data[0].email).toBe('charlie@domain.com');
+    });
+
+    it('searches by user_metadata name', async () => {
+      const result = await repository.listAllUsers({ search: 'Chaplin' });
+      expect(result.total).toBe(1);
+      expect(result.data[0].id).toBe('u-3');
+    });
+
+    it('returns empty results when no user matches search', async () => {
+      const result = await repository.listAllUsers({ search: 'nonexistent@nowhere.com' });
+      expect(result.total).toBe(0);
+      expect(result.data).toEqual([]);
+      expect(result.totalPages).toBe(0);
+    });
+
+    it('sorts by createdAt asc and desc properly', async () => {
+      const descResult = await repository.listAllUsers({ sortBy: 'createdAt', sortOrder: 'desc' });
+      expect(descResult.data[0].id).toBe('u-5'); // newest
+
+      const ascResult = await repository.listAllUsers({ sortBy: 'createdAt', sortOrder: 'asc' });
+      expect(ascResult.data[0].id).toBe('u-1'); // oldest
+    });
+
+    it('sorts by email properly', async () => {
+      const emailAsc = await repository.listAllUsers({ sortBy: 'email', sortOrder: 'asc' });
+      expect(emailAsc.data[0].email).toBe('alice@domain.com');
+      expect(emailAsc.data[emailAsc.data.length - 1].email).toBe('dave@domain.com');
+    });
+
+    it('uses cache and invalidates on invalidateUsersCache', async () => {
+      await repository.listAllUsers();
+      expect(mockAuthAdmin.listUsers).toHaveBeenCalledTimes(1);
+
+      // Second call uses cache
+      await repository.listAllUsers();
+      expect(mockAuthAdmin.listUsers).toHaveBeenCalledTimes(1);
+
+      // Invalidate cache
+      repository.invalidateUsersCache();
+      await repository.listAllUsers();
+      expect(mockAuthAdmin.listUsers).toHaveBeenCalledTimes(2);
+    });
+  });
 });

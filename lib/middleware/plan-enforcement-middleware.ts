@@ -43,6 +43,7 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
 
   // Read the plan from the workspaces table — this is where upgrades are stored.
   let workspace: { plan: string; plan_status?: string; plan_expires_at?: string | null; features?: unknown } | null = null;
+  let resolvedWsId = workspaceId;
 
   // First try direct workspace ID lookup
   const { data: wsById, error: wsError } = await supabaseAdmin
@@ -64,6 +65,7 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
       .single();
 
     if (member?.workspace_id) {
+      resolvedWsId = member.workspace_id;
       const { data: wsFromMember } = await supabaseAdmin
         .from('workspaces')
         .select('plan, plan_status, plan_expires_at, features')
@@ -82,19 +84,92 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
     workspace = { plan: 'spark', plan_status: 'active' };
   }
 
-  const rawPlan = normalizePlanId((workspace.plan as string) || 'spark');
-  const planStatus = workspace.plan_status || 'active';
+  let rawPlan = normalizePlanId((workspace.plan as string) || 'spark');
+  let planStatus = workspace.plan_status || 'active';
+  let planExpiresAt = workspace.plan_expires_at;
+
+  // ── Ground-truth cross-check: query active subscription from subscriptions table ──
+  // Matches app/api/billing/current ground-truth logic. If the workspace has an active,
+  // non-expired subscription (e.g. Pro), respect it and auto-heal the workspaces row.
+  try {
+    const { data: sub } = await supabaseAdmin
+      .from('subscriptions')
+      .select('plan_id, status, current_period_end')
+      .eq('workspace_id', resolvedWsId)
+      .maybeSingle();
+
+    if (sub && sub.status === 'active') {
+      const isSubExpired = Boolean(
+        sub.current_period_end && new Date(sub.current_period_end) < new Date()
+      );
+      if (!isSubExpired && sub.plan_id) {
+        rawPlan = normalizePlanId(sub.plan_id);
+        planStatus = 'active';
+        planExpiresAt = sub.current_period_end;
+
+        // Auto-heal workspaces row asynchronously if out of sync
+        if (
+          workspace.plan !== sub.plan_id ||
+          workspace.plan_status !== 'active' ||
+          workspace.plan_expires_at !== sub.current_period_end
+        ) {
+          Promise.resolve(
+            supabaseAdmin
+              .from('workspaces')
+              .update({
+                plan: sub.plan_id,
+                plan_status: 'active',
+                plan_expires_at: sub.current_period_end,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', resolvedWsId)
+          )
+            .then(() => { })
+            .catch((healErr: unknown) => {
+              logger.warn('Auto-heal workspace from active subscription failed', {
+                error: healErr,
+                workspaceId: resolvedWsId,
+              });
+            });
+        }
+      }
+    } else if (rawPlan === 'spark' && userId) {
+      // Fallback: check by user_id if workspace_id didn't yield a subscription
+      const { data: userSub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('plan_id, status, current_period_end')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (userSub && userSub.status === 'active') {
+        const isUserSubExpired = Boolean(
+          userSub.current_period_end && new Date(userSub.current_period_end) < new Date()
+        );
+        if (!isUserSubExpired && userSub.plan_id) {
+          rawPlan = normalizePlanId(userSub.plan_id);
+          planStatus = 'active';
+          planExpiresAt = userSub.current_period_end;
+        }
+      }
+    }
+  } catch (subErr) {
+    logger.warn('Failed to query subscriptions table in plan enforcement', {
+      error: subErr,
+      workspaceId: resolvedWsId,
+    });
+  }
+
   const isInactiveStatus = planStatus !== 'active' && planStatus !== 'trialing';
-  const isExpired = Boolean(workspace.plan_expires_at && new Date(workspace.plan_expires_at) < new Date());
+  const isExpired = Boolean(planExpiresAt && new Date(planExpiresAt) < new Date());
 
   // Enforce subscription lifecycle: if a paid plan is cancelled/expired/past_due/paused, downgrade effective entitlements to Spark (Free)
   let effectivePlan = rawPlan;
   if (rawPlan !== 'spark' && (isInactiveStatus || isExpired)) {
     logger.warn('Workspace paid plan is inactive or expired — enforcing Spark (Free) tier limits', {
-      workspaceId,
+      workspaceId: resolvedWsId,
       rawPlan,
       planStatus,
-      planExpiresAt: workspace.plan_expires_at,
+      planExpiresAt,
     });
     effectivePlan = 'spark';
   }
@@ -161,7 +236,7 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
 
   return {
     userId,
-    workspaceId,
+    workspaceId: resolvedWsId,
     plan: effectivePlan,
     rawPlan,
     planStatus,
@@ -427,7 +502,7 @@ export async function withPlanEnforcement(
     // Fallback: resolve via getCurrentAuth if headers are missing
     const { getCurrentAuth } = await import('@/lib/auth/server');
     const auth = await getCurrentAuth(request);
-    
+
     if (auth) {
       userId = auth.userId;
       workspaceId = auth.workspaceId;

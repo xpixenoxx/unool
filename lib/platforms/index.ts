@@ -26,6 +26,7 @@ export { lemmyAdapter, LemmyAdapter } from './LemmyAdapter';
 export { listmonkAdapter, ListmonkAdapter } from './ListmonkAdapter';
 export { hashnodeAdapter, HashnodeAdapter } from './HashnodeAdapter';
 export { devtoAdapter, DevtoAdapter } from './DevtoAdapter';
+export { formatFacebookPostUrl, normalizeFacebookUrl } from './facebookUrl';
 import { linkedInAdapter } from './LinkedInAdapter';
 import { threadsAdapter } from './ThreadsAdapter';
 import { xAdapter } from './XAdapter';

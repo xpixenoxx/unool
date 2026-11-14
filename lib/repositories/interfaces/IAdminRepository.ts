@@ -407,6 +407,7 @@ export interface IAdminRepository {
   getUserPlanDistribution(): Promise<UserBreakdownData>;
   suspendUser(userId: string, adminUserId: string, reason: string, durationHours?: number | null): Promise<boolean>;
   unsuspendUser(userId: string, adminUserId: string): Promise<boolean>;
+  invalidateUsersCache?(): void;
 
   // Profile & Account Recovery
   listDeletedAndSuspendedProfiles(): Promise<RecoverableProfileItem[]>;

@@ -23,38 +23,38 @@ export interface RecentActivitySectionProps {
   activity: RecentActivityData | RecentActivityData[] | null | undefined;
   /** Template style variant */
   variant?:
-    | 'lover'
-    | 'lone'
-    | 'rebellion'
-    | 'builder'
-    | 'visionary'
-    | 'hustler'
-    | 'creator'
-    | 'studio'
-    | 'machine'
-    | 'club'
-    | 'energy'
-    | 'vision'
-    | 'human'
-    | 'aesthete'
-    | 'voice'
-    | 'stack'
-    | 'the-stack'
-    | 'the-bookshelf'
-    | 'bookshelf'
-    | 'the-cube'
-    | 'cube'
-    | 'the-monolith'
-    | 'monolith'
-    | 'the-metro'
-    | 'metro'
-    | 'the-noren'
-    | 'noren'
-    | 'the-desktop'
-    | 'desktop'
-    | 'the-calendar'
-    | 'calendar'
-    | 'default';
+  | 'lover'
+  | 'lone'
+  | 'rebellion'
+  | 'builder'
+  | 'visionary'
+  | 'hustler'
+  | 'creator'
+  | 'studio'
+  | 'machine'
+  | 'club'
+  | 'energy'
+  | 'vision'
+  | 'human'
+  | 'aesthete'
+  | 'voice'
+  | 'stack'
+  | 'the-stack'
+  | 'the-bookshelf'
+  | 'bookshelf'
+  | 'the-cube'
+  | 'cube'
+  | 'the-monolith'
+  | 'monolith'
+  | 'the-metro'
+  | 'metro'
+  | 'the-noren'
+  | 'noren'
+  | 'the-desktop'
+  | 'desktop'
+  | 'the-calendar'
+  | 'calendar'
+  | 'default';
   /** Whether the parent template has a dark background */
   isDark?: boolean;
   /** Accent colour from the profile theme */
@@ -75,6 +75,7 @@ import {
   renderPlatformButtons,
   renderFooter,
 } from '@/components/profile/templates/activityVariants';
+import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -146,14 +147,21 @@ export function RecentActivitySection({
 
   const rawPlatforms = activityItem.platforms || [];
   const published = rawPlatforms.length > 0
-    ? rawPlatforms.map(p => ({
-        ...p,
-        url: p.url && (p.url.startsWith('http://') || p.url.startsWith('https://'))
-          ? p.url
-          : p.platform && p.platform !== 'network'
+    ? rawPlatforms.map(p => {
+      const isFb = p.platform?.toLowerCase() === 'facebook';
+      let resolvedUrl = p.url;
+      if (isFb) {
+        resolvedUrl = normalizeFacebookUrl(p.url);
+      } else if (!resolvedUrl || (!resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://'))) {
+        resolvedUrl = p.platform && p.platform !== 'network'
           ? `https://${p.platform}.com`
-          : '#',
-      }))
+          : '#';
+      }
+      return {
+        ...p,
+        url: resolvedUrl,
+      };
+    })
     : [{ platform: 'network', url: '#', adaptedContent: activityItem.content }];
 
   const accent = accentColor || (isDark ? '#FFFFFF' : '#222222');
@@ -264,27 +272,27 @@ export function RecentActivitySection({
   const contentNode = customContent
     ? customContent(contentExcerpt)
     : (
-        <p
-          className="text-inherit leading-relaxed m-0 p-0"
-          style={contentStyle}
-        >
-          "{contentExcerpt}"
-        </p>
-      );
+      <p
+        className="text-inherit leading-relaxed m-0 p-0"
+        style={contentStyle}
+      >
+        "{contentExcerpt}"
+      </p>
+    );
 
   // Build platform buttons with custom render if provided
   const platformButtons = customPlatformButton
     ? (
-        <div className={config.platformContainerClassName}>
-          {published.map(({ platform, url }) =>
-            customPlatformButton!({
-              cfg: getPlatformCfg(platform),
-              url,
-              platform,
-            })
-          )}
-        </div>
-      )
+      <div className={config.platformContainerClassName}>
+        {published.map(({ platform, url }) =>
+          customPlatformButton!({
+            cfg: getPlatformCfg(platform),
+            url,
+            platform,
+          })
+        )}
+      </div>
+    )
     : renderPlatformButtons(published, config, false, isDark, accent);
 
   // Build footer

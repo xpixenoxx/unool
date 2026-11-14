@@ -11,6 +11,8 @@ import {
   Loader2,
   Ban,
   UserCheck,
+  Search,
+  X,
 } from 'lucide-react';
 
 import {
@@ -74,6 +76,8 @@ function UserTable({
   pageSize,
   totalPages,
   onPageChange,
+  searchQuery,
+  onSearch,
   loading,
   onRefresh,
 }: UserTableProps) {
@@ -130,7 +134,7 @@ function UserTable({
   return (
     <Card variant="default" padding="none">
       <CardContent className="p-0">
-        <Box className="overflow-x-auto">
+        <Box className={cn('overflow-x-auto relative', loading && users.length > 0 && 'opacity-60 transition-opacity')}>
           <table className="w-full text-sm" role="table">
             <thead>
               <tr className="border-b bg-muted/50">
@@ -146,7 +150,20 @@ function UserTable({
               {users.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                    {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : 'No users found'}
+                    {loading ? (
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    ) : searchQuery?.trim() ? (
+                      <div className="flex flex-col items-center justify-center gap-2 py-4">
+                        <Text color="muted">
+                          No users found matching &ldquo;<span className="font-semibold text-foreground">{searchQuery.trim()}</span>&rdquo;
+                        </Text>
+                        <Button variant="outline" size="sm" onClick={() => onSearch('')}>
+                          Clear search
+                        </Button>
+                      </div>
+                    ) : (
+                      'No users found'
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -273,7 +290,8 @@ export default function AdminUsersPage() {
   const [total, setTotal] = React.useState(cachedUsersData?.total || 0);
   const [page, setPage] = React.useState(1);
   const [pageSize] = React.useState(20);
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const [searchInput, setSearchInput] = React.useState('');
+  const [debouncedQuery, setDebouncedQuery] = React.useState('');
   const [loading, setLoading] = React.useState(!cachedUsersData);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -283,32 +301,65 @@ export default function AdminUsersPage() {
   const [newPassword, setNewPassword] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
 
-  const totalPages = Math.ceil(total / pageSize);
+  const fetchIdRef = React.useRef(0);
 
-  const fetchUsers = React.useCallback(async () => {
-    if (!cachedUsersData) setLoading(true);
+  // Debounce search input by 250ms
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchInput.trim());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const fetchUsers = React.useCallback(async (query: string, targetPage: number) => {
+    const currentFetchId = ++fetchIdRef.current;
+    setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-      if (searchQuery) params.append('search', searchQuery);
+      const params = new URLSearchParams({ page: String(targetPage), pageSize: String(pageSize) });
+      const trimmed = query.trim();
+      if (trimmed) params.append('search', trimmed);
       const res = await fetch(`/api/admin/users?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch users');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to fetch users');
+      }
       const data = await res.json();
+      if (currentFetchId !== fetchIdRef.current) return;
       setUsers(data.data || []);
       setTotal(data.total || 0);
-      if (page === 1 && !searchQuery) {
+      if (targetPage === 1 && !trimmed) {
         cachedUsersData = { data: data.data || [], total: data.total || 0 };
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      if (currentFetchId === fetchIdRef.current) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      }
     } finally {
-      setLoading(false);
+      if (currentFetchId === fetchIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [page, pageSize, searchQuery]);
+  }, [pageSize]);
 
   React.useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchUsers(debouncedQuery, page);
+  }, [fetchUsers, debouncedQuery, page]);
+
+  const handleClearSearch = React.useCallback(() => {
+    setSearchInput('');
+    setDebouncedQuery('');
+    setPage(1);
+  }, []);
+
+  const handleImmediateSearch = React.useCallback(() => {
+    const trimmed = searchInput.trim();
+    setDebouncedQuery(trimmed);
+    setPage(1);
+  }, [searchInput]);
 
   const handleCreateUser = async () => {
     if (!newEmail || !newEmail.includes('@')) {
@@ -333,7 +384,8 @@ export default function AdminUsersPage() {
       setAddDialogOpen(false);
       setNewEmail('');
       setNewPassword('');
-      await fetchUsers();
+      cachedUsersData = null;
+      await fetchUsers(debouncedQuery, page);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to create user');
     } finally {
@@ -356,12 +408,35 @@ export default function AdminUsersPage() {
           <Text color="muted">Manage platform users, investigate account health, and control login access</Text>
         </Box>
         <Flex gap={3} className="items-center">
-          <Input
-            placeholder="Search by email..."
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-            className="w-80"
-          />
+          <div className="relative w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search by email..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleImmediateSearch();
+                } else if (e.key === 'Escape') {
+                  handleClearSearch();
+                }
+              }}
+              className="w-full pl-9 pr-9"
+            />
+            {loading ? (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground pointer-events-none" />
+            ) : searchInput ? (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
           <Button onClick={() => setAddDialogOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" /> Add User
           </Button>
@@ -372,7 +447,7 @@ export default function AdminUsersPage() {
         <Card variant="error" padding="md">
           <CardContent className="flex items-center justify-between">
             <Text color="destructive">Error: {error}</Text>
-            <Button variant="ghost" size="sm" onClick={fetchUsers}>Retry</Button>
+            <Button variant="ghost" size="sm" onClick={() => fetchUsers(debouncedQuery, page)}>Retry</Button>
           </CardContent>
         </Card>
       )}
@@ -384,10 +459,13 @@ export default function AdminUsersPage() {
         pageSize={pageSize}
         totalPages={totalPages}
         onPageChange={setPage}
-        searchQuery={searchQuery}
-        onSearch={setSearchQuery}
+        searchQuery={debouncedQuery}
+        onSearch={handleClearSearch}
         loading={loading}
-        onRefresh={fetchUsers}
+        onRefresh={() => {
+          cachedUsersData = null;
+          fetchUsers(debouncedQuery, page);
+        }}
       />
 
       {/* Add User Dialog */}

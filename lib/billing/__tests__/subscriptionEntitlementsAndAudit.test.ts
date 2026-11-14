@@ -13,6 +13,7 @@ const mockState = {
     owner_id: 'user-test-1',
   },
   planRow: null as Record<string, unknown> | null,
+  subscriptionRow: null as Record<string, unknown> | null,
   counts: {
     posts: 0,
     profiles: 1,
@@ -64,10 +65,16 @@ function createChainableQuery(table: string) {
       if (table === 'instagram_automation_config') {
         return { data: { id: 'cfg-1', workspace_id: mockState.workspace.id }, error: null };
       }
+      if (table === 'subscriptions') {
+        return { data: mockState.subscriptionRow ? { ...mockState.subscriptionRow } : null, error: null };
+      }
       return { data: null, error: null };
     },
     maybeSingle: async () => {
       if (table === 'workspaces') return { data: { ...mockState.workspace }, error: null };
+      if (table === 'subscriptions') {
+        return { data: mockState.subscriptionRow ? { ...mockState.subscriptionRow } : null, error: null };
+      }
       return { data: null, error: null };
     },
     then: (resolve: any) => {
@@ -161,6 +168,7 @@ describe('Pricing, Subscription Tier Entitlements & Audit Verification Suite', (
       owner_id: 'user-test-1',
     };
     mockState.planRow = null;
+    mockState.subscriptionRow = null;
     mockState.counts = {
       posts: 0,
       profiles: 1,
@@ -445,6 +453,39 @@ describe('Pricing, Subscription Tier Entitlements & Audit Verification Suite', (
       expect(ctx.plan).toBe('spark');
       const directCheck = await enforcePlanLimits('ws-test-1', 'create_post');
       expect(directCheck.allowed).toBe(false);
+    });
+
+    it('recovers Pro entitlements and auto-heals workspace when active subscription exists in subscriptions table even if workspace row shows spark', async () => {
+      const req = new NextRequest('http://localhost:3000/api/test');
+
+      // Workspace row is mistakenly 'spark' or out-of-sync
+      mockState.workspace.plan = 'spark';
+      mockState.workspace.plan_status = 'active';
+      mockState.workspace.plan_expires_at = null;
+
+      // But subscriptions table has an active Pro subscription with future period end (e.g. Next billing: 26 Nov 2026)
+      const futureBillingDate = new Date(Date.now() + 12 * 86400_000).toISOString();
+      mockState.subscriptionRow = {
+        workspace_id: 'ws-test-1',
+        user_id: 'user-test-1',
+        plan_id: 'pro',
+        status: 'active',
+        current_period_end: futureBillingDate,
+      };
+
+      const ctx = (await getPlanContext('user-test-1', 'ws-test-1'))!;
+      expect(ctx.plan).toBe('pro');
+      expect(ctx.isExpired).toBe(false);
+      expect(ctx.limits.posts_per_month).toBe(-1); // Unlimited posts on Pro
+
+      // Allowed to create post even with 15 existing posts (solves the 15/15 limit issue)
+      mockState.counts.posts = 15;
+      const check = await enforcePlanLimit(req, 'create_post', ctx);
+      expect(check.allowed).toBe(true);
+
+      // Workspace row was auto-healed to Pro
+      expect(mockState.workspace.plan).toBe('pro');
+      expect(mockState.workspace.plan_expires_at).toBe(futureBillingDate);
     });
 
     it('blocks direct API requests that attempt to bypass subscription tier gates', async () => {

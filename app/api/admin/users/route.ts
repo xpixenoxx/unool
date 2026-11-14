@@ -17,10 +17,14 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const sortBy = (searchParams.get('sortBy') as ListUsersParams['sortBy']) || 'createdAt';
     const sortOrder = (searchParams.get('sortOrder') as ListUsersParams['sortOrder']) || 'desc';
+    const rawSearch = searchParams.get('search');
+    const search = rawSearch ? rawSearch.trim() : undefined;
+    const pageNum = parseInt(searchParams.get('page') || '1', 10);
+    const pageSizeNum = parseInt(searchParams.get('pageSize') || '20', 10);
     const params: ListUsersParams = {
-      page: parseInt(searchParams.get('page') || '1'),
-      pageSize: parseInt(searchParams.get('pageSize') || '20'),
-      search: searchParams.get('search') || undefined,
+      page: isNaN(pageNum) || pageNum < 1 ? 1 : pageNum,
+      pageSize: isNaN(pageSizeNum) || pageSizeNum < 1 ? 20 : Math.min(pageSizeNum, 100),
+      search: search || undefined,
       sortBy,
       sortOrder,
     };
@@ -79,6 +83,8 @@ export async function POST(request: NextRequest) {
         { email }
       );
 
+      adminRepository.invalidateUsersCache?.();
+
       return NextResponse.json(newUser.user, { status: 201 });
     }
 
@@ -100,6 +106,8 @@ export async function POST(request: NextRequest) {
       adminUser.id,
       { email, role: role || 'admin' }
     );
+
+    adminRepository.invalidateUsersCache?.();
 
     return NextResponse.json(adminUser, { status: 201 });
   } catch (error) {

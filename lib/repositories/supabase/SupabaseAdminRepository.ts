@@ -33,6 +33,14 @@ import type {
   ListReferralCodesParams,
 } from '@/lib/repositories/interfaces/IAdminRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { findUserByEmail } from '@/lib/auth/findUserByEmail';
+
+interface CachedPlatformUsers {
+  users: any[];
+  timestamp: number;
+}
+let platformUsersCache: CachedPlatformUsers | null = null;
+const PLATFORM_USERS_CACHE_TTL_MS = 15_000;
 
 
 
@@ -1155,45 +1163,164 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  async listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string }>> {
-    const page = params?.page ?? 1;
-    const pageSize = params?.pageSize ?? 20;
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
+  invalidateUsersCache(): void {
+    platformUsersCache = null;
+  }
 
-    // For now, fetch from auth and join with workspace data
-    // This is a simplified version - in production you'd want a materialized view
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: pageSize });
-
-    // Get workspace counts for each user
-    const userIds = users?.users?.map(u => u.id) || [];
-    const workspacesByUser = new Map<string, { count: number; plans: string[] }>();
-
-    if (userIds.length > 0) {
-      const { data: wm } = await supabaseAdmin
-        .from('workspace_members')
-        .select('user_id, workspaces ( plan )')
-        .in('user_id', userIds);
-
-      (wm || []).forEach((row: { user_id: string; workspaces?: { plan: string }[] }) => {
-        const current = workspacesByUser.get(row.user_id) || { count: 0, plans: [] };
-        current.count++;
-        if (row.workspaces?.length) {
-          row.workspaces.forEach(w => current.plans.push(w.plan));
-        }
-        workspacesByUser.set(row.user_id, current);
-      });
+  private async fetchAllPlatformAuthUsers(forceRefresh = false): Promise<any[]> {
+    const now = Date.now();
+    if (!forceRefresh && platformUsersCache && now - platformUsersCache.timestamp < PLATFORM_USERS_CACHE_TTL_MS) {
+      return platformUsersCache.users;
     }
 
-    // Note: Auth admin listUsers doesn't return total count, use users.length as approximation
-    const userArray = users?.users || [];
-    // Exclude soft-deleted accounts from the active users list
-    const activeUsers = userArray.filter((u) => {
+    const allUsers: any[] = [];
+    const perPage = 1000;
+    let page = 1;
+    const maxPages = 50;
+
+    while (page <= maxPages) {
+      const res = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+      if (res?.error) {
+        console.error(`listUsers failed on page ${page}:`, res.error);
+        if (allUsers.length > 0) break;
+        if (platformUsersCache) return platformUsersCache.users;
+        throw new Error(`Failed to list users from auth: ${res.error.message}`);
+      }
+
+      const pageUsers = res?.data?.users || [];
+      allUsers.push(...pageUsers);
+
+      if (pageUsers.length < perPage) {
+        break;
+      }
+
+      const nextPage = (res?.data as any)?.nextPage;
+      if (nextPage === null) break;
+      if (typeof nextPage === 'number' && nextPage > page) {
+        page = nextPage;
+      } else {
+        page++;
+      }
+    }
+
+    platformUsersCache = {
+      users: allUsers,
+      timestamp: now,
+    };
+
+    return allUsers;
+  }
+
+  async listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{
+    id: string;
+    email: string;
+    createdAt: string;
+    workspaceCount: number;
+    plan: string;
+    suspended?: boolean;
+    bannedUntil?: string | null;
+  }>> {
+    const page = Math.max(1, params?.page ?? 1);
+    const pageSize = Math.max(1, Math.min(100, params?.pageSize ?? 20));
+    const rawSearch = (params?.search || '').trim();
+    const searchLower = rawSearch.toLowerCase();
+    const sortBy = params?.sortBy ?? 'createdAt';
+    const sortOrder = params?.sortOrder ?? 'desc';
+
+    const allRawUsers = await this.fetchAllPlatformAuthUsers();
+
+    // 1. Exclude soft-deleted accounts from the active users list
+    let filteredUsers = allRawUsers.filter((u) => {
       const meta = (u as Record<string, any>).user_metadata;
       return meta?.is_deleted !== true;
     });
 
-    const data = activeUsers.map((user) => {
+    // 2. Filter by search query (email, ID, or user_metadata name)
+    if (searchLower) {
+      filteredUsers = filteredUsers.filter((u) => {
+        const email = (u.email || '').toLowerCase();
+        const id = (u.id || '').toLowerCase();
+        const meta = (u as Record<string, any>).user_metadata || {};
+        const fullName = String(meta.full_name || meta.name || meta.display_name || '').toLowerCase();
+        return email.includes(searchLower) || id.includes(searchLower) || fullName.includes(searchLower);
+      });
+
+      // If no match found in scanned batch and search looks like an exact email, try fast-path single lookup
+      if (filteredUsers.length === 0 && rawSearch.includes('@')) {
+        try {
+          const directUser = await findUserByEmail(rawSearch);
+          if (directUser) {
+            const meta = (directUser as Record<string, any>).user_metadata;
+            if (meta?.is_deleted !== true) {
+              filteredUsers = [directUser];
+            }
+          }
+        } catch {
+          // ignore lookup error
+        }
+      }
+    }
+
+    // 3. Sort results
+    filteredUsers.sort((a, b) => {
+      let valA: string | number = '';
+      let valB: string | number = '';
+
+      if (sortBy === 'email') {
+        valA = (a.email || '').toLowerCase();
+        valB = (b.email || '').toLowerCase();
+      } else if (sortBy === 'lastLoginAt') {
+        valA = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
+        valB = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
+      } else {
+        // Default: 'createdAt'
+        valA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        valB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    // 4. Exact total count of matching active users
+    const total = filteredUsers.length;
+
+    // 5. Slice for requested page
+    const from = (page - 1) * pageSize;
+    const pageSlice = filteredUsers.slice(from, from + pageSize);
+
+    // 6. Get workspace counts and plans for the current page slice only
+    const userIds = pageSlice.map((u) => u.id);
+    const workspacesByUser = new Map<string, { count: number; plans: string[] }>();
+
+    if (userIds.length > 0) {
+      try {
+        const { data: wm } = await supabaseAdmin
+          .from('workspace_members')
+          .select('user_id, workspaces ( plan )')
+          .in('user_id', userIds);
+
+        (wm || []).forEach((row: any) => {
+          const current = workspacesByUser.get(row.user_id) || { count: 0, plans: [] };
+          current.count++;
+          if (row.workspaces) {
+            if (Array.isArray(row.workspaces)) {
+              row.workspaces.forEach((w: any) => {
+                if (w?.plan) current.plans.push(w.plan);
+              });
+            } else if (row.workspaces.plan) {
+              current.plans.push(row.workspaces.plan);
+            }
+          }
+          workspacesByUser.set(row.user_id, current);
+        });
+      } catch (err) {
+        console.warn('Failed to query workspace_members for users:', err);
+      }
+    }
+
+    const data = pageSlice.map((user) => {
       const ws = workspacesByUser.get(user.id) || { count: 0, plans: [] };
       const bannedUntil = (user as Record<string, any>).banned_until;
       const isSuspended = !!(bannedUntil && new Date(bannedUntil) > new Date());
@@ -1207,9 +1334,6 @@ export class SupabaseAdminRepository implements IAdminRepository {
         bannedUntil: isSuspended ? bannedUntil : null,
       };
     });
-
-    // Estimate total based on page and pageSize since auth API doesn't return total
-    const total = userArray.length === pageSize ? (page * pageSize) + 1 : (page - 1) * pageSize + activeUsers.length;
 
     return buildPagination(data, total, page, pageSize);
   }
@@ -1395,6 +1519,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       userEmail,
       userName,
     });
+    this.invalidateUsersCache();
     return true;
   }
 
@@ -1423,6 +1548,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       userEmail,
       userName,
     });
+    this.invalidateUsersCache();
     return true;
   }
 
@@ -1750,6 +1876,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       });
     }
 
+    this.invalidateUsersCache();
     return true;
   }
 
