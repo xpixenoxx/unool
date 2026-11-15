@@ -167,15 +167,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'weekStartDate is required' }, { status: 400 });
     }
 
-    // Get user's profile and connected platforms (safe fallback if profile not yet created)
+    // Get user's profile strictly within the authenticated workspace (never cross workspaces via userId)
     let profile = null;
     try {
       profile = await profileRepository.findByWorkspaceId(workspaceId);
-      if (!profile) {
-        profile = await profileRepository.findByUserId(userId);
-      }
     } catch (err) {
-      logger.warn('Failed to fetch profile in composer/arc/generate, using fallback', { err, workspaceId, userId });
+      logger.warn('Failed to fetch profile in composer/arc/generate, using fallback', { err, workspaceId });
     }
 
     const platformRepo = new SupabasePlatformRepository();
@@ -228,7 +225,17 @@ export async function POST(request: NextRequest) {
         audienceTimezone,
         userFirstName,
         weekStartDate,
-        onboardingAnswers: profile?.onboardingAnswers,
+        studioProfile: profile?.studioProfile ?? null,
+        onboardingAnswers: profile?.onboardingAnswers ?? null,
+        creatorProfile: profile
+          ? {
+              name: profile.name,
+              headline: profile.headline,
+              role: profile.role,
+              company: profile.company,
+              openTo: profile.openTo,
+            }
+          : null,
       });
     } catch (err) {
       logger.error('generateWeekArc threw exception, will attempt synthesis fallback', { err, workspaceId });

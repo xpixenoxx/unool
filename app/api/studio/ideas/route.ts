@@ -70,13 +70,10 @@ export async function POST(request: NextRequest) {
     const sanitizedAlreadyShown = sanitizeAlreadyShown(rawAlreadyShown);
     const clientStudioProfile = body?.studioProfile;
 
-    // 4. Load profile server-side
+    // 4. Load profile strictly within the authenticated workspace (never cross workspaces via userId)
     let profile = null;
     try {
       profile = await profileRepository.findByWorkspaceId(workspaceId);
-      if (!profile) {
-        profile = await profileRepository.findByUserId(userId);
-      }
     } catch {
       // safe fallback
     }
@@ -97,14 +94,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const legacyInterests =
+      typeof rawStudioProfile?.custom?.interests === 'string'
+        ? rawStudioProfile.custom.interests.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [];
+
     const studioProfile = {
       role: rawStudioProfile?.role || rawStudioProfile?.persona || profile?.role || 'Founder & Creator',
       businessStage: rawStudioProfile?.businessStage || 'Growing & Scaling',
       businessDomain: rawStudioProfile?.businessDomain || rawStudioProfile?.doing || profile?.company || profile?.headline || 'Product & Growth',
-      doing: rawStudioProfile?.doing || profile?.headline || 'Building software and sharing the journey',
+      doing: rawStudioProfile?.doing || rawStudioProfile?.businessDomain || profile?.headline || 'Building software and sharing the journey',
       workInterests: rawStudioProfile?.workInterests || 'Product development, engineering, growth',
       audience: rawStudioProfile?.audience || 'Builders, founders, creators, and tech professionals',
       tone: rawStudioProfile?.tone || 'Authentic, concise, punchy',
+      style: rawStudioProfile?.style || rawStudioProfile?.custom?.style || 'Short & punchy',
+      interests: Array.isArray(rawStudioProfile?.interests) ? rawStudioProfile.interests : legacyInterests,
       completedAt: rawStudioProfile?.completedAt || new Date().toISOString(),
     };
 

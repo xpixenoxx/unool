@@ -3,7 +3,7 @@ import { generateWithFallback } from '@/lib/ai/provider';
 import { logger } from '@/lib/logger';
 import type { StoryType } from '@/lib/repositories/interfaces/IPostRepository';
 import { PlatformType, buildOnboardingPrompt, PLATFORM_SPECS } from '@/lib/ai/PostAdapter';
-import { buildStudioContext } from '@/lib/ai/studioContext';
+import { buildCreatorIdentityContext } from '@/lib/ai/studioContext';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { FoldLinter } from '@/lib/ai/engines/FoldLinter';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
@@ -341,6 +341,14 @@ export async function generateWeekArc(params: {
   weekStartDate?: string;
   onboardingPrompt?: string;
   onboardingAnswers?: Record<string, any> | null;
+  studioProfile?: Record<string, any> | null;
+  creatorProfile?: {
+    name?: string | null;
+    headline?: string | null;
+    role?: string | null;
+    company?: string | null;
+    openTo?: string[] | null;
+  } | null;
 }): Promise<WeekArc | null> {
   const { coreStory, followUps, connectedPlatforms, audienceTimezone, userFirstName, weekStartDate } = params;
 
@@ -361,8 +369,18 @@ export async function generateWeekArc(params: {
     }
   }
 
-  const studioContext = params.onboardingAnswers ? buildStudioContext(params.onboardingAnswers) : '';
-  const onboardingPrompt = params.onboardingPrompt || studioContext || (params.onboardingAnswers ? buildOnboardingPrompt(params.onboardingAnswers) : undefined);
+  const creatorContext = buildCreatorIdentityContext({
+    profile: params.creatorProfile
+      ? {
+          ...params.creatorProfile,
+          studioProfile: params.studioProfile,
+          onboardingAnswers: params.onboardingAnswers,
+        }
+      : null,
+    studioProfile: params.studioProfile,
+    onboardingAnswers: params.onboardingAnswers,
+  });
+  const onboardingPrompt = params.onboardingPrompt || creatorContext || (params.onboardingAnswers ? buildOnboardingPrompt(params.onboardingAnswers) : undefined);
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
   const upcomingDays = getUpcomingDaysForArc(weekStartDate);

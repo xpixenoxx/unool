@@ -103,7 +103,7 @@ test.describe('Public Profile Flow', () => {
 
       // Should show "Profile Not Found" message
       await expect(page.locator('text=Profile Not Found')).toBeVisible({ timeout: 5000 });
-      await expect(page.locator('text=doesn\\'t exist')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator("text=doesn't exist")).toBeVisible({ timeout: 5000 });
     });
 
     test('does not leak private profile data in response', async ({ page }) => {
@@ -145,7 +145,7 @@ test.describe('Public Profile Flow', () => {
       await page.goto('/u/this-subdomain-definitely-does-not-exist-12345');
 
       await expect(page.locator('text=Profile Not Found')).toBeVisible({ timeout: 5000 });
-      await expect(page.locator('text=doesn\\'t exist')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator("text=doesn't exist")).toBeVisible({ timeout: 5000 });
       await expect(page.locator('a[href="/signup"]')).toBeVisible({ timeout: 5000 });
     });
 

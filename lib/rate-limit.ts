@@ -1,4 +1,4 @@
-﻿import { Ratelimit } from '@upstash/ratelimit';
+import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
@@ -25,6 +25,7 @@ export const rateLimits = {
   publish: { limit: config.RATE_LIMIT_PUBLISH_PER_MIN, window: '1m' },
   magicLink: { limit: config.RATE_LIMIT_AUTH_PER_HOUR, window: '1h' },
   profileView: { limit: 100, window: '1m' },
+  profileContact: { limit: 5, window: '1h' },
 } as const;
 
 export type RateLimitAction = keyof typeof rateLimits;

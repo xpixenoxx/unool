@@ -36,9 +36,12 @@ import {
   Minimize2,
 } from 'lucide-react';
 import { SocialIcon, normalizeSocialPlatform, BRAND_SVGS } from '@/components/profile/SocialBrandIcons';
-import { OpenToBadges, type OpenToIntentId } from '@/components/profile/OpenToBadges';
-import { RecentActivitySection, type RecentActivityData } from '@/components/profile/RecentActivitySection';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { downloadProfileVCard } from '@/lib/profile/templateActions';
 import type { TemplateProps, PublicProfile, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
+import './StudioTemplate.css';
 
 interface ProjectDrawerProps {
   project: NonNullable<PublicProfile['links']>[0];
@@ -48,6 +51,7 @@ interface ProjectDrawerProps {
 }
 
 interface SocialLink {
+  raw?: ProfileLink;
   label: string;
   url: string;
   icon?: string | null;
@@ -108,360 +112,6 @@ interface Caustic {
 
 /* ────────────────────────── Design Tokens (CSS Variables) ────────────────────────── */
 
-const STUDIO_STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-  :root {
-    /* Luxury Atelier Palette — Deep Petrol Jade & Basalt */
-    --studio-void: #06100E;
-    --studio-basalt: #0B1B18;
-    --studio-deep: #102621;
-    --studio-elevated: #143028;
-    --studio-surface: #1A3A30;
-    --studio-card: #1E4438;
-    --studio-border: #2A5546;
-    --studio-border-subtle: #22483A;
-    --studio-mica: #3D705E;
-    --studio-mica-subtle: #346052;
-
-    /* Frosted Glass — Smoked Emerald & Obsidian */
-    --glass-bg: rgba(13, 30, 26, 0.65);
-    --glass-bg-strong: rgba(13, 30, 26, 0.85);
-    --glass-border: rgba(180, 215, 200, 0.12);
-    --glass-border-bright: rgba(180, 215, 200, 0.22);
-    --glass-shadow: 0 8px 32px rgba(6, 16, 14, 0.4), 0 0 0 1px rgba(180, 215, 200, 0.05);
-    --glass-blur: saturate(180%) blur(24px);
-    --glass-inner-glow: inset 0 1px 0 rgba(180, 215, 200, 0.08);
-
-    /* Accents — Liquid Champagne Gold, Acid Citrine, Polished Titanium */
-    --accent-gold: #E6C875;
-    --accent-gold-dim: #D4B860;
-    --accent-gold-glow: rgba(230, 200, 117, 0.35);
-    --accent-gold-subtle: rgba(230, 200, 117, 0.1);
-    --accent-citrine: #D4FF70;
-    --accent-citrine-dim: #B8E05A;
-    --accent-citrine-glow: rgba(212, 255, 112, 0.3);
-    --accent-citrine-subtle: rgba(212, 255, 112, 0.08);
-    --accent-titanium: #F1F5F9;
-    --accent-titanium-dim: #CBD5E1;
-    --accent-titanium-muted: #94A3B8;
-
-    /* Semantic */
-    --text-primary: #F8FAF7;
-    --text-secondary: #D4E4DD;
-    --text-muted: #8BA89B;
-    --text-dim: #5D7A6E;
-    --text-inverse: #06100E;
-
-    /* Status */
-    --status-open: #D4FF70;
-    --status-open-glow: rgba(212, 255, 112, 0.4);
-    --status-busy: #FF6B4A;
-    --status-busy-glow: rgba(255, 107, 74, 0.4);
-    --status-retainer: #E6C875;
-    --status-retainer-glow: rgba(230, 200, 117, 0.4);
-
-    /* Spacing Scale */
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 24px;
-    --space-6: 32px;
-    --space-7: 48px;
-    --space-8: 64px;
-    --space-9: 96px;
-    --space-10: 128px;
-
-    /* Typography Scale */
-    --text-xs: 0.6875rem;    /* 11px */
-    --text-sm: 0.8125rem;    /* 13px */
-    --text-base: 0.9375rem;  /* 15px */
-    --text-lg: 1.125rem;     /* 18px */
-    --text-xl: 1.375rem;     /* 22px */
-    --text-2xl: 1.75rem;     /* 28px */
-    --text-3xl: 2.25rem;     /* 36px */
-    --text-4xl: 3rem;        /* 48px */
-    --text-5xl: 4rem;        /* 64px */
-    --text-6xl: 5.5rem;      /* 88px */
-    --text-7xl: 7rem;        /* 112px */
-
-    /* Radius */
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-    --radius-2xl: 32px;
-    --radius-full: 9999px;
-
-    /* Shadows — Layered, Premium */
-    --shadow-xs: 0 1px 2px rgba(6, 16, 14, 0.3);
-    --shadow-sm: 0 2px 8px rgba(6, 16, 14, 0.35);
-    --shadow-md: 0 8px 24px rgba(6, 16, 14, 0.4);
-    --shadow-lg: 0 16px 48px rgba(6, 16, 14, 0.45);
-    --shadow-xl: 0 24px 64px rgba(6, 16, 14, 0.5);
-    --shadow-2xl: 0 32px 80px rgba(6, 16, 14, 0.55);
-    --shadow-gold: 0 0 60px var(--accent-gold-glow);
-    --shadow-citrine: 0 0 40px var(--accent-citrine-glow);
-    --shadow-inner: inset 0 1px 0 rgba(180, 215, 200, 0.06);
-
-    /* Transitions */
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --ease-expo: cubic-bezier(0.87, 0, 0.13, 1);
-    --duration-fast: 150ms;
-    --duration-base: 250ms;
-    --duration-slow: 400ms;
-    --duration-slower: 600ms;
-    --duration-slowest: 1000ms;
-  }
-
-  /* Force dark luxury mode — no light variant */
-  .studio-template {
-    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--studio-void);
-    color: var(--text-primary);
-    min-height: 100vh;
-    width: 100%;
-    position: relative;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-  }
-
-  .font-editorial { font-family: 'Cinzel', 'Playfair Display', Georgia, serif; }
-  .font-display { font-family: 'Playfair Display', Georgia, serif; }
-  .font-ui { font-family: 'Space Grotesk', sans-serif; }
-  .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-  /* Glass Cards — Multiple Elevations */
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--glass-shadow), var(--glass-inner-glow);
-    transition: all var(--duration-base) var(--ease-out);
-  }
-
-  .glass-card:hover {
-    border-color: var(--glass-border-bright);
-    box-shadow: var(--shadow-md), 0 0 0 1px var(--accent-gold-subtle), var(--glass-inner-glow);
-    transform: translateY(-2px);
-  }
-
-  .glass-card-elevated {
-    background: var(--glass-bg-strong);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border-bright);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-lg), var(--glass-inner-glow);
-  }
-
-  .glass-card-subtle {
-    background: rgba(13, 30, 26, 0.45);
-    backdrop-filter: saturate(150%) blur(16px);
-    -webkit-backdrop-filter: saturate(150%) blur(16px);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .glass-card-interactive {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--glass-shadow), var(--glass-inner-glow);
-    transition: all var(--duration-base) var(--ease-out);
-    cursor: pointer;
-  }
-
-  .glass-card-interactive:hover {
-    border-color: var(--accent-gold);
-    box-shadow: var(--shadow-lg), var(--shadow-gold), var(--glass-inner-glow);
-    transform: translateY(-4px) scale(1.01);
-  }
-
-  .glass-card-interactive:active {
-    transform: translateY(-1px) scale(0.995);
-  }
-
-  /* Buttons — Premium */
-  .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-6);
-    background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-gold-dim) 100%);
-    color: var(--text-inverse);
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 600;
-    font-size: var(--text-sm);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    border-radius: var(--radius-full);
-    border: none;
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
-    box-shadow: var(--shadow-sm), 0 0 0 1px var(--accent-gold-subtle);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-primary::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, var(--accent-citrine) 0%, var(--accent-gold) 100%);
-    opacity: 0;
-    transition: opacity var(--duration-base) var(--ease-out);
-  }
-
-  .btn-primary:hover::before { opacity: 1; }
-  .btn-primary > * { position: relative; z-index: 1; }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md), var(--shadow-gold), var(--shadow-citrine);
-  }
-
-  .btn-primary:active { transform: translateY(0); }
-
-  .btn-primary:focus-visible {
-    outline: 2px solid var(--accent-gold);
-    outline-offset: 3px;
-  }
-
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-6);
-    background: transparent;
-    color: var(--text-secondary);
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 500;
-    font-size: var(--text-sm);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--glass-border);
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
-  }
-
-  .btn-secondary:hover {
-    background: var(--glass-bg-strong);
-    border-color: var(--accent-gold);
-    color: var(--accent-gold);
-    box-shadow: var(--shadow-sm), 0 0 0 1px var(--accent-gold-subtle);
-  }
-
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    background: transparent;
-    color: var(--text-muted);
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 500;
-    font-size: var(--text-xs);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border-radius: var(--radius-md);
-    border: none;
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-
-  .btn-ghost:hover {
-    background: var(--accent-gold-subtle);
-    color: var(--accent-gold);
-  }
-
-  .btn-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-full);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-
-  .btn-icon:hover {
-    background: var(--glass-bg-strong);
-    border-color: var(--accent-gold);
-    color: var(--accent-gold);
-    transform: scale(1.05);
-  }
-
-  .btn-icon.active {
-    background: var(--accent-gold-subtle);
-    border-color: var(--accent-gold);
-    color: var(--accent-gold);
-  }
-
-  /* Focus visible */
-  :focus-visible {
-    outline: 2px solid var(--accent-gold);
-    outline-offset: 2px;
-  }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--studio-border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent-gold); }
-
-  /* Selection */
-  ::selection { background: var(--accent-gold); color: var(--text-inverse); }
-
-  /* Utilities */
-  .text-balance { text-wrap: balance; }
-  .text-pretty { text-wrap: pretty; }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
-
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-    .studio-atmosphere-canvas { display: none !important; }
-  }
-
-  /* High contrast mode support */
-  @media (prefers-contrast: high) {
-    :root {
-      --glass-border: rgba(180, 215, 200, 0.5);
-      --glass-border-bright: rgba(180, 215, 200, 0.8);
-      --text-muted: #B8D0C4;
-    }
-  }
-`;
-
 /* ────────────────────────── Utility Functions ────────────────────────── */
 
 const formatTimezone = (tz?: string) => {
@@ -492,57 +142,15 @@ const getTimezoneAbbr = (tz?: string) => {
   }
 };
 
-const generateVCard = (profile: PublicProfile) => {
-  const nameParts = profile.name?.split(' ') || [];
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
-
-  let vcard = 'BEGIN:VCARD\nVERSION:3.0\n';
-  if (profile.name) vcard += `FN:${profile.name}\n`;
-  if (firstName || lastName) vcard += `N:${lastName};${firstName};;;\n`;
-  if (profile.headline) vcard += `TITLE:${profile.headline}\n`;
-  if (profile.company) vcard += `ORG:${profile.company}\n`;
-  if (profile.role) vcard += `ROLE:${profile.role}\n`;
-  const emailLink = profile.links?.find(l => l.label.toLowerCase().includes('email') || l.url.startsWith('mailto:'));
-  if (emailLink) vcard += `EMAIL;TYPE=WORK:${emailLink.url.replace('mailto:', '')}\n`;
-  const phoneLink = profile.links?.find(l => l.url.startsWith('tel:'));
-  if (phoneLink) vcard += `TEL;TYPE=WORK,VOICE:${phoneLink.url.replace('tel:', '')}\n`;
-  if (profile.subdomain) vcard += `URL:https://${profile.subdomain}.unool.com\n`;
-  vcard += 'END:VCARD';
-  return vcard;
-};
-
-const downloadVCard = (profile: PublicProfile) => {
-  const vcard = generateVCard(profile);
-  const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  const fileName = `${(profile.name || 'contact').replace(/\s+/g, '_')}.vcf`;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
-const copyToClipboard = async (text: string, label: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    return { success: true, message: `Copied ${label}` };
-  } catch {
-    return { success: false, message: 'Failed to copy' };
-  }
-};
-
 const normalizeSocialLinks = (profile: PublicProfile): SocialLink[] => {
   const links: SocialLink[] = [];
 
   if (profile.links?.length) {
     profile.links.forEach((link) => {
-      if (!link.isVisible) return;
+      if (link.isVisible === false) return;
       const platform = normalizeSocialPlatform(link.label, link.url, link.icon || undefined);
       links.push({
+        raw: link,
         label: link.label,
         url: link.url,
         icon: link.icon,
@@ -572,16 +180,19 @@ const normalizeSocialLinks = (profile: PublicProfile): SocialLink[] => {
 };
 
 const getProofPoints = (profile: PublicProfile): ProofPoint[] => {
-  return (profile.proofs || [])
-    .filter((p): p is ProfileProof => !!p && !!(p.value || p.title))
-    .sort((a, b) => a.order - b.order)
-    .map((p) => ({
-      id: p.id,
-      title: p.title,
-      value: p.value,
-      description: p.description,
-      icon: p.icon,
-      order: p.order,
+  const raw = (profile.proofs && profile.proofs.length > 0)
+    ? profile.proofs
+    : ((profile as any).proofPoints || []);
+  return (raw as any[])
+    .filter((p) => !!p && !!(p.value || p.title || p.label))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((p, idx) => ({
+      id: p.id || `proof-${idx}`,
+      title: p.title || p.label || 'Highlight',
+      value: String(p.value ?? ''),
+      description: p.description || p.context || null,
+      icon: p.icon || null,
+      order: p.order ?? idx,
     }));
 };
 
@@ -1082,6 +693,7 @@ function TopNav({
   fxActive,
   prefersReducedMotion,
   timezone,
+  showEmail = true,
 }: {
   profile: PublicProfile;
   socialLinks: SocialLink[];
@@ -1091,6 +703,7 @@ function TopNav({
   fxActive: boolean;
   prefersReducedMotion: boolean;
   timezone?: string;
+  showEmail?: boolean;
 }) {
   return (
     <motion.nav
@@ -1143,7 +756,7 @@ function TopNav({
             prefersReducedMotion={prefersReducedMotion}
           />
 
-          {profile.links?.some(l => l.url.startsWith('mailto:')) && (
+          {showEmail && profile.links?.some(l => l.url.startsWith('mailto:')) && (
             <button
               onClick={onCopyEmail}
               className="btn-icon"
@@ -1170,7 +783,7 @@ function TopNav({
 
 /* ────────────────────────── Identity Core ────────────────────────── */
 
-function IdentityCore({ profile, socialLinks, openToIntents }: { profile: PublicProfile; socialLinks: SocialLink[]; openToIntents: string[] }) {
+function IdentityCore({ profile, socialLinks, openToIntents, onLinkClick }: { profile: PublicProfile; socialLinks: SocialLink[]; openToIntents: string[]; onLinkClick?: (link: ProfileLink) => void }) {
   return (
     <section className="relative w-full pt-4 md:pt-6">
       <div className="w-full">
@@ -1203,7 +816,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               className="font-mono text-sm"
               style={{ color: 'var(--text-muted)' }}
             >
-              @{profile.subdomain} <span style={{ color: 'var(--studio-border)' }}>·</span> <span className="font-ui font-medium" style={{ color: 'var(--accent-gold)' }}>unool.com</span>
+              @{profile.subdomain} <span style={{ color: 'var(--text-muted)' }}>·</span> <span className="font-ui font-medium" style={{ color: 'var(--accent-gold)' }}>unool.com</span>
             </motion.div>
 
             {/* Manifesto / Headline */}
@@ -1232,7 +845,12 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               </motion.div>
             )}
 
-            {/* OpenToBadges rendered globally at bottom by IdentityTemplate router */}
+            {/* OpenToBadges */}
+            {openToIntents.length > 0 && (
+              <div className="pt-2">
+                <OpenToBadges intents={openToIntents} accentColor="var(--accent-gold)" variant="obsidian" />
+              </div>
+            )}
 
             {/* Social Brand Ecosystem — Horizontal Scroll Rail */}
             {socialLinks.length > 0 && (
@@ -1251,7 +869,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
                     {socialLinks.length}
                   </span>
                 </div>
-                <SocialRail links={socialLinks} />
+                <SocialRail links={socialLinks} onLinkClick={onLinkClick} />
               </motion.div>
             )}
           </div>
@@ -1333,13 +951,16 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
                       {profile.company || "Independent Studio"}
                     </span>
                   </div>
-                  <div className="flex justify-between items-baseline gap-2 pt-1 border-t border-[var(--studio-border-subtle)]">
-                    <span className="font-mono text-[10px] uppercase text-[var(--text-dim)]">Commissions</span>
-                    <span className="font-semibold text-right text-[var(--accent-citrine)] flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-citrine)] animate-ping" />
-                      Accepting Select Briefs
-                    </span>
-                  </div>
+                  {(profile.availabilityBadge || (profile as any).location) && (
+                    <div className="flex justify-between items-baseline gap-2 pt-1 border-t border-[var(--studio-border-subtle)]">
+                      <span className="font-mono text-[10px] uppercase text-[var(--text-dim)]">
+                        {profile.availabilityBadge ? 'Status' : 'Location'}
+                      </span>
+                      <span className="font-semibold text-right text-[var(--accent-citrine)]">
+                        {profile.availabilityBadge || (profile as any).location}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1352,7 +973,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
 
 /* ────────────────────────── Social Rail ────────────────────────── */
 
-function SocialRail({ links }: { links: SocialLink[] }) {
+function SocialRail({ links, onLinkClick }: { links: SocialLink[]; onLinkClick?: (link: ProfileLink) => void }) {
   const [scrollPosition, setScrollPosition] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -1404,6 +1025,7 @@ function SocialRail({ links }: { links: SocialLink[] }) {
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => link.raw && onLinkClick?.(link.raw)}
             className="group flex items-center justify-between gap-3 px-3.5 py-2.5 glass-card-interactive shrink-0 snap-start rounded-xl border border-[var(--glass-border)] hover:border-[var(--accent-gold)] bg-[var(--glass-bg)] transition-all duration-300 shadow-sm"
             style={{
               minWidth: '130px',
@@ -1699,11 +1321,11 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
   );
 }
 
-function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; accentColor: string }) {
+function PortfolioSection({ profile, accentColor, onLinkClick }: { profile: PublicProfile; accentColor: string; onLinkClick?: (link: ProfileLink) => void }) {
   const [openProject, setOpenProject] = useState<NonNullable<PublicProfile['links']>[0] | null>(null);
   const workLinks = useMemo(() =>
-    profile.links?.filter(l => l.isVisible && (l.label.toLowerCase().includes('work') || l.label.toLowerCase().includes('project') || l.label.toLowerCase().includes('case') || l.label.toLowerCase().includes('portfolio'))) ||
-    profile.links?.filter(l => l.isVisible).slice(0, 6) || [],
+    profile.links?.filter(l => l.isVisible !== false && (l.label.toLowerCase().includes('work') || l.label.toLowerCase().includes('project') || l.label.toLowerCase().includes('case') || l.label.toLowerCase().includes('portfolio'))) ||
+    profile.links?.filter(l => l.isVisible !== false).slice(0, 6) || [],
   [profile.links]);
 
   if (workLinks.length === 0) return null;
@@ -1737,7 +1359,10 @@ function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; ac
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.08 * i, duration: 0.5 }}
               className="group relative glass-card-interactive overflow-hidden"
-              onClick={() => setOpenProject(project)}
+              onClick={() => {
+                onLinkClick?.(project);
+                setOpenProject(project);
+              }}
               style={{ cursor: 'pointer' }}
             >
               <div className="flex flex-col md:flex-row">
@@ -1799,9 +1424,23 @@ function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; ac
 
 /* ────────────────────────── Action & Conversion Dock ────────────────────────── */
 
-function ActionDock({ profile, onCopyEmail, onDownloadVCard }: { profile: PublicProfile; onCopyEmail: () => void; onDownloadVCard: () => void }) {
+function ActionDock({
+  profile,
+  onCopyEmail,
+  onDownloadVCard,
+  onOpenContact,
+  showEmail,
+  hasContactChannel,
+}: {
+  profile: PublicProfile;
+  onCopyEmail: () => void;
+  onDownloadVCard: () => void;
+  onOpenContact: () => void;
+  showEmail?: boolean;
+  hasContactChannel?: boolean;
+}) {
   const emailLink = profile.links?.find(l => l.url.startsWith('mailto:'));
-  const email = emailLink?.url.replace('mailto:', '') || '';
+  const email = showEmail ? (profile.email || emailLink?.url.replace('mailto:', '') || '') : '';
 
   return (
     <section className="w-full pt-4" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
@@ -1819,38 +1458,42 @@ function ActionDock({ profile, onCopyEmail, onDownloadVCard }: { profile: Public
           <div className="max-w-2xl mx-auto text-center">
             <h2 className="font-editorial font-semibold leading-[1.05] tracking-tight mb-4 text-balance"
               style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', color: 'var(--text-primary)' }}>
-              Let's Create <br />
+              Let&apos;s Create <br />
               <span className="italic" style={{ color: 'var(--accent-gold)' }}>Something Exceptional</span>
             </h2>
             <p className="font-ui text-base leading-relaxed mb-8 max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
-              Select commissions only. I work with ambitious brands and founders who value craft, clarity, and long-term partnership.
+              Reach out for select commissions, strategic collaborations, or direct inquiries.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              {email && (
+              {hasContactChannel && (
                 <button
-                  onClick={onCopyEmail}
+                  type="button"
+                  onClick={onOpenContact}
                   className="btn-primary group w-full sm:w-auto"
                 >
                   <Mail className="w-5 h-5" aria-hidden="true" />
-                  COPY DIRECT EMAIL
-                  <span className="font-mono text-xs opacity-0 group-hover:opacity-100 transition-opacity">⌘C</span>
+                  <span>INITIATE BRIEF</span>
+                </button>
+              )}
+              {email && (
+                <button
+                  type="button"
+                  onClick={onCopyEmail}
+                  className="btn-secondary group w-full sm:w-auto"
+                >
+                  <Mail className="w-5 h-5" aria-hidden="true" />
+                  <span>COPY DIRECT EMAIL</span>
                 </button>
               )}
               <button
+                type="button"
                 onClick={onDownloadVCard}
                 className="btn-secondary w-full sm:w-auto"
               >
                 <Download className="w-5 h-5" aria-hidden="true" />
-                SAVE CONTACT (.vcf)
+                <span>SAVE CONTACT (.vcf)</span>
               </button>
-              <a
-                href={`mailto:${email}?subject=Project%20Inquiry&body=Hello%20${encodeURIComponent(profile.name)}%2C%0A%0AI%27m%20reaching%20out%20because...`}
-                className="btn-ghost w-full sm:w-auto"
-              >
-                <ExternalLink className="w-4 h-4" aria-hidden="true" />
-                INITIATE BRIEF
-              </a>
             </div>
           </div>
         </div>
@@ -1933,11 +1576,11 @@ function ScrollReveal({ children, delay = 0, className = '', style }: { children
 
 /* ────────────────────────── Main Studio Template ────────────────────────── */
 
-export function StudioTemplate({ profile, accentColor: propAccentColor }: TemplateProps) {
+function StudioTemplateInner({ profile, accentColor: propAccentColor, isPreview, onLinkClick }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
   const [fxActive, setFxActive] = useState(true);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [openProject, setOpenProject] = useState<NonNullable<PublicProfile['links']>[0] | null>(null);
   const [monolithCount, setMonolithCount] = useState(0);
 
   const accentColor = propAccentColor || 'var(--accent-gold)';
@@ -1967,38 +1610,42 @@ export function StudioTemplate({ profile, accentColor: propAccentColor }: Templa
   }, []);
 
   const handleCopyEmail = async () => {
-    const emailLink = profile.links?.find(l => l.url.startsWith('mailto:'));
-    if (!emailLink) return;
-    const email = emailLink.url.replace('mailto:', '');
-    const result = await copyToClipboard(email, 'email');
-    showToast(result.message, result.success ? 'success' : 'error');
+    const email = normalized.showEmail
+      ? (normalized.email || profile.links?.find(l => l.url.startsWith('mailto:'))?.url.replace('mailto:', '') || '')
+      : '';
+    if (!email) return;
+    try {
+      await navigator.clipboard.writeText(email);
+      showToast('Copied email', 'success');
+    } catch {
+      showToast('Failed to copy email', 'error');
+    }
   };
 
   const handleDownloadVCard = () => {
-    downloadVCard(profile);
-    showToast('Contact saved as vCard', 'success');
+    const ok = downloadProfileVCard({
+      name: normalized.name,
+      role: normalized.role,
+      company: normalized.company,
+      email: normalized.showEmail ? normalized.email : undefined,
+      location: normalized.location,
+      bio: normalized.bio,
+      subdomain: profile.subdomain,
+    });
+    if (ok) showToast('Contact saved as vCard', 'success');
   };
 
   const socialLinks = useMemo(() => normalizeSocialLinks(profile), [profile.links, profile.socialHandles]);
-  const proofPoints = useMemo(() => getProofPoints(profile), [profile.proofs]);
-  const openToIntents = (profile.openTo || []) as OpenToIntentId[];
-
-  // Prepare recent activity data from profile
-  const recentActivity = useMemo((): RecentActivityData | null => {
-    const raw = (profile as any)?.recentActivity;
-    if (!raw) return null;
-    return Array.isArray(raw) ? (raw[0] || null) : raw;
-  }, [profile]);
+  const openToIntents = normalized.openTo;
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: STUDIO_STYLES }} />
       <ToastStack />
 
       <div className="studio-template font-ui antialiased">
         {/* Interactive Atmosphere Canvas */}
         <StudioAtmosphereCanvas
-          isActive={fxActive}
+          isActive={fxActive && !isPreview}
           prefersReducedMotion={prefersReducedMotion}
           onMonolithsReady={setMonolithCount}
         />
@@ -2012,26 +1659,32 @@ export function StudioTemplate({ profile, accentColor: propAccentColor }: Templa
           onToggleFX={() => setFxActive(!fxActive)}
           fxActive={fxActive}
           prefersReducedMotion={prefersReducedMotion}
-          timezone={profile.theme?.customCss ? undefined : undefined} // Could add timezone to profile
+          timezone={normalized.timezone || undefined}
+          showEmail={normalized.showEmail}
         />
 
-        {/* Main Content — Zero Scroll Cockpit on Desktop */}
+        {/* Main Content */}
         <main className="w-full max-w-[1040px] mx-auto px-4 sm:px-6 md:px-8 py-8 md:py-12 flex flex-col gap-12 md:gap-16 relative z-10">
           {/* Identity Core */}
           <IdentityCore
             profile={profile}
             socialLinks={socialLinks}
             openToIntents={openToIntents}
+            onLinkClick={onLinkClick}
           />
 
-          {/* Proof Points Grid (Single prominent section) */}
-          <ProofPointsGrid profile={profile} />
+          {/* Proof Points Grid */}
+          {normalized.sectionVisibility.proof && (
+            <ProofPointsGrid profile={profile} />
+          )}
 
           {/* Portfolio / Featured Works */}
-          <PortfolioSection profile={profile} accentColor={accentColor} />
+          {normalized.sectionVisibility.links && (
+            <PortfolioSection profile={profile} accentColor={accentColor} onLinkClick={onLinkClick} />
+          )}
 
           {/* Recent Transmissions / Activity Section */}
-          {recentActivity && (
+          {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
             <section
               id="recent-transmissions-section"
               className="w-full pt-4 scroll-mt-24"
@@ -2047,27 +1700,46 @@ export function StudioTemplate({ profile, accentColor: propAccentColor }: Templa
                 <span className="font-mono text-xs" style={{ color: 'var(--accent-citrine)' }}>LIVE FEED</span>
               </div>
               <RecentActivitySection
-                activity={recentActivity}
+                activity={normalized.recentActivity}
                 variant="studio"
                 isDark={true}
                 accentColor={accentColor}
-                autoScroll={(profile as any)?.autoScroll}
+                autoScroll={!isPreview}
               />
             </section>
           )}
 
-          {/* Action & Conversion Dock (Single clean contact card) */}
-          <ActionDock
-            profile={profile}
-            onCopyEmail={handleCopyEmail}
-            onDownloadVCard={handleDownloadVCard}
-          />
+          {/* Action & Conversion Dock */}
+          {normalized.sectionVisibility.contact && (
+            <ActionDock
+              profile={profile}
+              onCopyEmail={handleCopyEmail}
+              onDownloadVCard={handleDownloadVCard}
+              onOpenContact={openContact}
+              showEmail={normalized.showEmail}
+              hasContactChannel={normalized.hasContactChannel}
+            />
+          )}
 
           {/* Colophon Footer */}
           <ColophonFooter profile={profile} />
         </main>
       </div>
     </>
+  );
+}
+
+export function StudioTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#0B1B18"
+      isDark
+      defaultAccent="#E6C875"
+      isPreview={props.isPreview}
+    >
+      <StudioTemplateInner {...props} />
+    </ProfileTemplateShell>
   );
 }
 

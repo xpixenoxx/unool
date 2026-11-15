@@ -7,16 +7,19 @@ export async function generateMetadata({
   params: Promise<{ subdomain: string }>;
 }): Promise<Metadata> {
   const { subdomain } = await params;
-  const cleanSubdomain = (subdomain || '').toLowerCase().trim();
+  const cleanSubdomain = decodeURIComponent(subdomain || '').toLowerCase().trim();
 
   if (!cleanSubdomain) {
-    return { title: 'Profile • Unool' };
+    return {
+      title: 'Profile • Unool',
+      robots: { index: false, follow: false },
+    };
   }
 
   try {
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('name, headline, bio, avatar_url, seo')
+      .select('name, headline, bio, avatar_url, seo, visibility')
       .eq('subdomain', cleanSubdomain)
       .is('deleted_at', null)
       .maybeSingle();
@@ -25,6 +28,16 @@ export async function generateMetadata({
       return {
         title: `${cleanSubdomain} • Unool`,
         description: 'View this creator profile on Unool.',
+        robots: { index: false, follow: false },
+      };
+    }
+
+    // Security & privacy guard: never leak private profile metadata (name, bio, headline, image)
+    if (profile.visibility === 'private') {
+      return {
+        title: 'Private Profile • Unool',
+        description: 'This profile is private and restricted to authorized viewers.',
+        robots: { index: false, follow: false },
       };
     }
 
@@ -42,9 +55,12 @@ export async function generateMetadata({
       profile.avatar_url ||
       undefined;
 
+    const isUnlisted = profile.visibility === 'unlisted';
+
     return {
       title,
       description,
+      ...(isUnlisted ? { robots: { index: false, follow: false } } : {}),
       openGraph: {
         title,
         description,
@@ -61,6 +77,7 @@ export async function generateMetadata({
   } catch {
     return {
       title: `${cleanSubdomain} • Unool`,
+      robots: { index: false, follow: false },
     };
   }
 }
@@ -72,4 +89,3 @@ export default function SubdomainProfileLayout({
 }) {
   return <>{children}</>;
 }
-

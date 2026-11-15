@@ -122,6 +122,7 @@ export type VariantKey =
   | 'the-noren' | 'noren'
   | 'the-desktop' | 'desktop'
   | 'the-calendar' | 'calendar'
+  | 'the-bento' | 'bento'
   | 'default';
 
 // ─── Helper Functions ────────────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     pulseSize: 'w-2 h-2',
     title: 'New Post Shared With You',
     titleClassName: 'text-[11px] font-bold text-[#2A1710] uppercase tracking-wider font-mono-tag',
-    timestampClassName: 'text-[10px] text-[#CF5628] font-mono-tag font-semibold',
+    timestampClassName: 'text-[10px] text-[#A8421B] font-mono-tag font-semibold',
     contentClassName: 'clay-card p-4 space-y-3',
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-1 border-t border-[#CF5628]/10',
@@ -165,26 +166,27 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
 
   lone: {
     containerClassName: 'flex flex-col gap-2.5 my-6',
-    headerClassName: 'flex justify-between items-center text-[10px] uppercase tracking-[0.2em] text-[#9296A0] px-2 font-medium',
-    pulseColor: '#123DFF',
+    headerClassName: 'flex justify-between items-center text-[10px] uppercase tracking-[0.2em] text-[#B8BCC6] px-2 font-medium',
+    pulseColor: '#60A5FA',
     pulseSize: 'w-2 h-2',
     title: 'New Post Shared With You',
-    titleClassName: 'flex items-center gap-1.5 text-[#123DFF] font-bold',
-    timestampClassName: 'text-[10px] text-[#9296A0]',
+    titleClassName: 'flex items-center gap-1.5 text-[#93C5FD] font-bold',
+    timestampClassName: 'text-[10px] text-[#B8BCC6]',
     contentClassName: 'w-full rounded-2xl overflow-hidden p-4 relative shadow-[0_4px_20px_rgba(0,0,0,0.35)]',
     contentStyle: {
-      background: 'linear-gradient(135deg, rgba(17, 19, 24, 0.85), rgba(12, 14, 18, 0.95))',
+      backgroundColor: '#0E1117',
+      background: 'linear-gradient(135deg, rgba(17, 19, 24, 0.94), rgba(12, 14, 18, 0.98))',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
-      border: '1px solid rgba(255, 255, 255, 0.12)',
+      border: '1px solid rgba(255, 255, 255, 0.14)',
     },
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-white/10',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-md hover:scale-105 active:scale-95 transition-all text-white no-underline',
     platformIconSize: 13,
-    footerClassName: 'mt-2 text-[10px] text-[#9296A0] flex items-center justify-between',
+    footerClassName: 'mt-2 text-[10px] text-[#B8BCC6] flex items-center justify-between',
     footerDescription: 'Tap any platform above to view & support',
-    pulseAnimationColor: '#123DFF',
+    pulseAnimationColor: '#60A5FA',
   },
 
   rebellion: {
@@ -200,7 +202,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#C8102E]/20',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-white transition-transform hover:scale-105 active:scale-95 shadow-sm no-underline',
     platformIconSize: 13,
-    footerClassName: 'text-[10px] text-[#EAE8E3]/50 flex items-center justify-between',
+    footerClassName: 'text-[10px] text-[#EAE8E3]/80 flex items-center justify-between',
     footerDescription: 'Direct access to full post — pick your venue',
     pulseAnimationColor: '#C8102E',
   },
@@ -244,19 +246,23 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
   hustler: {
     containerClassName: 'my-6 p-4 sm:p-5 border-2 border-[#292724] bg-white shadow-[4px_4px_0px_#292724] space-y-3',
     headerClassName: 'flex items-center justify-between',
-    pulseColor: '#D64924',
+    pulseColor: '#B93817',
     pulseSize: 'w-2.5 h-2.5',
     title: 'NEW POST // SHARED WITH YOU',
-    titleClassName: 'text-[11px] text-[#D64924] uppercase tracking-wider font-extrabold',
-    timestampClassName: 'text-[10px] font-mono uppercase text-[#7A756D]',
+    titleClassName: 'text-[11px] text-[#B93817] uppercase tracking-wider font-extrabold',
+    timestampClassName: 'text-[10px] font-mono uppercase text-[#5E5A53]',
     contentClassName: '',
     excerptMaxLength: 130,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t-2 border-[#292724]/20',
-    platformButtonClassName: 'px-3.5 py-1.5 border-2 border-[#292724] text-xs font-extrabold uppercase tracking-wider hover:scale-105 active:scale-95 transition-transform shadow-[2px_2px_0px_#292724] inline-flex items-center gap-1.5 no-underline',
+    platformButtonClassName: 'px-3.5 py-1.5 border-2 border-[#292724] text-xs font-extrabold uppercase tracking-wider hover:scale-105 active:scale-95 transition-transform shadow-[2px_2px_0px_#292724] inline-flex items-center gap-1.5 no-underline text-white',
+    platformButtonStyle: (cfg) => ({
+      backgroundColor: cfg.bg,
+      color: cfg.color,
+    }),
     platformIconSize: 12,
-    footerClassName: 'text-[10px] font-bold uppercase tracking-wider text-[#7A756D] flex items-center justify-between',
+    footerClassName: 'text-[10px] font-bold uppercase tracking-wider text-[#5E5A53] flex items-center justify-between',
     footerDescription: 'Tap to view & engage instantly',
-    pulseAnimationColor: '#D64924',
+    pulseAnimationColor: '#B93817',
     customRender: {
       content: (excerpt) => (
         <p className="text-xs uppercase tracking-wide font-bold text-[#292724] leading-relaxed line-clamp-2">
@@ -269,27 +275,29 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
   creator: {
     containerClassName: 'my-6',
     headerClassName: 'flex items-center justify-between mb-2',
-    pulseColor: '#10B981',
+    pulseColor: '#34D399',
     pulseSize: 'w-2 h-2',
     title: 'Latest Post // Shared With You',
-    titleClassName: 'text-[10px] tracking-widest uppercase font-bold text-slate-700',
-    timestampClassName: 'text-[10px] font-mono uppercase text-slate-400',
-    contentClassName: 'relative w-full bg-white/85 backdrop-blur-md p-4 sm:p-5 shadow-sm border border-slate-200 space-y-3',
+    titleClassName: 'text-[10px] tracking-widest uppercase font-bold text-slate-200',
+    timestampClassName: 'text-[10px] font-mono uppercase text-slate-300',
+    contentClassName: 'relative w-full bg-white/95 backdrop-blur-md p-4 sm:p-5 shadow-sm border border-slate-200 space-y-3',
     contentStyle: {
+      color: '#0F172A',
       clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
     },
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-slate-200/80',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-sm no-underline text-white',
     platformButtonStyle: (cfg) => ({
+      backgroundColor: cfg.bg,
       background: cfg.bg,
       color: cfg.color,
       clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
     }),
     platformIconSize: 12,
-    footerClassName: 'text-[10px] text-slate-500 flex items-center justify-between',
+    footerClassName: 'text-[10px] text-slate-700 flex items-center justify-between',
     footerDescription: 'Tap your preferred network to view full post',
-    pulseAnimationColor: '#10B981',
+    pulseAnimationColor: '#34D399',
   },
 
   studio: {
@@ -350,7 +358,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#00FF66]/20',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold shadow-md hover:scale-105 active:scale-95 transition-all text-white no-underline',
     platformIconSize: 12,
-    footerClassName: 'text-[10px] font-mono text-white/50 flex items-center justify-between',
+    footerClassName: 'text-[10px] font-mono text-white/80 flex items-center justify-between',
     footerDescription: 'Multi-uplink active — tap node to view full payload',
     pulseAnimationColor: '#00FF66',
   },
@@ -397,27 +405,31 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
         {name} ↗
       </span>
     ),
-    footerClassName: 'text-[10px] font-mono text-white/50 flex items-center justify-between',
+    footerClassName: 'text-[10px] font-mono text-white/80 flex items-center justify-between',
     footerDescription: 'Tap your venue to view full drop',
     pulseAnimationColor: '#CCFF00',
   },
 
   vision: {
-    containerClassName: 'my-6 p-4 sm:p-5 rounded-xl border border-cyan-500/30 bg-black/50 backdrop-blur-md space-y-3',
+    containerClassName: 'my-6 p-4 sm:p-5 rounded-xl border border-cyan-400/35 backdrop-blur-md space-y-3',
+    containerStyle: () => ({
+      backgroundColor: '#06111B',
+      color: '#F8FAFC',
+    }),
     headerClassName: 'flex items-center justify-between',
-    pulseColor: '#06b6d4',
+    pulseColor: '#22D3EE',
     pulseSize: 'w-2 h-2',
     title: 'SYS.FEED // SHARED BROADCAST',
-    titleClassName: 'text-[10px] font-mono uppercase tracking-widest font-bold text-cyan-400',
-    timestampClassName: 'text-[10px] font-mono text-cyan-500/70',
-    contentClassName: '',
+    titleClassName: 'text-[10px] font-mono uppercase tracking-widest font-bold text-[#67E8F9]',
+    timestampClassName: 'text-[10px] font-mono text-[#A5F3FC]',
+    contentClassName: 'space-y-3 text-slate-100',
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-cyan-500/20',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm',
     platformIconSize: 12,
-    footerClassName: 'text-[10px] font-mono text-cyan-400/60 flex items-center justify-between',
+    footerClassName: 'text-[10px] font-mono text-[#A5F3FC] flex items-center justify-between',
     footerDescription: 'Multi-stream uplink — tap node to view full post',
-    pulseAnimationColor: '#06b6d4',
+    pulseAnimationColor: '#22D3EE',
   },
 
   human: {
@@ -445,33 +457,37 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     pulseSize: 'w-1.5 h-1.5',
     title: 'New Post Shared With You',
     titleClassName: 'flex items-center gap-1.5 text-[#292826] font-bold',
-    timestampClassName: 'text-[#A39686] font-mono',
-    contentClassName: 'p-4 sm:p-5 rounded-2xl bg-white/75 border border-[#292826]/10 space-y-3 shadow-sm',
+    timestampClassName: 'text-[#6B6257] font-mono',
+    contentClassName: 'p-4 sm:p-5 rounded-2xl bg-white/85 border border-[#292826]/12 space-y-3 shadow-sm',
     excerptMaxLength: 140,
-    platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#292826]/10',
+    platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#292826]/12',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-inter font-semibold hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm',
     platformIconSize: 12,
-    footerClassName: 'text-[10px] text-[#292826]/50 flex items-center justify-between',
+    footerClassName: 'text-[10px] text-[#292826]/80 flex items-center justify-between',
     footerDescription: 'Direct access to full story — tap any venue',
     pulseAnimationColor: '#A39686',
   },
 
   voice: {
-    containerClassName: 'my-6',
-    headerClassName: 'flex items-center justify-between mb-2 border-b border-[#8DA396]/30 pb-1.5',
-    pulseColor: '#DF5B4C',
+    containerClassName: 'my-6 p-4 sm:p-5 rounded-2xl bg-[#F8FBF9] border border-[#8DA396]/40 shadow-sm space-y-3',
+    containerStyle: () => ({
+      backgroundColor: '#F8FBF9',
+      color: '#1C2B21',
+    }),
+    headerClassName: 'flex items-center justify-between border-b border-[#8DA396]/30 pb-1.5',
+    pulseColor: '#B03426',
     pulseSize: 'w-2 h-2',
     title: 'Fresh Post // Shared With You',
     titleClassName: 'text-[10px] font-bold tracking-[0.15em] uppercase text-[#1C2B21]',
-    timestampClassName: 'text-[10px] font-mono uppercase text-[#DF5B4C]',
-    contentClassName: 'p-4 sm:p-5 rounded-2xl bg-white/80 border border-[#8DA396]/30 shadow-sm space-y-3',
+    timestampClassName: 'text-[10px] font-mono uppercase text-[#B03426]',
+    contentClassName: 'space-y-3 text-[#1C2B21]',
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#8DA396]/20',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm',
     platformIconSize: 12,
-    footerClassName: 'text-[10px] text-[#1C2B21]/60 flex items-center justify-between',
+    footerClassName: 'text-[10px] text-[#283E30] flex items-center justify-between',
     footerDescription: 'Tap your preferred platform to read & engage',
-    pulseAnimationColor: '#DF5B4C',
+    pulseAnimationColor: '#B03426',
   },
 
   default: {
@@ -495,12 +511,12 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
       fontWeight: 700,
       letterSpacing: '0.12em',
       textTransform: 'uppercase',
-      color: isDark ? 'rgba(255,255,255,0.60)' : 'rgba(0,0,0,0.55)',
+      color: isDark ? 'rgba(255,255,255,0.82)' : 'rgba(0,0,0,0.72)',
     }),
     timestampClassName: 'font-mono',
     timestampStyle: (isDark: boolean) => ({
       fontSize: 11,
-      color: isDark ? 'rgba(255,255,255,0.60)' : 'rgba(0,0,0,0.55)',
+      color: isDark ? 'rgba(255,255,255,0.82)' : 'rgba(0,0,0,0.72)',
     }),
     contentClassName: '',
     contentStyle: (isDark: boolean) => ({
@@ -528,6 +544,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
       gap: 6,
       padding: '6px 12px',
       borderRadius: 999,
+      backgroundColor: cfg.bg,
       background: cfg.bg,
       color: cfg.color,
       fontSize: 12,
@@ -543,7 +560,7 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
       alignItems: 'center',
       justifyContent: 'space-between',
       fontSize: 10,
-      color: isDark ? 'rgba(255,255,255,0.60)' : 'rgba(0,0,0,0.55)',
+      color: isDark ? 'rgba(255,255,255,0.82)' : 'rgba(0,0,0,0.72)',
       paddingTop: 2,
     }),
     footerDescription: 'Tap any platform above to view & engage with the full post',
@@ -587,38 +604,40 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
   },
 
   'the-bookshelf': {
-    containerClassName: 'my-8 space-y-3',
-    headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.22em] text-[#d9b86c] px-1',
+    containerClassName: 'my-8 p-5 rounded-xl bg-[#23180f] border-2 border-[#b8975a] shadow-xl space-y-3.5 transition-all hover:border-[#d9b86c]',
+    containerStyle: () => ({ backgroundColor: '#23180f', color: '#ffffff' }),
+    headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.22em] text-[#f4ead7]',
     pulseColor: '#d4af37',
     pulseSize: 'w-2 h-2',
     title: 'ARCHIVAL DISPATCH // LATEST SIGNAL',
     titleClassName: 'flex items-center gap-2 font-bold text-[#f4ead7]',
-    timestampClassName: 'text-[11px] text-[#d4c5a9] font-mono',
-    contentClassName: 'p-5 rounded-xl bg-[#23180f] border-2 border-[#b8975a] shadow-xl space-y-3.5 transition-all hover:border-[#d9b86c]',
+    timestampClassName: 'text-[11px] text-[#e5d8bf] font-mono',
+    contentClassName: 'space-y-3.5',
     contentStyle: () => ({ color: '#ffffff', fontSize: '15.5px', lineHeight: '1.68', fontFamily: "'Iowan Old Style', Georgia, serif" }),
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2.5 border-t border-[#b8975a]/30',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:scale-105 active:scale-95 transition-all text-white no-underline',
     platformIconSize: 13,
-    footerClassName: 'text-[11px] text-[#d4c5a9] font-mono flex items-center justify-between pt-1',
+    footerClassName: 'text-[11px] text-[#e5d8bf] font-mono flex items-center justify-between pt-1',
     footerDescription: 'Tap platform to view live dispatch',
     pulseAnimationColor: '#d4af37',
   },
   'bookshelf': {
-    containerClassName: 'my-8 space-y-3',
-    headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.22em] text-[#d9b86c] px-1',
+    containerClassName: 'my-8 p-5 rounded-xl bg-[#23180f] border-2 border-[#b8975a] shadow-xl space-y-3.5 transition-all hover:border-[#d9b86c]',
+    containerStyle: () => ({ backgroundColor: '#23180f', color: '#ffffff' }),
+    headerClassName: 'flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.22em] text-[#f4ead7]',
     pulseColor: '#d4af37',
     pulseSize: 'w-2 h-2',
     title: 'ARCHIVAL DISPATCH // LATEST SIGNAL',
     titleClassName: 'flex items-center gap-2 font-bold text-[#f4ead7]',
-    timestampClassName: 'text-[11px] text-[#d4c5a9] font-mono',
-    contentClassName: 'p-5 rounded-xl bg-[#23180f] border-2 border-[#b8975a] shadow-xl space-y-3.5 transition-all hover:border-[#d9b86c]',
+    timestampClassName: 'text-[11px] text-[#e5d8bf] font-mono',
+    contentClassName: 'space-y-3.5',
     contentStyle: () => ({ color: '#ffffff', fontSize: '15.5px', lineHeight: '1.68', fontFamily: "'Iowan Old Style', Georgia, serif" }),
     excerptMaxLength: 140,
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2.5 border-t border-[#b8975a]/30',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:scale-105 active:scale-95 transition-all text-white no-underline',
     platformIconSize: 13,
-    footerClassName: 'text-[11px] text-[#d4c5a9] font-mono flex items-center justify-between pt-1',
+    footerClassName: 'text-[11px] text-[#e5d8bf] font-mono flex items-center justify-between pt-1',
     footerDescription: 'Tap platform to view live dispatch',
     pulseAnimationColor: '#d4af37',
   },
@@ -824,9 +843,93 @@ export const VARIANT_CONFIGS: Record<VariantKey, VariantConfig> = {
     platformContainerClassName: 'flex flex-wrap gap-2 pt-2 border-t border-[#2a2420]/15',
     platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-[#2a2420] text-[#fbf7ee] shadow-sm hover:bg-[#d94a38] transition-all no-underline',
     platformIconSize: 12,
-    footerClassName: 'text-[10px] text-[#2a2420]/60 font-mono flex items-center justify-between pt-1',
+    footerClassName: 'text-[10px] text-[#2a2420]/80 font-mono flex items-center justify-between pt-1',
     footerDescription: 'Tap platform to review entry',
     pulseAnimationColor: '#d94a38',
+  },
+  'the-bento': {
+    containerClassName: 'my-4 transition-all duration-200',
+    containerStyle: (isDark: boolean) => ({
+      background: isDark ? '#18181B' : '#FFFFFF',
+      border: isDark ? '1px solid rgba(255,255,255,0.14)' : '1px solid #E4E4E7',
+      borderRadius: '20px',
+      padding: '18px 20px',
+      boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.35)' : '0 2px 10px rgba(15,23,42,0.04)',
+      scrollMarginTop: '96px',
+    }),
+    headerClassName: 'flex justify-between items-center mb-2.5 gap-2',
+    pulseColor: '#22C55E',
+    pulseSize: 'w-2 h-2',
+    title: 'Latest Post',
+    titleClassName: 'text-[11px] font-mono uppercase tracking-[0.16em] font-bold',
+    titleStyle: (isDark: boolean) => ({
+      color: isDark ? '#E4E4E7' : '#3F3F46',
+    }),
+    timestampClassName: 'text-[11px] font-mono',
+    timestampStyle: (isDark: boolean) => ({
+      color: isDark ? '#CBD5E1' : '#52525B',
+    }),
+    contentClassName: 'space-y-3',
+    contentStyle: (isDark: boolean) => ({
+      color: isDark ? '#F8FAFC' : '#0F172A',
+      fontSize: '14px',
+      lineHeight: '1.6',
+    }),
+    excerptMaxLength: 160,
+    platformContainerClassName: 'flex flex-wrap gap-2 pt-2.5 border-t',
+    platformContainerStyle: (isDark: boolean) => ({
+      borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E4E4E7',
+    }),
+    platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity text-white no-underline shadow-sm',
+    platformIconSize: 12,
+    footerClassName: 'text-[11px] flex items-center justify-between pt-1',
+    footerStyle: (isDark: boolean) => ({
+      color: isDark ? '#CBD5E1' : '#52525B',
+    }),
+    footerDescription: 'Tap any channel to read the full update',
+    pulseAnimationColor: '#22C55E',
+  },
+  'bento': {
+    containerClassName: 'my-4 transition-all duration-200',
+    containerStyle: (isDark: boolean) => ({
+      background: isDark ? '#18181B' : '#FFFFFF',
+      border: isDark ? '1px solid rgba(255,255,255,0.14)' : '1px solid #E4E4E7',
+      borderRadius: '20px',
+      padding: '18px 20px',
+      boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.35)' : '0 2px 10px rgba(15,23,42,0.04)',
+      scrollMarginTop: '96px',
+    }),
+    headerClassName: 'flex justify-between items-center mb-2.5 gap-2',
+    pulseColor: '#22C55E',
+    pulseSize: 'w-2 h-2',
+    title: 'Latest Post',
+    titleClassName: 'text-[11px] font-mono uppercase tracking-[0.16em] font-bold',
+    titleStyle: (isDark: boolean) => ({
+      color: isDark ? '#E4E4E7' : '#3F3F46',
+    }),
+    timestampClassName: 'text-[11px] font-mono',
+    timestampStyle: (isDark: boolean) => ({
+      color: isDark ? '#CBD5E1' : '#52525B',
+    }),
+    contentClassName: 'space-y-3',
+    contentStyle: (isDark: boolean) => ({
+      color: isDark ? '#F8FAFC' : '#0F172A',
+      fontSize: '14px',
+      lineHeight: '1.6',
+    }),
+    excerptMaxLength: 160,
+    platformContainerClassName: 'flex flex-wrap gap-2 pt-2.5 border-t',
+    platformContainerStyle: (isDark: boolean) => ({
+      borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E4E4E7',
+    }),
+    platformButtonClassName: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity text-white no-underline shadow-sm',
+    platformIconSize: 12,
+    footerClassName: 'text-[11px] flex items-center justify-between pt-1',
+    footerStyle: (isDark: boolean) => ({
+      color: isDark ? '#CBD5E1' : '#52525B',
+    }),
+    footerDescription: 'Tap any channel to read the full update',
+    pulseAnimationColor: '#22C55E',
   },
 };
 
@@ -873,9 +976,9 @@ export function renderPlatformButtons(
               rel="noopener noreferrer"
               title={`${cfg.cta} on ${cfg.name}`}
               className={config.platformButtonClassName}
-              style={config.platformButtonStyle?.(cfg, isDark)}
+              style={config.platformButtonStyle?.(cfg, isDark) ?? { backgroundColor: cfg.bg, color: cfg.color }}
             >
-              <Icon size={config.platformIconSize ?? 12} />
+              <Icon size={config.platformIconSize ?? 12} aria-hidden="true" />
               <span>{cfg.name}</span>
               <span style={{ opacity: 0.8, fontSize: 10 }}>↗</span>
             </a>
@@ -904,7 +1007,10 @@ export function renderPlatformButtons(
       {published.map(({ platform, url }) => {
         const cfg = getPlatformCfg(platform);
         const Icon = cfg.icon;
-        const buttonStyle = config.platformButtonStyle?.(cfg, isDark);
+        const buttonStyle = config.platformButtonStyle?.(cfg, isDark) ?? {
+          backgroundColor: cfg.bg,
+          color: cfg.color,
+        };
         const iconWrapper = config.platformIconWrapper;
         const targetUrl = platform?.toLowerCase() === 'facebook' ? normalizeFacebookUrl(url) : url;
 
@@ -922,7 +1028,7 @@ export function renderPlatformButtons(
               iconWrapper(<Icon size={config.platformIconSize ?? 12} />, cfg.name)
             ) : (
               <>
-                <Icon size={config.platformIconSize ?? 12} />
+                <Icon size={config.platformIconSize ?? 12} aria-hidden="true" />
                 <span>{cfg.name}</span>
                 <span className="opacity-80 text-[10px]">↗</span>
               </>
@@ -951,7 +1057,7 @@ export function renderFooter(
 
   return (
     <div className={config.footerClassName}>
-      <span dangerouslySetInnerHTML={{ __html: config.footerDescription }} />
+      <span>{config.footerDescription}</span>
       <span>Live on {published.length} {config.footerDescription.includes('network') ? 'network' : config.footerDescription.includes('feed') ? 'feed' : config.footerDescription.includes('channel') ? 'channel' : 'platform'}{published.length !== 1 ? 's' : ''}</span>
     </div>
   );

@@ -172,7 +172,11 @@ async function getDashboardData(): Promise<{
           headline: profile.headline,
           status: (profile.subdomain ? 'published' : 'draft') as 'published' | 'draft',
           updatedAt: profile.updatedAt.toISOString(),
-          links: profile.links,
+          links: (profile.links || []).map((l) => ({
+            label: l.label,
+            url: l.url,
+            type: l.type || l.category || 'other',
+          })),
           proofPoints: profile.proofPoints,
         }
       : null,

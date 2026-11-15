@@ -12,8 +12,9 @@ import {
 } from 'lucide-react';
 import { CLUB_BRAND_ICONS, normalizeSocialPlatformKey, type ClubBrandIconKey } from './ClubBrandIcons';
 import { adaptPublicProfileToClub, type ClubTemplateData } from './adaptClub';
-import { generateVCard } from './utils/vcard';
-import type { TemplateProps } from './types';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { downloadProfileVCard } from '@/lib/profile/templateActions';
+import type { ProfileLink, TemplateProps } from './types';
 import './ClubDesignTokens.css';
 import './ClubTemplateV2.css';
 
@@ -161,7 +162,7 @@ function ClubHeroV2({ name, tagline, handle }: HeroProps) {
         </h1>
 
         <p className="club-hero-tagline">
-          {tagline || '"We shape culture."'}
+          {tagline}
         </p>
 
         <div className="club-hero-handle">@{handle}</div>
@@ -192,25 +193,13 @@ interface ManifestoProps {
 }
 
 function ClubManifestoV2({ bio, manifesto }: ManifestoProps) {
-  const prefersReduced = useReducedMotion();
-  const sectionRef = useRef<HTMLElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setIsVisible(true);
-    }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
-    if (sectionRef.current) obs.observe(sectionRef.current);
-    return () => obs.disconnect();
-  }, []);
+  if (!bio && !manifesto) return null;
 
   return (
     <section
-      ref={sectionRef}
       id="manifesto"
       className="club-manifesto"
       aria-labelledby="manifesto-title"
-      style={{ opacity: isVisible || prefersReduced ? 1 : 0, transform: isVisible || prefersReduced ? 'none' : 'translateY(20px)', transition: 'opacity 0.6s var(--club-ease-smooth), transform 0.6s var(--club-ease-smooth)' }}
     >
       <header className="club-section-header">
         <span className="club-section-num">02</span>
@@ -218,17 +207,17 @@ function ClubManifestoV2({ bio, manifesto }: ManifestoProps) {
       </header>
 
       <div className="club-manifesto-content">
-        <p className="club-manifesto-text club-manifesto-primary">
-          {bio}
-        </p>
+        {bio && (
+          <p className="club-manifesto-text club-manifesto-primary">
+            {bio}
+          </p>
+        )}
 
-        <blockquote className="club-manifesto-quote">
-          "The future belongs to those who create it."
-        </blockquote>
-
-        <p className="club-manifesto-text club-manifesto-secondary">
-          {manifesto}
-        </p>
+        {manifesto && (
+          <p className="club-manifesto-text club-manifesto-secondary">
+            {manifesto}
+          </p>
+        )}
       </div>
 
       {/* Blade accent — asymmetric line */}
@@ -554,34 +543,17 @@ function ArrowUpRightIcon({ size = 14, strokeWidth = 2 }: { size?: number; strok
    Distinct from other sections — horizontal scroll, pill shape
    ============================================================ */
 
-interface SocialLink {
-  id: string;
-  platform: string;
-  url: string;
-  label: string;
-  icon: React.ReactNode;
-  iconKey: ClubBrandIconKey;
-}
-
-interface SocialsMatrixProps {
-  socialLinks: SocialLink[];
-}
-
-function ClubSocialsMatrixV2({ socialLinks }: SocialsMatrixProps) {
-  const prefersReduced = useReducedMotion();
-  const sectionRef = useRef<HTMLElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+function ClubSocialsMatrixV2({
+  socialLinks,
+  onLinkClick,
+}: {
+  socialLinks: Array<ClubTemplateData['socialLinks'][number]>;
+  onLinkClick?: (link: ProfileLink) => void;
+}) {
   const railRef = useRef<HTMLDivElement>(null);
+  const prefersReduced = useReducedMotion();
 
-  useEffect(() => {
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setIsVisible(true);
-    }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
-    if (sectionRef.current) obs.observe(sectionRef.current);
-    return () => obs.disconnect();
-  }, []);
-
-  const scroll = (dir: -1 | 1) => {
+  const scroll = (dir: number) => {
     if (railRef.current) {
       railRef.current.scrollBy({ left: dir * 200, behavior: prefersReduced ? 'auto' : 'smooth' });
     }
@@ -591,43 +563,37 @@ function ClubSocialsMatrixV2({ socialLinks }: SocialsMatrixProps) {
 
   return (
     <section
-      ref={sectionRef}
       id="socials"
       className="club-socials"
       aria-labelledby="socials-title"
-      style={{ opacity: isVisible || prefersReduced ? 1 : 0, transform: isVisible || prefersReduced ? 'none' : 'translateY(20px)', transition: 'opacity 0.6s var(--club-ease-smooth), transform 0.6s var(--club-ease-smooth)' }}
     >
       <header className="club-section-header">
         <div>
           <span className="club-section-num">05</span>
           <h2 id="socials-title" className="club-section-title">BRAND SOCIALS</h2>
         </div>
-        <div className="club-socials-controls" aria-hidden="true">
-          <button className="club-socials-btn" onClick={() => scroll(-1)} aria-label="Scroll left">
-            <ChevronLeft size={18} strokeWidth={2} />
+        <div className="club-socials-controls">
+          <button type="button" className="club-socials-btn" onClick={() => scroll(-1)} aria-label="Scroll social links left">
+            <ChevronLeft size={18} strokeWidth={2} aria-hidden="true" />
           </button>
-          <button className="club-socials-btn" onClick={() => scroll(1)} aria-label="Scroll right">
-            <ChevronRight size={18} strokeWidth={2} />
+          <button type="button" className="club-socials-btn" onClick={() => scroll(1)} aria-label="Scroll social links right">
+            <ChevronRight size={18} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
       </header>
 
       <div className="club-socials-rail-wrapper">
         <div ref={railRef} className="club-socials-rail" role="list" aria-label="Social platforms">
-          {socialLinks.map((link, i) => (
+          {socialLinks.map((link) => (
             <a
               key={link.id}
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => onLinkClick?.(link.raw)}
               className="club-social-card"
               role="listitem"
               aria-label={link.label}
-              style={{
-                opacity: isVisible || prefersReduced ? 1 : 0,
-                transform: isVisible || prefersReduced ? 'none' : 'translateY(12px)',
-                transition: `opacity 0.4s var(--club-ease-smooth) ${i * 40}ms, transform 0.4s var(--club-ease-smooth) ${i * 40}ms`,
-              }}
             >
               <div className="club-social-icon" aria-hidden="true">
                 {link.icon}
@@ -1021,7 +987,6 @@ interface TopNavProps {
 function ClubTopNavV2({ profile }: TopNavProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const prefersReduced = useReducedMotion();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 16);
@@ -1030,10 +995,10 @@ function ClubTopNavV2({ profile }: TopNavProps) {
   }, []);
 
   return (
-    <nav className={`club-topnav ${scrolled ? 'scrolled' : ''}`} role="navigation" aria-label="Main navigation" style={{ opacity: prefersReduced ? 1 : 0, transform: prefersReduced ? 'none' : 'translateY(-100%)', transition: 'opacity 0.4s var(--club-ease-smooth), transform 0.4s var(--club-ease-smooth)' }}>
+    <nav className={`club-topnav ${scrolled ? 'scrolled' : ''}`} role="navigation" aria-label="Main navigation">
       <div className="club-topnav-left">
         <a href="#hero" className="club-topnav-logo" aria-label={`${profile.name} - Home`}>
-          {profile.name || 'THE CLUB'}
+          {profile.name}
         </a>
         <div className="club-topnav-divider" aria-hidden="true" />
         <div className={`club-topnav-links ${mobileMenuOpen ? 'open' : ''}`}>
@@ -1043,7 +1008,7 @@ function ClubTopNavV2({ profile }: TopNavProps) {
           <a href="#socials" className="club-topnav-link">Socials</a>
           <a href="#activity" className="club-topnav-link">Activity</a>
         </div>
-        <button className="club-topnav-menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}>
+        <button type="button" className="club-topnav-menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}>
           {mobileMenuOpen ? <XIcon size={20} strokeWidth={2} /> : <MenuIcon size={20} strokeWidth={2} />}
         </button>
       </div>
@@ -1059,7 +1024,7 @@ function MenuIcon({ size = 20, strokeWidth = 2 }: { size?: number; strokeWidth?:
 }
 
 /* ============================================================
-   LIVE CLOCK — Compact, monospace
+   LIVE CLOCK — Compact, monospace (SSR-safe hydration)
    ============================================================ */
 
 interface LiveClockProps {
@@ -1068,16 +1033,28 @@ interface LiveClockProps {
 }
 
 function LiveClock({ format, className = '' }: LiveClockProps) {
-  const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: format === 'HH:mm:ss' ? '2-digit' : undefined }));
+  const [time, setTime] = useState<string>('--:--');
+  const [iso, setIso] = useState<string | undefined>(undefined);
   const prefersReduced = useReducedMotion();
 
   useEffect(() => {
+    const formatNow = () => {
+      const now = new Date();
+      setIso(now.toISOString());
+      setTime(now.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: format === 'HH:mm:ss' ? '2-digit' : undefined,
+      }));
+    };
+    formatNow();
     if (prefersReduced) return;
-    const id = setInterval(() => setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: format === 'HH:mm:ss' ? '2-digit' : undefined })), 1000);
+    const id = setInterval(formatNow, 1000);
     return () => clearInterval(id);
   }, [format, prefersReduced]);
 
-  return <time className={`club-clock ${className}`} dateTime={new Date().toISOString()}>{time}</time>;
+  return <time className={`club-clock ${className}`} dateTime={iso}>{time}</time>;
 }
 
 /* ============================================================
@@ -1085,14 +1062,15 @@ function LiveClock({ format, className = '' }: LiveClockProps) {
    ============================================================ */
 
 interface ActionDockProps {
-  profile: { name: string; handle: string; email?: string; availability?: string };
+  profile: { name: string; handle: string; email?: string; availability?: 'open' | 'busy' | 'selective' | 'closed' };
+  showContact: boolean;
   onBookSession: () => void;
   onDownloadVCard: () => void;
   onCopyEmail: () => void;
   onShare: () => void;
 }
 
-function ClubActionDockV2({ profile, onBookSession, onDownloadVCard, onCopyEmail, onShare }: ActionDockProps) {
+function ClubActionDockV2({ profile, showContact, onBookSession, onDownloadVCard, onCopyEmail, onShare }: ActionDockProps) {
   const [copied, setCopied] = useState(false);
   const prefersReduced = useReducedMotion();
 
@@ -1103,29 +1081,33 @@ function ClubActionDockV2({ profile, onBookSession, onDownloadVCard, onCopyEmail
   };
 
   return (
-    <footer className="club-action-dock" role="contentinfo" style={{ opacity: prefersReduced ? 1 : 0, transform: prefersReduced ? 'none' : 'translateY(100%)', transition: 'opacity 0.4s var(--club-ease-smooth), transform 0.4s var(--club-ease-smooth)' }}>
+    <footer className="club-action-dock" role="contentinfo">
       <div className="club-dock-left">
         <LiveClock format="HH:mm" className="club-dock-clock" />
-        <AvailabilityPill status={(profile.availability as any) || 'selective'} />
+        <AvailabilityPill status={profile.availability || 'selective'} />
       </div>
 
       <div className="club-dock-center">
-        <button className="club-dock-btn club-dock-btn--primary" onClick={onBookSession} aria-label="Book a session">
-          <MailIcon size={16} strokeWidth={2} />
-          <span>Book</span>
-        </button>
-        <button className="club-dock-btn club-dock-btn--secondary" onClick={onDownloadVCard} aria-label="Download vCard">
+        {showContact && (
+          <button type="button" className="club-dock-btn club-dock-btn--primary" onClick={onBookSession} aria-label="Connect">
+            <MailIcon size={16} strokeWidth={2} />
+            <span>Connect</span>
+          </button>
+        )}
+        <button type="button" className="club-dock-btn club-dock-btn--secondary" onClick={onDownloadVCard} aria-label="Download vCard">
           <DownloadIcon size={16} strokeWidth={2} />
           <span>vCard</span>
         </button>
-        <button className="club-dock-btn club-dock-btn--ghost" onClick={handleCopyEmail} aria-label={copied ? 'Email copied' : 'Copy email'} disabled={!profile.email}>
-          {copied ? <CheckIcon size={16} strokeWidth={2} /> : <CopyIcon size={16} strokeWidth={2} />}
-          <span>{copied ? 'Copied' : 'Email'}</span>
-        </button>
+        {profile.email && (
+          <button type="button" className="club-dock-btn club-dock-btn--ghost" onClick={handleCopyEmail} aria-label={copied ? 'Email copied' : 'Copy email'}>
+            {copied ? <CheckIcon size={16} strokeWidth={2} /> : <CopyIcon size={16} strokeWidth={2} />}
+            <span>{copied ? 'Copied' : 'Email'}</span>
+          </button>
+        )}
       </div>
 
       <div className="club-dock-right">
-        <button className="club-dock-btn club-dock-btn--ghost" onClick={onShare} aria-label="Share profile">
+        <button type="button" className="club-dock-btn club-dock-btn--ghost" onClick={onShare} aria-label="Share profile">
           <ShareIcon size={16} strokeWidth={2} />
         </button>
       </div>
@@ -1202,57 +1184,47 @@ function useReducedMotion(): boolean {
    ============================================================ */
 
 function ClubTemplateV2Inner({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
-  const [clubData, setClubData] = useState<ClubTemplateData | null>(null);
-  const [contactOpen, setContactOpen] = useState(false);
+  const { normalized, openContact } = useProfileShell();
+  const [clubData, setClubData] = useState<ClubTemplateData | null>(() => adaptPublicProfileToClub(profile));
   const { addToast } = useClubToast();
 
-  // Adapt profile data
+  // Adapt profile data on update
   useEffect(() => {
     setClubData(adaptPublicProfileToClub(profile));
   }, [profile]);
 
-  const handleBookSession = useCallback(() => {
-    setContactOpen(true);
-  }, []);
-
   const handleDownloadVCard = useCallback(() => {
     if (clubData) {
-      const vcard = generateVCard(clubData);
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${clubData.handle || clubData.name}.vcf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      addToast({ type: 'success', title: 'vCard downloaded', description: 'Contact saved to your device' });
+      const ok = downloadProfileVCard({
+        name: clubData.name,
+        role: profile?.role,
+        company: profile?.company,
+        email: clubData.email,
+        location: clubData.location,
+        bio: clubData.bio,
+        subdomain: profile?.subdomain,
+      });
+      if (ok) {
+        addToast({ type: 'success', title: 'vCard downloaded', description: 'Contact saved to your device' });
+      }
     }
-  }, [clubData, addToast]);
+  }, [clubData, profile, addToast]);
 
   const handleCopyEmail = useCallback(() => {
     if (clubData?.email) {
-      navigator.clipboard.writeText(clubData.email);
+      navigator.clipboard?.writeText(clubData.email);
       addToast({ type: 'success', title: 'Email copied', description: `${clubData.email} copied to clipboard` });
     }
   }, [clubData, addToast]);
 
   const handleShare = useCallback(() => {
-    if (navigator.share) {
+    if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({ title: clubData?.name, text: clubData?.tagline, url: window.location.href });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
+    } else if (typeof navigator !== 'undefined') {
+      navigator.clipboard?.writeText(window.location.href);
       addToast({ type: 'success', title: 'Link copied', description: 'Profile URL copied to clipboard' });
     }
   }, [clubData, addToast]);
-
-  const handleContactSubmit = useCallback(async (data: ClubTemplateData) => {
-    const response = await fetch('/api/profile/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, profileHandle: clubData?.handle }),
-    });
-    if (!response.ok) throw new Error('Failed to submit');
-  }, [clubData]);
 
   if (!clubData) return null;
 
@@ -1275,35 +1247,38 @@ function ClubTemplateV2Inner({ profile, accentColor, isPreview, onLinkClick }: T
       {/* Top Nav — always present */}
       <ClubTopNavV2 profile={{ name: clubData.name, handle: clubData.handle }} />
 
-      {/* Main Content — single vertical flow, no fixed panels */}
+      {/* Main Content — single vertical flow */}
       <main className="club-main" style={{ paddingTop: '72px', paddingBottom: '96px' }}>
-        {/* Hero — full viewport height on desktop, auto on mobile */}
         <ClubHeroV2 name={clubData.name} tagline={clubData.tagline} handle={clubData.handle} />
 
-        {/* Content Sections — tight vertical rhythm */}
-        <ClubManifestoV2 bio={clubData.bio} manifesto={clubData.manifesto} />
-        <ClubProofLedgerV2 proofPoints={clubData.proofPoints} />
-        <ClubCuratedWorksV2 projects={clubData.projects} />
-        <ClubSocialsMatrixV2 socialLinks={socialLinks} />
-        <ClubOpenToBadgesV2 openTo={openToBadges} />
-        <ClubRecentActivityV2 activities={clubData.activities as any} profile={{ name: clubData.name, avatar: clubData.avatar }} />
+        {normalized.sectionVisibility.bio && (
+          <ClubManifestoV2 bio={clubData.bio} manifesto={clubData.manifesto} />
+        )}
+        {normalized.sectionVisibility.proof && clubData.proofPoints.length > 0 && (
+          <ClubProofLedgerV2 proofPoints={clubData.proofPoints as any} />
+        )}
+        {normalized.sectionVisibility.links && clubData.projects.length > 0 && (
+          <ClubCuratedWorksV2 projects={clubData.projects as any} />
+        )}
+        {normalized.sectionVisibility.links && socialLinks.length > 0 && (
+          <ClubSocialsMatrixV2 socialLinks={socialLinks} onLinkClick={onLinkClick} />
+        )}
+        {normalized.sectionVisibility.openTo && openToBadges.length > 0 && (
+          <ClubOpenToBadgesV2 openTo={openToBadges} />
+        )}
+        {normalized.sectionVisibility.recentActivity && clubData.activities.length > 0 && (
+          <ClubRecentActivityV2 activities={clubData.activities as any} profile={{ name: clubData.name, avatar: clubData.avatar }} />
+        )}
       </main>
 
       {/* Mobile Action Dock — only on mobile */}
       <ClubActionDockV2
         profile={{ name: clubData.name, handle: clubData.handle, email: clubData.email, availability: clubData.availability }}
-        onBookSession={handleBookSession}
+        showContact={normalized.sectionVisibility.contact && normalized.hasContactChannel}
+        onBookSession={openContact}
         onDownloadVCard={handleDownloadVCard}
         onCopyEmail={handleCopyEmail}
         onShare={handleShare}
-      />
-
-      {/* Contact Drawer */}
-      <ClubContactDrawerV2
-        isOpen={contactOpen}
-        onClose={() => setContactOpen(false)}
-        profile={{ name: clubData.name, handle: clubData.handle, email: clubData.email, location: clubData.location, calendlyUrl: clubData.calendlyUrl }}
-        onSubmit={handleContactSubmit}
       />
     </div>
   );
@@ -1315,8 +1290,16 @@ function ClubTemplateV2Inner({ profile, accentColor, isPreview, onLinkClick }: T
 
 export function ClubTemplateV2(props: TemplateProps) {
   return (
-    <ClubToastProvider>
-      <ClubTemplateV2Inner {...props} />
-    </ClubToastProvider>
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#06070B"
+      isDark
+      defaultAccent="#00E5FF"
+      isPreview={props.isPreview}
+    >
+      <ClubToastProvider>
+        <ClubTemplateV2Inner {...props} />
+      </ClubToastProvider>
+    </ProfileTemplateShell>
   );
 }

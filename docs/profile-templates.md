@@ -4,15 +4,22 @@ This document describes how to add new templates, override styles, and extend pr
 
 ## Overview
 
-The profile system uses 15 persona-driven templates across 5 categories:
+The profile system uses 24 canonical persona-driven templates across 5 categories in `components/profile/templates/registry.ts` (plus legacy ID aliases mapped by `lib/profile/templateNormalization.ts` and `lib/profile/normalizeTemplateData.ts`):
 
 | Category | Templates |
 |----------|-----------|
-| Individual | lover, lone, energy |
-| Startup | rebellion, vision, human |
-| Agency | the-machine, the-club, the-studio |
-| Entrepreneur | the-builder, the-visionary, the-hustler |
-| Influencer | the-aesthete, the-creator, the-voice |
+| Individual | lover, lone, energy, the-stack, the-metro |
+| Startup | rebellion, vision, human, the-cube, the-desktop |
+| Agency | the-machine, the-club, the-studio, the-monolith, the-noren |
+| Entrepreneur | the-builder, the-visionary, the-hustler, the-calendar, the-bento |
+| Influencer | the-aesthete, the-creator, the-voice, the-bookshelf |
+
+### Shared Architecture & Theme Contract (2026 Audit Standard)
+
+- **Shared Shell (`components/profile/ProfileTemplateShell.tsx`)**: All templates wrap content in `<ProfileTemplateShell>`, which runs `normalizeTemplateProfile(...)`, computes WCAG-compliant `--profile-accent-readable` (`>= 4.5:1` via `solveAccessibleAccent` in `lib/profile/contrast.ts`) and `--profile-accent-contrast`, applies `data-font-pairing`, `data-avatar-style`, `data-color-mode` + CSS font variables (`grotesk | editorial | classic | mono`), emits `SafeJsonLd` Person schema (disabled in builder preview), and mounts `ProfileContactModal`.
+- **Theme Tokens (`lib/validation/profileSchemas.ts`)**: `ThemeInputSchema` supports `template`, `accentColor`, `colorMode` (`auto | light | dark`), `fontPairing` (`grotesk | editorial | classic | mono`), `avatarStyle` (`circle | rounded | square`), and `sectionVisibility` (`proofs`, `openTo`, `activity`, `contactCta`, `footerBadge`). Links are sorted deterministically by `order` in `normalizeTemplateProfile()` and validated with `isSafeHref()`.
+- **Plan Gating (`lib/limits/freeTier.ts`, `UnifiedTemplatePicker.tsx`)**: `SPARK_FREE_TEMPLATE_IDS` defines free Starter templates (`lover`, `lone`, `energy`, `rebellion`, `vision`, `minimal`); plans with `maxTemplatesAllowed >= 16` unlock all 24 canonical templates.
+- **Modular Builder (`app/dashboard/presence/PresenceClient.tsx`, `components/profile/builder/*`)**: Split-pane 4-tab editor (`Identity & Bio`, `Links & Proof`, `Design & Templates`, `Domain & Analytics`) with workspace-scoped cache isolation (`workspacePresenceCache` + `syncClientCacheScope`), optimistic-locking (`409 VERSION_CONFLICT` recovery), and live desktop/mobile iframe-safe preview.
 
 Each template is a React component in `components/profile/templates/persona/{templateId}/index.tsx` that implements the `TemplateProps` interface.
 

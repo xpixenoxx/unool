@@ -569,3 +569,53 @@
   font-size: 14px !important;
   box-shadow: 0 20px 50px -10px rgba(45, 35, 25, 0.22), 0 0 0 1px rgba(196, 162, 101, 0.15) !important;
 }
+
+/* ── Profile Template Motion Utilities (Reduced-Motion Safe) ────────────── */
+@keyframes profile-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes profile-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes profile-pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.18); opacity: 0.6; }
+}
+
+@keyframes profile-spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.profile-animate-gradient {
+  background-size: 250% 250%;
+  animation: profile-gradient-shift 16s ease infinite;
+}
+
+.profile-animate-marquee {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: profile-marquee 28s linear infinite;
+}
+
+.profile-animate-pulse-soft {
+  animation: profile-pulse-soft 2.6s ease-in-out infinite;
+}
+
+.profile-animate-spin-slow {
+  animation: profile-spin-slow 12s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-animate-gradient,
+  .profile-animate-marquee,
+  .profile-animate-pulse-soft,
+  .profile-animate-spin-slow {
+    animation: none !important;
+    transform: none !important;
+  }
+}

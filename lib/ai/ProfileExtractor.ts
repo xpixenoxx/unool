@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
-import { validateUrlForFetch, isAllowedExtractionDomain } from '@/lib/utils/url-validation';
+import { validateUrlForFetch, isAllowedExtractionDomain, safeFetchExternalPage } from '@/lib/utils/url-validation';
 
 export const ExtractedProfileSchema = z.object({
   name: z.string().min(1).max(100),
@@ -146,14 +146,14 @@ export class ProfileExtractor {
 
     for (const ua of userAgents) {
       try {
-        const response = await fetch(url, {
+        const response = await safeFetchExternalPage(url, {
           headers: {
             'User-Agent': ua,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
           },
-          signal: AbortSignal.timeout(6000),
-          redirect: 'follow',
+          timeoutMs: 6000,
+          maxRedirects: 3,
         });
 
         if (!response.ok) {

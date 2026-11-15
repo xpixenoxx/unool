@@ -49,7 +49,7 @@ interface SettingsClientProps {
   workspaceId: string;
 }
 
-import { registerClientCacheReset } from '@/lib/utils/clientCache';
+import { registerClientCacheReset, syncClientCacheScope } from '@/lib/utils/clientCache';
 
 // In-memory module cache for instant (0ms) revisits across sidebar navigation
 let memorySettingsWorkspace: Workspace | null = null;
@@ -62,6 +62,7 @@ registerClientCacheReset(() => {
 /* ─── Main component ─── */
 
 export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
+  syncClientCacheScope(userId, workspaceId);
   const searchParams = useSearchParams();
   const [activeSection, setActiveSection] = useState<SectionId>('workspace');
   const [workspace, setWorkspace] = useState<Workspace | null>(() => memorySettingsWorkspace);
@@ -152,9 +153,10 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
     try {
       const res = await fetch('/api/profile', { credentials: 'include' });
       const data = await res.json();
-      if (data.profile?.theme?.template) {
-        memorySettingsTemplate = data.profile.theme.template;
-        setCurrentTemplate(data.profile.theme.template);
+      const tpl = data?.profile?.theme?.template ?? data?.theme?.template;
+      if (typeof tpl === 'string' && tpl) {
+        memorySettingsTemplate = tpl;
+        setCurrentTemplate(tpl);
       }
     } catch {
       // ignore

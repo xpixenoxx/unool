@@ -1,112 +1,73 @@
 'use client';
 
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
-import { SocialIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
+import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { getActionVerb, cleanDisplayUrl, downloadProfileVCard } from '@/lib/profile/templateActions';
+import { pickReadableText, solveAccessibleAccent } from '@/lib/profile/contrast';
 import { Phone, Mail, MessageCircle, Download, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
-
-/* ─────────────────────────────────────────────────────────────
-   Contextual CTA Action Verbs for Kinetic Cube
-   ───────────────────────────────────────────────────────────── */
-function getCubeActionVerb(url: string, label: string): string {
-  const u = (url || '').toLowerCase();
-  const l = (label || '').toLowerCase();
-
-  if (l.includes('portfolio') || l.includes('work') || l.includes('case stud') || u.includes('dribbble.com') || u.includes('behance.net')) return 'EXPLORE';
-  if (l.includes('website') || l.includes('site') || l.includes('homepage') || l.includes('web')) return 'VISIT';
-  if (u.includes('cal.com') || u.includes('calendly.com') || l.includes('book') || l.includes('schedule')) return 'BOOK';
-  if (u.includes('wa.me') || u.includes('whatsapp') || l.includes('chat')) return 'CHAT';
-  if (u.includes('linkedin.com') || l.includes('connect')) return 'CONNECT';
-  if (u.includes('.pdf') || l.includes('resume') || l.includes('cv') || l.includes('download')) return 'GET';
-  if (u.includes('github.com') || u.includes('gitlab.com') || l.includes('code')) return 'INSPECT';
-  if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('vimeo') || l.includes('watch')) return 'WATCH';
-  if (u.includes('spotify.com') || u.includes('apple.com/music') || l.includes('listen')) return 'LISTEN';
-  if (u.includes('substack.com') || u.includes('medium.com') || l.includes('blog') || l.includes('read')) return 'READ';
-
-  const isX = /(?:^|[\/\.])x\.com(?=[\/\?#:]|$)/i.test(u) || u.includes('twitter.com') || l === 'x' || l === 'twitter';
-  const isSocial = isX || u.includes('instagram.com') || u.includes('threads.net') || u.includes('tiktok.com');
-  if (isSocial) return 'FOLLOW';
-
-  return 'VISIT';
-}
-
-function cleanDisplayUrl(rawUrl: string): string {
-  if (!rawUrl) return '';
-  return rawUrl
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\/$/, '');
-}
 
 type CubeFaceIndex = 0 | 1 | 2 | 3;
 
-export function CubeTemplate({
+function CubeTemplateInner({
   profile,
   accentColor,
   isPreview = false,
   onLinkClick,
 }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
   const [activeFace, setActiveFace] = useState<CubeFaceIndex>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
   }, []);
 
-  const name = profile?.name || 'Your Name';
-  const role = profile?.role || profile?.headline || 'Founder & Creator';
-  const bio = profile?.bio || 'Building and designing next-generation digital artifacts and systems.';
-  const location = profile?.location || (profile as any)?.city || '';
-  const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar_url || '';
-  const email = profile?.email || '';
+  const name = normalized.name;
+  const role = normalized.role || normalized.headline;
+  const bio = normalized.bio;
+  const location = normalized.location;
+  const avatarUrl = normalized.avatarUrl;
+  const initials = normalized.initials;
+  const email = normalized.showEmail ? normalized.email : '';
   const phone = (profile as any)?.phone || '';
-  const links: ProfileLink[] = (profile?.links || []).filter((l) => l.isVisible !== false);
-  const proofs: ProfileProof[] = profile?.proofs || (profile as any)?.proofPoints || [];
+  const links: ProfileLink[] = normalized.links;
+  const proofs = normalized.proofs;
+
+  const c2Bg = accentColor || normalized.accentColor || '#2c5aa0';
+  const c2Text = useMemo(() => pickReadableText(c2Bg), [c2Bg]);
+  const readableAccentOnLight = useMemo(() => solveAccessibleAccent(c2Bg, '#f2efe6'), [c2Bg]);
 
   const numericPhone = useMemo(() => (phone || '').replace(/[^\d+]/g, ''), [phone]);
   const cleanWaNumber = useMemo(() => (phone || '').replace(/[^\d]/g, ''), [phone]);
-
-  const initials = useMemo(() => {
-    return (name || '')
-      .trim()
-      .split(/\s+/)
-      .map((w) => w.charAt(0))
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-  }, [name]);
 
   // Handle vCard contact generation
   const handleSaveContact = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     try {
-      const vcard = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${name}`,
-        `TITLE:${role}`,
-        email ? `EMAIL;TYPE=INTERNET,WORK:${email}` : '',
-        numericPhone ? `TEL;TYPE=CELL,VOICE:${numericPhone}` : '',
-        location ? `ADR;TYPE=WORK:;;${location};;;;` : '',
-        `NOTE:${bio.replace(/\n/g, ' ')}`,
-        `URL:${typeof window !== 'undefined' ? window.location.href : `https://${profile?.subdomain}.unool.com`}`,
-        'END:VCARD',
-      ]
-        .filter(Boolean)
-        .join('\r\n');
-
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${name.replace(/\s+/g, '_')}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadProfileVCard({
+        name,
+        role,
+        email,
+        phone: numericPhone,
+        location,
+        bio,
+        subdomain: profile?.subdomain,
+        website: typeof window !== 'undefined' ? window.location.href : undefined,
+      });
       showToast('Contact card downloaded');
     } catch (err) {
       console.error('vCard generation error:', err);
@@ -139,24 +100,6 @@ export function CubeTemplate({
 
     return entries;
   }, [profile?.socialHandles]);
-
-  const structuredData = useMemo(() => {
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Person',
-      name: name,
-      jobTitle: role,
-      description: bio,
-      image: avatarUrl || undefined,
-      url: typeof window !== 'undefined' ? window.location.href : undefined,
-      email: email ? `mailto:${email}` : undefined,
-      telephone: numericPhone || undefined,
-      sameAs: [
-        ...links.map((l) => l.url),
-        ...socialEntries.map((s) => s.url),
-      ].filter(Boolean),
-    };
-  }, [name, role, bio, avatarUrl, email, numericPhone, links, socialEntries]);
 
   // Spatial Navigation Helpers
   const nextFace = useCallback(() => {
@@ -197,28 +140,23 @@ export function CubeTemplate({
   const rotationY = -90 * activeFace;
 
   return (
-    <div className="cube-wrap">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-
+    <div className="cube-wrap overflow-x-clip">
       <style>{`
         .cube-wrap {
           --w: min(88vw, 440px);
           --cube-bg: #d9d6cc;
           --c1-bg: #f2efe6;
           --c1-text: #1c1c1a;
-          --c2-bg: ${accentColor ? accentColor : '#2c5aa0'};
-          --c2-text: #ffffff;
+          --c2-bg: ${c2Bg};
+          --c2-text: ${c2Text};
           --c3-bg: #e8c13c;
           --c3-text: #1c1c1a;
-          --c4-bg: #c8402d;
+          --c4-bg: #b33524;
           --c4-text: #ffffff;
 
           background: var(--cube-bg);
           color: var(--c1-text);
-          font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           min-height: 100svh;
           width: 100%;
           overflow-x: hidden;
@@ -431,7 +369,7 @@ export function CubeTemplate({
 
         .cube-link-sub {
           font-size: 12px;
-          opacity: 0.8;
+          opacity: 0.92;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -442,7 +380,7 @@ export function CubeTemplate({
           font-weight: 800;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          background: rgba(255, 255, 255, 0.2);
+          background: rgba(17, 17, 17, 0.16);
           padding: 4px 10px;
           border-radius: 999px;
           white-space: nowrap;
@@ -464,7 +402,7 @@ export function CubeTemplate({
         .cube-service-row span {
           font-size: 13px;
           font-weight: 700;
-          opacity: 0.85;
+          opacity: 0.92;
           white-space: nowrap;
         }
 
@@ -510,7 +448,7 @@ export function CubeTemplate({
         }
 
         .cube-dt-row span {
-          opacity: 0.75;
+          opacity: 0.92;
         }
 
         .cube-dt-row b {
@@ -534,7 +472,7 @@ export function CubeTemplate({
           font-weight: 700;
           color: #ffffff;
           text-decoration: none;
-          opacity: 0.9;
+          opacity: 0.95;
         }
 
         .cube-social-pill:hover {
@@ -628,6 +566,16 @@ export function CubeTemplate({
           box-shadow: 0 8px 24px rgba(0,0,0,0.3);
           z-index: 100;
         }
+
+        @media (prefers-reduced-motion: reduce) {
+          .cube-box,
+          .cube-link-row,
+          .cube-tab,
+          .cube-nav-btn,
+          .cube-action-btn {
+            transition: none !important;
+          }
+        }
       `}</style>
 
       {/* 3D Kinetic Scene */}
@@ -673,26 +621,24 @@ export function CubeTemplate({
               <div className="cube-role">
                 <span>{role}</span>
                 {location && (
-                  <span className="inline-flex items-center gap-1 opacity-70 text-xs ml-1">
-                    <MapPin size={12} />
+                  <span className="inline-flex items-center gap-1 opacity-90 text-xs ml-1">
+                    <MapPin size={12} aria-hidden="true" />
                     {location}
                   </span>
                 )}
               </div>
 
-              <p className="cube-bio">{bio}</p>
+              {normalized.sectionVisibility.bio && bio && (
+                <p className="cube-bio">{bio}</p>
+              )}
 
-              {profile?.openTo && profile.openTo.length > 0 && (
-                <div className="cube-chips">
-                  {profile.openTo.map((intent: string) => (
-                    <span key={intent} className="cube-chip">
-                      {intent.replace(/-/g, ' ')}
-                    </span>
-                  ))}
+              {normalized.sectionVisibility.openTo && normalized.openTo.length > 0 && (
+                <div className="mt-3.5">
+                  <OpenToBadges intents={normalized.openTo} accentColor={readableAccentOnLight} variant="light" />
                 </div>
               )}
 
-              <div className="mt-auto pt-6 opacity-60 text-xs flex justify-between items-center">
+              <div className="mt-auto pt-6 opacity-90 text-xs flex justify-between items-center">
                 <span>01 / 04 PROFILE</span>
                 <span>SWIPE OR TAP TABS &rarr;</span>
               </div>
@@ -704,10 +650,10 @@ export function CubeTemplate({
             <div className="face-inner">
               <h2 className="face-heading">Links & Channels</h2>
 
-              {links && links.length > 0 ? (
+              {normalized.sectionVisibility.links && links && links.length > 0 ? (
                 <div className="flex flex-col">
                   {links.map((link, idx) => {
-                    const verb = getCubeActionVerb(link.url, link.label);
+                    const verb = getActionVerb(link.url, link.label);
                     return (
                       <a
                         key={link.id || idx}
@@ -730,24 +676,24 @@ export function CubeTemplate({
                   })}
                 </div>
               ) : (
-                <div className="py-12 opacity-80 text-sm">
+                <div className="py-12 opacity-90 text-sm">
                   No links added yet.
                 </div>
               )}
 
-              <div className="mt-auto pt-6 opacity-75 text-xs flex justify-between items-center">
+              <div className="mt-auto pt-6 opacity-90 text-xs flex justify-between items-center">
                 <span>02 / 04 LINKS</span>
                 <span>SWIPE &rarr;</span>
               </div>
             </div>
           </section>
 
-          {/* ── FACE 3: SERVICES & PROOFS ── */}
-          <section className="cube-face face-3" aria-label="Services Face">
+          {/* ── FACE 3: HIGHLIGHTS & DISPATCH ── */}
+          <section className="cube-face face-3" aria-label="Highlights Face">
             <div className="face-inner">
-              <h2 className="face-heading">Services & Proofs</h2>
+              <h2 className="face-heading">Highlights & Activity</h2>
 
-              {proofs && proofs.length > 0 ? (
+              {normalized.sectionVisibility.proof && proofs && proofs.length > 0 ? (
                 <div>
                   {proofs.map((proof, idx) => (
                     <div key={proof.id || idx} className="cube-service-row">
@@ -757,27 +703,16 @@ export function CubeTemplate({
                   ))}
                 </div>
               ) : (
-                <div>
-                  <div className="cube-service-row">
-                    <b>Digital Product Architecture</b>
-                    <span>From $1,500</span>
-                  </div>
-                  <div className="cube-service-row">
-                    <b>Brand & Spatial Systems</b>
-                    <span>From $2,000</span>
-                  </div>
-                  <div className="cube-service-row">
-                    <b>Technical Advisory</b>
-                    <span>From $750</span>
-                  </div>
-                </div>
+                <p className="py-6 text-sm font-medium">
+                  Verified highlights and updates appear here as they are published.
+                </p>
               )}
 
               {/* Activity Section */}
-              {profile?.recentActivity && (
+              {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
                 <div className="mt-4 pt-3 border-t-2 border-[#1c1c1a]/40">
                   <RecentActivitySection
-                    activity={profile.recentActivity}
+                    activity={normalized.recentActivity}
                     variant="stack"
                     isDark={false}
                     accentColor="#1c1c1a"
@@ -786,8 +721,8 @@ export function CubeTemplate({
                 </div>
               )}
 
-              <div className="mt-auto pt-6 opacity-75 text-xs flex justify-between items-center">
-                <span>03 / 04 SERVICES</span>
+              <div className="mt-auto pt-6 opacity-90 text-xs flex justify-between items-center">
+                <span>03 / 04 HIGHLIGHTS</span>
                 <span>SWIPE &rarr;</span>
               </div>
             </div>
@@ -798,48 +733,56 @@ export function CubeTemplate({
             <div className="face-inner">
               <h2 className="face-heading">Direct Contact</h2>
 
-              <nav className="cube-action-grid" aria-label="Direct actions">
-                {numericPhone ? (
-                  <a href={`tel:${numericPhone}`} className="cube-action-btn">
-                    <Phone size={16} />
-                    <span>Call</span>
-                  </a>
-                ) : (
-                  <button type="button" className="cube-action-btn" onClick={() => showToast('Phone number not listed')}>
-                    <Phone size={16} />
-                    <span>Call</span>
-                  </button>
-                )}
+              {normalized.sectionVisibility.contact && (
+                <nav className="cube-action-grid" aria-label="Direct actions">
+                  {numericPhone && (
+                    <a
+                      href={`tel:${numericPhone}`}
+                      className="cube-action-btn"
+                      onClick={() => onLinkClick?.({ id: 'call', label: 'Call', url: `tel:${numericPhone}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                    >
+                      <Phone size={16} aria-hidden="true" />
+                      <span>Call</span>
+                    </a>
+                  )}
 
-                {email ? (
-                  <a href={`mailto:${email}`} className="cube-action-btn">
-                    <Mail size={16} />
-                    <span>Email</span>
-                  </a>
-                ) : (
-                  <button type="button" className="cube-action-btn" onClick={() => showToast('Email not listed')}>
-                    <Mail size={16} />
-                    <span>Email</span>
-                  </button>
-                )}
+                  {email && (
+                    <a
+                      href={`mailto:${email}`}
+                      className="cube-action-btn"
+                      onClick={() => onLinkClick?.({ id: 'email', label: 'Email', url: `mailto:${email}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                    >
+                      <Mail size={16} aria-hidden="true" />
+                      <span>Email</span>
+                    </a>
+                  )}
 
-                {cleanWaNumber ? (
-                  <a href={`https://wa.me/${cleanWaNumber}`} target="_blank" rel="noopener noreferrer" className="cube-action-btn">
-                    <MessageCircle size={16} />
-                    <span>WhatsApp</span>
-                  </a>
-                ) : (
-                  <button type="button" className="cube-action-btn" onClick={() => showToast('WhatsApp unavailable')}>
-                    <MessageCircle size={16} />
-                    <span>WhatsApp</span>
-                  </button>
-                )}
+                  {cleanWaNumber && (
+                    <a
+                      href={`https://wa.me/${cleanWaNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cube-action-btn"
+                      onClick={() => onLinkClick?.({ id: 'whatsapp', label: 'WhatsApp', url: `https://wa.me/${cleanWaNumber}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                    >
+                      <MessageCircle size={16} aria-hidden="true" />
+                      <span>WhatsApp</span>
+                    </a>
+                  )}
 
-                <button type="button" className="cube-action-btn" onClick={handleSaveContact}>
-                  <Download size={16} />
-                  <span>vCard</span>
-                </button>
-              </nav>
+                  {normalized.hasContactChannel && (
+                    <button type="button" className="cube-action-btn" onClick={openContact}>
+                      <MessageCircle size={16} aria-hidden="true" />
+                      <span>Message</span>
+                    </button>
+                  )}
+
+                  <button type="button" className="cube-action-btn" onClick={handleSaveContact}>
+                    <Download size={16} aria-hidden="true" />
+                    <span>vCard</span>
+                  </button>
+                </nav>
+              )}
 
               {phone && (
                 <div className="cube-dt-row">
@@ -871,6 +814,7 @@ export function CubeTemplate({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="cube-social-pill"
+                      onClick={() => onLinkClick?.({ id: `soc-${soc.platform}`, label: soc.label, url: soc.url, icon: null, clicks: 0, order: 0, isVisible: true })}
                     >
                       <SocialIcon label={soc.label} url={soc.url} className="w-3.5 h-3.5 fill-current" />
                       <span>{soc.label}</span>
@@ -879,7 +823,7 @@ export function CubeTemplate({
                 </div>
               )}
 
-              <div className="mt-auto pt-5 opacity-70 text-xs flex justify-between items-center">
+              <div className="mt-auto pt-5 opacity-95 text-xs flex justify-between items-center">
                 <span>04 / 04 CONTACT</span>
                 <span>&copy; {new Date().getFullYear()} {name}</span>
               </div>
@@ -910,7 +854,7 @@ export function CubeTemplate({
           className={`cube-tab ${activeFace === 2 ? 'active' : ''}`}
           onClick={() => setActiveFace(2)}
         >
-          Services
+          Highlights
         </button>
         <button
           type="button"
@@ -922,11 +866,24 @@ export function CubeTemplate({
       </nav>
 
       {toastMessage && (
-        <div className="cube-toast" role="status">
+        <div className="cube-toast" role="status" aria-live="polite">
           {toastMessage}
         </div>
       )}
     </div>
+  );
+}
+
+export function CubeTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#f2efe6"
+      defaultAccent="#2c5aa0"
+      isPreview={props.isPreview}
+    >
+      <CubeTemplateInner {...props} />
+    </ProfileTemplateShell>
   );
 }
 

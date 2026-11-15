@@ -72,6 +72,46 @@ function isProfilePath(pathname: string): string | null {
   return null;
 }
 
+const customDomainCache = new Map<string, { subdomain: string | null; expiresAt: number }>();
+const CUSTOM_DOMAIN_TTL_MS = 60_000;
+
+async function resolveVerifiedCustomDomainSubdomain(hostWithoutPort: string): Promise<string | null> {
+  const now = Date.now();
+  const cached = customDomainCache.get(hostWithoutPort);
+  if (cached && cached.expiresAt > now) {
+    return cached.subdomain;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null;
+  }
+
+  try {
+    const { createClient: createSbClient } = await import('@supabase/supabase-js');
+    const admin = createSbClient(supabaseUrl, supabaseServiceKey);
+    const lookupPromise = admin
+      .from('profiles')
+      .select('subdomain')
+      .eq('custom_domain', hostWithoutPort)
+      .not('custom_domain_verified_at', 'is', null)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 1500)
+    );
+
+    const result = await Promise.race([lookupPromise, timeoutPromise]);
+    const subdomain = typeof result.data?.subdomain === 'string' ? result.data.subdomain : null;
+    customDomainCache.set(hostWithoutPort, { subdomain, expiresAt: now + CUSTOM_DOMAIN_TTL_MS });
+    return subdomain;
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -118,15 +158,31 @@ export async function middleware(request: NextRequest) {
     return refResponse ?? NextResponse.next();
   }
 
-  // Host-based subdomain routing
-  const hostname = request.headers.get('host') || '';
+  // Host-based subdomain and verified custom-domain routing
+  const rawHost = (request.headers.get('host') || '').toLowerCase();
+  const hostWithoutPort = rawHost.split(':')[0];
   let hostSubdomain: string | null = null;
 
-  if (hostname.endsWith('.unool.co') && hostname !== 'unool.co' && hostname !== 'www.unool.co') {
-    hostSubdomain = hostname.replace('.unool.co', '');
-  } else if (hostname.includes('.localhost:')) {
-    const match = hostname.match(/^([^.]+)\.localhost:\d+$/);
+  if (hostWithoutPort.endsWith('.unool.co') && hostWithoutPort !== 'unool.co' && hostWithoutPort !== 'www.unool.co') {
+    hostSubdomain = hostWithoutPort.replace('.unool.co', '');
+  } else if (rawHost.includes('.localhost:')) {
+    const match = rawHost.match(/^([^.]+)\.localhost:\d+$/);
     if (match) hostSubdomain = match[1];
+  } else if (
+    hostWithoutPort &&
+    hostWithoutPort !== 'unool.co' &&
+    hostWithoutPort !== 'www.unool.co' &&
+    hostWithoutPort !== 'localhost' &&
+    hostWithoutPort !== '127.0.0.1' &&
+    !hostWithoutPort.endsWith('.vercel.app') &&
+    !pathname.startsWith('/u/') &&
+    !pathname.startsWith('/api/') &&
+    !pathname.startsWith('/dashboard') &&
+    !pathname.startsWith('/admin') &&
+    !pathname.startsWith('/signin') &&
+    !pathname.startsWith('/signup')
+  ) {
+    hostSubdomain = await resolveVerifiedCustomDomainSubdomain(hostWithoutPort);
   }
 
   if (
