@@ -133,6 +133,7 @@ BEGIN
     ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 
     DROP POLICY IF EXISTS "Service role can insert analytics" ON public.analytics_events;
+    DROP POLICY IF EXISTS "Service role can manage analytics" ON public.analytics_events;
     DROP POLICY IF EXISTS "Workspace members can view analytics" ON public.analytics_events;
 
     CREATE POLICY "Service role can manage analytics"
