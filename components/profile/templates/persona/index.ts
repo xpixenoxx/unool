@@ -24,6 +24,7 @@ import { MetroTemplate } from './the-metro';
 import { NorenTemplate } from './the-noren';
 import { DesktopTemplate } from './the-desktop';
 import { CalendarTemplate } from './the-calendar';
+import { BentoTemplate } from './the-bento';
 
 export {
   LoverTemplate,
@@ -49,6 +50,7 @@ export {
   NorenTemplate,
   DesktopTemplate,
   CalendarTemplate,
+  BentoTemplate,
 };
 
 // Template mapping for dynamic loading
@@ -76,6 +78,7 @@ export const TEMPLATE_COMPONENTS = {
   'the-noren': NorenTemplate,
   'the-desktop': DesktopTemplate,
   'the-calendar': CalendarTemplate,
+  'the-bento': BentoTemplate,
 } as const;
 
 export type TemplateKey = keyof typeof TEMPLATE_COMPONENTS;

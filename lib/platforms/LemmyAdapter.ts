@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
 import {
   PlatformAdapter,
   PlatformAuthConfig,
@@ -47,8 +48,17 @@ export class LemmyAdapter implements PlatformAdapter {
     };
   }
 
+  private async assertSafeHost(rawInstanceUrl: string): Promise<string> {
+    const check = await validateExternalInstanceUrl(rawInstanceUrl);
+    if (!check.ok) {
+      throw new Error(`Invalid or disallowed Lemmy instance URL: ${check.error}`);
+    }
+    return check.origin.replace(/^https?:\/\//i, '');
+  }
+
   async getUserProfile(tokenData: string): Promise<UserProfile> {
-    const { instanceUrl, jwt } = this.parseToken(tokenData);
+    const { instanceUrl: rawInstanceUrl, jwt } = this.parseToken(tokenData);
+    const instanceUrl = await this.assertSafeHost(rawInstanceUrl);
 
     try {
       // Lemmy v3: GET /api/v3/site?auth=<jwt> returns authenticated user info in my_user
@@ -57,6 +67,7 @@ export class LemmyAdapter implements PlatformAdapter {
           'Accept': 'application/json',
           'Authorization': `Bearer ${jwt}`,
         },
+        redirect: 'manual',
       });
 
       if (!res.ok) {
@@ -83,6 +94,7 @@ export class LemmyAdapter implements PlatformAdapter {
           'Accept': 'application/json',
           'Authorization': `Bearer ${jwt}`,
         },
+        redirect: 'manual',
       });
 
       if (userRes.ok) {
@@ -111,7 +123,8 @@ export class LemmyAdapter implements PlatformAdapter {
 
   async publish(tokenData: string, input: PublishInput): Promise<PublishResult> {
     const parsed = this.parseToken(tokenData);
-    const { instanceUrl, jwt } = parsed;
+    const instanceUrl = await this.assertSafeHost(parsed.instanceUrl);
+    const { jwt } = parsed;
 
     // Resolve target community ID
     let communityId = parsed.communityId;
@@ -209,6 +222,7 @@ export class LemmyAdapter implements PlatformAdapter {
         'Authorization': `Bearer ${jwt}`,
       },
       body: JSON.stringify(payload),
+      redirect: 'manual',
     });
 
     if (!postRes.ok) {
@@ -235,7 +249,8 @@ export class LemmyAdapter implements PlatformAdapter {
   }
 
   async deletePost(tokenData: string, platformPostId: string): Promise<void> {
-    const { instanceUrl, jwt } = this.parseToken(tokenData);
+    const { instanceUrl: rawInstanceUrl, jwt } = this.parseToken(tokenData);
+    const instanceUrl = await this.assertSafeHost(rawInstanceUrl);
     const postId = parseInt(platformPostId, 10);
 
     if (isNaN(postId)) {
@@ -253,6 +268,7 @@ export class LemmyAdapter implements PlatformAdapter {
         post_id: postId,
         deleted: true,
       }),
+      redirect: 'manual',
     });
 
     if (!res.ok) {
@@ -262,7 +278,8 @@ export class LemmyAdapter implements PlatformAdapter {
   }
 
   async getEngagement(tokenData: string, platformPostId: string): Promise<Record<string, unknown>> {
-    const { instanceUrl, jwt } = this.parseToken(tokenData);
+    const { instanceUrl: rawInstanceUrl, jwt } = this.parseToken(tokenData);
+    const instanceUrl = await this.assertSafeHost(rawInstanceUrl);
     const postId = parseInt(platformPostId, 10);
 
     if (isNaN(postId)) {
@@ -275,6 +292,7 @@ export class LemmyAdapter implements PlatformAdapter {
           'Accept': 'application/json',
           'Authorization': `Bearer ${jwt}`,
         },
+        redirect: 'manual',
       });
 
       if (!res.ok) {

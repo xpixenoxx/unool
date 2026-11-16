@@ -1,43 +1,13 @@
 'use client';
 
-import React, { useMemo, useCallback, useState } from 'react';
-import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
-import { SocialIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import type { TemplateProps, ProfileLink } from '@/components/profile/templates/types';
+import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
-import { Phone, Mail, MessageCircle, Download, MapPin, ExternalLink, Sparkles } from 'lucide-react';
-
-/* ─────────────────────────────────────────────────────────────
-   Action Verb Intelligence: Contextual CTA verbs for book spines
-   ───────────────────────────────────────────────────────────── */
-function getBookActionVerb(url: string, label: string): string {
-  const u = (url || '').toLowerCase();
-  const l = (label || '').toLowerCase();
-
-  if (l.includes('portfolio') || l.includes('work') || l.includes('case stud') || u.includes('dribbble.com') || u.includes('behance.net')) return 'Explore';
-  if (l.includes('website') || l.includes('site') || l.includes('homepage') || l.includes('web')) return 'Visit';
-  if (u.includes('cal.com') || u.includes('calendly.com') || l.includes('book') || l.includes('schedule')) return 'Book';
-  if (u.includes('wa.me') || u.includes('whatsapp') || l.includes('chat')) return 'Chat';
-  if (u.includes('linkedin.com') || l.includes('connect')) return 'Connect';
-  if (u.includes('.pdf') || l.includes('resume') || l.includes('cv') || l.includes('download')) return 'Get';
-  if (u.includes('github.com') || u.includes('gitlab.com') || l.includes('code')) return 'Inspect';
-  if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('vimeo') || l.includes('watch')) return 'Watch';
-  if (u.includes('spotify.com') || u.includes('apple.com/music') || l.includes('listen')) return 'Listen';
-  if (u.includes('substack.com') || u.includes('medium.com') || l.includes('blog') || l.includes('read')) return 'Read';
-
-  const isX = /(?:^|[\/\.])x\.com(?=[\/\?#:]|$)/i.test(u) || u.includes('twitter.com') || l === 'x' || l === 'twitter';
-  const isSocial = isX || u.includes('instagram.com') || u.includes('threads.net') || u.includes('tiktok.com');
-  if (isSocial) return 'Follow';
-
-  return 'Visit';
-}
-
-function cleanDisplayUrl(rawUrl: string): string {
-  if (!rawUrl) return '';
-  return rawUrl
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\/$/, '');
-}
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { getActionVerb, cleanDisplayUrl, downloadProfileVCard } from '@/lib/profile/templateActions';
+import { Phone, Mail, MessageCircle, Download, MapPin, ExternalLink } from 'lucide-react';
 
 // Distinct book spine color themes for visual archival diversity
 const SPINE_PALETTES = [
@@ -52,75 +22,57 @@ const SPINE_PALETTES = [
   { bg: '#3a3a3a', fg: '#f4ead7', ribbon: '#d4af37', height: 270 }, // Charcoal
 ];
 
-export function BookshelfTemplate({
+function BookshelfTemplateInner({
   profile,
   accentColor,
   isPreview = false,
   onLinkClick,
 }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2600);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
-  const name = profile?.name || 'Your Name';
-  const role = profile?.role || profile?.headline || 'Author & Creator';
-  const bio = profile?.bio || 'Curating thoughts, artifacts, and select professional engagements.';
-  const location = profile?.location || (profile as any)?.city || '';
-  const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar_url || '';
-  const email = profile?.email || '';
+  const name = normalized.name;
+  const role = normalized.role || normalized.headline || '';
+  const bio = normalized.sectionVisibility.bio ? normalized.bio : '';
+  const location = normalized.location || '';
+  const avatarUrl = normalized.avatarUrl || '';
+  const email = normalized.showEmail ? (normalized.email || '') : '';
   const phone = (profile as any)?.phone || '';
-  const links: ProfileLink[] = (profile?.links || []).filter((l) => l.isVisible !== false);
-  const proofs: ProfileProof[] = profile?.proofs || (profile as any)?.proofPoints || [];
+  const links: ProfileLink[] = normalized.sectionVisibility.links ? normalized.links : [];
+  const proofs = normalized.sectionVisibility.proof ? normalized.proofs : [];
 
   const numericPhone = useMemo(() => (phone || '').replace(/[^\d+]/g, ''), [phone]);
   const cleanWaNumber = useMemo(() => (phone || '').replace(/[^\d]/g, ''), [phone]);
 
-  const initials = useMemo(() => {
-    return (name || '')
-      .trim()
-      .split(/\s+/)
-      .map((w) => w.charAt(0))
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-  }, [name]);
+  const initials = normalized.initials;
 
   const handleSaveContact = useCallback((e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    try {
-      const vcard = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${name}`,
-        `TITLE:${role}`,
-        email ? `EMAIL;TYPE=INTERNET,WORK:${email}` : '',
-        numericPhone ? `TEL;TYPE=CELL,VOICE:${numericPhone}` : '',
-        location ? `ADR;TYPE=WORK:;;${location};;;;` : '',
-        `NOTE:${bio.replace(/\n/g, ' ')}`,
-        `URL:${typeof window !== 'undefined' ? window.location.href : `https://${profile?.subdomain}.unool.com`}`,
-        'END:VCARD',
-      ]
-        .filter(Boolean)
-        .join('\r\n');
-
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${name.replace(/\s+/g, '_')}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      showToast('Contact card downloaded');
-    } catch (err) {
-      console.error('vCard generation error:', err);
-      showToast('Could not save contact');
-    }
-  }, [name, role, email, numericPhone, location, bio, profile?.subdomain, showToast]);
+    const ok = downloadProfileVCard({
+      name,
+      role,
+      company: normalized.company,
+      email: email || undefined,
+      phone: numericPhone || undefined,
+      location: location || undefined,
+      bio: bio || undefined,
+      subdomain: profile?.subdomain,
+    });
+    showToast(ok ? 'Contact card downloaded' : 'Could not save contact');
+  }, [name, role, normalized.company, email, numericPhone, location, bio, profile?.subdomain, showToast]);
 
   const socialEntries = useMemo(() => {
     const handles = profile?.socialHandles || {};
@@ -176,7 +128,7 @@ export function BookshelfTemplate({
         title: l.label,
         subtitle: cleanDisplayUrl(l.url),
         url: l.url,
-        verb: getBookActionVerb(l.url, l.label),
+        verb: getActionVerb(l.url, l.label),
         iconType: 'link',
         customIcon: l.icon || undefined,
         paletteIndex: (pIdx++) % SPINE_PALETTES.length,
@@ -192,7 +144,7 @@ export function BookshelfTemplate({
           title: s.label,
           subtitle: cleanDisplayUrl(s.url),
           url: s.url,
-          verb: getBookActionVerb(s.url, s.label),
+          verb: getActionVerb(s.url, s.label),
           iconType: 'social',
           platform: s.platform,
           paletteIndex: (pIdx++) % SPINE_PALETTES.length,
@@ -202,8 +154,8 @@ export function BookshelfTemplate({
 
     // 3. Active Project from Proofs (if exists and has URL)
     proofs.forEach((p, idx) => {
-      const pTitle = (p.title || '').trim();
-      const pVal = (p.value || '').trim();
+      const pTitle = (p.label || '').trim();
+      const pVal = String(p.value || '').trim();
       const combined = pTitle ? `${pTitle}: ${pVal}` : pVal;
       const urlMatch = combined.match(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/i);
       if (urlMatch) {
@@ -223,9 +175,8 @@ export function BookshelfTemplate({
       }
     });
 
-    // 4. Essential Curated Volumes:
-    // Ensure the shelf has at least 4 richly bound editions
-    if (volumes.length < 4) {
+    // 4. Essential Dossier (Contact Record) if shelf has links
+    if (volumes.length > 0 && volumes.length < 4) {
       volumes.push({
         id: 'curator-dossier',
         title: 'The Dossier',
@@ -237,58 +188,11 @@ export function BookshelfTemplate({
       });
     }
 
-    if (volumes.length < 4 && email) {
-      volumes.push({
-        id: 'direct-dispatch',
-        title: 'Direct Dispatch',
-        subtitle: email,
-        url: `mailto:${email}`,
-        verb: 'Email',
-        iconType: 'email',
-        paletteIndex: (pIdx++) % SPINE_PALETTES.length,
-      });
-    }
-
-    if (volumes.length < 4 && cleanWaNumber) {
-      volumes.push({
-        id: 'private-wire',
-        title: 'Private Wire',
-        subtitle: 'WhatsApp Direct',
-        url: `https://wa.me/${cleanWaNumber}`,
-        verb: 'Chat',
-        iconType: 'chat',
-        paletteIndex: (pIdx++) % SPINE_PALETTES.length,
-      });
-    }
-
     return volumes;
-  }, [links, socialEntries, proofs, email, cleanWaNumber, handleSaveContact]);
-
-  const structuredData = useMemo(() => {
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Person',
-      name: name,
-      jobTitle: role,
-      description: bio,
-      image: avatarUrl || undefined,
-      url: typeof window !== 'undefined' ? window.location.href : undefined,
-      email: email ? `mailto:${email}` : undefined,
-      telephone: numericPhone || undefined,
-      sameAs: [
-        ...links.map((l) => l.url),
-        ...socialEntries.map((s) => s.url),
-      ].filter(Boolean),
-    };
-  }, [name, role, bio, avatarUrl, email, numericPhone, links, socialEntries]);
+  }, [links, socialEntries, proofs, handleSaveContact]);
 
   return (
-    <div className="bookshelf-wrap">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-
+    <div className="bookshelf-wrap overflow-x-clip">
       <style>{`
         .bookshelf-wrap {
           --bs-bg: #d9c7bd;
@@ -895,35 +799,35 @@ export function BookshelfTemplate({
 
           <div className="bs-meta">
             <h1>{name}</h1>
-            <div className="bs-role">
-              <span>{role}</span>
-              {location && (
-                <span className="inline-flex items-center gap-1 opacity-75 text-sm ml-2">
-                  <MapPin size={13} />
-                  {location}
-                </span>
-              )}
-            </div>
-            <p className="bs-bio">{bio}</p>
-
-            {profile?.openTo && profile.openTo.length > 0 && (
-              <div className="bs-chips">
-                {profile.openTo.map((intent: string) => (
-                  <span key={intent} className="bs-chip">
-                    {intent.replace(/-/g, ' ')}
+            {(role || location) && (
+              <div className="bs-role">
+                {role && <span>{role}</span>}
+                {location && (
+                  <span className="inline-flex items-center gap-1 opacity-85 text-sm ml-2">
+                    <MapPin size={13} aria-hidden="true" />
+                    {location}
                   </span>
-                ))}
+                )}
+              </div>
+            )}
+            {bio && <p className="bs-bio">{bio}</p>}
+
+            {normalized.sectionVisibility.openTo && normalized.openTo.length > 0 && (
+              <div className="mt-3">
+                <OpenToBadges intents={normalized.openTo} accentColor="#7a2e2e" variant="light" />
               </div>
             )}
           </div>
         </header>
 
         {/* ── ON THE SHELF: Masterwork Curated Bookshelf ── */}
-        <p className="bs-shelf-label">On The Shelf</p>
-        
-        <div className="bs-shelf-frame">
-          <div className="bs-shelf-alcove">
-            <section className="bs-shelf" aria-label="Curated book volumes">
+        {shelfVolumes.length > 0 && (
+          <>
+            <p className="bs-shelf-label">On The Shelf</p>
+
+            <div className="bs-shelf-frame">
+              <div className="bs-shelf-alcove">
+                <section className="bs-shelf" aria-label="Curated book volumes">
               
               {/* Left Sculpted Brass Bookend */}
               <div className="bs-bookend bs-bookend-left" aria-hidden="true">
@@ -1037,12 +941,14 @@ export function BookshelfTemplate({
         </div>
 
         <p className="bs-shelf-hint">Pull a volume from the shelf to open.</p>
+          </>
+        )}
 
         {/* Standalone Archival Dispatch Section (No Double Boxes) */}
-        {profile?.recentActivity && (
+        {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
           <section className="bs-dispatch-wrap" aria-label="Latest Archival Dispatch">
             <RecentActivitySection
-              activity={profile.recentActivity}
+              activity={normalized.recentActivity}
               variant="the-bookshelf"
               isDark={true}
               accentColor="#d9b86c"
@@ -1051,10 +957,10 @@ export function BookshelfTemplate({
           </section>
         )}
 
-        {/* Services & Offerings Bookplate */}
-        <section className="bs-services" aria-label="Services and Offerings">
-          <h2>Active Practice & Works</h2>
-          {proofs && proofs.length > 0 ? (
+        {/* Active Practice & Works */}
+        {normalized.sectionVisibility.proof && proofs.length > 0 && (
+          <section className="bs-services" aria-label="Active Practice and Works">
+            <h2>Active Practice & Works</h2>
             <div className="bs-proofs-stack">
               {proofs.map((proof, idx) => {
                 const rawTitle = (proof.title || '').trim();
@@ -1102,9 +1008,10 @@ export function BookshelfTemplate({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bs-project-btn"
+                            onClick={() => onLinkClick?.({ id: proof.id || `proof-${idx}`, label: displayTitle || 'Explore', url: targetUrl, icon: null, clicks: 0, order: idx, isVisible: true })}
                           >
                             <span>Explore</span>
-                            <ExternalLink size={13} />
+                            <ExternalLink size={13} aria-hidden="true" />
                           </a>
                         )}
                       </div>
@@ -1115,7 +1022,7 @@ export function BookshelfTemplate({
                 return (
                   <div key={proof.id || idx} className="bs-service-row">
                     <div className="bs-service-main">
-                      <span className="bs-service-mark">✦</span>
+                      <span className="bs-service-mark" aria-hidden="true">✦</span>
                       <b>{displayTitle || 'Key Metric'}</b>
                     </div>
                     {displayValue && (
@@ -1125,76 +1032,46 @@ export function BookshelfTemplate({
                 );
               })}
             </div>
-          ) : (
-            <ul className="bs-service-list">
-              <li className="bs-service-row">
-                <div className="bs-service-main">
-                  <span className="bs-service-mark">✦</span>
-                  <b>Brand Identity & Systems</b>
-                </div>
-                <span className="bs-service-val">From $800</span>
-              </li>
-              <li className="bs-service-row">
-                <div className="bs-service-main">
-                  <span className="bs-service-mark">✦</span>
-                  <b>Editorial Design & Publishing</b>
-                </div>
-                <span className="bs-service-val">From $1,200</span>
-              </li>
-              <li className="bs-service-row">
-                <div className="bs-service-main">
-                  <span className="bs-service-mark">✦</span>
-                  <b>Archival Advisory</b>
-                </div>
-                <span className="bs-service-val">From $600</span>
-              </li>
-            </ul>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Action Dock */}
-        <nav className="bs-actions" aria-label="Direct contact actions">
-          {numericPhone ? (
-            <a href={`tel:${numericPhone}`} className="bs-action-btn">
-              <Phone size={15} />
-              <span>Call</span>
-            </a>
-          ) : (
-            <button type="button" className="bs-action-btn" onClick={() => showToast('Phone number not listed')}>
-              <Phone size={15} />
-              <span>Call</span>
-            </button>
-          )}
+        {normalized.sectionVisibility.contact && (
+          <nav className="bs-actions" aria-label="Direct contact actions">
+            {numericPhone && (
+              <a href={`tel:${numericPhone}`} className="bs-action-btn" onClick={() => onLinkClick?.({ id: 'call', label: 'Call', url: `tel:${numericPhone}`, icon: null, clicks: 0, order: 0, isVisible: true })}>
+                <Phone size={15} aria-hidden="true" />
+                <span>Call</span>
+              </a>
+            )}
 
-          {email ? (
-            <a href={`mailto:${email}`} className="bs-action-btn">
-              <Mail size={15} />
-              <span>Email</span>
-            </a>
-          ) : (
-            <button type="button" className="bs-action-btn" onClick={() => showToast('Email not listed')}>
-              <Mail size={15} />
-              <span>Email</span>
-            </button>
-          )}
+            {normalized.showEmail && email && (
+              <a href={`mailto:${email}`} className="bs-action-btn" onClick={() => onLinkClick?.({ id: 'email', label: 'Email', url: `mailto:${email}`, icon: null, clicks: 0, order: 0, isVisible: true })}>
+                <Mail size={15} aria-hidden="true" />
+                <span>Email</span>
+              </a>
+            )}
 
-          {cleanWaNumber ? (
-            <a href={`https://wa.me/${cleanWaNumber}`} target="_blank" rel="noopener noreferrer" className="bs-action-btn">
-              <MessageCircle size={15} />
-              <span>WhatsApp</span>
-            </a>
-          ) : (
-            <button type="button" className="bs-action-btn" onClick={() => showToast('WhatsApp unavailable')}>
-              <MessageCircle size={15} />
-              <span>WhatsApp</span>
-            </button>
-          )}
+            {cleanWaNumber && (
+              <a href={`https://wa.me/${cleanWaNumber}`} target="_blank" rel="noopener noreferrer" className="bs-action-btn" onClick={() => onLinkClick?.({ id: 'whatsapp', label: 'WhatsApp', url: `https://wa.me/${cleanWaNumber}`, icon: null, clicks: 0, order: 0, isVisible: true })}>
+                <MessageCircle size={15} aria-hidden="true" />
+                <span>WhatsApp</span>
+              </a>
+            )}
 
-          <button type="button" className="bs-action-btn" onClick={() => handleSaveContact()}>
-            <Download size={15} />
-            <span>Save Contact</span>
-          </button>
-        </nav>
+            {normalized.hasContactChannel && (
+              <button type="button" className="bs-action-btn" onClick={openContact}>
+                <MessageCircle size={15} aria-hidden="true" />
+                <span>Message</span>
+              </button>
+            )}
+
+            <button type="button" className="bs-action-btn" onClick={() => handleSaveContact()}>
+              <Download size={15} aria-hidden="true" />
+              <span>Save Contact</span>
+            </button>
+          </nav>
+        )}
 
         {/* Socials Matrix */}
         {socialEntries.length > 0 && (
@@ -1206,6 +1083,7 @@ export function BookshelfTemplate({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bs-social-link"
+                onClick={() => onLinkClick?.({ id: `soc-${soc.platform}`, label: soc.label, url: soc.url, icon: null, clicks: 0, order: 0, isVisible: true })}
               >
                 <SocialIcon label={soc.label} url={soc.url} className="w-3.5 h-3.5 fill-current" />
                 <span>{soc.label}</span>
@@ -1220,11 +1098,26 @@ export function BookshelfTemplate({
       </main>
 
       {toastMessage && (
-        <div className="bs-toast" role="status">
+        <div className="bs-toast" role="status" aria-live="polite">
           {toastMessage}
         </div>
       )}
     </div>
+  );
+}
+
+export function BookshelfTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#14110f"
+      isDark={true}
+      accentColor={props.accentColor}
+      defaultAccent="#d9b86c"
+      isPreview={props.isPreview}
+    >
+      <BookshelfTemplateInner {...props} />
+    </ProfileTemplateShell>
   );
 }
 

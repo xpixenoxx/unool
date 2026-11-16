@@ -129,7 +129,7 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
 
         {/* Watermark Typography */}
         <div className="relative z-10 flex items-baseline gap-1.5">
-          <span className="font-mono text-[8.5px] uppercase tracking-[0.2em] text-white/50 font-medium">
+          <span className="font-mono text-[8.5px] uppercase tracking-[0.2em] text-stone-300 font-medium">
             made with
           </span>
           <span
@@ -212,7 +212,7 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
                     value={handle}
                     onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                     placeholder="yourname"
-                    className="w-full py-1.5 pl-1 pr-2 text-xs bg-transparent text-white placeholder:text-stone-500 focus:outline-none font-mono tracking-tight"
+                    className="w-full py-1.5 pl-1 pr-2 text-xs bg-transparent text-white placeholder:text-stone-400 focus:outline-none font-mono tracking-tight"
                     maxLength={30}
                     autoComplete="off"
                     spellCheck={false}
@@ -228,7 +228,7 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
                   }}
                 >
                   <span>Claim your link</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-stone-950" />
+                  <ArrowRight className="w-3.5 h-3.5 text-stone-950" aria-hidden="true" />
                 </button>
               </form>
 
@@ -246,7 +246,7 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
                   className="text-stone-400 hover:text-amber-200 flex items-center gap-1 transition-colors no-underline font-mono text-[9px] tracking-wider"
                 >
                   <span>unool.co</span>
-                  <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                  <ExternalLink className="w-2.5 h-2.5 opacity-60" aria-hidden="true" />
                 </Link>
                 <Link
                   href={referralQuery ? `/signup${referralQuery}` : '/signup'}

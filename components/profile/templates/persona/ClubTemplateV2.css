@@ -92,10 +92,7 @@
   letter-spacing: 0.04em;
   line-height: var(--club-leading-tight);
   margin: 0 0 var(--club-space-4);
-  background: linear-gradient(135deg, var(--club-fg) 0%, var(--club-electric-cyan) 40%, var(--club-electric-magenta) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--club-fg);
   text-wrap: balance;
 }
 

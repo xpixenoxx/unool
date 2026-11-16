@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
 import { generateWeekArc, detectStoryType, synthesizeFactGroundedArc, getUpcomingDaysForArc } from '@/lib/ai/WeekArcGenerator';
+import { resolveAiPersonalization } from '@/lib/ai/resolvePersonalization';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
@@ -167,15 +168,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'weekStartDate is required' }, { status: 400 });
     }
 
-    // Get user's profile and connected platforms (safe fallback if profile not yet created)
+    // Get user's profile strictly within the authenticated workspace (never cross workspaces via userId)
     let profile = null;
     try {
       profile = await profileRepository.findByWorkspaceId(workspaceId);
-      if (!profile) {
-        profile = await profileRepository.findByUserId(userId);
-      }
     } catch (err) {
-      logger.warn('Failed to fetch profile in composer/arc/generate, using fallback', { err, workspaceId, userId });
+      logger.warn('Failed to fetch profile in composer/arc/generate, using fallback', { err, workspaceId });
     }
 
     const platformRepo = new SupabasePlatformRepository();
@@ -214,6 +212,13 @@ export async function POST(request: NextRequest) {
     });
 
     const userFirstName = profile?.name?.split(' ')[0] ?? 'Creator';
+    const personalization = await resolveAiPersonalization({
+      userId,
+      workspaceId,
+      disablePersonalization: Boolean(body.disablePersonalization),
+      profileStudioProfile: (profile?.studioProfile as Record<string, any> | null) ?? null,
+      profileOnboardingAnswers: (profile?.onboardingAnswers as Record<string, any> | null) ?? null,
+    });
 
     let arc = null;
     try {
@@ -228,7 +233,18 @@ export async function POST(request: NextRequest) {
         audienceTimezone,
         userFirstName,
         weekStartDate,
-        onboardingAnswers: profile?.onboardingAnswers,
+        studioProfile: personalization.enabled ? personalization.studioProfile : null,
+        onboardingAnswers: personalization.enabled ? (profile?.onboardingAnswers ?? null) : null,
+        creatorProfile:
+          personalization.enabled && profile
+            ? {
+                name: profile.name,
+                headline: profile.headline,
+                role: profile.role,
+                company: profile.company,
+                openTo: profile.openTo,
+              }
+            : null,
       });
     } catch (err) {
       logger.error('generateWeekArc threw exception, will attempt synthesis fallback', { err, workspaceId });

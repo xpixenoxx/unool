@@ -1,82 +1,69 @@
 'use client';
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
 import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
-import { Phone, Mail, MessageCircle, Download, Folder, ExternalLink, Terminal, MapPin } from 'lucide-react';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { cleanDisplayUrl, downloadProfileVCard } from '@/lib/profile/templateActions';
+import { pickReadableText, solveAccessibleAccent } from '@/lib/profile/contrast';
+import { Phone, Mail, MessageCircle, Download, Folder, Terminal, MapPin } from 'lucide-react';
 
-function cleanDisplayUrl(rawUrl: string): string {
-  if (!rawUrl) return '';
-  return rawUrl
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\/$/, '');
-}
-
-export function DesktopTemplate({
+function DesktopTemplateInner({
   profile,
-  accentColor = '#1d2d5c',
+  accentColor,
   isPreview = false,
   onLinkClick,
 }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2600);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
-  const name = profile?.name || 'Your Name';
-  const role = profile?.role || profile?.headline || 'Creator & Engineer';
-  const bio = profile?.bio || 'Building systems, crafting interfaces, and compiling ideas on the retro workstation.';
-  const location = profile?.location || (profile as any)?.city || '';
-  const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar_url || '';
-  const email = profile?.email || '';
+  const name = normalized.name;
+  const role = normalized.role || normalized.headline;
+  const bio = normalized.bio;
+  const location = normalized.location;
+  const avatarUrl = normalized.avatarUrl;
+  const initials = normalized.initials;
+  const email = normalized.showEmail ? normalized.email : '';
   const phone = (profile as any)?.phone || '';
-  const links: ProfileLink[] = (profile?.links || []).filter((l) => l.isVisible !== false);
-  const proofs: ProfileProof[] = profile?.proofs || (profile as any)?.proofPoints || [];
+  const links: ProfileLink[] = normalized.links;
+  const proofs = normalized.proofs;
+
+  const rawAccent = accentColor || normalized.accentColor || '#1d2d5c';
+  const titleBarText = useMemo(() => pickReadableText(rawAccent), [rawAccent]);
+  const readableAccentOnWindow = useMemo(() => solveAccessibleAccent(rawAccent, '#d8d2c2'), [rawAccent]);
+  const readableAccentOnWhite = useMemo(() => solveAccessibleAccent(rawAccent, '#ffffff'), [rawAccent]);
 
   const numericPhone = useMemo(() => (phone || '').replace(/[^\d+]/g, ''), [phone]);
   const cleanWaNumber = useMemo(() => (phone || '').replace(/[^\d]/g, ''), [phone]);
 
-  const initials = useMemo(() => {
-    return (name || '')
-      .trim()
-      .split(/\s+/)
-      .map((w) => w.charAt(0))
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-  }, [name]);
-
   const handleSaveContact = useCallback((e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     try {
-      const vcard = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${name}`,
-        `TITLE:${role}`,
-        email ? `EMAIL;TYPE=INTERNET,WORK:${email}` : '',
-        numericPhone ? `TEL;TYPE=CELL,VOICE:${numericPhone}` : '',
-        location ? `ADR;TYPE=WORK:;;${location};;;;` : '',
-        `NOTE:${bio.replace(/\n/g, ' ')}`,
-        `URL:${typeof window !== 'undefined' ? window.location.href : `https://${profile?.subdomain}.unool.com`}`,
-        'END:VCARD',
-      ]
-        .filter(Boolean)
-        .join('\r\n');
-
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${name.replace(/\s+/g, '_')}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadProfileVCard({
+        name,
+        role,
+        email,
+        phone: numericPhone,
+        location,
+        bio,
+        subdomain: profile?.subdomain,
+        website: typeof window !== 'undefined' ? window.location.href : undefined,
+      });
       showToast('Contact card downloaded');
     } catch (err) {
       console.error('vCard generation error:', err);
@@ -120,6 +107,7 @@ export function DesktopTemplate({
       subtitle: string;
       url: string;
       platform?: string;
+      rawLink?: ProfileLink;
       action?: () => void;
     }> = [];
 
@@ -130,6 +118,7 @@ export function DesktopTemplate({
         title: l.label,
         subtitle: cleanDisplayUrl(l.url),
         url: l.url,
+        rawLink: l,
       });
     });
 
@@ -167,98 +156,77 @@ export function DesktopTemplate({
       }
     });
 
-    // Fallbacks to guarantee minimum 4 rich icons
-    if (icons.length < 4) {
-      if (email) {
-        icons.push({
-          id: 'icon-email',
-          title: 'mail.exe',
-          subtitle: email,
-          url: `mailto:${email}`,
-        });
-      }
-      icons.push({
-        id: 'icon-vcard',
-        title: 'contact.vcf',
-        subtitle: 'Save Contact',
-        url: '#',
-        action: () => handleSaveContact(),
-      });
-    }
-
     return icons;
-  }, [links, socialEntries, proofs, email, handleSaveContact]);
+  }, [links, socialEntries, proofs]);
 
   /* ─────────────────────────────────────────────────────────────
-     Services List (services.txt)
+     Proofs / Highlights List (real proofs only)
      ───────────────────────────────────────────────────────────── */
   const servicesList = useMemo(() => {
     const list: string[] = [];
     proofs.forEach((p) => {
-      const label = p.title || p.value;
+      const label = [p.title, p.value].filter(Boolean).join(': ').trim();
       if (label && !list.includes(label)) list.push(label);
     });
-    if (list.length === 0) {
-      list.push('System Architecture', 'UI/UX Engineering', 'API Design', 'Creative Direction');
-    }
     return list;
   }, [proofs]);
 
   return (
-    <div className="retro-root min-h-screen text-[#111111] relative selection:bg-[#1d2d5c] selection:text-white">
-      {/* Google Fonts and Authentic CRT Desktop Grid */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Mono:wght@500;700&display=swap');
+    <div className="retro-root min-h-screen text-[#111111] relative overflow-x-clip">
+      <style>{`
+        .retro-root {
+          --bg: #4f8f8a;
+          --ink: #111111;
+          --c3: #c2bcab;
+          --win-bg: #d8d2c2;
+          --title-navy: ${rawAccent};
+          --title-ink: ${titleBarText};
+          --folder-yellow: #f2c14e;
+          --s: var(--font-geist-mono), ui-monospace, 'IBM Plex Mono', monospace;
+          background-color: #4f8f8a;
+          background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1.5px);
+          background-size: 4px 4px;
+          font-family: var(--s);
+        }
 
-            .retro-root {
-              --bg: #4f8f8a;
-              --ink: #111111;
-              --c3: #c2bcab;
-              --win-bg: #d8d2c2;
-              --title-navy: ${accentColor || '#1d2d5c'};
-              --folder-yellow: #f2c14e;
-              --s: 'Pixelify Sans', 'IBM Plex Mono', monospace, sans-serif;
-              background-color: #4f8f8a;
-              background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1.5px);
-              background-size: 4px 4px;
-              font-family: var(--s);
-            }
+        .retro-window {
+          background-color: var(--win-bg);
+          border: 2px solid #111111;
+          box-shadow: 5px 5px 0 #111111, inset 2px 2px 0 #ffffff;
+        }
 
-            .retro-window {
-              background-color: var(--win-bg);
-              border: 2px solid #111111;
-              box-shadow: 5px 5px 0 #111111, inset 2px 2px 0 #ffffff;
-            }
+        .retro-btn {
+          background-color: var(--win-bg);
+          border: 2px solid #111111;
+          box-shadow: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #8a8472;
+          transition: background-color 0.15s, color 0.15s;
+        }
 
-            .retro-btn {
-              background-color: var(--win-bg);
-              border: 2px solid #111111;
-              box-shadow: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #8a8472;
-              transition: background-color 0.15s;
-            }
+        .retro-btn:active,
+        .retro-btn:hover {
+          background-color: var(--title-navy) !important;
+          color: var(--title-ink) !important;
+        }
 
-            .retro-btn:active,
-            .retro-btn:hover {
-              background-color: var(--title-navy) !important;
-              color: #ffffff !important;
-            }
+        .retro-folder-shape {
+          clip-path: polygon(0 0, 40% 0, 50% 14%, 100% 14%, 100% 100%, 0 100%);
+          border: 2px solid #111111;
+          box-shadow: 3px 3px 0 #111111;
+        }
 
-            .retro-folder-shape {
-              clip-path: polygon(0 0, 40% 0, 50% 14%, 100% 14%, 100% 100%, 0 100%);
-              border: 2px solid #111111;
-              box-shadow: 3px 3px 0 #111111;
-            }
+        .retro-icon-card:hover .retro-folder-label {
+          background-color: var(--title-navy);
+          color: var(--title-ink);
+          outline: 1px dotted var(--title-ink);
+        }
 
-            .retro-icon-card:hover .retro-folder-label {
-              background-color: var(--title-navy);
-              color: #ffffff;
-              outline: 1px dotted #ffffff;
-            }
-          `,
-        }}
-      />
+        @media (prefers-reduced-motion: reduce) {
+          .retro-btn,
+          .retro-folder-label {
+            transition: none !important;
+          }
+        }
+      `}</style>
 
       {/* Main Container */}
       <main className="w-full max-w-[820px] mx-auto px-4 sm:px-6 py-10 sm:py-16 md:py-20 relative z-10">
@@ -266,14 +234,14 @@ export function DesktopTemplate({
         <div className="retro-window relative pt-10 p-5 sm:p-7 mb-8">
           {/* Titlebar */}
           <div
-            className="absolute left-[3px] right-[3px] top-[3px] h-[26px] text-white px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
-            style={{ backgroundColor: accentColor || '#1d2d5c' }}
+            className="absolute left-[3px] right-[3px] top-[3px] h-[26px] px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
+            style={{ backgroundColor: rawAccent, color: titleBarText }}
           >
             <div className="flex items-center gap-1.5 truncate">
-              <span>■</span>
+              <span aria-hidden="true">■</span>
               <span>profile.exe — System Identity</span>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1 shrink-0" aria-hidden="true">
               <span className="w-3.5 h-3.5 bg-[#d8d2c2] text-[#111] grid place-items-center text-[10px] leading-none border border-[#111] font-bold">
                 _
               </span>
@@ -285,14 +253,13 @@ export function DesktopTemplate({
 
           {/* Profile Header Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] md:grid-cols-[160px_1fr] gap-6 items-start">
-            {/* Pixelated Avatar */}
+            {/* Avatar */}
             <div className="mx-auto sm:mx-0 w-32 h-32 sm:w-36 sm:h-36 shrink-0 relative">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
                   alt={name}
                   className="w-full h-full object-cover border-2 border-[#111111] shadow-[inset_2px_2px_0_rgba(0,0,0,0.4)]"
-                  style={{ imageRendering: 'pixelated' }}
                 />
               ) : (
                 <div className="w-full h-full bg-[#c2bcab] border-2 border-[#111111] grid place-items-center text-4xl font-bold text-[#111111] shadow-[inset_2px_2px_0_rgba(0,0,0,0.4)]">
@@ -302,204 +269,233 @@ export function DesktopTemplate({
             </div>
 
             {/* Profile Info */}
-            <div className="text-center sm:text-left">
-              {/* Retro Badge Mark */}
+            <div className="text-center sm:text-left min-w-0">
               <p
-                className="text-base font-bold tracking-widest mb-1"
-                style={{ color: accentColor || '#1d2d5c' }}
+                className="text-sm font-bold tracking-widest mb-1"
+                style={{ color: readableAccentOnWindow }}
               >
-                窓 OS 95
+                SYS // @{normalized.handle}
               </p>
 
               {/* Name */}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#111111] leading-none">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#111111] leading-none break-words">
                 {name}
               </h1>
 
               {/* Role */}
-              <p className="text-sm sm:text-base font-bold opacity-75 mt-1.5">
-                {role}
-              </p>
+              {role && (
+                <p className="text-sm sm:text-base font-bold text-[#2b2923] mt-2">
+                  {role}
+                </p>
+              )}
+
+              {/* OpenTo Intent Badges */}
+              {normalized.sectionVisibility.openTo && normalized.openTo.length > 0 && (
+                <div className="mt-3 flex justify-center sm:justify-start">
+                  <OpenToBadges intents={normalized.openTo} accentColor={readableAccentOnWindow} variant="light" />
+                </div>
+              )}
 
               {/* Bio */}
-              {bio && (
-                <p className="mt-2.5 text-xs sm:text-sm font-medium leading-relaxed opacity-85">
+              {normalized.sectionVisibility.bio && bio && (
+                <p className="mt-2.5 text-xs sm:text-sm font-medium leading-relaxed text-[#22201b]">
                   {bio}
                 </p>
               )}
 
-              {/* Location */}
-              {location && (
-                <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-2.5 text-xs font-bold opacity-70">
-                  <MapPin size={12} />
-                  <span>{location}</span>
+              {/* Location & Timezone */}
+              {(location || normalized.timezone) && (
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-2.5 text-xs font-bold text-[#333029]">
+                  <MapPin size={12} aria-hidden="true" />
+                  <span>{[location, normalized.timezone].filter(Boolean).join(' · ')}</span>
                 </div>
               )}
 
               {/* 3D Bevel Action Buttons */}
-              <div className="flex flex-wrap gap-2 mt-5 justify-center sm:justify-start">
-                {phone && (
-                  <a
-                    href={`tel:${numericPhone}`}
-                    className="retro-btn inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-[#111111] no-underline"
-                  >
-                    <Phone size={12} />
-                    <span>Call</span>
-                  </a>
-                )}
+              {normalized.sectionVisibility.contact && (
+                <div className="flex flex-wrap gap-2 mt-5 justify-center sm:justify-start">
+                  {numericPhone && (
+                    <a
+                      href={`tel:${numericPhone}`}
+                      onClick={() => onLinkClick?.({ id: 'call', label: 'Call', url: `tel:${numericPhone}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                      className="retro-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#111111] no-underline"
+                    >
+                      <Phone size={12} aria-hidden="true" />
+                      <span>Call</span>
+                    </a>
+                  )}
 
-                {email && (
-                  <a
-                    href={`mailto:${email}`}
-                    className="retro-btn inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-[#111111] no-underline"
-                  >
-                    <Mail size={12} />
-                    <span>Email</span>
-                  </a>
-                )}
+                  {email && (
+                    <a
+                      href={`mailto:${email}`}
+                      onClick={() => onLinkClick?.({ id: 'email', label: 'Email', url: `mailto:${email}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                      className="retro-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#111111] no-underline"
+                    >
+                      <Mail size={12} aria-hidden="true" />
+                      <span>Email</span>
+                    </a>
+                  )}
 
-                {cleanWaNumber && (
-                  <a
-                    href={`https://wa.me/${cleanWaNumber}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="retro-btn inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-[#111111] no-underline"
-                  >
-                    <MessageCircle size={12} />
-                    <span>WhatsApp</span>
-                  </a>
-                )}
+                  {cleanWaNumber && (
+                    <a
+                      href={`https://wa.me/${cleanWaNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => onLinkClick?.({ id: 'whatsapp', label: 'WhatsApp', url: `https://wa.me/${cleanWaNumber}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                      className="retro-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#111111] no-underline"
+                    >
+                      <MessageCircle size={12} aria-hidden="true" />
+                      <span>WhatsApp</span>
+                    </a>
+                  )}
 
-                <button
-                  type="button"
-                  onClick={handleSaveContact}
-                  className="retro-btn inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-[#111111] cursor-pointer"
-                >
-                  <Download size={12} />
-                  <span>Save Contact</span>
-                </button>
-              </div>
+                  {normalized.hasContactChannel && (
+                    <button
+                      type="button"
+                      onClick={openContact}
+                      className="retro-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#111111] cursor-pointer"
+                    >
+                      <MessageCircle size={12} aria-hidden="true" />
+                      <span>Message</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleSaveContact}
+                    className="retro-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#111111] cursor-pointer"
+                  >
+                    <Download size={12} aria-hidden="true" />
+                    <span>Save Contact</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Window 2: my_links (Desktop Icons Grid) */}
-        <div className="retro-window relative pt-10 p-5 sm:p-7 mb-8">
-          {/* Titlebar */}
-          <div
-            className="absolute left-[3px] right-[3px] top-[3px] h-[26px] text-white px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
-            style={{ backgroundColor: accentColor || '#1d2d5c' }}
-          >
-            <div className="flex items-center gap-1.5 truncate">
-              <span>■</span>
-              <span>C:\DESKTOP\my_links — {desktopIcons.length} Object(s)</span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="w-3.5 h-3.5 bg-[#d8d2c2] text-[#111] grid place-items-center text-[10px] leading-none border border-[#111] font-bold">
-                _
-              </span>
-              <span className="w-3.5 h-3.5 bg-[#d8d2c2] text-[#111] grid place-items-center text-[10px] leading-none border border-[#111] font-bold">
-                ×
-              </span>
-            </div>
-          </div>
-
-          {/* Desktop Folders Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6 pt-2">
-            {desktopIcons.map((item, idx) => {
-              const isExt = item.url && (item.url.startsWith('http://') || item.url.startsWith('https://'));
-
-              return (
-                <a
-                  key={item.id}
-                  href={item.url}
-                  target={isExt ? '_blank' : undefined}
-                  rel={isExt ? 'noopener noreferrer' : undefined}
-                  onClick={(e) => {
-                    if (item.action) {
-                      e.preventDefault();
-                      item.action();
-                    } else if (onLinkClick) {
-                      onLinkClick({
-                        id: item.id,
-                        label: item.title,
-                        url: item.url,
-                        icon: null,
-                        clicks: 0,
-                        order: 0,
-                        isVisible: true,
-                      });
-                    }
-                  }}
-                  className="retro-icon-card flex flex-col items-center text-center p-2 rounded cursor-pointer no-underline group"
-                >
-                  {/* Retro Yellow Folder Graphic */}
-                  <div className="relative mb-2">
-                    <div className="retro-folder-shape w-[54px] h-[44px] bg-[#f2c14e] flex items-center justify-center">
-                      {item.platform ? (
-                        <span className="text-[#111111] scale-90">
-                          <SocialIcon icon={item.platform} className="w-5 h-5" />
-                        </span>
-                      ) : (
-                        <Folder size={18} className="text-[#111111]" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Icon Text Label with 90s OS selection effect */}
-                  <span className="retro-folder-label text-xs sm:text-sm font-bold text-[#111111] px-1.5 py-0.5 rounded-sm line-clamp-2 max-w-[120px] transition-colors">
-                    {item.title}
-                  </span>
-
-                  {item.subtitle && (
-                    <span className="text-[10px] font-mono opacity-60 truncate max-w-[110px] mt-0.5">
-                      {item.subtitle}
-                    </span>
-                  )}
-                </a>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Window 3: activity.log (Recent Activity) */}
-        {(profile as any)?.activity && (
-          <div className="retro-window relative pt-10 p-5 sm:p-7 mb-8">
+        {normalized.sectionVisibility.links && desktopIcons.length > 0 && (
+          <section className="retro-window relative pt-10 p-5 sm:p-7 mb-8" aria-label="Links Directory">
+            {/* Titlebar */}
             <div
-              className="absolute left-[3px] right-[3px] top-[3px] h-[26px] text-white px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
-              style={{ backgroundColor: accentColor || '#1d2d5c' }}
+              className="absolute left-[3px] right-[3px] top-[3px] h-[26px] px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
+              style={{ backgroundColor: rawAccent, color: titleBarText }}
             >
               <div className="flex items-center gap-1.5 truncate">
-                <Terminal size={13} />
-                <span>■ activity.log — System Feed</span>
+                <span aria-hidden="true">■</span>
+                <span>C:\DESKTOP\links — {desktopIcons.length} Object(s)</span>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0" aria-hidden="true">
+                <span className="w-3.5 h-3.5 bg-[#d8d2c2] text-[#111] grid place-items-center text-[10px] leading-none border border-[#111] font-bold">
+                  _
+                </span>
+                <span className="w-3.5 h-3.5 bg-[#d8d2c2] text-[#111] grid place-items-center text-[10px] leading-none border border-[#111] font-bold">
+                  ×
+                </span>
+              </div>
+            </div>
+
+            {/* Desktop Folders Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6 pt-2">
+              {desktopIcons.map((item, idx) => {
+                const isExt = item.url && (item.url.startsWith('http://') || item.url.startsWith('https://'));
+
+                return (
+                  <a
+                    key={item.id}
+                    href={item.url}
+                    target={isExt ? '_blank' : undefined}
+                    rel={isExt ? 'noopener noreferrer' : undefined}
+                    onClick={(e) => {
+                      if (item.action) {
+                        e.preventDefault();
+                        item.action();
+                      } else if (onLinkClick) {
+                        onLinkClick(
+                          item.rawLink || {
+                            id: item.id,
+                            label: item.title,
+                            url: item.url,
+                            icon: null,
+                            clicks: 0,
+                            order: idx,
+                            isVisible: true,
+                          }
+                        );
+                      }
+                    }}
+                    className="retro-icon-card flex flex-col items-center text-center p-2 rounded cursor-pointer no-underline group min-w-0"
+                  >
+                    {/* Retro Yellow Folder Graphic */}
+                    <div className="relative mb-2">
+                      <div className="retro-folder-shape w-[54px] h-[44px] bg-[#f2c14e] flex items-center justify-center">
+                        {item.platform ? (
+                          <span className="text-[#111111] scale-90">
+                            <SocialIcon icon={item.platform} className="w-5 h-5" />
+                          </span>
+                        ) : (
+                          <Folder size={18} className="text-[#111111]" aria-hidden="true" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Icon Text Label */}
+                    <span className="retro-folder-label text-xs sm:text-sm font-bold text-[#111111] px-1.5 py-0.5 rounded-sm line-clamp-2 max-w-[128px] transition-colors break-words">
+                      {item.title}
+                    </span>
+
+                    {item.subtitle && (
+                      <span className="text-[11px] font-mono text-[#2b2923] truncate max-w-[120px] mt-0.5">
+                        {item.subtitle}
+                      </span>
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Window 3: activity.log (Recent Activity) */}
+        {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
+          <section className="retro-window relative pt-10 p-5 sm:p-7 mb-8" aria-label="Activity Log">
+            <div
+              className="absolute left-[3px] right-[3px] top-[3px] h-[26px] px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
+              style={{ backgroundColor: rawAccent, color: titleBarText }}
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <Terminal size={13} aria-hidden="true" />
+                <span>activity.log — System Feed</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0" aria-hidden="true">
                 <span className="w-3.5 h-3.5 bg-[#d8d2c2] text-[#111] grid place-items-center text-[10px] leading-none border border-[#111] font-bold">
                   ×
                 </span>
               </div>
             </div>
             <RecentActivitySection
-              activity={(profile as any)?.activity}
+              activity={normalized.recentActivity}
               variant="the-desktop"
-              accentColor={accentColor || '#1d2d5c'}
+              accentColor={readableAccentOnWindow}
+              autoScroll={profile.autoScroll}
             />
-          </div>
+          </section>
         )}
 
-        {/* Window 4: services.txt (Services & Archive) */}
-        {servicesList.length > 0 && (
-          <div className="retro-window relative pt-10 p-5 sm:p-7">
+        {/* Window 4: highlights.txt */}
+        {normalized.sectionVisibility.proof && servicesList.length > 0 && (
+          <section className="retro-window relative pt-10 p-5 sm:p-7 mb-8" aria-label="Highlights">
             {/* Titlebar */}
             <div
-              className="absolute left-[3px] right-[3px] top-[3px] h-[26px] text-white px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
-              style={{ backgroundColor: accentColor || '#1d2d5c' }}
+              className="absolute left-[3px] right-[3px] top-[3px] h-[26px] px-2.5 flex items-center justify-between text-xs sm:text-sm font-bold tracking-wider select-none"
+              style={{ backgroundColor: rawAccent, color: titleBarText }}
             >
               <div className="flex items-center gap-1.5 truncate">
-                <span>■</span>
-                <span>services.txt — Notepad</span>
+                <span aria-hidden="true">■</span>
+                <span>highlights.txt — Notepad</span>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0" aria-hidden="true">
                 <span className="w-3.5 h-3.5 bg-[#d8d2c2] text-[#111] grid place-items-center text-[10px] leading-none border border-[#111] font-bold">
                   _
                 </span>
@@ -511,37 +507,56 @@ export function DesktopTemplate({
 
             {/* Notepad Content */}
             <div className="bg-white border-2 border-[#111111] p-4 text-xs sm:text-sm font-mono space-y-2">
-              <div className="text-[#1d2d5c] font-bold pb-2 border-b border-[#111111]/20">
-                // ACTIVE OPERATIONAL CAPABILITIES
-              </div>
+              <h2 className="font-bold pb-2 border-b border-[#111111]/20 text-xs sm:text-sm" style={{ color: readableAccentOnWhite }}>
+                // TRACK RECORD & HIGHLIGHTS
+              </h2>
               <ul className="flex flex-wrap gap-2 list-none p-0 m-0 pt-1">
                 {servicesList.map((srv, idx) => (
                   <li
                     key={idx}
-                    className="bg-[#f4f4f4] border-2 border-[#111111] px-3 py-1 font-bold text-xs shadow-[2px_2px_0_#111111]"
+                    className="bg-[#f4f4f4] text-[#111111] border-2 border-[#111111] px-3 py-1 font-bold text-xs shadow-[2px_2px_0_#111111]"
                   >
                     [✓] {srv}
                   </li>
                 ))}
               </ul>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Taskbar / Footer */}
-        <footer className="mt-12 sm:mt-16 pt-4 border-t-2 border-[#111111]/30 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-bold opacity-75 font-mono">
-          <span>WINDOWS 95 // RETRO WORKSTATION</span>
-          <span>UNOOL // THE DESKTOP</span>
+        {/* Taskbar Footer with solid high-contrast surface */}
+        <footer className="mt-10 bg-[#d8d2c2] border-2 border-[#111111] shadow-[3px_3px_0_#111111] px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-bold text-[#111111] font-mono">
+          <span>{location || `@${normalized.handle}`}</span>
+          <span>&copy; {new Date().getFullYear()} {name}</span>
         </footer>
       </main>
 
       {/* Toast Feedback */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#d8d2c2] text-[#111111] border-2 border-[#111111] box-shadow-[4px_4px_0_#111111] px-4 py-2 font-bold text-xs shadow-2xl flex items-center gap-2">
-          <span className="w-2 h-2 bg-[#1d2d5c]" />
+        <div
+          className="fixed bottom-6 right-6 z-50 bg-[#d8d2c2] text-[#111111] border-2 border-[#111111] shadow-[4px_4px_0_#111111] px-4 py-2 font-bold text-xs flex items-center gap-2"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="w-2 h-2" style={{ backgroundColor: rawAccent }} aria-hidden="true" />
           <span>{toastMessage}</span>
         </div>
       )}
     </div>
   );
 }
+
+export function DesktopTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#4f8f8a"
+      defaultAccent="#1d2d5c"
+      isPreview={props.isPreview}
+    >
+      <DesktopTemplateInner {...props} />
+    </ProfileTemplateShell>
+  );
+}
+
+export default DesktopTemplate;

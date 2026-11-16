@@ -80,9 +80,6 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      if (activeUid) {
-        headers['x-user-id'] = activeUid;
-      }
 
       await fetch('/api/analytics/time-spent', {
         method: 'POST',

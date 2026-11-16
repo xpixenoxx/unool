@@ -125,7 +125,7 @@ describe('Analytics Time-Spent Tracker', () => {
       expect(mockUpdateUserById).toHaveBeenCalled();
     });
 
-    it('successfully authenticates with fallback candidate userId when verified', async () => {
+    it('rejects unauthenticated body userId fallback with 401 (no unverified spoofing)', async () => {
       mockGetCurrentAuth.mockResolvedValue(null);
       mockGetUserById.mockResolvedValue({
         data: {
@@ -139,17 +139,15 @@ describe('Analytics Time-Spent Tracker', () => {
 
       const req = new NextRequest('http://localhost:3000/api/analytics/time-spent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': 'verified-user-2',
+        },
         body: JSON.stringify({ section: 'referrals', durationSeconds: 15, userId: 'verified-user-2' }),
       });
 
       const res = await POST(req);
-      const data = await res.json();
-
-      expect(res.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.section).toBe('referrals');
-      expect(data.durationSeconds).toBe(15);
+      expect(res.status).toBe(401);
     });
 
     it('rejects invalid payload duration', async () => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { validateStudioProfile, StudioProfile } from '@/lib/config/studioOnboarding';
 import { logger } from '@/lib/logger';
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
       profile: studioProfile,
       isCompleted,
       profileId: profile.id,
+      version: profile.version,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -50,6 +52,14 @@ export async function PUT(request: NextRequest) {
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Insufficient workspace permissions to edit AI Voice settings.' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json().catch(() => null);
@@ -95,6 +105,8 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    const expectedVersion = typeof body.version === 'number' ? body.version : profile.version;
+
     const updated = await profileRepository.update(
       profile.id,
       {
@@ -112,16 +124,23 @@ export async function PUT(request: NextRequest) {
           },
         },
       },
-      profile.version
+      expectedVersion
     );
 
     return NextResponse.json({
       success: true,
       profile: updated.studioProfile || cleanedProfile,
       isCompleted: true,
+      version: updated.version,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
+    if (err.message === 'VERSION_CONFLICT') {
+      return NextResponse.json(
+        { error: 'AI Voice settings were updated elsewhere. Refresh and try again.', code: 'VERSION_CONFLICT' },
+        { status: 409 }
+      );
+    }
     logger.error('Failed to update studio profile', { error: err });
     return NextResponse.json({ error: 'Failed to update studio profile' }, { status: 500 });
   }

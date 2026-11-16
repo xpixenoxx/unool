@@ -27,7 +27,7 @@ const biscuit = {
   accentLight: '#D4B87A',
   accentBg: '#F5EFE2',
   text: '#3D2B1F',
-  textMuted: '#8B7355',
+  textMuted: '#6E5A48',
   textLight: '#A69279',
   activeBg: '#3D2B1F',
   activeFg: '#FAF7F2',
@@ -692,7 +692,7 @@ function DashboardSidebar({
                 {/* Name & URL */}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-[#231C16] truncate leading-tight">
-                    {displayName.toLowerCase() === 'user' ? 'usha' : displayName}
+                    {displayName}
                   </p>
                   <p className="text-xs text-[#7A6B60] truncate mt-0.5 leading-tight">
                     {displayUrl}
@@ -739,7 +739,7 @@ function DashboardSidebar({
                   : [
                       {
                         userId: user?.id || 'current',
-                        email: displayEmail || 'usha@unool.co',
+                        email: displayEmail,
                         displayName,
                         subdomain: currentSubdomain || null,
                         avatarUrl: user?.avatarUrl || null,
@@ -824,7 +824,12 @@ function DashboardSidebar({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  const sub = profile?.subdomain || 'usha';
+                  const sub = profile?.subdomain;
+                  if (!sub) {
+                    toast.info('Claim your unool.co subdomain in Presence first');
+                    router.push('/dashboard/presence');
+                    return;
+                  }
                   window.open(`https://${sub}.unool.co`, '_blank');
                 }}
                 className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-[#231C16] hover:bg-[#F3EAD9] rounded-lg cursor-pointer transition-colors"

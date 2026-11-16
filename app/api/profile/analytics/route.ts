@@ -3,315 +3,303 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { logger } from '@/lib/logger';
+import {
+  CANONICAL_TEMPLATE_NAMES,
+  getTemplateDisplayName,
+  normalizeTemplateId,
+} from '@/lib/profile/templateNormalization';
 
-interface AnalyticsEvent {
+export const dynamic = 'force-dynamic';
+
+interface AnalyticsEventRow {
+  id: string;
   event_type: string;
-  event_data: Record<string, unknown>;
-  created_at: string;
-  workspace_id: string;
-  profile_id: string;
+  event_data: Record<string, unknown> | null;
   referrer: string | null;
-  user_agent: string | null;
+  session_id: string | null;
+  ip_hash: string | null;
+  created_at: string;
 }
 
-const TEMPLATE_NAMES: Record<string, string> = {
-  'lover': 'The Lover',
-  'lone': 'The Lone',
-  'energy': 'The Energy',
-  'rebellion': 'The Rebellion',
-  'vision': 'The Vision',
-  'human': 'The Human',
-  'the-machine': 'The Machine',
-  'the-club': 'The Club',
-  'the-builder': 'The Builder',
-  'the-visionary': 'The Visionary',
-  'the-hustler': 'The Hustler',
-  'the-aesthete': 'The Aesthete',
-  'the-creator': 'The Creator',
-  'the-voice': 'The Voice',
-  'the-studio': 'The Studio',
-  'the-stack': 'The Stack',
-  'the-bookshelf': 'The Bookshelf',
-  'the-cube': 'The Cube',
-  'the-monolith': 'The Monolith',
-};
-
-// GET /api/profile/analytics - Get template analytics for current user's profile
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const days = parseInt(searchParams.get('days') || '30', 10);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const generateEmptyDailyArray = () => Array.from({ length: days }, (_, i) => {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-      return { date: dateStr, count: 0 };
-    });
-
-    const emptyResponse = {
-      templateUsage: [],
-      currentTemplateStats: {
-        views: 0,
-        linkClicks: 0,
-        ctaClicks: 0,
-        conversionRate: 0,
-        avgSessionDuration: 0,
-        viewsByDay: generateEmptyDailyArray(),
-        clicksByDay: generateEmptyDailyArray(),
-        topLinks: [],
-        topReferrers: [],
-        deviceBreakdown: [],
-      },
-      templateComparison: [],
-    };
-
-    // Authenticate user (strict session check — prevents unauthenticated ?workspaceId= IDOR)
-    let auth = null;
-    try {
-      auth = await getCurrentAuth(request);
-    } catch (authErr) {
-      console.warn('[Analytics API] getCurrentAuth error:', authErr);
-    }
-
-    if (!auth?.userId) {
+    const auth = await getCurrentAuth(request);
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const queryWorkspaceId = searchParams.get('workspaceId');
+    const { searchParams } = new URL(request.url);
+    const requestedWorkspaceId = searchParams.get('workspaceId');
     let effectiveWorkspaceId = auth.workspaceId;
-    if (queryWorkspaceId && queryWorkspaceId !== auth.workspaceId) {
-      const allowed = await verifyWorkspaceAccess(auth.userId, queryWorkspaceId);
+    if (requestedWorkspaceId && requestedWorkspaceId !== auth.workspaceId) {
+      const allowed = await verifyWorkspaceAccess(auth.userId, requestedWorkspaceId);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-      effectiveWorkspaceId = queryWorkspaceId;
+      effectiveWorkspaceId = requestedWorkspaceId;
     }
-    const effectiveUserId = auth.userId;
 
-    // Retrieve profile
+    const daysParam = parseInt(searchParams.get('days') || '30', 10);
+    const days = Number.isFinite(daysParam) ? Math.min(Math.max(daysParam, 1), 365) : 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const profileRepository = new SupabaseProfileRepository();
-    let profile = null;
-    if (effectiveWorkspaceId) {
+    const profile = await profileRepository.findByWorkspaceId(effectiveWorkspaceId);
+    const currentTemplate = normalizeTemplateId(profile?.theme?.template || 'lone');
+
+    // Attempt atomic server-side SQL aggregation first if deployed
+    if (typeof supabaseAdmin.rpc === 'function') {
       try {
-        profile = await profileRepository.findByWorkspaceId(effectiveWorkspaceId);
-      } catch (err) {
-        console.warn('[Analytics API] findByWorkspaceId failed:', err);
+        const { data: rpcData, error: rpcErr } = await supabaseAdmin.rpc('get_profile_analytics', {
+          p_workspace_id: effectiveWorkspaceId,
+          p_profile_id: profile?.id ?? null,
+          p_days: days,
+        });
+
+        if (!rpcErr && rpcData && typeof rpcData === 'object') {
+          const totalViews = Number((rpcData as Record<string, unknown>).totalViews || 0);
+          const uniqueVisitors = Number((rpcData as Record<string, unknown>).uniqueVisitors || 0);
+          const linkClicks = Number((rpcData as Record<string, unknown>).linkClicks || 0);
+          const ctaClicks = Number((rpcData as Record<string, unknown>).ctaClicks || 0);
+          const ctr = totalViews > 0 ? Math.round(((linkClicks + ctaClicks) / totalViews) * 1000) / 10 : 0;
+
+          const rawTopLinks = Array.isArray((rpcData as Record<string, unknown>).topLinks)
+            ? ((rpcData as Record<string, unknown>).topLinks as Array<Record<string, unknown>>)
+            : [];
+          const rawReferrers = Array.isArray((rpcData as Record<string, unknown>).topReferrers)
+            ? ((rpcData as Record<string, unknown>).topReferrers as Array<Record<string, unknown>>)
+            : [];
+          const rawViewsOverTime = Array.isArray((rpcData as Record<string, unknown>).viewsOverTime)
+            ? ((rpcData as Record<string, unknown>).viewsOverTime as Array<Record<string, unknown>>)
+            : [];
+          const rawTemplates = Array.isArray((rpcData as Record<string, unknown>).templateUsage)
+            ? ((rpcData as Record<string, unknown>).templateUsage as Array<Record<string, unknown>>)
+            : [];
+
+          // Fill contiguous date range
+          const dailyLookup = new Map<string, { views: number; clicks: number }>();
+          for (const row of rawViewsOverTime) {
+            const d = String(row.date || '');
+            if (d) dailyLookup.set(d, { views: Number(row.views || 0), clicks: Number(row.clicks || 0) });
+          }
+
+          const viewsOverTime: Array<{ date: string; views: number; clicks: number }> = [];
+          for (let i = Math.min(days, 30) - 1; i >= 0; i -= 1) {
+            const d = new Date(Date.now() - i * 86_400_000).toISOString().split('T')[0];
+            const entry = dailyLookup.get(d);
+            viewsOverTime.push({ date: d, views: entry?.views ?? 0, clicks: entry?.clicks ?? 0 });
+          }
+
+          // Merge RPC templates cleanly without double-counting
+          const templateUsageMap = new Map<string, { views: number; clicks: number }>();
+          for (const t of rawTemplates) {
+            const rawId = String(t.templateId || 'unknown');
+            const normId = rawId === 'unknown' ? currentTemplate : normalizeTemplateId(rawId);
+            const cur = templateUsageMap.get(normId) || { views: 0, clicks: 0 };
+            cur.views += Number(t.views || 0);
+            cur.clicks += Number(t.clicks || 0);
+            templateUsageMap.set(normId, cur);
+          }
+
+          const templateUsage = Array.from(templateUsageMap.entries())
+            .filter(([, s]) => s.views > 0 || s.clicks > 0)
+            .map(([templateId, s]) => ({
+              templateId,
+              templateName: getTemplateDisplayName(templateId),
+              views: s.views,
+              clicks: s.clicks,
+              ctr: s.views > 0 ? Math.round((s.clicks / s.views) * 1000) / 10 : 0,
+            }))
+            .sort((a, b) => b.views - a.views || b.clicks - a.clicks);
+
+          const totalVisits = rawReferrers.reduce((sum, r) => sum + Number(r.visits || 0), 0);
+
+          return NextResponse.json({
+            period: `${days}d`,
+            profile: profile
+              ? {
+                  id: profile.id,
+                  name: profile.name,
+                  subdomain: profile.subdomain,
+                  currentTemplate,
+                  currentTemplateName: getTemplateDisplayName(currentTemplate),
+                }
+              : null,
+            summary: {
+              totalViews,
+              uniqueVisitors,
+              linkClicks,
+              ctaClicks,
+              ctr,
+              avgSessionDuration: null,
+            },
+            topLinks: rawTopLinks.map((l) => ({
+              label: String(l.label || 'Link'),
+              url: String(l.url || ''),
+              clicks: Number(l.clicks || 0),
+            })),
+            topReferrers: rawReferrers.map((r) => {
+              const visits = Number(r.visits || 0);
+              return {
+                source: String(r.source || 'direct'),
+                visits,
+                percentage: totalVisits > 0 ? Math.round((visits / totalVisits) * 100) : 0,
+              };
+            }),
+            viewsOverTime,
+            templateUsage,
+            availableTemplates: Object.entries(CANONICAL_TEMPLATE_NAMES).map(([id, name]) => ({ id, name })),
+          });
+        }
+      } catch {
+        // Fall through to query-based aggregation when RPC is not yet deployed
       }
     }
-    if (!profile && effectiveUserId) {
-      try {
-        profile = await profileRepository.findByUserId(effectiveUserId);
-      } catch (err) {
-        console.warn('[Analytics API] findByUserId failed:', err);
-      }
+
+    // Fallback query path strictly scoped to effectiveWorkspaceId (never cross-workspace)
+    let events: AnalyticsEventRow[] = [];
+    const { data: workspaceEvents, error: evErr } = await supabaseAdmin
+      .from('analytics_events')
+      .select('id, event_type, event_data, referrer, session_id, ip_hash, created_at')
+      .eq('workspace_id', effectiveWorkspaceId)
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10000);
+
+    if (!evErr && workspaceEvents) {
+      const targetProfileId = profile?.id;
+      events = (workspaceEvents as AnalyticsEventRow[]).filter((e) => {
+        if (!targetProfileId) return true;
+        const evProfileId = (e as unknown as { profile_id?: string | null }).profile_id;
+        return !evProfileId || evProfileId === targetProfileId;
+      });
     }
 
-    if (!profile) {
-      return NextResponse.json(emptyResponse);
-    }
-
-    const workspaceId = profile.workspaceId || effectiveWorkspaceId;
-    const currentTemplate = (profile.theme as any)?.template || 'lone';
-
-    // Fetch analytics events for this profile and/or workspace
-    let typedEvents: AnalyticsEvent[] = [];
-    try {
-      let query = supabaseAdmin
-        .from('analytics_events')
-        .select('event_type, event_data, created_at, workspace_id, profile_id, referrer, user_agent')
-        .gte('created_at', startDate.toISOString());
-
-      if (profile.id && workspaceId) {
-        query = query.or(`profile_id.eq.${profile.id},workspace_id.eq.${workspaceId}`);
-      } else if (profile.id) {
-        query = query.eq('profile_id', profile.id);
-      } else if (workspaceId) {
-        query = query.eq('workspace_id', workspaceId);
-      }
-
-      const { data: events, error: eventsError } = await query;
-      if (eventsError) {
-        console.warn('[Analytics API] Failed to query events, using empty array:', eventsError);
-      } else if (events) {
-        typedEvents = events as AnalyticsEvent[];
-      }
-    } catch (err) {
-      console.warn('[Analytics API] Exception querying analytics_events:', err);
-    }
-
-    // Aggregate current template stats
     let views = 0;
     let linkClicks = 0;
     let ctaClicks = 0;
-    const viewsByDay: Record<string, number> = {};
-    const clicksByDay: Record<string, number> = {};
-    const linkClicksMap: Record<string, number> = {};
+    const uniqueVisitorKeys = new Set<string>();
     const referrersMap: Record<string, number> = {};
-    const deviceMap: Record<string, number> = {};
+    // Store structured `{ label, url, clicks }` keyed by a null-byte separator so colons in https:// URLs never truncate
+    const linkClicksMap = new Map<string, { label: string; url: string; clicks: number }>();
+    const dailyStats: Record<string, { views: number; clicks: number }> = {};
+    const templateUsageMap = new Map<string, { views: number; clicks: number }>();
 
-    typedEvents.forEach((e) => {
-      const day = e.created_at ? e.created_at.split('T')[0] : '';
-      if (!day) return;
+    for (let i = Math.min(days, 30) - 1; i >= 0; i -= 1) {
+      const dateStr = new Date(Date.now() - i * 86_400_000).toISOString().split('T')[0];
+      dailyStats[dateStr] = { views: 0, clicks: 0 };
+    }
 
-      if (e.event_type === 'profile_view') {
-        views++;
-        viewsByDay[day] = (viewsByDay[day] || 0) + 1;
+    for (const e of events) {
+      const evType = e.event_type;
+      const evData = e.event_data || {};
+      const dateStr = e.created_at ? e.created_at.split('T')[0] : '';
+      const rawTemplate = typeof evData.template === 'string' && evData.template.trim()
+        ? evData.template.trim()
+        : currentTemplate;
+      const evTemplate = normalizeTemplateId(rawTemplate);
+      const tEntry = templateUsageMap.get(evTemplate) || { views: 0, clicks: 0 };
 
-        // Track referrer
-        const referrer = (e.event_data?.utm_source as string) || e.referrer || 'direct';
-        referrersMap[referrer] = (referrersMap[referrer] || 0) + 1;
+      if (evType === 'profile_view') {
+        views += 1;
+        tEntry.views += 1;
+        templateUsageMap.set(evTemplate, tEntry);
+        uniqueVisitorKeys.add(e.session_id || e.ip_hash || e.id);
 
-        // Track device (from user agent)
-        const ua = e.user_agent || '';
-        let device = 'Desktop';
-        if (/Mobile|Android|iPhone/i.test(ua)) device = 'Mobile';
-        else if (/Tablet|iPad/i.test(ua)) device = 'Tablet';
-        deviceMap[device] = (deviceMap[device] || 0) + 1;
-      }
-
-      if (e.event_type === 'link_click') {
-        linkClicks++;
-        clicksByDay[day] = (clicksByDay[day] || 0) + 1;
-
-        const linkType = (e.event_data?.link_type as string) || 'unknown';
-        const linkUrl = (e.event_data?.link_url as string) || 'unknown';
-        const linkText = (e.event_data?.link_text as string) || linkType;
-        const key = `${linkText}:${linkUrl}`;
-        linkClicksMap[key] = (linkClicksMap[key] || 0) + 1;
-      }
-
-      if (e.event_type === 'profile_cta_click') {
-        ctaClicks++;
-        clicksByDay[day] = (clicksByDay[day] || 0) + 1;
-      }
-    });
-
-    // Template usage across workspace (for comparison)
-    const templateUsageMap: Record<string, { views: number; clicks: number; ctaClicks: number }> = {};
-    templateUsageMap[currentTemplate] = { views, clicks: linkClicks, ctaClicks };
-
-    if (workspaceId) {
-      try {
-        const { data: workspaceProfiles, error: wpErr } = await supabaseAdmin
-          .from('profiles')
-          .select('id, theme')
-          .eq('workspace_id', workspaceId);
-
-        if (!wpErr && workspaceProfiles && workspaceProfiles.length > 0) {
-          const profileIds = workspaceProfiles.map(p => p.id);
-          const { data: workspaceEvents, error: weErr } = await supabaseAdmin
-            .from('analytics_events')
-            .select('event_type, event_data, profile_id')
-            .in('profile_id', profileIds)
-            .gte('created_at', startDate.toISOString());
-
-          if (!weErr && workspaceEvents) {
-            workspaceEvents.forEach((e) => {
-              const template = (workspaceProfiles.find(p => p.id === e.profile_id)?.theme as any)?.template || 'lone';
-              if (!templateUsageMap[template]) {
-                templateUsageMap[template] = { views: 0, clicks: 0, ctaClicks: 0 };
-              }
-
-              if (e.event_type === 'profile_view') {
-                templateUsageMap[template].views++;
-              }
-              if (e.event_type === 'link_click') {
-                templateUsageMap[template].clicks++;
-              }
-              if (e.event_type === 'profile_cta_click') {
-                templateUsageMap[template].ctaClicks++;
-              }
-            });
-          }
+        if (dateStr && dailyStats[dateStr]) {
+          dailyStats[dateStr].views += 1;
         }
-      } catch (err) {
-        console.warn('[Analytics API] Error fetching workspace comparison:', err);
+
+        const rawRef = (e.referrer || (evData.referrer as string | undefined) || 'direct').trim().toLowerCase();
+        const refKey = rawRef || 'direct';
+        referrersMap[refKey] = (referrersMap[refKey] || 0) + 1;
+      } else if (evType === 'link_click') {
+        linkClicks += 1;
+        tEntry.clicks += 1;
+        templateUsageMap.set(evTemplate, tEntry);
+
+        if (dateStr && dailyStats[dateStr]) {
+          dailyStats[dateStr].clicks += 1;
+        }
+
+        const linkLabel = typeof evData.link_text === 'string' && evData.link_text.trim()
+          ? evData.link_text.trim()
+          : 'Link';
+        const linkUrl = typeof evData.link_url === 'string' ? evData.link_url.trim() : '';
+        const mapKey = `${linkLabel}\u0000${linkUrl}`;
+        const existing = linkClicksMap.get(mapKey) || { label: linkLabel, url: linkUrl, clicks: 0 };
+        existing.clicks += 1;
+        linkClicksMap.set(mapKey, existing);
+      } else if (evType === 'profile_cta_click') {
+        ctaClicks += 1;
+        tEntry.clicks += 1;
+        templateUsageMap.set(evTemplate, tEntry);
+
+        if (dateStr && dailyStats[dateStr]) {
+          dailyStats[dateStr].clicks += 1;
+        }
       }
     }
 
-    // Build template usage array
-    const templateUsage = Object.entries(templateUsageMap).map(([templateId, stats]) => ({
-      templateId,
-      templateName: TEMPLATE_NAMES[templateId] || templateId,
-      views: stats.views,
-      linkClicks: stats.clicks,
-      ctaClicks: stats.ctaClicks,
-      conversionRate: stats.views > 0 ? (stats.clicks / stats.views) * 100 : 0,
-      avgSessionDuration: 0, // Would need session tracking
-      lastUsed: null, // Would need last activity tracking
-    }));
+    const totalEngagement = linkClicks + ctaClicks;
+    const ctr = views > 0 ? Math.round((totalEngagement / views) * 1000) / 10 : 0;
 
-    // Build template comparison
-    const templateComparison = Object.entries(templateUsageMap).map(([templateId, stats]) => ({
-      templateId,
-      templateName: TEMPLATE_NAMES[templateId] || templateId,
-      views: stats.views,
-      linkClicks: stats.clicks,
-      conversionRate: stats.views > 0 ? (stats.clicks / stats.views) * 100 : 0,
-    }));
+    const topLinks = Array.from(linkClicksMap.values())
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 10);
 
-    // Sort by views descending
-    templateUsage.sort((a, b) => b.views - a.views);
-    templateComparison.sort((a, b) => b.views - a.views);
-
-    // Top links
-    const topLinks = Object.entries(linkClicksMap)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([key, clicks]) => {
-        const [label, url] = key.split(':');
-        return { label, url, clicks };
-      });
-
-    // Top referrers
+    const totalRefVisits = Object.values(referrersMap).reduce((sum, n) => sum + n, 0);
     const topReferrers = Object.entries(referrersMap)
-      .sort(([, a], [, b]) => b - a)
+      .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
-      .map(([source, count]) => ({ source, count }));
+      .map(([source, visits]) => ({
+        source,
+        visits,
+        percentage: totalRefVisits > 0 ? Math.round((visits / totalRefVisits) * 100) : 0,
+      }));
 
-    // Device breakdown
-    const deviceBreakdown = Object.entries(deviceMap)
-      .sort(([, a], [, b]) => b - a)
-      .map(([device, count]) => ({ device, count }));
+    const templateUsage = Array.from(templateUsageMap.entries())
+      .filter(([, s]) => s.views > 0 || s.clicks > 0)
+      .map(([templateId, s]) => ({
+        templateId,
+        templateName: getTemplateDisplayName(templateId),
+        views: s.views,
+        clicks: s.clicks,
+        ctr: s.views > 0 ? Math.round((s.clicks / s.views) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.views - a.views || b.clicks - a.clicks);
 
-    // Generate daily data arrays for charts
-    const viewsByDayArray = Array.from({ length: days }, (_, i) => {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-      return { date: dateStr, count: viewsByDay[dateStr] || 0 };
-    });
-
-    const clicksByDayArray = Array.from({ length: days }, (_, i) => {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-      return { date: dateStr, count: clicksByDay[dateStr] || 0 };
-    });
-
-    const conversionRate = views > 0 ? (linkClicks / views) * 100 : 0;
+    const viewsOverTime = Object.entries(dailyStats)
+      .map(([date, data]) => ({ date, views: data.views, clicks: data.clicks }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     return NextResponse.json({
-      templateUsage,
-      currentTemplateStats: {
-        views,
+      period: `${days}d`,
+      profile: profile
+        ? {
+            id: profile.id,
+            name: profile.name,
+            subdomain: profile.subdomain,
+            currentTemplate,
+            currentTemplateName: getTemplateDisplayName(currentTemplate),
+          }
+        : null,
+      summary: {
+        totalViews: views,
+        uniqueVisitors: uniqueVisitorKeys.size,
         linkClicks,
         ctaClicks,
-        conversionRate,
-        avgSessionDuration: null, // Session duration telemetry not captured on public pages
-        viewsByDay: viewsByDayArray,
-        clicksByDay: clicksByDayArray,
-        topLinks,
-        topReferrers,
-        deviceBreakdown,
+        ctr,
+        avgSessionDuration: null,
       },
-      templateComparison,
+      topLinks,
+      topReferrers,
+      viewsOverTime,
+      templateUsage,
+      availableTemplates: Object.entries(CANONICAL_TEMPLATE_NAMES).map(([id, name]) => ({ id, name })),
     });
   } catch (error) {
-    console.error('Analytics API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 });
+    logger.error('Failed to get profile analytics', { error });
+    return NextResponse.json({ error: 'Failed to get profile analytics' }, { status: 500 });
   }
 }

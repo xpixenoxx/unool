@@ -1,5 +1,7 @@
 'use client';
 
+import { solveAccessibleAccent } from '@/lib/profile/contrast';
+
 import React from 'react';
 
 /* ─────────────────────────────────────────────────────────────
@@ -123,11 +125,23 @@ interface OpenToBadgesProps {
   compact?: boolean;
   /** Override text color for dark-themed templates */
   darkMode?: boolean;
+  /** Visual variant alias ('light' | 'dark' | 'obsidian') */
+  variant?: 'light' | 'dark' | 'obsidian' | string;
+  /** Template accent color context */
+  accentColor?: string;
   className?: string;
 }
 
-export function OpenToBadges({ intents, compact = false, darkMode = false, className = '' }: OpenToBadgesProps) {
+export function OpenToBadges({
+  intents,
+  compact = false,
+  darkMode = false,
+  variant,
+  className = '',
+}: OpenToBadgesProps) {
   if (!intents || intents.length === 0) return null;
+
+  const effectiveDark = Boolean(darkMode || variant === 'dark' || variant === 'obsidian');
 
   const resolvedIntents = intents
     .map(id => getIntentById(id))
@@ -146,9 +160,9 @@ export function OpenToBadges({ intents, compact = false, darkMode = false, class
               compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'
             }`}
             style={{
-              backgroundColor: darkMode ? `${intent.color}22` : intent.bg,
-              color: darkMode ? `${intent.color}dd` : intent.color,
-              border: `1px solid ${darkMode ? `${intent.color}33` : `${intent.color}18`}`,
+              backgroundColor: effectiveDark ? 'rgba(15, 23, 42, 0.82)' : intent.bg,
+              color: solveAccessibleAccent(intent.color, effectiveDark ? '#1E293B' : intent.bg, 5.2),
+              border: `1px solid ${effectiveDark ? `${intent.color}55` : `${intent.color}18`}`,
               letterSpacing: '0.01em',
             }}
           >
@@ -229,10 +243,10 @@ export function OpenToSelector({ selected, onChange, hideHeaderIcon = true, colo
                 transform: isSelected ? 'scale(1)' : 'scale(1)',
               }}
             >
-              <Icon size={14} />
+              <Icon size={14} aria-hidden="true" />
               {intent.label}
               {isSelected && (
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 2 }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 2 }} aria-hidden="true">
                   <path d="M3.5 8.5 6.5 11.5 12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}

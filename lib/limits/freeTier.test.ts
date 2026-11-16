@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { FREE_TIER_LIMITS, PRO_TIER_LIMITS, ENTERPRISE_TIER_LIMITS, getLimitsForTier, checkLimit, UsageSnapshot, Tier } from './freeTier';
+import {
+  FREE_TIER_LIMITS,
+  CREATOR_TIER_LIMITS,
+  PRO_TIER_LIMITS,
+  ENTERPRISE_TIER_LIMITS,
+  getLimitsForTier,
+  checkLimit,
+  UsageSnapshot,
+  Tier,
+} from './freeTier';
 
 describe('lib/limits/freeTier', () => {
   const createUsage = (overrides: Partial<UsageSnapshot> = {}): UsageSnapshot => ({
@@ -13,28 +22,43 @@ describe('lib/limits/freeTier', () => {
   });
 
   describe('Tier limits', () => {
-    it('free tier has correct limits', () => {
-      expect(FREE_TIER_LIMITS.postsPerMonth).toBe(12);
+    it('free (spark) tier matches PLANS_FALLBACK.spark limits', () => {
+      expect(FREE_TIER_LIMITS.postsPerMonth).toBe(15);
       expect(FREE_TIER_LIMITS.aiTokensPerMonth).toBe(50000);
-      expect(FREE_TIER_LIMITS.connectedAccounts).toBe(3);
-      expect(FREE_TIER_LIMITS.scheduledPosts).toBe(5);
+      expect(FREE_TIER_LIMITS.connectedAccounts).toBe(2);
+      expect(FREE_TIER_LIMITS.scheduledPosts).toBe(15);
       expect(FREE_TIER_LIMITS.teamMembers).toBe(1);
-      expect(FREE_TIER_LIMITS.apiCallsPerDay).toBe(100);
+      expect(FREE_TIER_LIMITS.apiCallsPerDay).toBe(0);
+    });
+
+    it('creator tier has unlimited posts and 4 channels', () => {
+      expect(CREATOR_TIER_LIMITS.postsPerMonth).toBe(-1);
+      expect(CREATOR_TIER_LIMITS.aiTokensPerMonth).toBe(250000);
+      expect(CREATOR_TIER_LIMITS.connectedAccounts).toBe(4);
+      expect(CREATOR_TIER_LIMITS.teamMembers).toBe(1);
     });
 
     it('pro tier has higher limits', () => {
-      expect(PRO_TIER_LIMITS.postsPerMonth).toBe(300);
+      expect(PRO_TIER_LIMITS.postsPerMonth).toBe(-1);
       expect(PRO_TIER_LIMITS.aiTokensPerMonth).toBe(500000);
+      expect(PRO_TIER_LIMITS.connectedAccounts).toBe(8);
+      expect(PRO_TIER_LIMITS.teamMembers).toBe(3);
     });
 
-    it('enterprise tier has highest limits', () => {
-      expect(ENTERPRISE_TIER_LIMITS.postsPerMonth).toBe(10000);
-      expect(ENTERPRISE_TIER_LIMITS.aiTokensPerMonth).toBe(5000000);
+    it('enterprise (studio) tier has unlimited content and highest limits', () => {
+      expect(ENTERPRISE_TIER_LIMITS.postsPerMonth).toBe(-1);
+      expect(ENTERPRISE_TIER_LIMITS.aiTokensPerMonth).toBe(-1);
+      expect(ENTERPRISE_TIER_LIMITS.connectedAccounts).toBe(-1);
+      expect(ENTERPRISE_TIER_LIMITS.teamMembers).toBe(10);
+      expect(ENTERPRISE_TIER_LIMITS.apiCallsPerDay).toBe(100000);
     });
 
     it('getLimitsForTier returns correct tier', () => {
       expect(getLimitsForTier('free')).toEqual(FREE_TIER_LIMITS);
+      expect(getLimitsForTier('spark')).toEqual(FREE_TIER_LIMITS);
+      expect(getLimitsForTier('creator')).toEqual(CREATOR_TIER_LIMITS);
       expect(getLimitsForTier('pro')).toEqual(PRO_TIER_LIMITS);
+      expect(getLimitsForTier('studio')).toEqual(ENTERPRISE_TIER_LIMITS);
       expect(getLimitsForTier('enterprise')).toEqual(ENTERPRISE_TIER_LIMITS);
     });
 
@@ -50,33 +74,33 @@ describe('lib/limits/freeTier', () => {
     it('allows usage within limit (strictly less than limit)', () => {
       const result = checkLimit('postsPerMonth', createUsage({ postsThisMonth: 5 }), freeLimits);
       expect(result.allowed).toBe(true);
-      expect(result.limit).toBe(12);
+      expect(result.limit).toBe(15);
       expect(result.used).toBe(5);
-      expect(result.remaining).toBe(7);
+      expect(result.remaining).toBe(10);
     });
 
     it('blocks usage exactly at limit (used < limit required)', () => {
-      const result = checkLimit('postsPerMonth', createUsage({ postsThisMonth: 12 }), freeLimits);
+      const result = checkLimit('postsPerMonth', createUsage({ postsThisMonth: 15 }), freeLimits);
       expect(result.allowed).toBe(false);
-      expect(result.used).toBe(12);
+      expect(result.used).toBe(15);
       expect(result.remaining).toBe(0);
     });
 
     it('blocks usage over limit', () => {
-      const result = checkLimit('postsPerMonth', createUsage({ postsThisMonth: 13 }), freeLimits);
+      const result = checkLimit('postsPerMonth', createUsage({ postsThisMonth: 16 }), freeLimits);
       expect(result.allowed).toBe(false);
-      expect(result.limit).toBe(12);
-      expect(result.used).toBe(13);
+      expect(result.limit).toBe(15);
+      expect(result.used).toBe(16);
       expect(result.remaining).toBe(0);
     });
 
     it('returns correct remaining calculation (never negative)', () => {
       const tests = [
-        { used: 0, expectedRemaining: 12 },
-        { used: 5, expectedRemaining: 7 },
-        { used: 11, expectedRemaining: 1 },
-        { used: 12, expectedRemaining: 0 },
-        { used: 20, expectedRemaining: 0 },
+        { used: 0, expectedRemaining: 15 },
+        { used: 5, expectedRemaining: 10 },
+        { used: 14, expectedRemaining: 1 },
+        { used: 15, expectedRemaining: 0 },
+        { used: 25, expectedRemaining: 0 },
       ];
 
       for (const { used, expectedRemaining } of tests) {
@@ -86,14 +110,14 @@ describe('lib/limits/freeTier', () => {
       }
     });
 
-    it('works for all limit types', () => {
+    it('works for all limit types on free tier', () => {
       const usage = createUsage({
         postsThisMonth: 6,
         aiTokensThisMonth: 25000,
-        connectedAccounts: 2,
+        connectedAccounts: 1,
         scheduledPosts: 3,
-        teamMembers: 0, // free tier limit is 1, so 0 < 1 = allowed
-        apiCallsToday: 50,
+        teamMembers: 0,
+        apiCallsToday: 0,
       });
 
       expect(checkLimit('postsPerMonth', usage, freeLimits).allowed).toBe(true);
@@ -101,17 +125,18 @@ describe('lib/limits/freeTier', () => {
       expect(checkLimit('connectedAccounts', usage, freeLimits).allowed).toBe(true);
       expect(checkLimit('scheduledPosts', usage, freeLimits).allowed).toBe(true);
       expect(checkLimit('teamMembers', usage, freeLimits).allowed).toBe(true);
-      expect(checkLimit('apiCallsPerDay', usage, freeLimits).allowed).toBe(true);
+      // Free tier has apiCallsPerDay = 0 -> API access is gated
+      expect(checkLimit('apiCallsPerDay', usage, freeLimits).allowed).toBe(false);
     });
 
-    it('blocks when any limit exceeded (at limit)', () => {
+    it('blocks when free tier limits are reached', () => {
       const usage = createUsage({
-        postsThisMonth: 12,
+        postsThisMonth: 15,
         aiTokensThisMonth: 50000,
-        connectedAccounts: 3,
-        scheduledPosts: 5,
+        connectedAccounts: 2,
+        scheduledPosts: 15,
         teamMembers: 1,
-        apiCallsToday: 100,
+        apiCallsToday: 0,
       });
 
       expect(checkLimit('postsPerMonth', usage, freeLimits).allowed).toBe(false);
@@ -122,19 +147,22 @@ describe('lib/limits/freeTier', () => {
       expect(checkLimit('apiCallsPerDay', usage, freeLimits).allowed).toBe(false);
     });
 
-    it('works with pro tier higher limits', () => {
+    it('supports unlimited (-1) and higher limits on pro tier', () => {
       const usage = createUsage({
-        postsThisMonth: 50,
+        postsThisMonth: 500,
         aiTokensThisMonth: 100000,
         connectedAccounts: 5,
         scheduledPosts: 20,
-        teamMembers: 3,
+        teamMembers: 2,
         apiCallsToday: 1000,
       });
 
       const proLimits = PRO_TIER_LIMITS;
       expect(checkLimit('postsPerMonth', usage, proLimits).allowed).toBe(true);
-      expect(checkLimit('postsPerMonth', createUsage({ postsThisMonth: 300 }), proLimits).allowed).toBe(false);
+      expect(checkLimit('postsPerMonth', usage, proLimits).remaining).toBe(-1);
+      expect(checkLimit('aiTokensPerMonth', usage, proLimits).allowed).toBe(true);
+      expect(checkLimit('aiTokensPerMonth', createUsage({ aiTokensThisMonth: 500000 }), proLimits).allowed).toBe(false);
+      expect(checkLimit('connectedAccounts', createUsage({ connectedAccounts: 8 }), proLimits).allowed).toBe(false);
     });
   });
 
@@ -155,7 +183,7 @@ describe('lib/limits/freeTier', () => {
     });
 
     it('daily limits reset at midnight UTC', () => {
-      const result = checkLimit('apiCallsPerDay', mockUsage, FREE_TIER_LIMITS);
+      const result = checkLimit('apiCallsPerDay', mockUsage, ENTERPRISE_TIER_LIMITS);
 
       expect(result.resetAt.getUTCHours()).toBe(0);
       expect(result.resetAt.getUTCMinutes()).toBe(0);
@@ -206,7 +234,7 @@ describe('lib/limits/freeTier', () => {
       const usage = createUsage();
       const result = checkLimit('postsPerMonth', usage, freeLimits);
       expect(result.used).toBe(0);
-      expect(result.remaining).toBe(12);
+      expect(result.remaining).toBe(15);
       expect(result.allowed).toBe(true);
     });
 

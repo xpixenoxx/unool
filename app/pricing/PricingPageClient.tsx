@@ -74,7 +74,7 @@ const PLANS_FALLBACK: PlanData[] = [
     u: [10, 8],
     r: [
       '1 · name.unool.co',
-      'All 16',
+      'All 24',
       '4',
       'Unlimited',
       '150 / mo',
@@ -95,7 +95,7 @@ const PLANS_FALLBACK: PlanData[] = [
     u: [24, 20],
     r: [
       '1',
-      'All 16',
+      'All 24',
       '8',
       'Unlimited + FlightPlan AI',
       '500 / mo',
@@ -116,7 +116,7 @@ const PLANS_FALLBACK: PlanData[] = [
     u: [60, 50],
     r: [
       '3 brands or clients',
-      'All 16 + white-label',
+      'All 24 + white-label',
       'Unlimited',
       'Unlimited',
       'Unlimited (fair use)',
@@ -136,7 +136,7 @@ const COMPETITOR_NAMES = ['Unool', 'Zorcha', 'Linktree', 'Buffer', 'Taplio'];
 const COMPETITOR_PRICES = ['₹799', '₹1,199', '₹1,250', '₹2,000+', '₹3,250+'];
 
 const COMPARISONS: [string, string, string][] = [
-  ['Premium profile page', '16 studio-grade templates vs Zorcha’s 3 basic themes', 'yppnn'],
+  ['Premium profile page', '24 studio-grade templates vs Zorcha’s 3 basic themes', 'yppnn'],
   ['IG comment automation', 'AI semantic intent vs rigid keyword triggers', 'yynnn'],
   ['Comment-to-DM flows', '', 'yynnn'],
   ['LinkedIn automation', 'Taplio schedules only, no auto-reply', 'ynnnp'],
@@ -176,7 +176,7 @@ const FAQS: [string, string][] = [
   ],
   [
     'Is there GST on top of the prices shown?',
-    'Prices shown are before GST. Applicable GST is added at checkout.',
+    'All prices shown are final checkout prices while GST registration is not enabled. Any future statutory GST will be clearly broken out prior to payment.',
   ],
   [
     'Can I connect my custom domain on Spark?',

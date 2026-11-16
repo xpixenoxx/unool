@@ -190,7 +190,8 @@ async function getPlanFromCache(planId: string): Promise<Plan | null> {
     .from('plans')
     .select('*')
     .eq('id', normalizedId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (error || !data) {
     const fallbackPlan: Plan = {
@@ -250,9 +251,9 @@ async function getPlanFromCache(planId: string): Promise<Plan | null> {
 export function clearPlanCache(planOrWorkspaceId: string): void {
   const redis = getRedisForCache();
   if (redis) {
-    redis.del(`plan:${planOrWorkspaceId}`).catch(() => {});
+    redis.del(`plan:${planOrWorkspaceId}`).catch(() => { });
     for (const pid of ['spark', 'free', 'creator', 'pro', 'studio']) {
-      redis.del(`plan:${pid}`).catch(() => {});
+      redis.del(`plan:${pid}`).catch(() => { });
     }
   }
 }
@@ -267,7 +268,8 @@ export async function getWorkspacePlanInfo(workspaceId: string): Promise<Workspa
     .from('workspace_admin_view')
     .select('plan, plan_status, plan_expires_at, plan_limits, plan_features')
     .eq('id', workspaceId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (error || !data) {
     // Fallback: get basic workspace info and look up plan
@@ -275,7 +277,8 @@ export async function getWorkspacePlanInfo(workspaceId: string): Promise<Workspa
       .from('workspaces')
       .select('plan, plan_status, plan_expires_at')
       .eq('id', workspaceId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (!ws) return null;
 

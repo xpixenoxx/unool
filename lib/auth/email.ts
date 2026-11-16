@@ -201,3 +201,98 @@ export async function sendTokenExpiredAlertEmail(opts: {
     logger.warn('Failed to send platform token expiration alert email', { error: String(err), to, platform });
   }
 }
+
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Sends a workspace collaboration invite email via Resend (or prints cleanly in dev mode).
+ */
+export async function sendWorkspaceInviteEmail(opts: {
+  to: string;
+  workspaceName: string;
+  inviterEmail?: string;
+  role: string;
+}): Promise<{ delivered: boolean; devMode?: boolean }> {
+  const { to, workspaceName, inviterEmail, role } = opts;
+  const appUrl = (config.NEXT_PUBLIC_APP_URL || 'https://unool.co').replace(/\/$/, '');
+  const inviteUrl = `${appUrl}/signin?redirect=${encodeURIComponent('/dashboard/settings?tab=workspace')}&email=${encodeURIComponent(to)}`;
+
+  if (!config.RESEND_API_KEY) {
+    if (config.NODE_ENV !== 'production') {
+      logger.info('DEV: Workspace invite prepared (no RESEND_API_KEY configured)', {
+        to,
+        workspaceName,
+        role,
+        inviteUrl,
+      });
+      return { delivered: true, devMode: true };
+    }
+    return { delivered: false };
+  }
+
+  const safeWorkspace = escapeHtml(workspaceName || 'Workspace');
+  const safeRole = escapeHtml(role);
+  const safeInviter = inviterEmail ? escapeHtml(inviterEmail) : 'A workspace administrator';
+  const subject = `${APP_NAME} — You've been invited to "${workspaceName || 'Workspace'}"`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#F6F0E8;font-family:sans-serif;color:#1C1917;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFDF9;border:1px solid #E5DDD2;border-radius:12px;padding:32px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#8E8579;font-weight:600;">Workspace Invitation</p>
+              <h2 style="margin:0 0 12px;color:#1C1917;">Join ${safeWorkspace} on ${APP_NAME}</h2>
+              <p style="margin:0 0 20px;font-size:14px;color:#44403C;line-height:1.6;">
+                ${safeInviter} invited you to collaborate on <strong>${safeWorkspace}</strong> with the <strong>${safeRole}</strong> role.
+              </p>
+              <p style="margin:0 0 24px;">
+                <a href="${inviteUrl}" style="display:inline-block;background:#C8613D;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">
+                  Accept Invitation
+                </a>
+              </p>
+              <p style="margin:0;font-size:12px;color:#78716C;">If you were not expecting this invitation, you can safely ignore this email.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    const { Resend } = await import('resend');
+    const resend = new Resend(config.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    if (error) {
+      logger.warn('Failed to send workspace invite email via Resend', { error, to });
+      return { delivered: false };
+    }
+    logger.info('Workspace invitation email sent', { to, workspaceName, role });
+    return { delivered: true };
+  } catch (err) {
+    logger.warn('Workspace invitation email exception', {
+      error: err instanceof Error ? err.message : String(err),
+      to,
+    });
+    return { delivered: false };
+  }
+}

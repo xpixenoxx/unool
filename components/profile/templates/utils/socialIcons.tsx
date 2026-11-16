@@ -127,6 +127,25 @@ export function getLinkIcon(
 }
 
 /**
+ * Alias matching `link.icon` (`string | null | undefined`) for persona templates.
+ */
+export function getSharedLinkIcon(
+  label?: string,
+  url?: string,
+  icon?: string | null,
+  className: string = 'w-5 h-5'
+): React.ReactElement {
+  return (
+    <SocialIcon
+      label={label}
+      url={url}
+      icon={icon ?? undefined}
+      className={className}
+    />
+  );
+}
+
+/**
  * Get a platform icon component for templates that need a wrapped icon.
  * Renders the SocialIcon inside a container div with consistent sizing.
  *

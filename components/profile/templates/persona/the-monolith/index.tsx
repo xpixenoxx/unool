@@ -1,110 +1,72 @@
 'use client';
 
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
-import { SocialIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
+import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
-import { Phone, Mail, MessageCircle, Download, MapPin, ExternalLink } from 'lucide-react';
-
-/* ─────────────────────────────────────────────────────────────
-   Contextual CTA Action Verbs for Monolithic Slabs
-   ───────────────────────────────────────────────────────────── */
-function getMonolithActionVerb(url: string, label: string): string {
-  const u = (url || '').toLowerCase();
-  const l = (label || '').toLowerCase();
-
-  if (l.includes('portfolio') || l.includes('work') || l.includes('case stud') || u.includes('dribbble.com') || u.includes('behance.net')) return 'EXPLORE';
-  if (l.includes('website') || l.includes('site') || l.includes('homepage') || l.includes('web')) return 'VISIT';
-  if (u.includes('cal.com') || u.includes('calendly.com') || l.includes('book') || l.includes('schedule')) return 'BOOK';
-  if (u.includes('wa.me') || u.includes('whatsapp') || l.includes('chat')) return 'CHAT';
-  if (u.includes('linkedin.com') || l.includes('connect')) return 'CONNECT';
-  if (u.includes('.pdf') || l.includes('resume') || l.includes('cv') || l.includes('download')) return 'GET';
-  if (u.includes('github.com') || u.includes('gitlab.com') || l.includes('code')) return 'INSPECT';
-  if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('vimeo') || l.includes('watch')) return 'WATCH';
-  if (u.includes('spotify.com') || u.includes('apple.com/music') || l.includes('listen')) return 'LISTEN';
-  if (u.includes('substack.com') || u.includes('medium.com') || l.includes('blog') || l.includes('read')) return 'READ';
-
-  const isX = /(?:^|[\/\.])x\.com(?=[\/\?#:]|$)/i.test(u) || u.includes('twitter.com') || l === 'x' || l === 'twitter';
-  const isSocial = isX || u.includes('instagram.com') || u.includes('threads.net') || u.includes('tiktok.com');
-  if (isSocial) return 'FOLLOW';
-
-  return 'VISIT';
-}
-
-function cleanDisplayUrl(rawUrl: string): string {
-  if (!rawUrl) return '';
-  return rawUrl
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\/$/, '');
-}
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { getActionVerb, cleanDisplayUrl, downloadProfileVCard } from '@/lib/profile/templateActions';
+import { pickReadableText, solveAccessibleAccent } from '@/lib/profile/contrast';
+import { Phone, Mail, MessageCircle, Download, MapPin } from 'lucide-react';
 
 type PanelKey = 'profile' | 'links' | 'services' | 'contact';
 
-export function MonolithTemplate({
+function MonolithTemplateInner({
   profile,
   accentColor,
   isPreview = false,
   onLinkClick,
 }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
   const [activePanel, setActivePanel] = useState<PanelKey>('profile');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
   }, []);
 
-  const name = profile?.name || 'Your Name';
-  const role = profile?.role || profile?.headline || 'Creative Director';
-  const bio = profile?.bio || 'Architecting spaces, digital monoliths, and enduring brand structures.';
-  const location = profile?.location || (profile as any)?.city || '';
-  const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar_url || '';
-  const email = profile?.email || '';
+  const name = normalized.name;
+  const role = normalized.role || normalized.headline;
+  const bio = normalized.bio;
+  const location = normalized.location;
+  const avatarUrl = normalized.avatarUrl;
+  const initials = normalized.initials;
+  const email = normalized.showEmail ? normalized.email : '';
   const phone = (profile as any)?.phone || '';
-  const links: ProfileLink[] = (profile?.links || []).filter((l) => l.isVisible !== false);
-  const proofs: ProfileProof[] = profile?.proofs || (profile as any)?.proofPoints || [];
+  const links: ProfileLink[] = normalized.links;
+  const proofs = normalized.proofs;
+
+  const c2Bg = accentColor || normalized.accentColor || '#1d3b2f';
+  const c2Text = useMemo(() => pickReadableText(c2Bg), [c2Bg]);
+  const c2VerbAccent = useMemo(() => solveAccessibleAccent('#d9a441', c2Bg), [c2Bg]);
+  const readableAccentOnSlab1 = useMemo(() => solveAccessibleAccent(c2Bg === '#1d3b2f' ? '#8a5a00' : c2Bg, '#ece8de'), [c2Bg]);
 
   const numericPhone = useMemo(() => (phone || '').replace(/[^\d+]/g, ''), [phone]);
   const cleanWaNumber = useMemo(() => (phone || '').replace(/[^\d]/g, ''), [phone]);
 
-  const initials = useMemo(() => {
-    return (name || '')
-      .trim()
-      .split(/\s+/)
-      .map((w) => w.charAt(0))
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-  }, [name]);
-
   const handleSaveContact = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     try {
-      const vcard = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${name}`,
-        `TITLE:${role}`,
-        email ? `EMAIL;TYPE=INTERNET,WORK:${email}` : '',
-        numericPhone ? `TEL;TYPE=CELL,VOICE:${numericPhone}` : '',
-        location ? `ADR;TYPE=WORK:;;${location};;;;` : '',
-        `NOTE:${bio.replace(/\n/g, ' ')}`,
-        `URL:${typeof window !== 'undefined' ? window.location.href : `https://${profile?.subdomain}.unool.com`}`,
-        'END:VCARD',
-      ]
-        .filter(Boolean)
-        .join('\r\n');
-
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${name.replace(/\s+/g, '_')}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadProfileVCard({
+        name,
+        role,
+        email,
+        phone: numericPhone,
+        location,
+        bio,
+        subdomain: profile?.subdomain,
+        website: typeof window !== 'undefined' ? window.location.href : undefined,
+      });
       showToast('Contact card downloaded');
     } catch (err) {
       console.error('vCard generation error:', err);
@@ -138,28 +100,14 @@ export function MonolithTemplate({
     return entries;
   }, [profile?.socialHandles]);
 
-  const structuredData = useMemo(() => {
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Person',
-      name: name,
-      jobTitle: role,
-      description: bio,
-      image: avatarUrl || undefined,
-      url: typeof window !== 'undefined' ? window.location.href : undefined,
-      email: email ? `mailto:${email}` : undefined,
-      telephone: numericPhone || undefined,
-      sameAs: [
-        ...links.map((l) => l.url),
-        ...socialEntries.map((s) => s.url),
-      ].filter(Boolean),
-    };
-  }, [name, role, bio, avatarUrl, email, numericPhone, links, socialEntries]);
-
   // Keyboard navigation for panels
   useEffect(() => {
     const panels: PanelKey[] = ['profile', 'links', 'services', 'contact'];
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
       if (e.key === '1') setActivePanel('profile');
       if (e.key === '2') setActivePanel('links');
       if (e.key === '3') setActivePanel('services');
@@ -182,26 +130,22 @@ export function MonolithTemplate({
   }, []);
 
   return (
-    <div className="monolith-wrap">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-
+    <div className="monolith-wrap overflow-x-clip">
       <style>{`
         .monolith-wrap {
           --mono-bg: #141412;
           --c1-bg: #ece8de;
           --c1-text: #1a1a17;
-          --c2-bg: ${accentColor ? accentColor : '#1d3b2f'};
-          --c2-text: #e8e4d8;
+          --c2-bg: ${c2Bg};
+          --c2-text: ${c2Text};
+          --c2-verb: ${c2VerbAccent};
           --c3-bg: #d9a441;
           --c3-text: #1a1a17;
           --c4-bg: #262624;
           --c4-text: #e8e4d8;
 
           background: var(--mono-bg);
-          font-family: 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           min-height: 100svh;
           width: 100%;
           overflow: hidden;
@@ -254,7 +198,7 @@ export function MonolithTemplate({
         .mono-label span {
           font-weight: 700;
           font-size: 13px;
-          opacity: 0.65;
+          opacity: 0.9;
           letter-spacing: 0.1em;
         }
 
@@ -432,7 +376,7 @@ export function MonolithTemplate({
 
         .mono-link-url {
           font-size: 12.5px;
-          opacity: 0.65;
+          opacity: 0.9;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -443,7 +387,7 @@ export function MonolithTemplate({
           font-weight: 700;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #d9a441;
+          color: var(--c2-verb);
           white-space: nowrap;
         }
 
@@ -461,10 +405,10 @@ export function MonolithTemplate({
         }
 
         .mono-service-row span {
-          font-family: 'Avenir Next', -apple-system, sans-serif;
+          font-family: var(--font-sans), -apple-system, sans-serif;
           font-size: 14px;
           font-weight: 700;
-          opacity: 0.85;
+          opacity: 0.9;
           white-space: nowrap;
         }
 
@@ -510,7 +454,7 @@ export function MonolithTemplate({
         }
 
         .mono-dt-item span {
-          opacity: 0.6;
+          opacity: 0.9;
         }
 
         .mono-dt-item b {
@@ -618,6 +562,16 @@ export function MonolithTemplate({
           box-shadow: 0 8px 24px rgba(0,0,0,0.4);
           z-index: 100;
         }
+
+        @media (prefers-reduced-motion: reduce) {
+          .mono-slab,
+          .mono-label,
+          .mono-content,
+          .mono-link-item,
+          .mono-action-btn {
+            transition: none !important;
+          }
+        }
       `}</style>
 
       {/* Monolithic Expanding Slabs */}
@@ -650,22 +604,20 @@ export function MonolithTemplate({
             <div className="mono-role">
               <span>{role}</span>
               {location && (
-                <span className="inline-flex items-center gap-1 opacity-70 text-xs ml-1">
-                  <MapPin size={12} />
+                <span className="inline-flex items-center gap-1 opacity-90 text-xs ml-1">
+                  <MapPin size={12} aria-hidden="true" />
                   {location}
                 </span>
               )}
             </div>
 
-            <p className="mono-bio">{bio}</p>
+            {normalized.sectionVisibility.bio && bio && (
+              <p className="mono-bio">{bio}</p>
+            )}
 
-            {profile?.openTo && profile.openTo.length > 0 && (
-              <div className="mono-chips">
-                {profile.openTo.map((intent: string) => (
-                  <span key={intent} className="mono-chip">
-                    {intent.replace(/-/g, ' ')}
-                  </span>
-                ))}
+            {normalized.sectionVisibility.openTo && normalized.openTo.length > 0 && (
+              <div className="mt-4">
+                <OpenToBadges intents={normalized.openTo} accentColor={readableAccentOnSlab1} variant="light" />
               </div>
             )}
           </div>
@@ -687,10 +639,10 @@ export function MonolithTemplate({
           <div className="mono-content">
             <h2 className="mono-section-heading">Curated Links</h2>
 
-            {links && links.length > 0 ? (
+            {normalized.sectionVisibility.links && links && links.length > 0 ? (
               <div>
                 {links.map((link, idx) => {
-                  const verb = getMonolithActionVerb(link.url, link.label);
+                  const verb = getActionVerb(link.url, link.label);
                   return (
                     <a
                       key={link.id || idx}
@@ -713,14 +665,14 @@ export function MonolithTemplate({
                 })}
               </div>
             ) : (
-              <div className="py-12 opacity-70 text-sm">
+              <div className="py-12 opacity-90 text-sm">
                 No active links on this monolith yet.
               </div>
             )}
           </div>
         </section>
 
-        {/* ── PANEL 03: SERVICES ── */}
+        {/* ── PANEL 03: HIGHLIGHTS ── */}
         <section
           className={`mono-slab slab-3 ${activePanel === 'services' ? 'active' : ''}`}
           onClick={() => setActivePanel('services')}
@@ -730,13 +682,13 @@ export function MonolithTemplate({
         >
           <div className="mono-label">
             <span>03</span>
-            <b>Services</b>
+            <b>Highlights</b>
           </div>
 
           <div className="mono-content">
-            <h2 className="mono-section-heading">Services & Offerings</h2>
+            <h2 className="mono-section-heading">Highlights & Activity</h2>
 
-            {proofs && proofs.length > 0 ? (
+            {normalized.sectionVisibility.proof && proofs && proofs.length > 0 ? (
               <div>
                 {proofs.map((proof, idx) => (
                   <div key={proof.id || idx} className="mono-service-row">
@@ -746,27 +698,16 @@ export function MonolithTemplate({
                 ))}
               </div>
             ) : (
-              <div>
-                <div className="mono-service-row">
-                  <b>Architectural Systems</b>
-                  <span>From $2,000</span>
-                </div>
-                <div className="mono-service-row">
-                  <b>Digital Identity Systems</b>
-                  <span>From $1,500</span>
-                </div>
-                <div className="mono-service-row">
-                  <b>Spatial Direction</b>
-                  <span>From $900</span>
-                </div>
-              </div>
+              <p className="py-6 text-sm font-medium">
+                Verified milestones and highlights appear here as they are published.
+              </p>
             )}
 
             {/* Activity Section */}
-            {profile?.recentActivity && (
+            {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
               <div className="mt-6 pt-4 border-t border-[#1a1a17]/25">
                 <RecentActivitySection
-                  activity={profile.recentActivity}
+                  activity={normalized.recentActivity}
                   variant="stack"
                   isDark={false}
                   accentColor="#1a1a17"
@@ -793,48 +734,56 @@ export function MonolithTemplate({
           <div className="mono-content">
             <h2 className="mono-section-heading">Direct Reach</h2>
 
-            <nav className="mono-action-grid" aria-label="Direct contact actions">
-              {numericPhone ? (
-                <a href={`tel:${numericPhone}`} className="mono-action-btn">
-                  <Phone size={16} />
-                  <span>Call</span>
-                </a>
-              ) : (
-                <button type="button" className="mono-action-btn" onClick={() => showToast('Phone number not listed')}>
-                  <Phone size={16} />
-                  <span>Call</span>
-                </button>
-              )}
+            {normalized.sectionVisibility.contact && (
+              <nav className="mono-action-grid" aria-label="Direct contact actions">
+                {numericPhone && (
+                  <a
+                    href={`tel:${numericPhone}`}
+                    className="mono-action-btn"
+                    onClick={() => onLinkClick?.({ id: 'call', label: 'Call', url: `tel:${numericPhone}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                  >
+                    <Phone size={16} aria-hidden="true" />
+                    <span>Call</span>
+                  </a>
+                )}
 
-              {email ? (
-                <a href={`mailto:${email}`} className="mono-action-btn">
-                  <Mail size={16} />
-                  <span>Email</span>
-                </a>
-              ) : (
-                <button type="button" className="mono-action-btn" onClick={() => showToast('Email not listed')}>
-                  <Mail size={16} />
-                  <span>Email</span>
-                </button>
-              )}
+                {email && (
+                  <a
+                    href={`mailto:${email}`}
+                    className="mono-action-btn"
+                    onClick={() => onLinkClick?.({ id: 'email', label: 'Email', url: `mailto:${email}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                  >
+                    <Mail size={16} aria-hidden="true" />
+                    <span>Email</span>
+                  </a>
+                )}
 
-              {cleanWaNumber ? (
-                <a href={`https://wa.me/${cleanWaNumber}`} target="_blank" rel="noopener noreferrer" className="mono-action-btn">
-                  <MessageCircle size={16} />
-                  <span>WhatsApp</span>
-                </a>
-              ) : (
-                <button type="button" className="mono-action-btn" onClick={() => showToast('WhatsApp unavailable')}>
-                  <MessageCircle size={16} />
-                  <span>WhatsApp</span>
-                </button>
-              )}
+                {cleanWaNumber && (
+                  <a
+                    href={`https://wa.me/${cleanWaNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mono-action-btn"
+                    onClick={() => onLinkClick?.({ id: 'whatsapp', label: 'WhatsApp', url: `https://wa.me/${cleanWaNumber}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                  >
+                    <MessageCircle size={16} aria-hidden="true" />
+                    <span>WhatsApp</span>
+                  </a>
+                )}
 
-              <button type="button" className="mono-action-btn" onClick={handleSaveContact}>
-                <Download size={16} />
-                <span>vCard</span>
-              </button>
-            </nav>
+                {normalized.hasContactChannel && (
+                  <button type="button" className="mono-action-btn" onClick={openContact}>
+                    <MessageCircle size={16} aria-hidden="true" />
+                    <span>Message</span>
+                  </button>
+                )}
+
+                <button type="button" className="mono-action-btn" onClick={handleSaveContact}>
+                  <Download size={16} aria-hidden="true" />
+                  <span>vCard</span>
+                </button>
+              </nav>
+            )}
 
             {phone && (
               <div className="mono-dt-item">
@@ -866,6 +815,7 @@ export function MonolithTemplate({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mono-social-link"
+                    onClick={() => onLinkClick?.({ id: `soc-${soc.platform}`, label: soc.label, url: soc.url, icon: null, clicks: 0, order: 0, isVisible: true })}
                   >
                     <SocialIcon label={soc.label} url={soc.url} className="w-3.5 h-3.5 fill-current" />
                     <span>{soc.label}</span>
@@ -874,7 +824,7 @@ export function MonolithTemplate({
               </div>
             )}
 
-            <div className="mt-auto pt-6 opacity-60 text-xs">
+            <div className="mt-auto pt-6 opacity-90 text-xs">
               <p>&copy; {new Date().getFullYear()} {name}</p>
             </div>
           </div>
@@ -883,11 +833,24 @@ export function MonolithTemplate({
       </main>
 
       {toastMessage && (
-        <div className="mono-toast" role="status">
+        <div className="mono-toast" role="status" aria-live="polite">
           {toastMessage}
         </div>
       )}
     </div>
+  );
+}
+
+export function MonolithTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#ece8de"
+      defaultAccent="#1d3b2f"
+      isPreview={props.isPreview}
+    >
+      <MonolithTemplateInner {...props} />
+    </ProfileTemplateShell>
   );
 }
 

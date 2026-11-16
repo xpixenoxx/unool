@@ -1,33 +1,19 @@
+import { NextRequest } from 'next/server';
+import { performSignOut } from '@/lib/auth/session-cookies';
+
 /**
  * POST /api/auth/logout
- *
- * Signs the user out, invalidating the Supabase session.
- * Clears all auth cookies (server-side sign out via SSR client).
+ * Clears active Supabase SSR session and Unool cookies.
  */
-
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { config } from '@/lib/config/schema';
-import { logger } from '@/lib/logger';
-import { cookies } from 'next/headers';
-
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
+  let scope: 'local' | 'global' = 'local';
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-      cookies: {
-        getAll()      { return cookieStore.getAll(); },
-        setAll(toSet: Array<{ name: string; value: string; options?: any }>) { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); },
-      },
-    });
-
-    await supabase.auth.signOut();
-
-    logger.info('User signed out');
-    return NextResponse.json({ success: true, message: 'Signed out successfully.' }, { status: 200 });
-
-  } catch (err) {
-    logger.error('Logout error', { error: err instanceof Error ? err : new Error(String(err)) });
-    return NextResponse.json({ success: false, message: 'An unexpected error occurred.' }, { status: 500 });
+    const body = (await request.json().catch(() => null)) as { scope?: string } | null;
+    if (body?.scope === 'global') {
+      scope = 'global';
+    }
+  } catch {
+    // Empty body defaults to local sign-out
   }
+  return performSignOut(request, scope);
 }

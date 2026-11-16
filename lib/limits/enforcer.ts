@@ -45,7 +45,7 @@ export async function enforceLimit(
         remaining: result.remaining,
         resetAt: result.resetAt.toISOString(),
         tier,
-        upgradeUrl: '/dashboard/settings?tab=billing',
+        upgradeUrl: '/dashboard/billing',
       },
       { status: 429 }
     );

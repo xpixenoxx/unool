@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { twitchAdapter } from '@/lib/platforms/TwitchAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { getAuthContext } from '@/lib/auth/context';
+import { resolvePlatformConnectContext } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -21,18 +21,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let workspaceId = bodyWorkspaceId;
-    let userId = '';
-    
-    const authCtx = await getAuthContext();
-    if (authCtx) {
-      workspaceId = workspaceId || authCtx.workspaceId;
-      userId = authCtx.userId;
-    }
-
-    if (!workspaceId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    if ('error' in resolved) return resolved.error;
+    const { userId, workspaceId } = resolved.context;
 
     const tokenPayload = JSON.stringify({ accessToken, clientId });
 

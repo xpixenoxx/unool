@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Server-side Analytics Tracking
  * Use in API routes and server components
  */
@@ -107,6 +107,8 @@ export const analytics = {
     utmSource?: string;
     utmMedium?: string;
     utmCampaign?: string;
+    template?: string;
+    subdomain?: string;
   }) => trackEvent({
     eventType: 'profile_view',
     workspaceId: input.workspaceId,
@@ -120,6 +122,8 @@ export const analytics = {
       utm_source: input.utmSource,
       utm_medium: input.utmMedium,
       utm_campaign: input.utmCampaign,
+      ...(input.template ? { template: input.template } : {}),
+      ...(input.subdomain ? { subdomain: input.subdomain } : {}),
     },
   }),
 

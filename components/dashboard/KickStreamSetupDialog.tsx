@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ interface KickStreamSetupDialogProps {
   open: boolean;
   onClose: () => void;
   workspaceId: string;
+  connectionId?: string;
   onSuccess?: () => void;
 }
 
@@ -19,6 +20,7 @@ export function KickStreamSetupDialog({
   open,
   onClose,
   workspaceId,
+  connectionId,
   onSuccess,
 }: KickStreamSetupDialogProps) {
   const [streamUrl, setStreamUrl] = useState('');
@@ -27,21 +29,25 @@ export function KickStreamSetupDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Pre-fetch existing stream settings if configured
-  useState(() => {
-    if (open) {
-      fetch(`/api/platform/kick/stream-settings?workspaceId=${encodeURIComponent(workspaceId)}`, {
-        credentials: 'include',
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    const params = new URLSearchParams({ workspaceId });
+    if (connectionId) params.set('connectionId', connectionId);
+    fetch(`/api/platform/kick/stream-settings?${params.toString()}`, {
+      credentials: 'include',
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data?.streamUrl) {
+          setStreamUrl(data.streamUrl);
+        }
       })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data?.streamUrl) {
-            setStreamUrl(data.streamUrl);
-          }
-        })
-        .catch(() => {});
-    }
-  });
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open, workspaceId, connectionId]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +81,7 @@ export function KickStreamSetupDialog({
         credentials: 'include',
         body: JSON.stringify({
           workspaceId,
+          connectionId: connectionId || undefined,
           streamUrl: trimmedUrl,
           streamKey: trimmedKey,
         }),

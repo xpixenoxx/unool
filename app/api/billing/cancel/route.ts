@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { cancelSubscription, getWorkspaceSubscription } from '@/lib/billing/subscription';
 import { logger } from '@/lib/logger';
 
 /**
  * POST /api/billing/cancel
  * Cancel the current subscription.
+ * Restricted strictly to the workspace owner (blocked during impersonation).
  * Body: { immediate?: boolean }
  *
  * Default: cancel at end of current billing period (cancel_at_period_end).
@@ -16,6 +18,21 @@ export async function POST(request: NextRequest) {
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (auth.isImpersonated) {
+      return NextResponse.json(
+        { error: 'Subscription cancellation is blocked during admin impersonation.', code: 'IMPERSONATION_BLOCKED' },
+        { status: 403 }
+      );
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Only the workspace owner can cancel the subscription.' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json().catch(() => ({}));

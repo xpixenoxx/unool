@@ -88,6 +88,25 @@ function ClubTemplateInner({ profile, accentColor, isPreview, onLinkClick }: Tem
 
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
 
+  const legacyProofPoints = clubData.proofPoints.map((p) => {
+    const num = typeof p.value === 'number' ? p.value : Number.parseFloat(String(p.value).replace(/[^0-9.-]/g, ''));
+    return {
+      ...p,
+      value: Number.isFinite(num) ? num : 0,
+      suffix: p.suffix ?? (typeof p.value === 'string' && Number.isNaN(Number(p.value)) ? String(p.value) : undefined),
+    };
+  });
+
+  const legacyActivities = clubData.activities.map((a) => ({
+    ...a,
+    type: (a.type === 'release' ? 'project' : a.type === 'event' ? 'milestone' : a.type) as
+      | 'post'
+      | 'project'
+      | 'collab'
+      | 'milestone'
+      | 'media',
+  }));
+
   return (
     <>
       <style jsx global>{`
@@ -149,11 +168,11 @@ function ClubTemplateInner({ profile, accentColor, isPreview, onLinkClick }: Tem
               {/* Right Content Panel */}
               <div className="club-content-panel" role="main" aria-label="Content sections">
                 <ClubManifesto bio={clubData.bio} manifesto={clubData.manifesto} />
-                <ClubProofLedger proofPoints={clubData.proofPoints} />
+                <ClubProofLedger proofPoints={legacyProofPoints} />
                 <ClubCuratedWorks projects={clubData.projects} />
                 <ClubSocialsMatrix socialLinks={clubData.socialLinks} />
                 <ClubOpenToBadges openTo={clubData.openTo} />
-                <ClubRecentActivity activities={clubData.activities} profile={{ name: clubData.name, avatar: clubData.avatar }} />
+                <ClubRecentActivity activities={legacyActivities} profile={{ name: clubData.name, avatar: clubData.avatar }} />
               </div>
 
               {/* Action Dock */}
@@ -175,11 +194,11 @@ function ClubTemplateInner({ profile, accentColor, isPreview, onLinkClick }: Tem
               <ClubHero profile={{ name: clubData.name, tagline: clubData.tagline }} />
               <main style={{ flex: 1, paddingBottom: 'var(--space-16)' }}>
                 <ClubManifesto bio={clubData.bio} manifesto={clubData.manifesto} />
-                <ClubProofLedger proofPoints={clubData.proofPoints} />
+                <ClubProofLedger proofPoints={legacyProofPoints} />
                 <ClubCuratedWorks projects={clubData.projects} />
                 <ClubSocialsMatrix socialLinks={clubData.socialLinks} />
                 <ClubOpenToBadges openTo={clubData.openTo} />
-                <ClubRecentActivity activities={clubData.activities} profile={{ name: clubData.name, avatar: clubData.avatar }} />
+                <ClubRecentActivity activities={legacyActivities} profile={{ name: clubData.name, avatar: clubData.avatar }} />
               </main>
             </div>
           </>

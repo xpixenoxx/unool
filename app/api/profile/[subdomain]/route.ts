@@ -1,273 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config/schema';
+import { checkRateLimit, rateLimitHeaders as getRateLimitHeaders } from '@/lib/rate-limit';
+import { getCurrentAuth } from '@/lib/auth/server';
 import { logger } from '@/lib/logger';
-import { analytics, extractTrackingFromRequest } from '@/lib/analytics/track';
-import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
-import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
-import { supabaseAdmin } from '@/lib/supabase/admin';
-import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
-import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
-
-const profileRepository = new SupabaseProfileRepository();
-
-
-// Upstash Redis for rate limiting (optional - gracefully degrades if not configured)
-async function checkRateLimit(request: NextRequest): Promise<{ limited: boolean; headers: Record<string, string> }> {
-  const url = config.UPSTASH_REDIS_REST_URL;
-  const token = config.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) {
-    return { limited: false, headers: {} };
-  }
-
-  try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-      || request.headers.get('x-real-ip')
-      || 'unknown';
-    const key = `ratelimit:profile:${ip}`;
-
-    const response = await fetch(`${url}/incr/${key}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!response.ok) {
-      return { limited: false, headers: {} };
-    }
-
-    const rawJson = await response.json();
-    const count = typeof rawJson === 'number' ? rawJson : Number(rawJson?.result ?? 0);
-    if (count === 1) {
-      fetch(`${url}/expire/${key}/60`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => { });
-    }
-    const limit = 60; // 60 requests per minute
-    const remaining = Math.max(0, limit - (Number.isFinite(count) ? count : 0));
-
-    const headers = {
-      'X-RateLimit-Limit': limit.toString(),
-      'X-RateLimit-Remaining': remaining.toString(),
-      'X-RateLimit-Reset': Math.ceil((Date.now() + 60000) / 1000).toString(),
-    };
-
-    if (count > limit) {
-      return { limited: true, headers: { ...headers, 'Retry-After': '60' } };
-    }
-
-    return { limited: false, headers };
-  } catch {
-    // Fail open on rate limiter errors
-    return { limited: false, headers: {} };
-  }
-}
+import {
+  resolveAuthorizedPublicProfile,
+  recordPublicProfileView,
+} from '@/lib/profile/publicProfilePayload';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ subdomain: string }> }
 ) {
   try {
-    const { subdomain } = await params;
+    const rateLimitResult = await checkRateLimit(request, 'profileView');
+    const rateLimitHeaders = getRateLimitHeaders(rateLimitResult.remaining, rateLimitResult.reset);
 
-    if (!subdomain || subdomain.length < 2) {
-      return NextResponse.json({ error: 'Invalid subdomain' }, { status: 400 });
-    }
-
-    // Rate limiting check
-    const { limited, headers: rateLimitHeaders } = await checkRateLimit(request);
-    if (limited) {
+    if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
         { status: 429, headers: rateLimitHeaders }
       );
     }
 
-    // Fetch profile using repository with service_role key to ensure reliability
-    const profile = await profileRepository.findBySubdomain(subdomain);
+    const { subdomain } = await params;
 
-    if (!profile) {
+    if (!subdomain || subdomain.length < 2) {
+      return NextResponse.json({ error: 'Invalid subdomain' }, { status: 400, headers: rateLimitHeaders });
+    }
+
+    // Optional viewer authentication for private allowlisted viewers & owner view exemption
+    let viewerAuth: { userId: string; workspaceId: string } | null = null;
+    try {
+      viewerAuth = await getCurrentAuth(request);
+    } catch {
+      viewerAuth = null;
+    }
+
+    const activityParam = request.nextUrl.searchParams.get('activity');
+    const result = await resolveAuthorizedPublicProfile(subdomain, viewerAuth, activityParam);
+    if (result.status !== 'found') {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404, headers: rateLimitHeaders });
     }
 
-    // Enforce visibility check: private profiles return 404 for public requests
-    if (profile.visibility === 'private') {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404, headers: rateLimitHeaders });
+    await recordPublicProfileView(result.profile, request, result.isOwner);
+
+    const headers = new Headers(rateLimitHeaders);
+    if (result.profile.visibility === 'unlisted') {
+      headers.set('X-Robots-Tag', 'noindex, nofollow');
+    }
+    if (result.profile.visibility === 'private') {
+      headers.set('Cache-Control', 'private, no-store');
+    } else {
+      headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     }
 
-    // Increment view count async (fire-and-forget, fallback to ignoring errors)
-    try {
-      await supabaseAdmin.rpc('increment_profile_views', { profile_id: profile.id });
-    } catch {
-      // Ignore view count errors
-    }
-
-    // Track profile view analytics (reliable, awaited server-side tracking)
-    const isPreview = request.nextUrl.searchParams.get('preview') === 'true' || request.headers.get('x-preview') === 'true';
-    const { ipHash, referrer, userAgent } = extractTrackingFromRequest(request);
-    const clientReferrer = request.nextUrl.searchParams.get('ref') || request.nextUrl.searchParams.get('referrer');
-    const effectiveReferrer = clientReferrer || referrer || undefined;
-    const isBot = userAgent ? /bot|crawler|spider|crawling|slurp|facebookexternalhit|whatsapp|preview|headless/i.test(userAgent) : false;
-
-    if (!isPreview && !isBot && profile.workspaceId) {
-      try {
-        const resolvedIpHash = await ipHash;
-        await analytics.profileView({
-          workspaceId: profile.workspaceId,
-          profileId: profile.id,
-          userId: profile.userId,
-          sessionId: request.headers.get('x-session-id') || undefined,
-          referrer: effectiveReferrer,
-          userAgent: userAgent || undefined,
-          ipHash: resolvedIpHash || undefined,
-        });
-      } catch (trackErr) {
-        logger.warn('Failed to track profile view', { error: trackErr, subdomain });
-      }
-    }
-
-    // ── Fetch latest (or requested ?activity=<postId>) published broadcast for "Recent Activity" ──
-    let recentActivity = null;
-    try {
-      const postRepo = new SupabasePostRepository();
-      const platformRepo = new SupabasePlatformRepository();
-      const requestedActivityId = request.nextUrl.searchParams.get('activity');
-
-      let recentPosts: Awaited<ReturnType<typeof postRepo.findByProfileId>> = [];
-      if (requestedActivityId && requestedActivityId !== '1') {
-        const specific = await postRepo.findById(requestedActivityId).catch(() => null);
-        if (
-          specific &&
-          (specific.profileId === profile.id || (profile.workspaceId && specific.workspaceId === profile.workspaceId))
-        ) {
-          const vs = await postRepo.findVariantsByPostId(specific.id);
-          if (specific.status === 'published' || vs.some(v => v.status === 'published')) {
-            recentPosts = [specific];
-          }
-        }
-      }
-
-      if (recentPosts.length === 0) {
-        recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
-      }
-      if (recentPosts.length === 0 && profile.workspaceId) {
-        recentPosts = await postRepo.findByWorkspaceId(profile.workspaceId, { status: 'published', limit: 1 });
-      }
-
-      // If no post has explicit status='published', check for recent posts that have published variants or recent posts
-      if (recentPosts.length === 0) {
-        let candidatePosts = await postRepo.findByProfileId(profile.id, { limit: 5 });
-        if (candidatePosts.length === 0 && profile.workspaceId) {
-          candidatePosts = await postRepo.findByWorkspaceId(profile.workspaceId, { limit: 5 });
-        }
-        for (const p of candidatePosts) {
-          const vs = await postRepo.findVariantsByPostId(p.id);
-          if (vs.some(v => v.status === 'published')) {
-            recentPosts = [p];
-            break;
-          }
-        }
-        // SECURITY: Never fall back to unpublished draft/scheduled posts on a public profile
-      }
-
-      const latestPost = recentPosts[0] ?? null;
-
-      if (latestPost) {
-        const variants = await postRepo.findVariantsByPostId(latestPost.id);
-        const publishedVariants = variants.filter(v => v.status === 'published');
-        const targetVariants = publishedVariants;
-
-        const platformItems = await Promise.all(
-          targetVariants.map(async v => {
-            const platformPosts = await platformRepo.findPlatformPostsByVariant(v.id);
-            const rawUrl = platformPosts[0]?.platformUrl ?? (v as any).platformUrl;
-            const rawPostId = platformPosts[0]?.platformPostId ?? (v as any).platformPostId;
-            let liveUrl = rawUrl;
-            if (v.platform?.toLowerCase() === 'facebook') {
-              liveUrl = normalizeFacebookUrl(rawUrl, rawPostId);
-            } else if (!liveUrl) {
-              liveUrl = `https://${v.platform}.com`;
-            }
-            return { platform: v.platform, url: liveUrl, adaptedContent: v.adaptedContent };
-          })
-        );
-
-        const effectivePlatforms = platformItems.filter(Boolean);
-        if (effectivePlatforms.length === 0) {
-          effectivePlatforms.push({
-            platform: 'manual',
-            url: `https://unool.co/u/${profile.subdomain}?activity=1`,
-            adaptedContent: latestPost.content,
-          });
-        }
-
-        recentActivity = {
-          id: latestPost.id,
-          content: latestPost.content,
-          publishedAt: latestPost.publishedAt?.toISOString() ?? latestPost.updatedAt?.toISOString() ?? latestPost.createdAt?.toISOString() ?? null,
-          platforms: effectivePlatforms,
-        };
-      }
-    } catch {
-      // Non-critical — fail silently so the profile always loads
-    }
-
-    // Resolve workspace plan entitlements (badge removal / white-label) for public profile rendering
-    let hideBadge = false;
-    let whiteLabel = false;
-    if (profile.workspaceId) {
-      try {
-        const planCtx = await getPlanContext(profile.userId, profile.workspaceId);
-        hideBadge = Boolean(planCtx?.features?.badge_removal || planCtx?.features?.white_label);
-        whiteLabel = Boolean(planCtx?.features?.white_label);
-      } catch {
-        // Default to showing badge if plan lookup fails
-      }
-    }
-
-    // Build response WITHOUT email (P0-T5: strip email from public response)
-    // The email field is never included in the public profile response
-    const response = {
-      id: profile.id,
-      workspaceId: profile.workspaceId,
-      workspace_id: profile.workspaceId,
-      userId: profile.userId,
-      user_id: profile.userId,
-      subdomain: profile.subdomain,
-      name: profile.name,
-      headline: profile.headline,
-      bio: profile.bio,
-      role: profile.role,
-      company: profile.company,
-      avatarUrl: profile.avatarUrl,
-      avatar_url: profile.avatarUrl,
-      links: profile.links || [],
-      proofPoints: profile.proofPoints || [],
-      proof_points: profile.proofPoints || [],
-      proofs: profile.proofPoints || [],
-      openTo: profile.openTo || [],
-      open_to: profile.openTo || [],
-      theme: {
-        template: (profile.theme as any)?.template || (profile.theme as any)?.preset || 'lone',
-        preset: (profile.theme as any)?.preset || 'minimal',
-        accentColor: (profile.theme as any)?.accentColor || 'var(--color-primary)',
-        customCss: (profile.theme as any)?.customCss || null,
-        ...profile.theme,
-      },
-      hideBadge,
-      whiteLabel,
-      features: {
-        badge_removal: hideBadge,
-        white_label: whiteLabel,
-      },
-      visibility: profile.visibility || 'public',
-      recentActivity,
-      createdAt: profile.createdAt,
-      created_at: profile.createdAt,
-      updatedAt: profile.updatedAt,
-      updated_at: profile.updatedAt,
-    };
-
-    return NextResponse.json(response, { headers: rateLimitHeaders });
+    return NextResponse.json(result.payload, { headers });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Public profile API error', { error: err });

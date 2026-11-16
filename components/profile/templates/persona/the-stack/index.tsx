@@ -1,76 +1,46 @@
 'use client';
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
-import { SocialIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
+import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { getActionVerb, cleanDisplayUrl, downloadProfileVCard } from '@/lib/profile/templateActions';
+import { pickReadableText } from '@/lib/profile/contrast';
 import { Phone, Mail, MessageCircle, Download, ExternalLink, MapPin, Check, Copy } from 'lucide-react';
 
-/* ─────────────────────────────────────────────────────────────
-   Action Verb Intelligence: Infers intentional CTA verbs from URLs
-   ───────────────────────────────────────────────────────────── */
-function getActionVerb(url: string, label: string): string {
-  const u = (url || '').toLowerCase();
-  const l = (label || '').toLowerCase();
-
-  // 1. Portfolio, creative showcases, case studies
-  if (l.includes('portfolio') || l.includes('work') || l.includes('case stud') || u.includes('dribbble.com') || u.includes('behance.net')) return 'Explore';
-
-  // 2. Websites, personal domains, company portals
-  if (l.includes('website') || l.includes('site') || l.includes('homepage') || l.includes('web') || l.includes('portal')) return 'Visit';
-
-  // 3. High-intent interactive actions
-  if (u.includes('cal.com') || u.includes('calendly.com') || l.includes('book') || l.includes('schedule') || l.includes('meeting')) return 'Book';
-  if (u.includes('wa.me') || u.includes('whatsapp') || l.includes('chat') || l.includes('message')) return 'Chat';
-  if (u.includes('linkedin.com') || l.includes('connect')) return 'Connect';
-  if (u.includes('.pdf') || l.includes('resume') || l.includes('cv') || l.includes('download')) return 'Get';
-  if (u.includes('github.com') || u.includes('gitlab.com') || l.includes('code') || l.includes('repo')) return 'Inspect';
-
-  // 4. Media & Content
-  if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('twitch.tv') || u.includes('vimeo') || l.includes('watch') || l.includes('video')) return 'Watch';
-  if (u.includes('spotify.com') || u.includes('apple.com/music') || u.includes('soundcloud') || l.includes('listen') || l.includes('podcast')) return 'Listen';
-  if (u.includes('substack.com') || u.includes('medium.com') || l.includes('blog') || l.includes('article') || l.includes('read') || l.includes('newsletter')) return 'Read';
-
-  // 5. Social networks (strict boundary check so domains like pixenox.com or dropbox.com don't match x.com)
-  const isX = /(?:^|[\/\.])x\.com(?=[\/\?#:]|$)/i.test(u) || u.includes('twitter.com') || l === 'x' || l === 'twitter';
-  const isSocial = isX || u.includes('instagram.com') || u.includes('threads.net') || u.includes('tiktok.com');
-  if (isSocial) return 'Follow';
-
-  // 6. High-impact default for custom domains / general links
-  return 'Visit';
-}
-
-function cleanDisplayUrl(rawUrl: string): string {
-  if (!rawUrl) return '';
-  return rawUrl
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\/$/, '');
-}
-
-export function StackTemplate({
+function StackTemplateInner({
   profile,
   accentColor,
   isPreview = false,
   onLinkClick,
 }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2600);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
-  // Profile data extraction with resilient fallbacks
-  const name = profile?.name || 'Your Name';
-  const role = profile?.role || profile?.headline || 'Independent Practitioner';
-  const bio = profile?.bio || 'Building clear, lasting solutions. Available for select client engagements.';
-  const location = profile?.location || (profile as any)?.city || '';
-  const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar_url || '';
-  const email = profile?.email || '';
+  const name = normalized.name;
+  const role = normalized.role || normalized.headline;
+  const bio = normalized.bio;
+  const location = normalized.location;
+  const avatarUrl = normalized.avatarUrl;
+  const email = normalized.showEmail ? normalized.email : '';
   const phone = (profile as any)?.phone || '';
-  const links: ProfileLink[] = (profile?.links || []).filter((l) => l.isVisible !== false);
-  const proofs: ProfileProof[] = profile?.proofs || (profile as any)?.proofPoints || [];
+  const links: ProfileLink[] = normalized.links;
+  const proofs = normalized.proofs;
 
   // Sanitize phone for direct WhatsApp / Tel
   const numericPhone = useMemo(() => {
@@ -85,30 +55,16 @@ export function StackTemplate({
   const handleSaveContact = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     try {
-      const vcard = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${name}`,
-        `TITLE:${role}`,
-        email ? `EMAIL;TYPE=INTERNET,WORK:${email}` : '',
-        numericPhone ? `TEL;TYPE=CELL,VOICE:${numericPhone}` : '',
-        location ? `ADR;TYPE=WORK:;;${location};;;;` : '',
-        `NOTE:${bio.replace(/\n/g, ' ')}`,
-        `URL:${typeof window !== 'undefined' ? window.location.href : `https://${profile?.subdomain}.unool.com`}`,
-        'END:VCARD',
-      ]
-        .filter(Boolean)
-        .join('\r\n');
-
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${name.replace(/\s+/g, '_')}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadProfileVCard({
+        name,
+        role,
+        email,
+        phone: numericPhone,
+        location,
+        bio,
+        subdomain: profile?.subdomain,
+        website: typeof window !== 'undefined' ? window.location.href : undefined,
+      });
       showToast('Contact card downloaded');
     } catch (err) {
       console.error('vCard generation error:', err);
@@ -152,36 +108,13 @@ export function StackTemplate({
     return entries;
   }, [profile?.socialHandles]);
 
-  // Schema.org JSON-LD Microdata for Search Engines
-  const structuredData = useMemo(() => {
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Person',
-      name: name,
-      jobTitle: role,
-      description: bio,
-      image: avatarUrl || undefined,
-      url: typeof window !== 'undefined' ? window.location.href : undefined,
-      email: email ? `mailto:${email}` : undefined,
-      telephone: numericPhone || undefined,
-      sameAs: [
-        ...links.map((l) => l.url),
-        ...socialEntries.map((s) => s.url),
-      ].filter(Boolean),
-    };
-  }, [name, role, bio, avatarUrl, email, numericPhone, links, socialEntries]);
-
   // Accent customization: tint card 2 if user has custom accent
-  const customAccentColor = accentColor || profile?.theme?.accentColor;
+  const customAccentColor = accentColor || normalized.accentColor;
+  const c2BgColor = customAccentColor || '#c4693f';
+  const c2TextColor = pickReadableText(c2BgColor);
 
   return (
-    <div className="stack-wrap">
-      {/* Search Engine & Social Media Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-
+    <div className="stack-wrap overflow-x-clip">
       {/* Scoped High-Performance CSS (Zero layout-thrashing, GPU accelerated) */}
       <style>{`
         .stack-wrap {
@@ -189,7 +122,8 @@ export function StackTemplate({
           --stack-text-dark: #171714;
           --stack-text-light: #ece6d8;
           --c1-bg: #ece6d8;
-          --c2-bg: ${customAccentColor ? customAccentColor : '#c4693f'};
+          --c2-bg: ${c2BgColor};
+          --c2-text: ${c2TextColor};
           --c3-bg: #8c9a73;
           --c4-bg: #2a2a27;
 
@@ -259,7 +193,7 @@ export function StackTemplate({
           --n: 1;
           top: calc(22px + var(--n) * 18px);
           background: var(--c2-bg);
-          color: var(--stack-text-dark);
+          color: var(--c2-text);
           z-index: 20;
         }
 
@@ -310,7 +244,7 @@ export function StackTemplate({
         .stack-card .stack-role {
           font-size: 0.95rem;
           font-weight: 500;
-          opacity: 0.75;
+          opacity: 0.88;
           margin-bottom: 8px;
           display: flex;
           align-items: center;
@@ -321,7 +255,7 @@ export function StackTemplate({
         .stack-card .stack-bio {
           font-size: 0.88rem;
           line-height: 1.5;
-          opacity: 0.85;
+          opacity: 0.9;
           max-width: 520px;
         }
 
@@ -331,7 +265,7 @@ export function StackTemplate({
           text-transform: uppercase;
           margin-bottom: 14px;
           font-weight: 700;
-          opacity: 0.75;
+          opacity: 0.88;
         }
 
         /* Card 1 Hero Portrait - Authentic aspect ratio that preserves logos & photos */
@@ -376,9 +310,9 @@ export function StackTemplate({
           height: 42px;
           margin: 14px auto 2px;
           border-radius: 50%;
-          background: rgba(0, 0, 0, 0.05);
-          border: 1px solid rgba(0, 0, 0, 0.08);
-          color: rgba(23, 23, 20, 0.65);
+          background: rgba(0, 0, 0, 0.06);
+          border: 1px solid rgba(0, 0, 0, 0.14);
+          color: #171714;
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
           cursor: pointer;
@@ -388,12 +322,20 @@ export function StackTemplate({
 
         .stack-swipe-cue:hover {
           background: rgba(0, 0, 0, 0.1);
-          color: rgba(23, 23, 20, 0.95);
+          color: #171714;
           transform: translateY(-2px);
         }
 
         .stack-swipe-cue .stack-swipe-icon {
           animation: stackSwipeFloat 2s infinite ease-in-out;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .stack-swipe-cue .stack-swipe-icon,
+          .stack-card {
+            animation: none !important;
+            transition: none !important;
+          }
         }
 
         @keyframes stackSwipeFloat {
@@ -460,7 +402,7 @@ export function StackTemplate({
 
         .stack-link-meta small {
           font-size: 12px;
-          opacity: 0.7;
+          opacity: 0.9;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -624,19 +566,12 @@ export function StackTemplate({
               )}
             </div>
 
-            <p className="stack-bio">{bio}</p>
+            {bio && <p className="stack-bio">{bio}</p>}
 
             {/* Open To Intent Badges (if available) */}
-            {profile?.openTo && profile.openTo.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-black/10">
-                {profile.openTo.map((intent: string) => (
-                  <span
-                    key={intent}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-black/5 text-[#171714] tracking-wide"
-                  >
-                    {intent.replace(/-/g, ' ')}
-                  </span>
-                ))}
+            {normalized.sectionVisibility.openTo && normalized.openTo.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-black/10">
+                <OpenToBadges intents={normalized.openTo} accentColor="#171714" variant="light" />
               </div>
             )}
           </div>
@@ -707,111 +642,80 @@ export function StackTemplate({
         </section>
 
         {/* ── CARD 3: SERVICES, METRICS & LATEST DISPATCH ─────────── */}
-        <section className="stack-card sc-3" aria-label="Services and Milestones">
-          <h2 className="stack-section-title">Services & Offerings</h2>
+        {(proofs.length > 0 || (normalized.sectionVisibility.recentActivity && normalized.recentActivity)) && (
+          <section className="stack-card sc-3" aria-label="Highlights and Milestones">
+            <h2 className="stack-section-title">Highlights & Milestones</h2>
 
-          {proofs && proofs.length > 0 ? (
-            <ul className="stack-service-list">
-              {proofs.map((proof, idx) => (
-                <li key={proof.id || idx} className="stack-service-row">
-                  <b>{proof.title}</b>
-                  <span>{proof.value}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ul className="stack-service-list">
-              <li className="stack-service-row">
-                <b>Brand Identity Systems</b>
-                <span>From $800</span>
-              </li>
-              <li className="stack-service-row">
-                <b>Digital Products & Web</b>
-                <span>From $1,200</span>
-              </li>
-              <li className="stack-service-row">
-                <b>Design Architecture & Advisory</b>
-                <span>From $600</span>
-              </li>
-            </ul>
-          )}
+            {proofs.length > 0 && (
+              <ul className="stack-service-list">
+                {proofs.map((proof, idx) => (
+                  <li key={proof.id || idx} className="stack-service-row">
+                    <b>{proof.label}</b>
+                    <span>{proof.value}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-          {/* Seamless Native Recent Activity Embedding */}
-          {profile?.recentActivity && (
-            <div className="mt-5 pt-4 border-t border-black/15">
-              <RecentActivitySection
-                activity={profile.recentActivity}
-                variant="stack"
-                isDark={false}
-                accentColor="#c4693f"
-                autoScroll={profile.autoScroll}
-              />
-            </div>
-          )}
-        </section>
+            {/* Seamless Native Recent Activity Embedding */}
+            {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
+              <div className="mt-5 pt-4 border-t border-black/15">
+                <RecentActivitySection
+                  activity={normalized.recentActivity}
+                  variant="stack"
+                  isDark={false}
+                  accentColor="#171714"
+                  autoScroll={!isPreview}
+                />
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ── CARD 4: ACTION DOCK & CONTACT MATRIX ───────────────── */}
         <section className="stack-card sc-4" aria-label="Contact and Actions">
-          <h2 className="stack-section-title" style={{ color: 'rgba(236, 230, 216, 0.75)' }}>
+          <h2 className="stack-section-title" style={{ color: 'rgba(236, 230, 216, 0.9)' }}>
             Initiate Contact
           </h2>
 
           <nav className="stack-action-dock">
-            {/* Call Action */}
-            {numericPhone ? (
+            {normalized.sectionVisibility.contact && normalized.hasContactChannel && (
+              <button
+                type="button"
+                className="stack-action-btn"
+                onClick={openContact}
+              >
+                <Mail size={15} aria-hidden="true" />
+                <span>Connect</span>
+              </button>
+            )}
+
+            {numericPhone && (
               <a href={`tel:${numericPhone}`} className="stack-action-btn" title="Call directly">
-                <Phone size={15} />
+                <Phone size={15} aria-hidden="true" />
                 <span>Call</span>
               </a>
-            ) : (
-              <button
-                type="button"
-                className="stack-action-btn"
-                onClick={() => showToast('Direct phone line unavailable')}
-              >
-                <Phone size={15} />
-                <span>Call</span>
-              </button>
             )}
 
-            {/* Email Action */}
-            {email ? (
+            {email && (
               <a href={`mailto:${email}`} className="stack-action-btn" title="Send email">
-                <Mail size={15} />
+                <Mail size={15} aria-hidden="true" />
                 <span>Email</span>
               </a>
-            ) : (
-              <button
-                type="button"
-                className="stack-action-btn"
-                onClick={() => showToast('Email address not disclosed')}
-              >
-                <Mail size={15} />
-                <span>Email</span>
-              </button>
             )}
 
-            {/* WhatsApp Direct Chat */}
-            {cleanWaNumber ? (
+            {cleanWaNumber && (
               <a
                 href={`https://wa.me/${cleanWaNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="stack-action-btn"
                 title="Chat on WhatsApp"
+                onClick={() => onLinkClick?.({ id: 'whatsapp', label: 'WhatsApp', url: `https://wa.me/${cleanWaNumber}`, icon: null, clicks: 0, order: 0, isVisible: true })}
               >
-                <MessageCircle size={15} />
+                <MessageCircle size={15} aria-hidden="true" />
                 <span>WhatsApp</span>
               </a>
-            ) : (
-              <button
-                type="button"
-                className="stack-action-btn"
-                onClick={() => showToast('WhatsApp connection unavailable')}
-              >
-                <MessageCircle size={15} />
-                <span>WhatsApp</span>
-              </button>
             )}
 
             {/* Save Contact (vCard) */}
@@ -821,7 +725,7 @@ export function StackTemplate({
               onClick={handleSaveContact}
               title="Download vCard contact file"
             >
-              <Download size={15} />
+              <Download size={15} aria-hidden="true" />
               <span>Save Contact</span>
             </button>
           </nav>
@@ -836,6 +740,7 @@ export function StackTemplate({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="stack-social-link"
+                  onClick={() => onLinkClick?.({ id: `soc-${soc.platform}`, label: soc.label, url: soc.url, icon: null, clicks: 0, order: 0, isVisible: true })}
                 >
                   <SocialIcon label={soc.label} url={soc.url} className="w-3.5 h-3.5 fill-current" />
                   <span>{soc.label}</span>
@@ -844,7 +749,7 @@ export function StackTemplate({
             </div>
           )}
 
-          <footer className="mt-6 pt-3 text-[12px] opacity-50 flex items-center justify-between">
+          <footer className="mt-6 pt-3 text-[12px] text-[#ece6d8]/85 flex items-center justify-between">
             <p>&copy; {new Date().getFullYear()} {name}</p>
           </footer>
         </section>
@@ -857,6 +762,19 @@ export function StackTemplate({
         </div>
       )}
     </div>
+  );
+}
+
+export function StackTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#ece6d8"
+      defaultAccent="#c4693f"
+      isPreview={props.isPreview}
+    >
+      <StackTemplateInner {...props} />
+    </ProfileTemplateShell>
   );
 }
 

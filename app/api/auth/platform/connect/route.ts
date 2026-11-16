@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { generateOAuthState, storeOAuthState, createOAuthCookie } from '@/lib/auth/oauth-state';
-import { createServerClient } from '@supabase/ssr';
 import { config } from '@/lib/config/schema';
-import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
+import { sanitizeRelativeReturnUrl, buildSafeRedirectUrl } from '@/lib/auth/redirect';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,93 +35,51 @@ const CUSTOM_FLOW_PLATFORMS = new Set([
   'manual',
 ]);
 
-/**
- * Resolve workspaceId + userId using the fastest available method.
- * Priority:
- *  1. x-user-id header injected by middleware (fastest — no extra DB call)
- *  2. Cookie-based SSR session (one Supabase call + one DB call, run in parallel)
- */
-async function resolveAuth(request: NextRequest): Promise<{ userId: string | null; workspaceId: string | null }> {
-  // Fast path: middleware injects x-user-id
-  const headerUserId = request.headers.get('x-user-id');
-  const headerWorkspaceId = request.headers.get('x-workspace-id');
-
-  if (headerUserId && headerWorkspaceId) {
-    return { userId: headerUserId, workspaceId: headerWorkspaceId };
-  }
-
-  // Slower path: resolve from cookies
-  try {
-    const cookieStore = await cookies();
-    const allCookies = cookieStore.getAll();
-
-    const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-      cookies: {
-        getAll() { return allCookies; },
-        setAll() { /* read-only */ },
-      },
-    });
-
-    const { data: { user } } = await supabaseSSR.auth.getUser();
-    if (!user) return { userId: null, workspaceId: null };
-
-    // If middleware gave us just the userId, use it and look up workspace
-    const uid = headerUserId || user.id;
-
-    
-    const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', uid)
-      .single();
-
-    return {
-      userId: uid,
-      workspaceId: member?.workspace_id || uid,
-    };
-  } catch {
-    return { userId: null, workspaceId: null };
-  }
-}
-
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
-  const returnUrl = searchParams.get('returnUrl') || undefined;
+  const rawReturnUrl = searchParams.get('returnUrl');
+  const returnUrl = rawReturnUrl ? sanitizeRelativeReturnUrl(rawReturnUrl, '/dashboard') : undefined;
   const addAccount = searchParams.get('addAccount') === 'true';
   const reconnectConnectionId = searchParams.get('reconnectConnectionId');
   const errorRedirect = returnUrl || '/dashboard';
 
-  // Always resolve the authenticated user from session/middleware — never trust userId query param
-  const resolved = await resolveAuth(request);
-  const userId = resolved.userId;
+  // Always resolve the authenticated user from verified internal header or Supabase SSR session
+  const auth = await getCurrentAuth(request);
+  const userId = auth?.userId ?? null;
 
   if (!userId) {
     logger.warn('Platform connect: unauthenticated request', { platform });
-    return NextResponse.redirect(new URL(`${errorRedirect}?error=unauthorized`, request.url));
+    return NextResponse.redirect(buildSafeRedirectUrl(request.url, errorRedirect, { error: 'unauthorized' }));
   }
 
   const requestedWorkspaceId = searchParams.get('workspaceId');
-  let workspaceId = resolved.workspaceId;
-
-  if (requestedWorkspaceId) {
-    const hasAccess = await verifyWorkspaceAccess(userId, requestedWorkspaceId);
-    if (!hasAccess) {
-      logger.warn('Platform connect: workspace access denied', { userId, requestedWorkspaceId, platform });
-      return NextResponse.redirect(new URL(`${errorRedirect}?error=forbidden_workspace`, request.url));
-    }
-    workspaceId = requestedWorkspaceId;
-  }
+  const workspaceId = requestedWorkspaceId || auth?.workspaceId || null;
 
   if (!platform || !workspaceId) {
     logger.warn('Platform connect: missing params', { platform, hasWorkspace: !!workspaceId, hasUser: !!userId });
-    return NextResponse.redirect(new URL(`${errorRedirect}?error=missing_params`, request.url));
+    return NextResponse.redirect(buildSafeRedirectUrl(request.url, errorRedirect, { error: 'missing_params' }));
+  }
+
+  const roleCheck = await requireWorkspaceRole(userId, workspaceId, ['owner', 'admin', 'editor']);
+  if (!roleCheck.allowed) {
+    logger.warn('Platform connect: workspace role/access denied', {
+      userId,
+      workspaceId,
+      platform,
+      reason: roleCheck.reason,
+      role: roleCheck.role,
+    });
+    const errCode = roleCheck.reason === 'insufficient_role' ? 'insufficient_role' : 'forbidden_workspace';
+    return NextResponse.redirect(buildSafeRedirectUrl(request.url, errorRedirect, { error: errCode }));
   }
 
   const adapter = getPlatformAdapter(platform);
   if (!adapter) {
     logger.warn('Platform connect: unsupported platform', { platform });
-    return NextResponse.redirect(new URL(`${errorRedirect}?error=unsupported_platform&platform=${platform}`, request.url));
+    return NextResponse.redirect(
+      buildSafeRedirectUrl(request.url, errorRedirect, { error: 'unsupported_platform', platform })
+    );
   }
 
   // Enforce plan channel limit across connected accounts (allow reconnecting an existing account)
@@ -149,7 +107,11 @@ export async function GET(request: NextRequest) {
           addAccount,
         });
         return NextResponse.redirect(
-          new URL(`${errorRedirect}?error=channel_limit_exceeded&limit=${channelLimit}&plan=${planCtx.plan}`, request.url)
+          buildSafeRedirectUrl(request.url, errorRedirect, {
+            error: 'channel_limit_exceeded',
+            limit: String(channelLimit),
+            plan: planCtx.plan,
+          })
         );
       }
     }
@@ -160,11 +122,13 @@ export async function GET(request: NextRequest) {
   // Ensure adapter has credentials configured before redirecting to provider
   if (!adapter.authConfig.clientId) {
     logger.error('Platform connect: missing client ID credentials', { platform });
-    const redirectUrl = new URL(errorRedirect, request.url);
-    redirectUrl.searchParams.set('error', 'missing_credentials');
-    redirectUrl.searchParams.set('platform', platform);
-    redirectUrl.searchParams.set('detail', `missing_${platform}_client_id`);
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(
+      buildSafeRedirectUrl(request.url, errorRedirect, {
+        error: 'missing_credentials',
+        platform,
+        detail: `missing_${platform}_client_id`,
+      })
+    );
   }
 
   // Platforms with custom connect flows are handled entirely on the frontend.

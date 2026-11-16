@@ -499,6 +499,35 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     },
     persona: 'the-calendar',
   },
+
+  // 15 — THE BENTO (MODULAR BENTO GRID)
+  {
+    id: 'the-bento',
+    name: 'The Bento',
+    category: 'entrepreneur',
+    intensity: 'light',
+    preset: 'minimal',
+    icon: '🍱',
+    tagline: 'Modular asymmetric grid for builders, creators, and modern portfolios.',
+    description: 'Clean responsive CSS bento grid with featured action tile, metric proof strip, category-badged links, auto/dark color mode, and WCAG AA contrast.',
+    tags: ['bento', 'modular', 'grid', 'modern', 'portfolio', 'clean'],
+    thumbnail: '/templates/previews/the-bento.svg',
+    features: {
+      has3DBackground: false,
+      hasParallax: false,
+      hasTiltCards: false,
+      hasMagneticHover: true,
+      hasAnimatedOrbs: false,
+      hasGradientText: false,
+      supportsVideoBackground: false,
+      maxLinks: 20,
+      maxProofPoints: 8,
+      performanceBudget: 'ultra-light',
+      maxBundleSizeKB: 28,
+      maxRenderMs: 40,
+    },
+    persona: 'the-bento',
+  },
 ];
 
 export function getTemplateById(id: string): TemplateMeta | undefined {
