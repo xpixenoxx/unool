@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
       templateComparison: [],
     };
 
-    // Authenticate user
+    // Authenticate user (strict session check — prevents unauthenticated ?workspaceId= IDOR)
     let auth = null;
     try {
       auth = await getCurrentAuth(request);
@@ -75,13 +76,20 @@ export async function GET(request: NextRequest) {
       console.warn('[Analytics API] getCurrentAuth error:', authErr);
     }
 
-    const queryWorkspaceId = searchParams.get('workspaceId');
-    const effectiveWorkspaceId = auth?.workspaceId || queryWorkspaceId;
-    const effectiveUserId = auth?.userId;
-
-    if (!effectiveWorkspaceId && !effectiveUserId) {
+    if (!auth?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const queryWorkspaceId = searchParams.get('workspaceId');
+    let effectiveWorkspaceId = auth.workspaceId;
+    if (queryWorkspaceId && queryWorkspaceId !== auth.workspaceId) {
+      const allowed = await verifyWorkspaceAccess(auth.userId, queryWorkspaceId);
+      if (!allowed) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      effectiveWorkspaceId = queryWorkspaceId;
+    }
+    const effectiveUserId = auth.userId;
 
     // Retrieve profile
     const profileRepository = new SupabaseProfileRepository();
@@ -293,7 +301,7 @@ export async function GET(request: NextRequest) {
         linkClicks,
         ctaClicks,
         conversionRate,
-        avgSessionDuration: 45, // Mock value
+        avgSessionDuration: null, // Session duration telemetry not captured on public pages
         viewsByDay: viewsByDayArray,
         clicksByDay: clicksByDayArray,
         topLinks,

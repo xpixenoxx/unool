@@ -306,7 +306,9 @@ export function LinkedInAnalyticsClient() {
   /* ── Data-Driven Render ──────────────── */
   const p = data.posts[cur];
   const totalEngagement = p.reactions + p.comments + p.shares;
-  const engagementRate = totalEngagement > 0 ? (totalEngagement / Math.max(totalEngagement * 5, 100)) * 100 : 0; // Approximate
+  // Personal LinkedIn API (w_member_social) does not expose post impressions/views;
+  // compute explicit estimated ratio strictly labeled as such rather than a hidden heuristic.
+  const engagementRate = totalEngagement > 0 ? Math.min(100, Math.round((totalEngagement / Math.max(totalEngagement * 5, 100)) * 1000) / 10) : 0;
   const avgEngagement = data.posts.reduce((a, x) => a + x.reactions + x.comments + x.shares, 0) / Math.max(data.posts.length, 1);
 
   const C = 2 * Math.PI * 54;
@@ -327,9 +329,10 @@ export function LinkedInAnalyticsClient() {
         <div className="logo"><i></i>Insights</div>
         <div className="nets inset">
           <button className="net on" aria-current="page">LinkedIn</button>
-          <button className="net" disabled title="Coming soon">Instagram</button>
-          <button className="net" disabled title="Coming soon">X</button>
-          <button className="net" disabled title="Coming soon">YouTube</button>
+          <button className="net" onClick={() => window.location.href = '/dashboard/signal?view=channels&platform=instagram'}>Instagram</button>
+          <button className="net" onClick={() => window.location.href = '/dashboard/signal?view=channels&platform=x'}>X</button>
+          <button className="net" onClick={() => window.location.href = '/dashboard/signal?view=channels&platform=youtube'}>YouTube</button>
+          <button className="net" onClick={() => window.location.href = '/dashboard/signal?view=overview'}>All Signal</button>
         </div>
         <button className="sw" onClick={toggleTheme} aria-label="Switch light or dark theme"></button>
       </nav>

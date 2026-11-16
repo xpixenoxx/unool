@@ -15,6 +15,54 @@ export interface UniversalEngagement {
   syncedAt?: string;
 }
 
+export interface ExtendedEngagement extends UniversalEngagement {
+  saves: number;
+  clicks: number;
+  total: number;
+}
+
+/**
+ * Extended normalizer preserving distinct `saves` & `clicks` without altering
+ * the strict 7-field shape expected by legacy `extractNormalizedEngagement` callers.
+ */
+export function extractExtendedEngagement(raw: any): ExtendedEngagement {
+  const base = extractNormalizedEngagement(raw);
+  if (!raw || typeof raw !== 'object') {
+    return { ...base, saves: 0, clicks: 0, total: base.totalInteractions };
+  }
+  const saves = Math.max(
+    0,
+    Number(raw.saves ?? raw.save_count ?? raw.saves_count ?? raw.bookmarks ?? raw.SAVE ?? raw.SAVES ?? 0) || 0
+  );
+  const explicitClicks = raw.clicks ?? raw.click_count;
+  const pinAndOutbound =
+    (Number(raw.PIN_CLICK ?? raw.PIN_CLICKS ?? raw.pin_clicks ?? 0) || 0) +
+    (Number(raw.OUTBOUND_CLICK ?? raw.outboundClicks ?? 0) || 0);
+  const clicks = Math.max(
+    0,
+    explicitClicks !== undefined ? Number(explicitClicks) || 0 : pinAndOutbound
+  );
+  // Avoid double-counting `saves` when shares was populated via legacy saves fallback
+  const hadExplicitShares =
+    raw.shares !== undefined ||
+    raw.shares_count !== undefined ||
+    raw.totalShares !== undefined ||
+    raw.reposts !== undefined ||
+    raw.retweets !== undefined;
+  const distinctSaves = !hadExplicitShares && base.shares === saves ? 0 : saves;
+  const effectiveShares = !hadExplicitShares && base.shares === saves ? 0 : base.shares;
+  const total = base.likes + base.comments + effectiveShares + saves + clicks;
+
+  return {
+    ...base,
+    shares: effectiveShares,
+    saves: Math.max(saves, distinctSaves),
+    clicks,
+    total,
+    hasRealData: base.hasRealData || saves > 0 || clicks > 0,
+  };
+}
+
 export function extractNormalizedEngagement(raw: any): UniversalEngagement {
   if (!raw || typeof raw !== 'object') {
     return {
@@ -34,8 +82,12 @@ export function extractNormalizedEngagement(raw: any): UniversalEngagement {
     raw.like_count ??
     raw.likeCount ??
     raw.totalLikes ??
-    raw.positive_reactions ??
+    raw.reactions ??
     raw.reaction_count ??
+    raw.positiveReactions ??
+    raw.positive_reactions ??
+    raw.reactionsCount ??
+    raw.claps ??
     raw.score ??
     raw.upvotes ??
     raw.favorites ??
@@ -90,19 +142,16 @@ export function extractNormalizedEngagement(raw: any): UniversalEngagement {
     raw.reach ??
     raw.plays ??
     raw.pageViews ??
+    raw.IMPRESSION ??
+    raw.IMPRESSIONS ??
     0
   );
 
   const totalInteractions = Math.max(0, likes) + Math.max(0, comments) + Math.max(0, shares);
   
-  // Calculate engagement rate
-  let engagementRate = 0;
-  if (views > 0) {
-    engagementRate = Math.round((totalInteractions / views) * 1000) / 10;
-  } else if (totalInteractions > 0) {
-    // Relative benchmark when impressions are unexposed by platform API
-    engagementRate = Math.min(Math.round(totalInteractions * 3.5), 100);
-  }
+  // Calculate engagement rate (strictly denominator-backed: 0 when views absent)
+  const engagementRate =
+    views > 0 ? Math.round((totalInteractions / views) * 1000) / 10 : 0;
 
   // hasRealData must reflect actual numeric data, NOT just a successful sync attempt.
   // syncedAt alone means the sync ran but data could still be all-zeros (e.g. API error).

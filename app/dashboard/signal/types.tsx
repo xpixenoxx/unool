@@ -13,10 +13,16 @@ import {
 export type PostVariant = {
   id: string;
   platform: string;
+  platformConnectionId?: string | null;
+  accountUsername?: string | null;
+  accountDisplayName?: string | null;
   status: string;
+  adaptedContent?: string | null;
   platformUrl: string | null;
   platformPostId: string | null;
   characterCount: number;
+  scheduledAt?: string | null;
+  publishedAt?: string | null;
   error: any;
   createdAt: string;
   updatedAt: string;
@@ -24,7 +30,9 @@ export type PostVariant = {
     likes: number;
     comments: number;
     shares: number;
-    views: number;
+    saves?: number;
+    clicks?: number;
+    views: number | null;
     totalInteractions: number;
     hasRealData: boolean;
   };
@@ -39,6 +47,7 @@ export type SignalPost = {
   hasMedia: boolean;
   createdAt: string;
   updatedAt?: string;
+  scheduledAt?: string | null;
   publishedAt: string | null;
   origin?: 'flightplan' | 'quick-broadcast' | 'ai-composer';
   arcId?: string | null;
@@ -56,7 +65,13 @@ export type SignalPost = {
 
 export function getDraftOrigin(post: SignalPost): 'flightplan' | 'quick-broadcast' | 'ai-composer' {
   if (post.origin) return post.origin;
-  if (post.arcId || post.adaptationPromptVersion === 'schedule-engine-v1') return 'flightplan';
+  if (
+    post.arcId ||
+    post.adaptationPromptVersion === 'schedule-engine-v1' ||
+    post.adaptationPromptVersion === 'flightplan-legacy-v1'
+  ) {
+    return 'flightplan';
+  }
   if (post.adaptationPromptVersion === 'direct-broadcast') return 'quick-broadcast';
   return 'ai-composer';
 }
@@ -171,6 +186,38 @@ export const HOOK_META: Record<string, { label: string; desc: string; icon: Reac
     color: '#10B981',
     bg: 'bg-emerald-50',
     text: 'text-emerald-800',
+  },
+  number: {
+    label: 'Number / Metric',
+    desc: 'Concrete number, timeframe, or percentage anchor.',
+    icon: <BarChart3 className="w-3.5 h-3.5" />,
+    color: '#2563EB',
+    bg: 'bg-blue-50',
+    text: 'text-blue-800',
+  },
+  howto: {
+    label: 'How-To / Guide',
+    desc: 'Actionable repeatable playbook or teardown.',
+    icon: <Layers className="w-3.5 h-3.5" />,
+    color: '#059669',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-800',
+  },
+  curiosity: {
+    label: 'Curiosity Gap',
+    desc: 'Withholds an insider insight past the fold line.',
+    icon: <Flame className="w-3.5 h-3.5" />,
+    color: '#D97706',
+    bg: 'bg-amber-50',
+    text: 'text-amber-800',
+  },
+  direct: {
+    label: 'Direct Callout',
+    desc: 'Speaks straight to a targeted audience segment.',
+    icon: <Type className="w-3.5 h-3.5" />,
+    color: '#4F46E5',
+    bg: 'bg-indigo-50',
+    text: 'text-indigo-800',
   },
   story: {
     label: 'Personal Narrative',

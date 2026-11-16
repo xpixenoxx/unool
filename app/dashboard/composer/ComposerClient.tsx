@@ -152,7 +152,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const searchParams = useSearchParams();
   const urlMode = searchParams?.get('mode') || null;
   const targetPostId = searchParams?.get('postId') || null;
+  const repurposePostId = searchParams?.get('repurposePostId') || null;
+  const suggestedHook = searchParams?.get('suggestedHook') || null;
+  const hookStyleParam = searchParams?.get('hookStyle') || null;
   const hasLoadedTargetPost = useRef<string | null>(null);
+  const hasAppliedSeed = useRef(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const reducedMotion = useReducedMotion();
@@ -344,6 +348,46 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       isMounted = false;
     };
   }, [targetPostId, urlMode]);
+
+  // ── Intake from Signal insights (?repurposePostId= or ?hookStyle=&suggestedHook=) ─
+  useEffect(() => {
+    if (targetPostId || hasAppliedSeed.current) return;
+
+    if (repurposePostId) {
+      hasAppliedSeed.current = true;
+      fetch(`/api/publish/${repurposePostId}`, { credentials: 'include' })
+        .then(async res => {
+          if (!res.ok) return;
+          const data = await res.json();
+          if (!data?.post) return;
+          // Deliberately leave postId null so repurposing creates a fresh draft rather than overwriting history
+          setMode('ai');
+          setSourceContent(data.post.content || '');
+          const connIds = Array.from(
+            new Set<string>(
+              (data.variants || [])
+                .map((v: any) => (v.platformConnectionId || v.platform) as string)
+                .filter(Boolean)
+            )
+          );
+          if (connIds.length > 0) setSelectedConnectionIds(connIds);
+          studioToast.info('Loaded post copy from Signal — adapt or refine as a fresh draft');
+        })
+        .catch(() => {});
+      return;
+    }
+
+    if (suggestedHook || hookStyleParam) {
+      hasAppliedSeed.current = true;
+      setMode('ai');
+      if (suggestedHook) {
+        setSourceContent(suggestedHook);
+      }
+      if (hookStyleParam) {
+        studioToast.info(`Pre-selected "${hookStyleParam}" hook inspiration from Signal`);
+      }
+    }
+  }, [targetPostId, repurposePostId, suggestedHook, hookStyleParam]);
   
 
   // ── Save post as draft in Signal and clear composer to start fresh ─────────

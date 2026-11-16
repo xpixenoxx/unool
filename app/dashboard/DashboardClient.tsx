@@ -1048,15 +1048,24 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <InteractiveSparkline data={insights?.postsSeries ?? null} unit="posts" />
             <div
               className="note"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
               title={
                 insights?.postsThisWeek !== undefined && insights?.postsThisWeek !== null
                   ? `${insights.postsThisWeek} posts published in the last 7 days`
                   : `${insights?.postsThisMonth ?? usageStats.postsThisMonth} posts published this month`
               }
             >
-              {insights?.postsThisWeek !== undefined && insights?.postsThisWeek !== null
-                ? `Pace: ${insights.postsThisWeek} this week`
-                : `${insights?.postsThisMonth ?? usageStats.postsThisMonth} published this month`}
+              <span>
+                {insights?.postsThisWeek !== undefined && insights?.postsThisWeek !== null
+                  ? `Pace: ${insights.postsThisWeek} this week`
+                  : `${insights?.postsThisMonth ?? usageStats.postsThisMonth} published this month`}
+              </span>
+              <Link
+                href="/dashboard/signal?view=overview"
+                style={{ fontSize: 11, fontWeight: 600, color: '#C8613D', textDecoration: 'none', flexShrink: 0 }}
+              >
+                Signal →
+              </Link>
             </div>
           </section>
 

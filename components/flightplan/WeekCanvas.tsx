@@ -16,6 +16,8 @@ import { COL, PLATFORM_META } from './design-tokens';
 interface WeekCanvasProps {
   workspaceId: string;
   targetPostId?: string | null;
+  initialSelectedDay?: number | null;
+  recommendedSlotLabel?: string | null;
   onNewArc: () => void;
   onPostCountChange?: (count: number) => void;
   initialWeekOffset?: number;
@@ -55,6 +57,8 @@ export function invalidateFlightPlanCanvasCache(weekOffset?: number) {
 export function WeekCanvas({
   workspaceId: _workspaceId,
   targetPostId,
+  initialSelectedDay = null,
+  recommendedSlotLabel = null,
   onNewArc,
   onPostCountChange,
   initialWeekOffset = 0,
@@ -76,9 +80,18 @@ export function WeekCanvas({
     }
   }, [initialWeekOffset]);
   const [sel, setSel] = useState<number>(() => {
+    if (typeof initialSelectedDay === 'number' && initialSelectedDay >= 0 && initialSelectedDay <= 6) {
+      return initialSelectedDay;
+    }
     const day = (new Date().getDay() + 6) % 7;
     return day;
   });
+
+  useEffect(() => {
+    if (typeof initialSelectedDay === 'number' && initialSelectedDay >= 0 && initialSelectedDay <= 6) {
+      setSel(initialSelectedDay);
+    }
+  }, [initialSelectedDay]);
   const [selectedPost, setSelectedPost] = useState<CanvasPost | null>(null);
   const [selectedPostIndexByDay, setSelectedPostIndexByDay] = useState<Record<number, number>>({});
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
@@ -574,6 +587,22 @@ export function WeekCanvas({
 
   return (
     <div className="space-y-6">
+      {recommendedSlotLabel && (
+        <div
+          role="status"
+          style={{
+            padding: '10px 14px',
+            borderRadius: 12,
+            background: '#FFF7ED',
+            border: '1px solid #FDBA74',
+            color: '#9A3412',
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          Signal Timing Insight Selected: {recommendedSlotLabel} — pick or add a post for this day below.
+        </div>
+      )}
       {/* ─── Navigation Row (#nav) ─── */}
       <div className="fp-row" id="nav">
         <button

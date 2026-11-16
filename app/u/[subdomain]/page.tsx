@@ -76,7 +76,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     }
   }, []);
 
-  const shouldScrollToActivity = searchParams.get('activity') === '1' || hasActivityHash;
+  const activityParam = searchParams.get('activity');
+  const shouldScrollToActivity = Boolean(activityParam) || hasActivityHash;
   const targetPage = searchParams.get('page');
   const itemParam = searchParams.get('item') || searchParams.get('file') || searchParams.get('product') || searchParams.get('material');
   const [showcaseData, setShowcaseData] = useState<any>(null);
@@ -123,10 +124,15 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       const { subdomain } = await params;
       console.log('[PublicProfile] Fetching profile for:', subdomain);
       try {
-        const refParam = typeof document !== 'undefined' && document.referrer
-          ? `?ref=${encodeURIComponent(document.referrer)}`
-          : '';
-        const response = await fetch(`/api/profile/${subdomain}${refParam}`, {
+        const qp = new URLSearchParams();
+        if (typeof document !== 'undefined' && document.referrer) {
+          qp.set('ref', document.referrer);
+        }
+        if (activityParam && activityParam !== '1') {
+          qp.set('activity', activityParam);
+        }
+        const qs = qp.toString() ? `?${qp.toString()}` : '';
+        const response = await fetch(`/api/profile/${subdomain}${qs}`, {
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -157,7 +163,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     return () => {
       cancelled = true;
     };
-  }, [params]);
+  }, [params, activityParam]);
 
   // Global Link Click Tracking for "Link Engagement"
   useEffect(() => {

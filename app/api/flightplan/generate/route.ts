@@ -193,12 +193,14 @@ export async function POST(request: NextRequest) {
           ? (sequenceResults[firstPlatform] as { ok: true; value: PostSequence }).value.posts[day]?.content || content.trim()
           : content.trim();
 
-        // Create the post
+        // Create the post (explicitly tagged as Flight Plan origin)
         const post = await postRepository.create({
           profileId: resolvedProfileId || '',
           workspaceId,
           content: dayContent,
-          adaptationPromptVersion: PostAdapter['PROMPT_VERSION'],
+          adaptationPromptVersion: 'flightplan-legacy-v1',
+          mediaUrls: mediaItemsByDay?.[day] || [],
+          platforms: activePlatforms,
         });
 
         // If scheduled, update status and enqueue via QStash

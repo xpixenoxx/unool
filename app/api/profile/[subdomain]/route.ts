@@ -125,13 +125,30 @@ export async function GET(
       }
     }
 
-    // ── Fetch latest published broadcast for the "Recent Activity" section ──
+    // ── Fetch latest (or requested ?activity=<postId>) published broadcast for "Recent Activity" ──
     let recentActivity = null;
     try {
       const postRepo = new SupabasePostRepository();
       const platformRepo = new SupabasePlatformRepository();
+      const requestedActivityId = request.nextUrl.searchParams.get('activity');
 
-      let recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
+      let recentPosts: Awaited<ReturnType<typeof postRepo.findByProfileId>> = [];
+      if (requestedActivityId && requestedActivityId !== '1') {
+        const specific = await postRepo.findById(requestedActivityId).catch(() => null);
+        if (
+          specific &&
+          (specific.profileId === profile.id || (profile.workspaceId && specific.workspaceId === profile.workspaceId))
+        ) {
+          const vs = await postRepo.findVariantsByPostId(specific.id);
+          if (specific.status === 'published' || vs.some(v => v.status === 'published')) {
+            recentPosts = [specific];
+          }
+        }
+      }
+
+      if (recentPosts.length === 0) {
+        recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
+      }
       if (recentPosts.length === 0 && profile.workspaceId) {
         recentPosts = await postRepo.findByWorkspaceId(profile.workspaceId, { status: 'published', limit: 1 });
       }

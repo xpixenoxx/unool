@@ -369,7 +369,7 @@ function DashboardSidebar({
           name: 'Signal',
           href: '/dashboard/signal',
           icon: Radio,
-          description: 'Cross-platform post composer',
+          description: 'Analytics, hook intelligence & feed',
           badge: dynamicPendingCount > 0 ? dynamicPendingCount : undefined,
         },
         ...(featureFlags.automationEnabled

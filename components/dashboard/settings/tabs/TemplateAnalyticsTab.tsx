@@ -35,7 +35,7 @@ interface TemplateAnalyticsData {
     linkClicks: number;
     ctaClicks: number;
     conversionRate: number;
-    avgSessionDuration: number;
+    avgSessionDuration: number | null;
     lastUsed: string | null;
   }[];
   currentTemplateStats: {
@@ -43,7 +43,7 @@ interface TemplateAnalyticsData {
     linkClicks: number;
     ctaClicks: number;
     conversionRate: number;
-    avgSessionDuration: number;
+    avgSessionDuration: number | null;
     viewsByDay: Array<{ date: string; count: number }>;
     clicksByDay: Array<{ date: string; count: number }>;
     topLinks: Array<{ label: string; url: string; clicks: number }>;
@@ -91,7 +91,8 @@ const formatPercent = (num: number) => {
   return num.toFixed(1) + '%';
 };
 
-const formatDuration = (seconds: number) => {
+const formatDuration = (seconds: number | null | undefined) => {
+  if (seconds === null || seconds === undefined || seconds <= 0) return 'N/A';
   if (seconds < 60) return `${Math.round(seconds)}s`;
   if (seconds < 3600) return `${Math.round(seconds / 60)}m ${Math.round(seconds % 60)}s`;
   return `${Math.round(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;
@@ -218,10 +219,12 @@ export function TemplateAnalyticsTab({ userId, workspaceId, currentTemplate }: T
     {
       label: 'Avg. Session',
       value: formatDuration(currentStats.avgSessionDuration),
-      trend: { trend: 'neutral' as const, change: '0%' },
+      trend: { trend: 'neutral' as const, change: currentStats.avgSessionDuration ? '0%' : 'N/A' },
       icon: <Clock className="h-5 w-5" />,
       color: 'text-orange-600',
-      description: 'Average time on profile',
+      description: currentStats.avgSessionDuration
+        ? 'Average time on profile'
+        : 'Session duration tracking not enabled',
     },
   ];
 
