@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { whopAdapter } from '@/lib/platforms/WhopAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { getAuthContext } from '@/lib/auth/context';
+import { resolvePlatformConnectContext, validateHttpsWebhookUrl } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -21,20 +21,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let workspaceId = bodyWorkspaceId;
-    let userId = '';
-    
-    const authCtx = await getAuthContext();
-    if (authCtx) {
-      workspaceId = workspaceId || authCtx.workspaceId;
-      userId = authCtx.userId;
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    if ('error' in resolved) return resolved.error;
+    const { userId, workspaceId } = resolved.context;
+
+    const webhookCheck = await validateHttpsWebhookUrl(webhookUrl);
+    if (!webhookCheck.ok) {
+      return NextResponse.json({ error: webhookCheck.error }, { status: 400 });
     }
 
-    if (!workspaceId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const tokenPayload = JSON.stringify({ webhookUrl, communityName });
+    const tokenPayload = JSON.stringify({ webhookUrl: webhookCheck.url, communityName });
 
     // Validate credentials & fetch profile
     let profile;

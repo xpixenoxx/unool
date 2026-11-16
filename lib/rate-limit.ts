@@ -26,13 +26,16 @@ export const rateLimits = {
   magicLink: { limit: config.RATE_LIMIT_AUTH_PER_HOUR, window: '1h' },
   profileView: { limit: 100, window: '1m' },
   profileContact: { limit: 5, window: '1h' },
+  accountAction: { limit: 15, window: '1h' },
+  dataExport: { limit: 5, window: '1h' },
+  apiKeyAction: { limit: 20, window: '1h' },
 } as const;
 
 export type RateLimitAction = keyof typeof rateLimits;
 
-function getIdentifier(request: Request, action: RateLimitAction): string {
+function getIdentifier(request: Request, action: RateLimitAction, explicitUserId?: string): string {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anonymous';
-  const userId = request.headers.get('x-user-id');
+  const userId = explicitUserId || request.headers.get('x-user-id');
 
   if (action === 'magicLink') {
     const email = new URL(request.url).searchParams.get('email');
@@ -60,9 +63,10 @@ function localRateCheck(identifier: string, limit: number, windowMs: number): bo
 
 export async function checkRateLimit(
   request: Request,
-  action: RateLimitAction
+  action: RateLimitAction,
+  explicitUserId?: string
 ): Promise<{ success: boolean; remaining: number; reset: number }> {
-  const identifier = getIdentifier(request, action);
+  const identifier = getIdentifier(request, action, explicitUserId);
   const { limit, window } = rateLimits[action];
   const windowMs = window === '1m' ? 60_000 : window === '1h' ? 3_600_000 : 60_000;
 

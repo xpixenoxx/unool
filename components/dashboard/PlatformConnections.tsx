@@ -468,6 +468,14 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
   const [kickStreamDialogOpen, setKickStreamDialogOpen] = useState(false);
+  const [selectedKickConnectionId, setSelectedKickConnectionId] = useState<string | undefined>(undefined);
+  const [dependencyCounts, setDependencyCounts] = useState<Record<string, { scheduledPosts: number }>>({});
+  const [disconnectTarget, setDisconnectTarget] = useState<{
+    platform: Platform;
+    connectionId?: string;
+    accountLabel?: string;
+    scheduledPosts: number;
+  } | null>(null);
   const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
   const [meweDialogOpen, setMeweDialogOpen] = useState(false);
   const [nostrDialogOpen, setNostrDialogOpen] = useState(false);
@@ -547,7 +555,10 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
             return prev;
           });
         }
-        // Cache the userId returned from the API so we can pass it during connect
+        // Cache dependency counts and userId returned from the API
+        if (data.dependencyCounts && typeof data.dependencyCounts === 'object') {
+          setDependencyCounts(data.dependencyCounts as Record<string, { scheduledPosts: number }>);
+        }
         if (data.userId) setUserId(data.userId);
       }
     } catch {
@@ -627,18 +638,28 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     if (options?.addAccount) params.set('addAccount', 'true');
     if (options?.reconnectConnectionId) params.set('reconnectConnectionId', options.reconnectConnectionId);
     if (typeof window !== 'undefined') {
-      const currentReturnUrl = window.location.pathname || '/dashboard';
+      const currentReturnUrl = `${window.location.pathname || '/dashboard'}${window.location.search || ''}`;
       params.set('returnUrl', currentReturnUrl);
     }
     // Use window.location for the OAuth redirect (router.push doesn't handle external URLs)
     window.location.href = `/api/auth/platform/connect?${params.toString()}`;
   }, [workspaceId, userId, initialUserId]);
 
-  const handleDisconnect = async (platform: Platform, connectionId?: string, accountLabel?: string) => {
+  const handleDisconnect = (platform: Platform, connectionId?: string, accountLabel?: string) => {
+    const scheduledPosts = dependencyCounts[platform]?.scheduledPosts || 0;
+    setDisconnectTarget({
+      platform,
+      connectionId,
+      accountLabel,
+      scheduledPosts,
+    });
+  };
+
+  const confirmDisconnect = async () => {
+    if (!disconnectTarget) return;
+    const { platform, connectionId, accountLabel } = disconnectTarget;
     const cfg = PLATFORM_CONFIG[platform];
     const targetLabel = accountLabel ? `@${accountLabel} on ${cfg.name}` : cfg.name;
-    if (!confirm(`Disconnect ${targetLabel}? You can reconnect anytime.`)) return;
-
     const busyKey = connectionId || platform;
     setDisconnecting(busyKey);
     try {
@@ -650,11 +671,13 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         credentials: 'include',
       });
       if (res.ok) {
+        setDisconnectTarget(null);
         await loadConnections();
         toast.success(`${targetLabel} disconnected`);
         router.refresh();
       } else {
-        toast.error('Failed to disconnect');
+        const errBody = await res.json().catch(() => null);
+        toast.error(errBody?.error || 'Failed to disconnect');
       }
     } catch {
       toast.error('Failed to disconnect');
@@ -784,12 +807,63 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
       />
       <KickStreamSetupDialog
         open={kickStreamDialogOpen}
-        onClose={() => setKickStreamDialogOpen(false)}
+        onClose={() => {
+          setKickStreamDialogOpen(false);
+          setSelectedKickConnectionId(undefined);
+        }}
         workspaceId={workspaceId}
+        connectionId={selectedKickConnectionId}
         onSuccess={() => {
           loadConnections();
         }}
       />
+      <Dialog open={Boolean(disconnectTarget)} onOpenChange={(o) => !o && !disconnecting && setDisconnectTarget(null)}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-[#1F1A16] border-[#E4D9C8] dark:border-[#382F27]">
+          <DialogHeader>
+            <DialogTitle className="text-[#3D2B1F] dark:text-[#F5EFE6]">
+              Disconnect {disconnectTarget ? (disconnectTarget.accountLabel ? `@${disconnectTarget.accountLabel}` : PLATFORM_CONFIG[disconnectTarget.platform].name) : 'channel'}?
+            </DialogTitle>
+            <DialogDescription className="text-[#6E5A48] dark:text-[#B8A896]">
+              You can reconnect this channel anytime via OAuth.
+            </DialogDescription>
+          </DialogHeader>
+          {disconnectTarget && disconnectTarget.scheduledPosts > 0 && (
+            <div className="rounded-xl border border-[#C4A265]/40 bg-[#F5EFE2] dark:bg-[#2D2419] px-3.5 py-3 text-xs text-[#5C4315] dark:text-[#EAD7B0]">
+              <strong>Warning:</strong> You currently have{' '}
+              <span className="font-semibold tabular-nums">{disconnectTarget.scheduledPosts}</span> scheduled or queued post
+              {disconnectTarget.scheduledPosts === 1 ? '' : 's'} targeting{' '}
+              {PLATFORM_CONFIG[disconnectTarget.platform].name}. Disconnecting now will prevent automatic publishing unless reconnected before schedule time.
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDisconnectTarget(null)}
+              disabled={Boolean(disconnecting)}
+              className="min-h-[44px] sm:min-h-0"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDisconnect}
+              disabled={Boolean(disconnecting)}
+              className="min-h-[44px] sm:min-h-0 bg-[#9E2A2B] hover:bg-[#7F1D1E] text-white"
+            >
+              {disconnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Disconnecting...
+                </>
+              ) : (
+                'Disconnect Channel'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <WarpcastConnectDialog
         open={warpcastDialogOpen}
         onClose={() => setWarpcastDialogOpen(false)}
@@ -1025,6 +1099,19 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
+                                  {platform === 'kick' && !acctExpired && hasRealAccountIds && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedKickConnectionId(acct.id);
+                                        setKickStreamDialogOpen(true);
+                                      }}
+                                      title="Configure Kick RTMP stream settings"
+                                      className="p-1.5 sm:p-1 rounded hover:bg-white/20 transition-colors text-white/85 hover:text-white cursor-pointer"
+                                    >
+                                      <Radio className="h-3 w-3" />
+                                    </button>
+                                  )}
                                   {acctExpired && (
                                     <button
                                       type="button"
@@ -1036,7 +1123,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                                       disabled={connecting === platform}
                                       title="Reconnect this account"
                                       className={cn(
-                                        'p-1 rounded hover:bg-white/20 transition-colors',
+                                        'p-1.5 sm:p-1 rounded hover:bg-white/20 transition-colors cursor-pointer',
                                         isConnected ? 'text-white/85 hover:text-white' : 'text-amber-700 hover:text-amber-900'
                                       )}
                                     >
@@ -1054,8 +1141,9 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                                     }
                                     disabled={disconnecting === busyId || disconnecting === platform}
                                     title={`Disconnect ${acct.username || cfg.name}`}
+                                    aria-label={`Disconnect ${acct.username || cfg.name}`}
                                     className={cn(
-                                      'p-1 rounded transition-colors',
+                                      'p-1.5 sm:p-1 rounded transition-colors cursor-pointer',
                                       isConnected
                                         ? 'text-white/75 hover:text-white hover:bg-white/20'
                                         : 'text-amber-700/80 hover:text-amber-900 hover:bg-amber-200/60'
@@ -1094,7 +1182,13 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                             'w-full h-8 text-xs font-medium gap-1.5 border-white/30 bg-white/15 text-white hover:bg-white',
                             isBlue ? 'hover:text-blue-900' : 'hover:text-black'
                           )}
-                          onClick={() => setKickStreamDialogOpen(true)}
+                          onClick={() => {
+                            const firstKickId = connection.accounts?.[0]?.id;
+                            setSelectedKickConnectionId(
+                              firstKickId && firstKickId !== 'kick' ? firstKickId : undefined
+                            );
+                            setKickStreamDialogOpen(true);
+                          }}
                         >
                           <Radio className="w-3.5 h-3.5 text-[#7dffb0]" />
                           {connection.streamConfigured

@@ -30,9 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await findUserByEmail(emailLower);
+    const bannedUntil = (user as { banned_until?: string | null } | null)?.banned_until;
+    const isDeleted = user?.user_metadata?.is_deleted === true;
+    const isBanned = Boolean(bannedUntil && new Date(bannedUntil) > new Date());
     
-    // Do not reveal if user exists. We always simulate a successful return.
-    if (!user) {
+    // Do not reveal if user exists, is deleted, or is suspended. Always return generic 200.
+    if (!user || isDeleted || isBanned) {
       return NextResponse.json({
         success: true,
         message: 'If an account exists, a verification code has been sent.',

@@ -74,6 +74,14 @@ export default function AdminSettingsPage() {
   // Admin users state
   const [admins, setAdmins] = React.useState<AdminUser[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [health, setHealth] = React.useState<{
+    checkedAt: string;
+    database: { status: string; latencyMs: number; error: string | null };
+    redis: { status: string; latencyMs: number | null };
+    cashfree: { status: string; environment: string };
+    authEngine: { encryptionConfigured: boolean; status: string };
+  } | null>(null);
+  const [healthLoading, setHealthLoading] = React.useState(false);
 
   // Add Admin dialog state
   const [addDialogOpen, setAddDialogOpen] = React.useState(false);
@@ -104,9 +112,25 @@ export default function AdminSettingsPage() {
     }
   }, []);
 
+  const fetchHealth = React.useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const res = await fetch('/api/admin/health');
+      if (res.ok) {
+        const data = await res.json();
+        setHealth(data);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchAdmins();
-  }, [fetchAdmins]);
+    fetchHealth();
+  }, [fetchAdmins, fetchHealth]);
 
   const handleCreateAdmin = async () => {
     if (!newEmail || !newEmail.includes('@')) {
@@ -306,7 +330,18 @@ export default function AdminSettingsPage() {
           </TabsContent>
 
           {/* Health Tab */}
-          <TabsContent value="health">
+          <TabsContent value="health" className="space-y-4">
+            <Flex between className="items-center">
+              <Text size="sm" color="muted">
+                {health?.checkedAt
+                  ? `Live probe checked at ${new Date(health.checkedAt).toLocaleTimeString()}`
+                  : 'Checking infrastructure connectivity...'}
+              </Text>
+              <Button variant="outline" size="sm" onClick={fetchHealth} disabled={healthLoading}>
+                <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', healthLoading && 'animate-spin')} />
+                Refresh Health
+              </Button>
+            </Flex>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
@@ -314,15 +349,17 @@ export default function AdminSettingsPage() {
                     <CardTitle className="text-base flex items-center gap-2">
                       <CreditCard className="h-4 w-4 text-primary" /> Cashfree Payment Gateway
                     </CardTitle>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                      Configured
+                    <Badge className={health?.cashfree.status === 'configured'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'}>
+                      {health ? (health.cashfree.status === 'configured' ? 'Configured' : 'Unconfigured') : 'Checking...'}
                     </Badge>
                   </Flex>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <Flex between>
-                    <Text color="muted">Status:</Text>
-                    <Text weight="medium">Operational</Text>
+                    <Text color="muted">Environment:</Text>
+                    <Text weight="medium" className="capitalize">{health?.cashfree.environment || 'unknown'}</Text>
                   </Flex>
                   <Flex between>
                     <Text color="muted">Currency:</Text>
@@ -341,8 +378,10 @@ export default function AdminSettingsPage() {
                     <CardTitle className="text-base flex items-center gap-2">
                       <Database className="h-4 w-4 text-primary" /> Supabase Database
                     </CardTitle>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                      Connected
+                    <Badge className={health?.database.status === 'connected'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
+                      {health ? (health.database.status === 'connected' ? 'Connected' : 'Degraded') : 'Checking...'}
                     </Badge>
                   </Flex>
                 </CardHeader>
@@ -352,12 +391,12 @@ export default function AdminSettingsPage() {
                     <Text weight="medium">PostgreSQL with RLS</Text>
                   </Flex>
                   <Flex between>
-                    <Text color="muted">Auth Client:</Text>
-                    <Text weight="medium">Service Role (Admin Bypass)</Text>
+                    <Text color="muted">Probe Latency:</Text>
+                    <Text weight="medium">{health ? `${health.database.latencyMs} ms` : '—'}</Text>
                   </Flex>
                   <Flex between>
-                    <Text color="muted">Migrations:</Text>
-                    <Text weight="medium">Up to date (password_hash supported)</Text>
+                    <Text color="muted">Auth Client:</Text>
+                    <Text weight="medium">Service Role (Admin Bypass)</Text>
                   </Flex>
                 </CardContent>
               </Card>
@@ -368,8 +407,16 @@ export default function AdminSettingsPage() {
                     <CardTitle className="text-base flex items-center gap-2">
                       <Zap className="h-4 w-4 text-primary" /> Redis & Rate Limiting
                     </CardTitle>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                      Active
+                    <Badge className={health?.redis.status === 'active'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'}>
+                      {health
+                        ? (health.redis.status === 'active'
+                            ? 'Active'
+                            : health.redis.status === 'not_configured'
+                              ? 'Not Configured'
+                              : 'Degraded')
+                        : 'Checking...'}
                     </Badge>
                   </Flex>
                 </CardHeader>
@@ -379,8 +426,8 @@ export default function AdminSettingsPage() {
                     <Text weight="medium">Upstash Redis</Text>
                   </Flex>
                   <Flex between>
-                    <Text color="muted">Login Rate Limit:</Text>
-                    <Text weight="medium">5 attempts / 15 minutes per IP</Text>
+                    <Text color="muted">Ping Latency:</Text>
+                    <Text weight="medium">{health?.redis.latencyMs !== null && health?.redis.latencyMs !== undefined ? `${health.redis.latencyMs} ms` : '—'}</Text>
                   </Flex>
                   <Flex between>
                     <Text color="muted">Admin API Limit:</Text>
@@ -395,8 +442,10 @@ export default function AdminSettingsPage() {
                     <CardTitle className="text-base flex items-center gap-2">
                       <Lock className="h-4 w-4 text-primary" /> Authentication Engine
                     </CardTitle>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                      Hardened
+                    <Badge className={health?.authEngine.encryptionConfigured
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
+                      {health ? (health.authEngine.encryptionConfigured ? 'Hardened' : 'Missing Key') : 'Checking...'}
                     </Badge>
                   </Flex>
                 </CardHeader>

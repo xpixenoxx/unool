@@ -1,88 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, Mail } from 'lucide-react';
 import { toast } from 'sonner';
-import { SectionHeading, SettingRow, PCard, PCardHead, PCardBody } from './shared';
+import { SectionHeading, SettingRow, PCard, PCardHead, PCardBody, SwitchControl } from './shared';
+import type { UserPreferencesDto } from '../types';
 
-interface NotificationsTabProps {
-  // Placeholder for future props
+export interface NotificationsTabProps {
+  preferences: UserPreferencesDto;
+  onPreferencesUpdated: (next: UserPreferencesDto) => void;
 }
 
-const STORAGE_KEY = 'unool_notification_prefs';
+export function NotificationsTab({ preferences, onPreferencesUpdated }: NotificationsTabProps) {
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-interface NotificationPref {
-  id: string;
-  label: string;
-  description: string;
-  enabled: boolean;
-}
+  const persistPreference = async (
+    key: string,
+    patch: Partial<UserPreferencesDto>,
+    successMessage: string
+  ) => {
+    setSaveError(null);
+    setSavingKey(key);
+    const previous = preferences;
+    const optimistic: UserPreferencesDto = { ...preferences, ...patch };
+    onPreferencesUpdated(optimistic);
 
-const DEFAULT_PREFS: NotificationPref[] = [
-  {
-    id: 'post_published',
-    label: 'Post Published',
-    description: 'When your content goes live on any connected platform.',
-    enabled: true,
-  },
-  {
-    id: 'publish_failed',
-    label: 'Publish Failed',
-    description: 'When a scheduled or manual publish encounters an error.',
-    enabled: true,
-  },
-  {
-    id: 'weekly_digest',
-    label: 'Weekly Performance Digest',
-    description: 'A curated summary of your content performance every Monday.',
-    enabled: false,
-  },
-  {
-    id: 'ai_suggestions',
-    label: 'AI Suggestions Ready',
-    description: 'When Studio AI has new content ideas based on your strategy.',
-    enabled: false,
-  },
-];
-
-export function NotificationsTab({}: NotificationsTabProps) {
-  const [prefs, setPrefs] = useState<NotificationPref[]>(DEFAULT_PREFS);
-
-  useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as Record<string, boolean>;
-        setPrefs(
-          DEFAULT_PREFS.map((p) => ({
-            ...p,
-            enabled: typeof parsed[p.id] === 'boolean' ? parsed[p.id] : p.enabled,
-          }))
-        );
+      const res = await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to save notification preference.');
       }
-    } catch {
-      // ignore storage read errors
+      if (data?.preferences) {
+        onPreferencesUpdated(data.preferences);
+      }
+      toast.success(successMessage);
+    } catch (err) {
+      onPreferencesUpdated(previous);
+      const message = err instanceof Error ? err.message : 'Failed to save preference.';
+      setSaveError(message);
+      toast.error(message);
+    } finally {
+      setSavingKey(null);
     }
-  }, []);
-
-  const handleToggle = (id: string) => {
-    setPrefs((prev) => {
-      const next = prev.map((item) =>
-        item.id === id ? { ...item, enabled: !item.enabled } : item
-      );
-      try {
-        const map: Record<string, boolean> = {};
-        for (const item of next) map[item.id] = item.enabled;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-      } catch {
-        // ignore
-      }
-      const changed = next.find((item) => item.id === id);
-      if (changed) {
-        toast.success(`${changed.label} notifications ${changed.enabled ? 'enabled' : 'disabled'}`);
-      }
-      return next;
-    });
   };
 
   return (
@@ -90,47 +56,113 @@ export function NotificationsTab({}: NotificationsTabProps) {
       <SectionHeading
         icon={Bell}
         title="Notifications"
-        subtitle="Control when and how Unool reaches you via email and in-app alerts."
+        subtitle="Control database-backed email notifications for token expiry, security events, and publishing."
       />
+
+      {saveError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-[#9E2A2B]/40 bg-[#FFF8F6] dark:bg-[#2C1A19] px-4 py-3 text-[13px] text-[#9E2A2B] dark:text-[#EF9A9A]"
+        >
+          {saveError}
+        </div>
+      )}
 
       <PCard>
         <PCardHead>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Email & In-App Notifications
-          </p>
+          <span className="inline-flex items-center gap-2">
+            <Mail className="h-4 w-4 text-[#5C4315] dark:text-[#C4A265]" aria-hidden="true" />
+            Transactional &amp; Operational Email Alerts
+          </span>
         </PCardHead>
         <PCardBody>
-          {prefs.map(({ id, label, description, enabled }, idx, arr) => (
-            <SettingRow
-              key={id}
-              label={label}
-              description={description}
-              last={idx === arr.length - 1}
-            >
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={enabled}
-                  aria-label={`Toggle ${label}`}
-                  onClick={() => handleToggle(id)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer focus-visible:outline-none ${
-                    enabled ? 'bg-[#C4A265]' : 'bg-zinc-200 dark:bg-zinc-700'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                      enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                    }`}
-                    aria-hidden="true"
-                  />
-                </button>
-                <span className="text-xs font-medium text-muted-foreground w-14">
-                  {enabled ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-            </SettingRow>
-          ))}
+          <SettingRow
+            label="OAuth Token Expiry Alerts"
+            description="Email you when a connected channel's authorization expires or fails background refresh."
+          >
+            <SwitchControl
+              label="Toggle OAuth Token Expiry Alerts"
+              checked={preferences.notifyTokenExpiry}
+              loading={savingKey === 'notifyTokenExpiry'}
+              onToggle={(next) =>
+                persistPreference(
+                  'notifyTokenExpiry',
+                  { notifyTokenExpiry: next },
+                  `Token expiry alerts ${next ? 'enabled' : 'disabled'}`
+                )
+              }
+            />
+          </SettingRow>
+
+          <SettingRow
+            label="Account Security Alerts"
+            description="Notifications for password updates, device revocations, and ownership changes."
+          >
+            <SwitchControl
+              label="Toggle Account Security Alerts"
+              checked={preferences.notifySecurityAlerts}
+              loading={savingKey === 'notifySecurityAlerts'}
+              onToggle={(next) =>
+                persistPreference(
+                  'notifySecurityAlerts',
+                  { notifySecurityAlerts: next },
+                  `Security alerts ${next ? 'enabled' : 'disabled'}`
+                )
+              }
+            />
+          </SettingRow>
+
+          <SettingRow
+            label="Publishing Failures & Job Alerts"
+            description="Alert when a scheduled publish encounters an upstream platform error."
+          >
+            <SwitchControl
+              label="Toggle Publishing Failures & Job Alerts"
+              checked={preferences.notifyPublishing}
+              loading={savingKey === 'notifyPublishing'}
+              onToggle={(next) =>
+                persistPreference(
+                  'notifyPublishing',
+                  { notifyPublishing: next },
+                  `Publishing alerts ${next ? 'enabled' : 'disabled'}`
+                )
+              }
+            />
+          </SettingRow>
+
+          <SettingRow
+            label="Summary Digest Cadence"
+            description="How often you want workspace summary emails delivered."
+            last
+          >
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Digest frequency">
+              {(['daily', 'weekly', 'never'] as const).map((freq) => {
+                const active = preferences.digestFrequency === freq;
+                return (
+                  <button
+                    key={freq}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    disabled={savingKey === 'digestFrequency'}
+                    onClick={() =>
+                      persistPreference(
+                        'digestFrequency',
+                        { digestFrequency: freq },
+                        `Digest preference set to ${freq}`
+                      )
+                    }
+                    className={`min-h-[44px] sm:min-h-[36px] px-3.5 rounded-lg border text-[13px] font-medium capitalize cursor-pointer transition-colors ${active
+                        ? 'bg-[#3D2B1F] text-white border-[#3D2B1F] dark:bg-[#F5EFE6] dark:text-[#16120F]'
+                        : 'bg-white dark:bg-[#1F1A16] text-[#3D2B1F] dark:text-[#F5EFE6] border-[#E4D9C8] dark:border-[#382F27] hover:bg-[#FAF7F2] dark:hover:bg-[#28211C]'
+                      }`}
+                  >
+                    {freq}
+                  </button>
+                );
+              })}
+            </div>
+          </SettingRow>
         </PCardBody>
       </PCard>
     </div>

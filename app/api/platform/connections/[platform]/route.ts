@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
@@ -20,6 +21,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Insufficient workspace permissions to disconnect channels.' },
+        { status: 403 }
+      );
+    }
+
     if (!SUPPORTED_PLATFORMS.includes(platform as (typeof SUPPORTED_PLATFORMS)[number])) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
@@ -38,6 +47,22 @@ export async function DELETE(
 
     for (const conn of matchingConns) {
       await platformRepository.disconnect(conn.id);
+    }
+
+    try {
+      const { supabaseAdmin } = await import('@/lib/supabase/admin');
+      await supabaseAdmin.from('workspace_security_events').insert({
+        workspace_id: auth.workspaceId,
+        actor_user_id: auth.userId,
+        event_type: 'channel_disconnected',
+        metadata: {
+          platform,
+          disconnectedCount: matchingConns.length,
+          connectionId: connectionId || null,
+        },
+      });
+    } catch {
+      // Non-fatal audit insert pre-migration
     }
 
     invalidateOverviewCache(auth.workspaceId);

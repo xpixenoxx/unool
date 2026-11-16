@@ -1,4 +1,6 @@
 import { logger } from '@/lib/logger';
+import { validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
+import { validateUrlForFetch } from '@/lib/utils/url-validation';
 import {
   PlatformAdapter,
   PlatformAuthConfig,
@@ -41,13 +43,23 @@ export class MastodonAdapter implements PlatformAdapter {
     };
   }
 
+  private async assertSafeHost(rawInstanceUrl: string): Promise<string> {
+    const check = await validateExternalInstanceUrl(rawInstanceUrl);
+    if (!check.ok) {
+      throw new Error(`Invalid or disallowed Mastodon instance URL: ${check.error}`);
+    }
+    return check.origin.replace(/^https?:\/\//i, '');
+  }
+
   async getUserProfile(tokenData: string): Promise<UserProfile> {
-    const { instanceUrl, accessToken } = this.parseToken(tokenData);
+    const { instanceUrl: rawInstanceUrl, accessToken } = this.parseToken(tokenData);
+    const instanceUrl = await this.assertSafeHost(rawInstanceUrl);
 
     const res = await fetch(`https://${instanceUrl}/api/v1/accounts/verify_credentials`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      redirect: 'manual',
     });
 
     if (!res.ok) {
@@ -66,7 +78,8 @@ export class MastodonAdapter implements PlatformAdapter {
   }
 
   async publish(tokenData: string, input: PublishInput): Promise<PublishResult> {
-    const { instanceUrl, accessToken } = this.parseToken(tokenData);
+    const { instanceUrl: rawInstanceUrl, accessToken } = this.parseToken(tokenData);
+    const instanceUrl = await this.assertSafeHost(rawInstanceUrl);
 
     let mediaIds: string[] = [];
 
@@ -76,7 +89,12 @@ export class MastodonAdapter implements PlatformAdapter {
 
       for (const url of urls) {
         try {
-          const res = await fetch(url);
+          const mediaCheck = await validateUrlForFetch(url);
+          if (!mediaCheck.allowed) {
+            logger.warn('Mastodon: blocked disallowed media url', { reason: mediaCheck.reason });
+            continue;
+          }
+          const res = await fetch(url, { redirect: 'error' });
           if (!res.ok) {
             logger.warn('Mastodon: failed to fetch media url', { url });
             continue;
@@ -91,6 +109,7 @@ export class MastodonAdapter implements PlatformAdapter {
               Authorization: `Bearer ${accessToken}`,
             },
             body: formData,
+            redirect: 'manual',
           });
 
           if (!uploadRes.ok) {
@@ -126,6 +145,7 @@ export class MastodonAdapter implements PlatformAdapter {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(postBody),
+      redirect: 'manual',
     });
 
     if (!postRes.ok) {
@@ -143,23 +163,27 @@ export class MastodonAdapter implements PlatformAdapter {
   }
 
   async deletePost(tokenData: string, platformPostId: string): Promise<void> {
-    const { instanceUrl, accessToken } = this.parseToken(tokenData);
+    const { instanceUrl: rawInstanceUrl, accessToken } = this.parseToken(tokenData);
+    const instanceUrl = await this.assertSafeHost(rawInstanceUrl);
 
     await fetch(`https://${instanceUrl}/api/v1/statuses/${platformPostId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      redirect: 'manual',
     });
   }
 
   async getEngagement(tokenData: string, platformPostId: string): Promise<Record<string, unknown>> {
-    const { instanceUrl, accessToken } = this.parseToken(tokenData);
+    const { instanceUrl: rawInstanceUrl, accessToken } = this.parseToken(tokenData);
+    const instanceUrl = await this.assertSafeHost(rawInstanceUrl);
 
     const res = await fetch(`https://${instanceUrl}/api/v1/statuses/${platformPostId}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      redirect: 'manual',
     });
 
     if (!res.ok) {

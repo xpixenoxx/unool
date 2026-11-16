@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
 import { generateWeekArc, detectStoryType, synthesizeFactGroundedArc, getUpcomingDaysForArc } from '@/lib/ai/WeekArcGenerator';
+import { resolveAiPersonalization } from '@/lib/ai/resolvePersonalization';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
@@ -211,6 +212,13 @@ export async function POST(request: NextRequest) {
     });
 
     const userFirstName = profile?.name?.split(' ')[0] ?? 'Creator';
+    const personalization = await resolveAiPersonalization({
+      userId,
+      workspaceId,
+      disablePersonalization: Boolean(body.disablePersonalization),
+      profileStudioProfile: (profile?.studioProfile as Record<string, any> | null) ?? null,
+      profileOnboardingAnswers: (profile?.onboardingAnswers as Record<string, any> | null) ?? null,
+    });
 
     let arc = null;
     try {
@@ -225,17 +233,18 @@ export async function POST(request: NextRequest) {
         audienceTimezone,
         userFirstName,
         weekStartDate,
-        studioProfile: profile?.studioProfile ?? null,
-        onboardingAnswers: profile?.onboardingAnswers ?? null,
-        creatorProfile: profile
-          ? {
-              name: profile.name,
-              headline: profile.headline,
-              role: profile.role,
-              company: profile.company,
-              openTo: profile.openTo,
-            }
-          : null,
+        studioProfile: personalization.enabled ? personalization.studioProfile : null,
+        onboardingAnswers: personalization.enabled ? (profile?.onboardingAnswers ?? null) : null,
+        creatorProfile:
+          personalization.enabled && profile
+            ? {
+                name: profile.name,
+                headline: profile.headline,
+                role: profile.role,
+                company: profile.company,
+                openTo: profile.openTo,
+              }
+            : null,
       });
     } catch (err) {
       logger.error('generateWeekArc threw exception, will attempt synthesis fallback', { err, workspaceId });

@@ -5,6 +5,7 @@ import { config } from '@/lib/config/schema';
 import { GroqProvider } from '@/lib/ai/providers/GroqProvider';
 import { getAIProvider } from '@/lib/ai/provider';
 import { logger } from '@/lib/logger';
+import { resolveAiPersonalization } from '@/lib/ai/resolvePersonalization';
 import {
   buildIdeasPrompt,
   sanitizeAlreadyShown,
@@ -78,9 +79,27 @@ export async function POST(request: NextRequest) {
       // safe fallback
     }
 
-    const rawStudioProfile: any = clientStudioProfile || profile?.studioProfile || profile?.onboardingAnswers;
+    const personalization = await resolveAiPersonalization({
+      userId,
+      workspaceId,
+      bodyStudioProfile: clientStudioProfile,
+      profileStudioProfile: (profile?.studioProfile as Record<string, any> | null) ?? null,
+      profileOnboardingAnswers: (profile?.onboardingAnswers as Record<string, any> | null) ?? null,
+    });
+
+    if (!personalization.enabled) {
+      return NextResponse.json(
+        {
+          error: 'AI personalization is paused in Settings > AI & Brand Voice. Enable it to generate tailored ideas.',
+          code: 'AI_PERSONALIZATION_PAUSED',
+        },
+        { status: 403 }
+      );
+    }
+
+    const rawStudioProfile: any = personalization.studioProfile;
     const isCompleted = Boolean(
-      (rawStudioProfile && (rawStudioProfile.role || rawStudioProfile.persona) && (rawStudioProfile.completedAt || profile?.onboardingCompleted)) ||
+      (rawStudioProfile && (rawStudioProfile.role || rawStudioProfile.persona)) ||
       (profile && (profile.onboardingCompleted || (profile.studioProfile && profile.studioProfile.role)))
     );
 

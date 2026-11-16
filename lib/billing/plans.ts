@@ -128,7 +128,7 @@ export const PLANS_FALLBACK: Record<PlanId, PlanDefinition> = {
     },
     sortOrder: 1,
     isFreeTier: false,
-    templateCount: 16,
+    templateCount: 24,
   },
 
   pro: {
@@ -159,7 +159,7 @@ export const PLANS_FALLBACK: Record<PlanId, PlanDefinition> = {
     },
     sortOrder: 2,
     isFreeTier: false,
-    templateCount: 16,
+    templateCount: 24,
   },
 
   studio: {
@@ -190,7 +190,7 @@ export const PLANS_FALLBACK: Record<PlanId, PlanDefinition> = {
     },
     sortOrder: 3,
     isFreeTier: false,
-    templateCount: 16,
+    templateCount: 24,
   },
 };
 
@@ -464,7 +464,7 @@ const CANONICAL_FEATURE_BULLETS: Record<PlanId, string[]> = {
     'Everything in Spark, plus:',
     'Unlimited posts/month',
     '4 connected platforms',
-    'All 16 persona templates',
+    'All 24 persona templates',
     'No "Made with Unool" badge',
     'Basic DM Concierge & 90-day analytics',
   ],

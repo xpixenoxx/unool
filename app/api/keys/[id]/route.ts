@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
+import { getFeatureFlagsServer } from '@/lib/feature-flags-server';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { SupabaseApiKeyRepository } from '@/lib/repositories/supabase/SupabaseApiKeyRepository';
 
 const apiKeyRepository = new SupabaseApiKeyRepository();
@@ -9,9 +12,33 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const flags = await getFeatureFlagsServer();
+    if (!flags.public_api_enabled) {
+      return NextResponse.json(
+        { error: 'Public API keys are disabled for this workspace environment.', code: 'FEATURE_DISABLED' },
+        { status: 503 }
+      );
+    }
+
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Only workspace owners and admins can modify API keys.' },
+        { status: 403 }
+      );
+    }
+
+    const rate = await checkRateLimit(request, 'apiKeyAction', auth.userId);
+    if (!rate.success) {
+      return NextResponse.json(
+        { error: 'Too many API key requests. Please try again later.' },
+        { status: 429, headers: rateLimitHeaders(rate.remaining, rate.reset) }
+      );
     }
 
     const { id } = await params;
@@ -44,9 +71,33 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const flags = await getFeatureFlagsServer();
+    if (!flags.public_api_enabled) {
+      return NextResponse.json(
+        { error: 'Public API keys are disabled for this workspace environment.', code: 'FEATURE_DISABLED' },
+        { status: 503 }
+      );
+    }
+
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Only workspace owners and admins can delete API keys.' },
+        { status: 403 }
+      );
+    }
+
+    const rate = await checkRateLimit(request, 'apiKeyAction', auth.userId);
+    if (!rate.success) {
+      return NextResponse.json(
+        { error: 'Too many API key requests. Please try again later.' },
+        { status: 429, headers: rateLimitHeaders(rate.remaining, rate.reset) }
+      );
     }
 
     const { id } = await params;

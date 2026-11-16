@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { issueOtp, isResendCoolingDown } from '@/lib/auth/otp';
 import { verifyPassword } from '@/lib/auth/password';
+import { getUserPasswordHash } from '@/lib/auth/credentials';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
@@ -73,8 +74,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Retrieve password hash from user_metadata
-    const storedHash: string | undefined = user.user_metadata?.password_hash;
+    // Retrieve password hash from user_credentials table (with legacy user_metadata fallback + lazy migration)
+    const { hash: storedHash } = await getUserPasswordHash({
+      id: user.id,
+      user_metadata: user.user_metadata,
+    });
     if (!storedHash) {
       // This user signed up via OAuth / magic link — no password set
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });

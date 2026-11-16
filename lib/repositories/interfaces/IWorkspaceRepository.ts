@@ -1,8 +1,10 @@
+export type WorkspacePlanTier = 'spark' | 'creator' | 'pro' | 'studio' | 'free' | 'team';
+
 export interface Workspace {
   id: string;
   name: string;
   ownerId: string;
-  plan: 'free' | 'pro' | 'team';
+  plan: WorkspacePlanTier;
   settings: Record<string, unknown>;
   createdAt: Date;
 }
@@ -23,5 +25,5 @@ export interface IWorkspaceRepository {
 export interface CreateWorkspaceInput {
   name: string;
   ownerId: string;
-  plan?: 'free' | 'pro' | 'team';
+  plan?: WorkspacePlanTier;
 }

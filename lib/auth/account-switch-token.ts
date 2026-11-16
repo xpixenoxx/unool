@@ -8,6 +8,13 @@ interface SwitchTokenPayload {
   email: string;
   iat: number;
   exp: number;
+  sv?: number;
+}
+
+export interface VerifiedAccountSwitchToken {
+  userId: string;
+  email: string;
+  securityVersion?: number;
 }
 
 function getSigningSecret(explicitSecret?: string): string {
@@ -22,7 +29,8 @@ export function createAccountSwitchToken(
   userId: string,
   email: string,
   secret?: string,
-  ttlMs: number = DEFAULT_SWITCH_TOKEN_TTL_MS
+  ttlMs: number = DEFAULT_SWITCH_TOKEN_TTL_MS,
+  securityVersion?: number
 ): string {
   const signingSecret = getSigningSecret(secret);
   const now = Date.now();
@@ -31,6 +39,9 @@ export function createAccountSwitchToken(
     email: email.toLowerCase().trim(),
     iat: now,
     exp: now + ttlMs,
+    ...(typeof securityVersion === 'number' && Number.isInteger(securityVersion)
+      ? { sv: securityVersion }
+      : {}),
   };
 
   const payloadB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
@@ -45,7 +56,7 @@ export function createAccountSwitchToken(
 export function verifyAccountSwitchToken(
   token: string,
   secret?: string
-): { userId: string; email: string } | null {
+): VerifiedAccountSwitchToken | null {
   try {
     if (!token || typeof token !== 'string') return null;
     const parts = token.split('.');
@@ -78,6 +89,7 @@ export function verifyAccountSwitchToken(
     return {
       userId: parsed.uid,
       email: parsed.email.toLowerCase().trim(),
+      ...(typeof parsed.sv === 'number' ? { securityVersion: parsed.sv } : {}),
     };
   } catch {
     return null;

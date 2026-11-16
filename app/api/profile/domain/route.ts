@@ -3,6 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { promises as dns } from 'dns';
 import crypto from 'crypto';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 import { CustomDomainSchema } from '@/lib/validation/profileSchemas';
@@ -52,13 +53,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Insufficient workspace permissions to configure custom domains.' },
+        { status: 403 }
+      );
+    }
+
     const planCtx = await getPlanContext(auth.userId, auth.workspaceId).catch(() => null);
     if (!planCtx?.features?.custom_domain) {
       return NextResponse.json(
         {
           error: 'Custom domains are available on Pro and Studio plans.',
           code: 'PLAN_UPGRADE_REQUIRED',
-          upgradeUrl: '/dashboard/settings?tab=billing',
+          upgradeUrl: '/dashboard/billing',
         },
         { status: 403 }
       );
@@ -121,6 +130,14 @@ export async function PUT(request: NextRequest) {
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Insufficient workspace permissions to verify custom domains.' },
+        { status: 403 }
+      );
     }
 
     const profile = await profileRepository.findByWorkspaceId(auth.workspaceId);
@@ -192,6 +209,14 @@ export async function DELETE(request: NextRequest) {
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Insufficient workspace permissions to disconnect custom domains.' },
+        { status: 403 }
+      );
     }
 
     const profile = await profileRepository.findByWorkspaceId(auth.workspaceId);

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import * as authServer from '@/lib/auth/server';
 import * as planMiddleware from '@/lib/middleware/plan-enforcement-middleware';
+import * as workspaceAccess from '@/lib/auth/workspaceAccess';
 
 const {
   mockFindByWorkspaceId,
@@ -123,6 +124,11 @@ describe('Profile & Composer API Contracts (PROF-API)', () => {
       userId: 'user-1',
       workspaceId: 'ws-1',
     });
+    vi.spyOn(workspaceAccess, 'requireWorkspaceRole').mockResolvedValue({
+      allowed: true,
+      membership: { workspaceId: 'ws-1', userId: 'user-1', role: 'owner', status: 'active', isOwner: true },
+    });
+    vi.spyOn(workspaceAccess, 'verifyWorkspaceAccess').mockResolvedValue(true);
     vi.spyOn(planMiddleware, 'getPlanContext').mockResolvedValue({
       plan: 'spark',
       templateCount: 5,

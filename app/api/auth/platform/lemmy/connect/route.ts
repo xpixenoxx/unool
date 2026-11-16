@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { lemmyAdapter } from '@/lib/platforms/LemmyAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { getAuthContext } from '@/lib/auth/context';
+import { resolvePlatformConnectContext, validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -31,24 +31,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let workspaceId = bodyWorkspaceId;
-    let userId = '';
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    if ('error' in resolved) return resolved.error;
+    const { userId, workspaceId } = resolved.context;
 
-    const authCtx = await getAuthContext();
-    if (authCtx) {
-      workspaceId = workspaceId || authCtx.workspaceId;
-      userId = authCtx.userId;
+    const instanceCheck = await validateExternalInstanceUrl(instanceUrl);
+    if (!instanceCheck.ok) {
+      return NextResponse.json({ error: instanceCheck.error }, { status: 400 });
     }
-
-    if (!workspaceId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Normalize instance URL (strip protocol and trailing slash)
-    const normalizedInstance = instanceUrl
-      .trim()
-      .replace(/^https?:\/\//i, '')
-      .replace(/\/+$/, '');
+    // Normalized instance host (validated HTTPS origin)
+    const normalizedInstance = instanceCheck.origin.replace(/^https?:\/\//i, '');
 
     let activeJwt = providedJwt ? providedJwt.trim() : '';
 

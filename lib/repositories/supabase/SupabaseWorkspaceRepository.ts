@@ -1,5 +1,5 @@
-﻿import { config } from '@/lib/config/schema';
-import type { IWorkspaceRepository, Workspace, CreateWorkspaceInput, IUserRepository } from '../interfaces/IWorkspaceRepository';
+import { config } from '@/lib/config/schema';
+import type { IWorkspaceRepository, Workspace, CreateWorkspaceInput, IUserRepository, WorkspacePlanTier } from '../interfaces/IWorkspaceRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export class SupabaseWorkspaceRepository implements IWorkspaceRepository {
@@ -10,7 +10,7 @@ export class SupabaseWorkspaceRepository implements IWorkspaceRepository {
       id: row.id as string,
       name: row.name as string,
       ownerId: row.owner_id as string,
-      plan: row.plan as 'free' | 'pro' | 'team',
+      plan: row.plan as WorkspacePlanTier,
       settings: row.settings as Record<string, unknown>,
       createdAt: new Date(row.created_at as string),
     };
@@ -31,7 +31,7 @@ export class SupabaseWorkspaceRepository implements IWorkspaceRepository {
   async create(input: CreateWorkspaceInput): Promise<Workspace> {
     const { data, error } = await this.supabase
       .from('workspaces')
-      .insert({ name: input.name, owner_id: input.ownerId, plan: input.plan || 'free', settings: {} })
+      .insert({ name: input.name, owner_id: input.ownerId, plan: input.plan || 'spark', settings: {} })
       .select()
       .single();
     if (error) throw error;

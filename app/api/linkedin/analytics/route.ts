@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { config } from '@/lib/config/schema';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -27,51 +27,19 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getCurrentAuth(request);
     if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized', debug: ['auth_null'] }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     debug.push(`auth:uid=${auth.userId.slice(0, 8)},wid=${auth.workspaceId.slice(0, 8)}`);
 
-    
-
-    // ── Find LinkedIn connection ──────────────────────────
-    let { data: connRows } = await supabaseAdmin
+    // Strictly scope LinkedIn connection lookup to the active authorized workspace
+    const { data: connRows } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', auth.workspaceId)
       .eq('platform', 'linkedin');
 
-    if ((!connRows || connRows.length === 0) && auth.userId !== auth.workspaceId) {
-      const s2 = await supabaseAdmin
-        .from('platform_connections')
-        .select('*')
-        .eq('workspace_id', auth.userId)
-        .eq('platform', 'linkedin');
-      if (s2.data && s2.data.length > 0) connRows = s2.data;
-    }
-
-    // Strategy 3: check all workspaces
     if (!connRows || connRows.length === 0) {
-      const { data: memberships } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', auth.userId);
-      if (memberships) {
-        for (const m of memberships) {
-          const s3 = await supabaseAdmin
-            .from('platform_connections')
-            .select('*')
-            .eq('workspace_id', m.workspace_id)
-            .eq('platform', 'linkedin');
-          if (s3.data && s3.data.length > 0) {
-            connRows = s3.data;
-            break;
-          }
-        }
-      }
-    }
-
-    if (!connRows || connRows.length === 0) {
-      return NextResponse.json({ error: 'LinkedIn not connected. Please connect LinkedIn from the dashboard first.', debug }, { status: 404 });
+      return NextResponse.json({ error: 'LinkedIn not connected. Please connect LinkedIn from Settings → Channels first.' }, { status: 404 });
     }
 
     const connection = connRows[0];
@@ -81,8 +49,8 @@ export async function GET(request: NextRequest) {
     try {
       accessToken = await decryptToken(connection.access_token_encrypted);
       debug.push('token_ok');
-    } catch (e) {
-      return NextResponse.json({ error: 'Failed to decrypt access token. Please reconnect LinkedIn.', debug }, { status: 401 });
+    } catch {
+      return NextResponse.json({ error: 'Failed to decrypt access token. Please reconnect LinkedIn.' }, { status: 401 });
     }
 
     // ── Get profile ───────────────────────────────────────
@@ -91,13 +59,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!profileRes.ok) {
-      const errText = await profileRes.text();
+      await profileRes.text().catch(() => '');
       debug.push(`profile_err:${profileRes.status}`);
+      logger.warn('LinkedIn profile fetch failed', { status: profileRes.status, debug });
       return NextResponse.json({
         error: profileRes.status === 401
           ? 'LinkedIn token expired. Please reconnect your LinkedIn account.'
           : `LinkedIn profile fetch failed (${profileRes.status})`,
-        debug,
       }, { status: profileRes.status === 401 ? 401 : 500 });
     }
 
@@ -166,6 +134,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (allPosts.length === 0) {
+      logger.debug('LinkedIn analytics: no posts found', { workspaceId: auth.workspaceId, debug });
       return NextResponse.json({
         profile: {
           name: displayName,
@@ -175,7 +144,6 @@ export async function GET(request: NextRequest) {
         posts: [],
         totalPosts: 0,
         fetchedAt: new Date().toISOString(),
-        debug,
         postsError: 'No posts published through Unool were found. Publish a post via the Studio to see analytics here.',
       });
     }
@@ -258,6 +226,7 @@ export async function GET(request: NextRequest) {
     );
 
     debug.push(`enriched:${enrichedPosts.length}`);
+    logger.debug('LinkedIn analytics fetched', { workspaceId: auth.workspaceId, debug });
 
     return NextResponse.json({
       profile: {
@@ -268,12 +237,11 @@ export async function GET(request: NextRequest) {
       posts: enrichedPosts,
       totalPosts: enrichedPosts.length,
       fetchedAt: new Date().toISOString(),
-      debug,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     debug.push(`catch:${err.message}`);
-    logger.error('LinkedIn analytics fetch failed', { error: err });
-    return NextResponse.json({ error: `Failed to fetch LinkedIn analytics: ${err.message}`, debug }, { status: 500 });
+    logger.error('LinkedIn analytics fetch failed', { error: err, debug });
+    return NextResponse.json({ error: 'Failed to fetch LinkedIn analytics' }, { status: 500 });
   }
 }

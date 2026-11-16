@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { validateSubdomain } from '@/lib/validation/subdomain';
 import { analytics } from '@/lib/analytics/track';
@@ -13,6 +14,14 @@ export async function POST(request: NextRequest) {
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Insufficient workspace permissions to claim a subdomain.' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json().catch(() => null);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PostAdapter, PlatformType, AdaptedPost, AdaptationContext } from '@/lib/ai/PostAdapter';
 import { buildCreatorIdentityContext } from '@/lib/ai/studioContext';
+import { resolveAiPersonalization } from '@/lib/ai/resolvePersonalization';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { trackAiUsage } from '@/lib/limits/enforcer';
@@ -79,15 +80,23 @@ export async function POST(request: NextRequest) {
         profileHeadline: targetProfile.headline || undefined,
       };
 
-      // Check if personalization is toggled off by user
-      const disablePersonalization = Boolean(body.disablePersonalization);
+      // Check if personalization is toggled off in request or Settings > AI & Brand Voice
+      const personalization = await resolveAiPersonalization({
+        userId,
+        workspaceId,
+        disablePersonalization: Boolean(body.disablePersonalization),
+        bodyStudioProfile: body.studioProfile,
+        profileStudioProfile: targetProfile.studioProfile as Record<string, any> | null,
+        profileOnboardingAnswers: targetProfile.onboardingAnswers as Record<string, any> | null,
+      });
+
       let profileApplied = false;
 
-      if (!disablePersonalization) {
-        const effectiveStudio = body.studioProfile || targetProfile.studioProfile || targetProfile.onboardingAnswers;
+      if (personalization.enabled) {
+        const effectiveStudio = personalization.studioProfile;
         const creatorContext = buildCreatorIdentityContext({
           profile: targetProfile,
-          studioProfile: body.studioProfile,
+          studioProfile: effectiveStudio,
         });
         if (creatorContext) {
           profileContext.studioProfile = effectiveStudio;

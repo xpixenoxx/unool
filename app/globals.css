@@ -6,36 +6,37 @@
 
 @layer base {
   :root {
-    --font-geist: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-geist-mono: 'Geist Mono', monospace;
-    --font-syne: 'Syne', sans-serif;
+    --font-geist: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-geist-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --font-cormorant: 'Cormorant Garamond', Georgia, serif;
-    --font-plus-jakarta: 'Plus Jakarta Sans', sans-serif;
     --font-sans: var(--font-geist);
     --font-mono: var(--font-geist-mono);
-    --border: var(--border);
-    --background: var(--background);
-    --foreground: var(--foreground);
-    --primary: var(--primary);
-    --primary-foreground: var(--primary-foreground);
-    --muted-foreground: var(--muted-foreground);
-    --ring: var(--ring);
-    --secondary: var(--secondary);
-    --secondary-foreground: var(--secondary-foreground);
-    --accent: var(--accent);
-    --accent-foreground: var(--accent-foreground);
-    --destructive: var(--destructive);
-    --destructive-foreground: var(--destructive-foreground);
-    --success: var(--success);
-    --success-foreground: var(--success-foreground);
-    --warning: var(--warning);
-    --warning-foreground: var(--warning-foreground);
-    --muted: var(--muted);
-    --card: var(--card);
-    --card-foreground: var(--card-foreground);
-    --input: var(--input);
-    --popover: var(--popover);
-    --popover-foreground: var(--popover-foreground);
+    --font-display: var(--font-cormorant);
+    --font-syne: var(--font-geist);
+    --font-plus-jakarta: var(--font-geist);
+    --border: var(--color-border);
+    --background: var(--color-background);
+    --foreground: var(--color-foreground);
+    --primary: var(--color-primary);
+    --primary-foreground: var(--color-primary-foreground);
+    --muted-foreground: var(--color-muted-foreground);
+    --ring: var(--color-ring);
+    --secondary: var(--color-secondary);
+    --secondary-foreground: var(--color-secondary-foreground);
+    --accent: var(--color-accent);
+    --accent-foreground: var(--color-accent-foreground);
+    --destructive: var(--color-destructive);
+    --destructive-foreground: var(--color-destructive-foreground);
+    --success: var(--color-success);
+    --success-foreground: var(--color-success-foreground);
+    --warning: var(--color-warning);
+    --warning-foreground: var(--color-warning-foreground);
+    --muted: var(--color-muted);
+    --card: var(--color-card);
+    --card-foreground: var(--color-card-foreground);
+    --input: var(--color-input);
+    --popover: var(--color-popover);
+    --popover-foreground: var(--color-popover-foreground);
   }
 
   * {
@@ -45,31 +46,27 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Focus visible for keyboard navigation */
+  /* Focus visible for keyboard navigation (WCAG 2.2 AA) */
   :focus-visible {
-    outline: none;
-    ring: 2px;
-    ring-color: var(--ring);
-    ring-offset: 2px;
-    ring-offset-color: var(--background);
+    outline: 2px solid var(--focus-ring-color, #A43D1E);
+    outline-offset: 2px;
   }
 
-  /* Selection */
+  /* Selection (Warm Biscuit harmonized) */
   ::selection {
-    background-color: oklch(0.60 0.20 195 / 0.35);
-    color: inherit;
+    background-color: #E9D8B8;
+    color: #261B13;
   }
 
   textarea::selection,
   input::selection {
-    background-color: #2563eb;
-    color: #ffffff;
+    background-color: #E9D8B8;
+    color: #261B13;
   }
 
   /* Scrollbar styling */
@@ -248,11 +245,8 @@
     outline: none;
   }
   .btn:focus-visible {
-    outline: none;
-    ring: 2px;
-    ring-color: var(--ring);
-    ring-offset: 2px;
-    ring-offset-color: var(--background);
+    outline: 2px solid var(--focus-ring-color, #A43D1E);
+    outline-offset: 2px;
   }
   .btn:disabled {
     pointer-events: none;
@@ -394,19 +388,16 @@
     outline: none;
     transition: color 150ms, background-color 150ms, border-color 150ms;
   }
-  .input::placeholder { color: var(--input-placeholder, var(--muted-foreground, #8B7355)); opacity: 0.65; }
+  .input::placeholder { color: var(--input-placeholder, var(--muted-foreground, #6E5A48)); opacity: 0.75; }
   .input:focus-visible {
-    outline: none;
-    ring: 2px;
-    ring-color: var(--ring);
-    ring-offset: 2px;
-    ring-offset-color: var(--background);
+    outline: 2px solid var(--focus-ring-color, #A43D1E);
+    outline-offset: 2px;
   }
   .input:disabled { cursor: not-allowed; opacity: 0.5; }
   .input-error { border-color: var(--destructive); }
-  .input-error:focus-visible { ring-color: var(--destructive); }
+  .input-error:focus-visible { outline-color: var(--destructive); }
   .input-success { border-color: var(--success); }
-  .input-success:focus-visible { ring-color: var(--success); }
+  .input-success:focus-visible { outline-color: var(--success); }
 
   .textarea {
     display: flex;
@@ -419,13 +410,10 @@
     font-size: clamp(0.81rem, 0.78rem + 0.15vw, 0.875rem);
     outline: none;
   }
-  .textarea::placeholder { color: var(--input-placeholder, var(--muted-foreground, #8B7355)); opacity: 0.65; }
+  .textarea::placeholder { color: var(--input-placeholder, var(--muted-foreground, #6E5A48)); opacity: 0.75; }
   .textarea:focus-visible {
-    outline: none;
-    ring: 2px;
-    ring-color: var(--ring);
-    ring-offset: 2px;
-    ring-offset-color: var(--background);
+    outline: 2px solid var(--focus-ring-color, #A43D1E);
+    outline-offset: 2px;
   }
   .textarea:disabled { cursor: not-allowed; opacity: 0.5; }
 
@@ -447,11 +435,8 @@
     transition: color 150ms, background-color 150ms, border-color 150ms;
   }
   .badge:focus-visible {
-    outline: none;
-    ring: 2px;
-    ring-color: var(--ring);
-    ring-offset: 2px;
-    ring-offset-color: var(--background);
+    outline: 2px solid var(--focus-ring-color, #A43D1E);
+    outline-offset: 2px;
   }
 
   .badge-default { background-color: var(--primary); color: var(--primary-foreground); }

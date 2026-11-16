@@ -1824,7 +1824,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   </span>
                 </div>
                 <Link
-                  href="/dashboard/settings?tab=persona"
+                  href="/dashboard/settings?tab=ai-voice"
                   className="font-bold text-[#231C16] underline underline-offset-2 hover:opacity-80 transition-opacity"
                 >
                   Edit Persona
@@ -2040,7 +2040,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   </span>
                   <div className="flex items-center gap-3">
                     <Link
-                      href="/dashboard/settings?tab=persona"
+                      href="/dashboard/settings?tab=ai-voice"
                       className="text-xs font-bold text-[#231C16] underline underline-offset-2 hover:opacity-80"
                     >
                       Edit Persona

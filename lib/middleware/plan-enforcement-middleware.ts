@@ -48,29 +48,34 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
   // First try direct workspace ID lookup
   const { data: wsById, error: wsError } = await supabaseAdmin
     .from('workspaces')
-    .select('plan, plan_status, plan_expires_at, features')
+    .select('plan, plan_status, plan_expires_at')
     .eq('id', workspaceId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (!wsError && wsById) {
     workspace = wsById;
   } else {
-    // Fallback: workspaceId might actually be a user UUID — look up the workspace via workspace_members
+    // Fallback: workspaceId might actually be a user UUID — look up the workspace via active workspace_members
     logger.warn('Direct workspace lookup failed, trying via user membership', { workspaceId, userId, error: wsError });
 
     const { data: member } = await supabaseAdmin
       .from('workspace_members')
       .select('workspace_id')
       .eq('user_id', userId)
-      .single();
+      .eq('status', 'active')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
     if (member?.workspace_id) {
       resolvedWsId = member.workspace_id;
       const { data: wsFromMember } = await supabaseAdmin
         .from('workspaces')
-        .select('plan, plan_status, plan_expires_at, features')
+        .select('plan, plan_status, plan_expires_at')
         .eq('id', member.workspace_id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (wsFromMember) {
         workspace = wsFromMember;
@@ -181,7 +186,8 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
     .from('plans')
     .select('limits, features')
     .eq('id', effectivePlan)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   const dbFeatures = (planInfo?.features || {}) as Record<string, unknown>;
   const dbLimits = (planInfo?.limits || {}) as Record<string, unknown>;

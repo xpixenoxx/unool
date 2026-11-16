@@ -1,101 +1,29 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { config } from '@/lib/config/schema';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentAuth } from '@/lib/auth/server';
+import { NO_STORE_HEADERS } from '@/lib/auth/session-cookies';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * GET /api/auth/status
+ * Verifies authentication strictly via getCurrentAuth (HMAC middleware headers,
+ * Supabase JWT, or verified SSR cookies). Never trusts raw x-user-id or cookie substrings.
+ */
 export async function GET(request: NextRequest) {
-  try {
-    // 2. Injected headers from middleware.ts
-    const headerUserId = request.headers.get('x-user-id');
-    if (headerUserId) {
-      return NextResponse.json(
-        { authenticated: true, redirectTo: '/dashboard', userId: headerUserId },
-        {
-          status: 200,
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          },
-        }
-      );
-    }
-
-    // 3. Check for presence of Supabase auth cookie directly
-    const allCookies = request.cookies.getAll();
-    const authCookie = allCookies.find(
-      (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token') && c.value && c.value.length > 20
-    );
-
-    if (authCookie) {
-      try {
-        const decoded = decodeURIComponent(authCookie.value);
-        if (decoded.includes('access_token') || decoded.includes('user')) {
-          return NextResponse.json(
-            { authenticated: true, redirectTo: '/dashboard' },
-            {
-              status: 200,
-              headers: {
-                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-              },
-            }
-          );
-        }
-      } catch {
-        // Fall through to server client check
-      }
-    }
-
-    // 4. Verify session with Supabase server client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || config.SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || config.SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && supabaseAnonKey) {
-      const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll() {},
-        },
-      });
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user?.id) {
-        return NextResponse.json(
-          { authenticated: true, redirectTo: '/dashboard', userId: user.id },
-          {
-            status: 200,
-            headers: {
-              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-            },
-          }
-        );
-      }
-    }
-
-    // 5. Visitor is not authenticated (guest / non-user)
+  const auth = await getCurrentAuth(request);
+  if (!auth) {
     return NextResponse.json(
-      { authenticated: false, redirectTo: '/' },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        },
-      }
-    );
-  } catch (error) {
-    // If any error occurs during check, treat as unauthenticated
-    return NextResponse.json(
-      { authenticated: false, redirectTo: '/' },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        },
-      }
+      { authenticated: false },
+      { status: 200, headers: NO_STORE_HEADERS }
     );
   }
+
+  return NextResponse.json(
+    {
+      authenticated: true,
+      userId: auth.userId,
+      workspaceId: auth.workspaceId,
+    },
+    { status: 200, headers: NO_STORE_HEADERS }
+  );
 }

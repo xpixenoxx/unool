@@ -65,30 +65,35 @@ export async function POST(request: NextRequest) {
         full_name: user.user_metadata?.full_name,
       }, { onConflict: 'id' });
 
-      // Ensure workspace exists for this user
+      // Ensure workspace exists for this user (avoid .single() across multiple memberships)
       const { data: existingMember } = await supabaseAdmin
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id)
-        .single();
+        .eq('status', 'active')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
       if (!existingMember) {
-        // Create a new workspace for the user
+        // Create a new workspace for the user on canonical 'spark' tier
         const { data: newWorkspace } = await supabaseAdmin
           .from('workspaces')
           .insert({
             owner_id: user.id,
             name: 'Personal Workspace',
-            plan: 'free',
+            plan: 'spark',
           })
           .select('id')
-          .single();
+          .limit(1)
+          .maybeSingle();
 
         if (newWorkspace) {
           await supabaseAdmin.from('workspace_members').insert({
             workspace_id: newWorkspace.id,
             user_id: user.id,
             role: 'owner',
+            status: 'active',
           });
           logger.info('Created workspace for new user', { userId: user.id, workspaceId: newWorkspace.id, traceId });
         }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyOtp } from '@/lib/auth/otp';
 import { hashPassword } from '@/lib/auth/password';
+import { saveUserPasswordHash } from '@/lib/auth/credentials';
+import { bumpUserSecurityVersion } from '@/lib/auth/security-version';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -34,7 +36,10 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await findUserByEmail(emailLower);
-    if (!user) {
+    const bannedUntil = (user as { banned_until?: string | null } | null)?.banned_until;
+    const isDeleted = user?.user_metadata?.is_deleted === true;
+    const isBanned = Boolean(bannedUntil && new Date(bannedUntil) > new Date());
+    if (!user || isDeleted || isBanned) {
       return NextResponse.json({ success: false, message: 'Invalid or expired code.' }, { status: 400 });
     }
 
@@ -45,17 +50,8 @@ export async function POST(request: NextRequest) {
 
     const newHash = await hashPassword(password);
 
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      user_metadata: {
-        ...user.user_metadata,
-        password_hash: newHash,
-      },
-    });
-
-    if (updateError) {
-      logger.error('Failed to update password', { error: updateError, userId: user.id });
-      return NextResponse.json({ success: false, message: 'Failed to reset password.' }, { status: 500 });
-    }
+    await saveUserPasswordHash(user.id, newHash, user.user_metadata);
+    await bumpUserSecurityVersion(user.id);
 
     logger.info('Password reset successfully completed', { userId: user.id });
     return NextResponse.json({ success: true, message: 'Password has been reset successfully.' }, { status: 200 });

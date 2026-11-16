@@ -1,7 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole, verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { logger } from '@/lib/logger';
-import { config } from '@/lib/config/schema';
 import { encryptToken, decryptToken } from '@/lib/crypto/encryption';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -15,11 +15,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { workspaceId: bodyWorkspaceId, streamUrl, streamKey } = body;
+    const { workspaceId: bodyWorkspaceId, connectionId, streamUrl, streamKey } = body;
 
     const workspaceId = bodyWorkspaceId || auth.workspaceId;
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID required' }, { status: 400 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (!streamUrl || !streamKey) {
@@ -33,15 +38,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stream URL must start with rtmp:// or rtmps://' }, { status: 400 });
     }
 
-    
-
-    // Fetch existing Kick connection
-    const { data: connection, error: fetchErr } = await supabaseAdmin
+    // Fetch targeted Kick connection (or most recently updated Kick connection in workspace)
+    let connQuery = supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
-      .eq('platform', 'kick')
-      .single();
+      .eq('platform', 'kick');
+    if (typeof connectionId === 'string' && connectionId.trim()) {
+      connQuery = connQuery.eq('id', connectionId.trim());
+    }
+
+    const { data: connection, error: fetchErr } = await connQuery
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (fetchErr || !connection) {
       return NextResponse.json(
@@ -122,17 +132,29 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get('workspaceId') || auth.workspaceId;
+    const connectionId = searchParams.get('connectionId');
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID required' }, { status: 400 });
     }
 
-    
-    const { data: connection } = await supabaseAdmin
+    const hasAccess = await verifyWorkspaceAccess(auth.userId, workspaceId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    let connQuery = supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
-      .eq('platform', 'kick')
-      .single();
+      .eq('platform', 'kick');
+    if (connectionId) {
+      connQuery = connQuery.eq('id', connectionId);
+    }
+
+    const { data: connection } = await connQuery
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (!connection) {
       return NextResponse.json({ configured: false });

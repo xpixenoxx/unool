@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
+import { getFeatureFlagsServer } from '@/lib/feature-flags-server';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { SupabaseApiKeyRepository } from '@/lib/repositories/supabase/SupabaseApiKeyRepository';
 import type { ApiKeyScope } from '@/lib/repositories/interfaces/IApiKeyRepository';
 import { config } from '@/lib/config/schema';
@@ -35,9 +38,25 @@ function encryptApiKey(plaintextKey: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const flags = await getFeatureFlagsServer();
+    if (!flags.public_api_enabled) {
+      return NextResponse.json(
+        { error: 'Public API keys are disabled for this workspace environment.', code: 'FEATURE_DISABLED' },
+        { status: 503 }
+      );
+    }
+
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Only workspace owners and admins can view API keys.' },
+        { status: 403 }
+      );
     }
 
     const keys = await apiKeyRepository.findByWorkspaceId(auth.workspaceId);
@@ -64,11 +83,35 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const flags = await getFeatureFlagsServer();
+  if (!flags.public_api_enabled) {
+    return NextResponse.json(
+      { error: 'Public API keys are disabled for this workspace environment.', code: 'FEATURE_DISABLED' },
+      { status: 503 }
+    );
+  }
+
   return planEnforcement.apiKeys(request, async (request) => {
     try {
       const auth = await getCurrentAuth(request);
       if (!auth) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin']);
+      if (!roleCheck.allowed) {
+        return NextResponse.json(
+          { error: 'Only workspace owners and admins can create API keys.' },
+          { status: 403 }
+        );
+      }
+
+      const rate = await checkRateLimit(request, 'apiKeyAction', auth.userId);
+      if (!rate.success) {
+        return NextResponse.json(
+          { error: 'Too many API key requests. Please try again later.' },
+          { status: 429, headers: rateLimitHeaders(rate.remaining, rate.reset) }
+        );
       }
 
       const body = await request.json();

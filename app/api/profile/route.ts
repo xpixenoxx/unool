@@ -125,7 +125,7 @@ async function upsertProfile(request: NextRequest) {
         {
           error: `The "${requestedTemplate}" template requires a Creator plan or higher. Upgrade to unlock all 24 templates.`,
           code: 'PLAN_UPGRADE_REQUIRED',
-          upgradeUrl: '/dashboard/settings?tab=billing',
+          upgradeUrl: '/dashboard/billing',
         },
         { status: 403 }
       );
@@ -139,7 +139,7 @@ async function upsertProfile(request: NextRequest) {
         {
           error: 'Removing the Unool footer badge requires a Creator plan or higher.',
           code: 'PLAN_UPGRADE_REQUIRED',
-          upgradeUrl: '/dashboard/settings?tab=billing',
+          upgradeUrl: '/dashboard/billing',
         },
         { status: 403 }
       );
@@ -172,11 +172,11 @@ async function upsertProfile(request: NextRequest) {
 
     const mergedTheme = input.theme !== undefined
       ? {
-          ...((profile.theme as Record<string, unknown>) || {}),
-          ...input.theme,
-          template: requestedTemplate ?? normalizeTemplateId(profile.theme?.template || DEFAULT_TEMPLATE_ID),
-          customCss: null,
-        }
+        ...((profile.theme as Record<string, unknown>) || {}),
+        ...input.theme,
+        template: requestedTemplate ?? normalizeTemplateId(profile.theme?.template || DEFAULT_TEMPLATE_ID),
+        customCss: null,
+      }
       : undefined;
 
     profile = await profileRepository.update(
@@ -225,11 +225,11 @@ async function upsertProfile(request: NextRequest) {
       proofPoints: input.proofPoints || [],
       theme: input.theme
         ? {
-            preset: 'minimal',
-            ...input.theme,
-            template: requestedTemplate || DEFAULT_TEMPLATE_ID,
-            customCss: null,
-          }
+          preset: 'minimal',
+          ...input.theme,
+          template: requestedTemplate || DEFAULT_TEMPLATE_ID,
+          customCss: null,
+        }
         : { preset: 'minimal', template: DEFAULT_TEMPLATE_ID, customCss: null },
       socialHandles: input.socialHandles,
       seo: input.seo,

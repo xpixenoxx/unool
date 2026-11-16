@@ -1,4 +1,4 @@
-﻿/**
+/**
  * lib/auth/otp.ts
  *
  * Cryptographically-secure OTP generation and verification.
@@ -20,12 +20,15 @@ import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const OTP_PEPPER = process.env.OTP_PEPPER || process.env.ENCRYPTION_KEY;
-if (!OTP_PEPPER) {
-  throw new Error(
-    '[FATAL] OTP_PEPPER (or ENCRYPTION_KEY) environment variable is not set. ' +
-    'Set it to a random 32+ character string. This is required for secure OTP hashing.'
-  );
+function getOtpPepper(): string {
+  const pepper = process.env.OTP_PEPPER || process.env.ENCRYPTION_KEY;
+  if (!pepper) {
+    throw new Error(
+      '[FATAL] OTP_PEPPER (or ENCRYPTION_KEY) environment variable is not set. ' +
+      'Set it to a random 32+ character string. This is required for secure OTP hashing.'
+    );
+  }
+  return pepper;
 }
 
 export type OtpPurpose = 'signup' | 'signin' | 'reset';
@@ -38,7 +41,7 @@ export function generateOtp(): string {
 }
 
 function hashOtp(otp: string): string {
-  return crypto.createHmac('sha256', OTP_PEPPER!).update(otp).digest('hex');
+  return crypto.createHmac('sha256', getOtpPepper()).update(otp).digest('hex');
 }
 
 function safeEqual(a: string, b: string): boolean {

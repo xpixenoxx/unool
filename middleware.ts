@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { isOriginAllowed } from '@/lib/security/cors';
+
+function applyApiCorsHeaders(request: NextRequest, response: NextResponse): NextResponse {
+  if (!request.nextUrl.pathname.startsWith('/api/')) {
+    return response;
+  }
+
+  response.headers.set('Vary', 'Origin');
+  const origin = request.headers.get('origin');
+  const allowedOrigin = isOriginAllowed(origin);
+  if (allowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    response.headers.set(
+      'Access-Control-Allow-Headers',
+      'X-Requested-With, Content-Type, Authorization'
+    );
+  }
+  return response;
+}
 
 const publicPaths = [
   '/',
@@ -205,14 +226,45 @@ export async function middleware(request: NextRequest) {
     return rewriteRes;
   }
 
-  // Public paths
+  // Security: Strip all internal auth/workspace/impersonation headers from every incoming request
+  // before any public-path or rewrite branch executes.
+  const sanitizedHeaders = new Headers(request.headers);
+  sanitizedHeaders.delete('x-user-id');
+  sanitizedHeaders.delete('x-workspace-id');
+  sanitizedHeaders.delete('x-plan-tier');
+  sanitizedHeaders.delete('x-impersonating');
+  sanitizedHeaders.delete('x-unool-internal-auth');
+
+  const attachRefCookie = (res: NextResponse) => {
+    if (refResponse) {
+      refResponse.cookies.getAll().forEach(({ name, value, ...opts }) =>
+        res.cookies.set(name, value, opts)
+      );
+    }
+    return res;
+  };
+
+  // Handle CORS preflight strictly using allowlisted origins
+  if (pathname.startsWith('/api/') && request.method === 'OPTIONS') {
+    const origin = request.headers.get('origin');
+    const allowedOrigin = isOriginAllowed(origin);
+    if (origin && !allowedOrigin) {
+      return new NextResponse(null, { status: 403, headers: { Vary: 'Origin' } });
+    }
+    return applyApiCorsHeaders(request, new NextResponse(null, { status: 204 }));
+  }
+
+  // Public paths (still strip spoofed internal identity headers for /api/auth/* etc.)
   if (!hostSubdomain && isPublicPath(pathname)) {
-    return refResponse ?? NextResponse.next();
+    return applyApiCorsHeaders(
+      request,
+      attachRefCookie(NextResponse.next({ request: { headers: sanitizedHeaders } }))
+    );
   }
 
   // Profile paths
   if (isProfilePath(pathname)) {
-    return refResponse ?? NextResponse.next();
+    return attachRefCookie(NextResponse.next());
   }
 
   // ── Protected Dashboard Routes ───────────────────────────────────────────
@@ -232,17 +284,11 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    return refResponse ?? NextResponse.next();
+    return attachRefCookie(NextResponse.next());
   }
 
   // ── Inject auth identity headers for API routes ──────────────────────────
-  // SECURITY: Always strip client-supplied x-user-id / x-workspace-id headers first
-  // to prevent authentication bypass and cross-tenant account takeover via header spoofing.
   if (pathname.startsWith('/api/')) {
-    const sanitizedHeaders = new Headers(request.headers);
-    sanitizedHeaders.delete('x-user-id');
-    sanitizedHeaders.delete('x-workspace-id');
-
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -258,36 +304,88 @@ export async function middleware(request: NextRequest) {
         if (user) {
           sanitizedHeaders.set('x-user-id', user.id);
 
-          // Also resolve workspace ID so getCurrentAuth needs zero DB calls
+          // Resolve workspace ID deterministically (honoring validated active_workspace_id cookie)
           if (supabaseServiceKey) {
             try {
               const { createClient: createSbClient } = await import('@supabase/supabase-js');
+              const { signInternalAuthHeaders, INTERNAL_AUTH_SIGNATURE_HEADER } = await import('@/lib/auth/internal-header');
               const admin = createSbClient(supabaseUrl, supabaseServiceKey);
-              // Use a short timeout (1.5s) so a slow DB never blocks the API call
-              const workspacePromise = admin
-                .from('workspace_members')
-                .select('workspace_id')
-                .eq('user_id', user.id)
-                .single();
-              const timeoutPromise = new Promise<{ data: null; error: Error }>(
-                (resolve) => setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 1500)
+              const preferredWsId = request.cookies.get('active_workspace_id')?.value?.trim() || '';
+
+              const resolveWs = async (): Promise<string> => {
+                if (preferredWsId) {
+                  const { data: prefMember } = await admin
+                    .from('workspace_members')
+                    .select('workspace_id, status')
+                    .eq('workspace_id', preferredWsId)
+                    .eq('user_id', user.id)
+                    .limit(1)
+                    .maybeSingle();
+                  if (prefMember?.workspace_id && (!prefMember.status || prefMember.status === 'active')) {
+                    return prefMember.workspace_id;
+                  }
+                  const { data: prefOwner } = await admin
+                    .from('workspaces')
+                    .select('id')
+                    .eq('id', preferredWsId)
+                    .eq('owner_id', user.id)
+                    .limit(1)
+                    .maybeSingle();
+                  if (prefOwner?.id) {
+                    return prefOwner.id;
+                  }
+                }
+
+                const { data: firstMember } = await admin
+                  .from('workspace_members')
+                  .select('workspace_id, status')
+                  .eq('user_id', user.id)
+                  .or('status.eq.active,status.is.null')
+                  .order('joined_at', { ascending: true })
+                  .limit(1)
+                  .maybeSingle();
+                if (firstMember?.workspace_id) {
+                  return firstMember.workspace_id;
+                }
+
+                const { data: firstOwned } = await admin
+                  .from('workspaces')
+                  .select('id')
+                  .eq('owner_id', user.id)
+                  .order('created_at', { ascending: true })
+                  .limit(1)
+                  .maybeSingle();
+                return firstOwned?.id || user.id;
+              };
+
+              const timeoutPromise = new Promise<string>((resolve) =>
+                setTimeout(() => resolve(user.id), 1500)
               );
-              const result = await Promise.race([workspacePromise, timeoutPromise]);
-              const workspaceId = result.data?.workspace_id || user.id;
+              const workspaceId = await Promise.race([resolveWs(), timeoutPromise]);
               sanitizedHeaders.set('x-workspace-id', workspaceId);
+              const sig = await signInternalAuthHeaders(user.id, workspaceId);
+              if (sig) {
+                sanitizedHeaders.set(INTERNAL_AUTH_SIGNATURE_HEADER, sig);
+              }
             } catch {
               // workspace lookup failed — getCurrentAuth will resolve it
             }
           }
 
-          return NextResponse.next({ request: { headers: sanitizedHeaders } });
+          return applyApiCorsHeaders(
+            request,
+            NextResponse.next({ request: { headers: sanitizedHeaders } })
+          );
         }
       }
     } catch {
       // Auth injection failed — let routes handle their own auth with stripped headers
     }
 
-    return NextResponse.next({ request: { headers: sanitizedHeaders } });
+    return applyApiCorsHeaders(
+      request,
+      NextResponse.next({ request: { headers: sanitizedHeaders } })
+    );
   }
 
   // For everything else, allow through (let page components handle auth)

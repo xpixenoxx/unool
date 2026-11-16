@@ -1,8 +1,9 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
@@ -83,8 +84,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Optional: Verify user has access to the requested workspace/profile
-  // This would require a DB query to check membership
+  // Verify user has active membership/ownership for the requested workspace or profile
+  if (workspaceId) {
+    const hasWorkspaceAccess = await verifyWorkspaceAccess(userId, workspaceId);
+    if (!hasWorkspaceAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+  if (profileId) {
+    const { data: profileRow } = await supabaseAdmin
+      .from('profiles')
+      .select('workspace_id, user_id')
+      .eq('id', profileId)
+      .maybeSingle();
+
+    const targetWorkspaceId = profileRow?.workspace_id as string | undefined;
+    const isOwnerOrMember =
+      profileRow?.user_id === userId ||
+      (targetWorkspaceId ? await verifyWorkspaceAccess(userId, targetWorkspaceId) : false);
+
+    if (!profileRow || !isOwnerOrMember) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
 
   const traceId = request.headers.get('x-trace-id') || crypto.randomUUID();
 

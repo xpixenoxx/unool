@@ -71,7 +71,15 @@ function createChainableQuery(table: string) {
       return { data: null, error: null };
     },
     maybeSingle: async () => {
-      if (table === 'workspaces') return { data: { ...mockState.workspace }, error: null };
+      if (table === 'workspaces' || table === 'workspace_admin_view') {
+        return { data: { ...mockState.workspace }, error: null };
+      }
+      if (table === 'plans') {
+        return { data: mockState.planRow, error: mockState.planRow ? null : { message: 'not found' } };
+      }
+      if (table === 'instagram_automation_config') {
+        return { data: { id: 'cfg-1', workspace_id: mockState.workspace.id }, error: null };
+      }
       if (table === 'subscriptions') {
         return { data: mockState.subscriptionRow ? { ...mockState.subscriptionRow } : null, error: null };
       }
@@ -124,6 +132,10 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/auth/workspaceAccess', () => ({
   verifyWorkspaceAccess: async () => true,
+  requireWorkspaceRole: async (_userId: string, workspaceId: string) => ({
+    allowed: true,
+    membership: { workspaceId, role: 'owner', status: 'active' },
+  }),
 }));
 
 vi.mock('@/lib/feature-flags-server', () => ({
@@ -635,8 +647,19 @@ describe('Pricing, Subscription Tier Entitlements & Audit Verification Suite', (
       expect(badDeauthRes.status).toBe(403);
     });
 
-    it('C-6 / P0-5: DELETE /api/user/delete purges all workspace & user tables and deletes the auth user', async () => {
-      const req = new NextRequest('http://localhost:3000/api/user/delete', { method: 'DELETE' });
+    it('C-6 / P0-5: DELETE /api/user/delete requires confirmation and purges all workspace & user tables', async () => {
+      const missingConfirmReq = new NextRequest('http://localhost:3000/api/user/delete', {
+        method: 'DELETE',
+      });
+      const missingRes = await userDeleteRoute(missingConfirmReq);
+      expect(missingRes.status).toBe(400);
+      expect(mockState.authUserDeleted).toBe(false);
+
+      const req = new NextRequest('http://localhost:3000/api/user/delete', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE' }),
+      });
       const res = await userDeleteRoute(req);
       expect(res.status).toBe(200);
       const data = await res.json();

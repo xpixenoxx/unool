@@ -1,10 +1,9 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config/schema';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentAuth } from '@/lib/auth/server';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { logger } from '@/lib/logger';
 import { OnboardingChecklist, createInitialChecklist, markStepComplete } from '@/lib/onboarding/types';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-
 
 async function getChecklist(workspaceId: string, userId: string): Promise<OnboardingChecklist | null> {
   const { data, error } = await supabaseAdmin
@@ -12,11 +11,14 @@ async function getChecklist(workspaceId: string, userId: string): Promise<Onboar
     .select('*')
     .eq('workspace_id', workspaceId)
     .eq('user_id', userId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') return null;
     throw error;
+  }
+  if (!data) {
+    return null;
   }
 
   return {
@@ -61,11 +63,19 @@ async function upsertChecklist(checklist: OnboardingChecklist): Promise<Onboardi
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
+    const auth = await getCurrentAuth(request);
+    if (!auth?.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = auth.userId;
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId') || auth.workspaceId;
 
-    if (!userId || !workspaceId) {
-      return NextResponse.json({ error: 'Missing userId or workspaceId' }, { status: 400 });
+    if (!workspaceId) {
+      return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 });
+    }
+
+    if (workspaceId !== auth.workspaceId && !(await verifyWorkspaceAccess(userId, workspaceId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     let checklist = await getChecklist(workspaceId, userId);
@@ -190,11 +200,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const { workspaceId, stepId, metadata } = await request.json();
+    const auth = await getCurrentAuth(request);
+    if (!auth?.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = auth.userId;
+    const { workspaceId: bodyWorkspaceId, stepId, metadata } = await request.json();
+    const workspaceId = bodyWorkspaceId || auth.workspaceId;
 
-    if (!userId || !workspaceId || !stepId) {
+    if (!workspaceId || !stepId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (workspaceId !== auth.workspaceId && !(await verifyWorkspaceAccess(userId, workspaceId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     let checklist = await getChecklist(workspaceId, userId);
@@ -231,11 +250,19 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
+    const auth = await getCurrentAuth(request);
+    if (!auth?.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = auth.userId;
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId') || auth.workspaceId;
 
-    if (!userId || !workspaceId) {
-      return NextResponse.json({ error: 'Missing userId or workspaceId' }, { status: 400 });
+    if (!workspaceId) {
+      return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 });
+    }
+
+    if (workspaceId !== auth.workspaceId && !(await verifyWorkspaceAccess(userId, workspaceId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { error } = await supabaseAdmin
