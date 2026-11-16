@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -409,6 +409,10 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
 
   const [connections, setConnections] =
     useState<Record<Platform, PlatformConnection>>(initialConnections);
+  const connectionsRef = useRef(connections);
+  connectionsRef.current = connections;
+  const onConnectionChangeRef = useRef(onConnectionChange);
+  onConnectionChangeRef.current = onConnectionChange;
 
   // Sync state when initialConnectionsProp updates from parent
   useEffect(() => {
@@ -504,56 +508,54 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
       if (res.ok) {
         const data = await res.json();
         if (data.connections) {
-          setConnections((prev) => {
-            let changed = false;
-            const next = { ...prev };
-            for (const [p, val] of Object.entries(data.connections)) {
-              const platformKey = p as Platform;
-              if (next[platformKey]) {
-                const typedVal = val as {
-                  status?: string;
-                  username?: string;
-                  displayName?: string;
-                  connectedAt?: string;
-                  expiresAt?: string;
-                  streamConfigured?: boolean;
-                  accounts?: ConnectedAccountItem[];
-                };
-                const newStatus = (typedVal.status as PlatformConnection['status']) || 'not_connected';
-                const newUsername = typedVal.username;
-                const newAccounts = Array.isArray(typedVal.accounts) ? typedVal.accounts : [];
-                const prevAccounts = next[platformKey].accounts || [];
-                const accountsChanged =
-                  prevAccounts.length !== newAccounts.length ||
-                  prevAccounts.some((a, i) => a.id !== newAccounts[i]?.id || a.status !== newAccounts[i]?.status || a.username !== newAccounts[i]?.username);
+          const prev = connectionsRef.current;
+          let changed = false;
+          const next = { ...prev };
+          for (const [p, val] of Object.entries(data.connections)) {
+            const platformKey = p as Platform;
+            if (next[platformKey]) {
+              const typedVal = val as {
+                status?: string;
+                username?: string;
+                displayName?: string;
+                connectedAt?: string;
+                expiresAt?: string;
+                streamConfigured?: boolean;
+                accounts?: ConnectedAccountItem[];
+              };
+              const newStatus = (typedVal.status as PlatformConnection['status']) || 'not_connected';
+              const newUsername = typedVal.username;
+              const newAccounts = Array.isArray(typedVal.accounts) ? typedVal.accounts : [];
+              const prevAccounts = next[platformKey].accounts || [];
+              const accountsChanged =
+                prevAccounts.length !== newAccounts.length ||
+                prevAccounts.some((a, i) => a.id !== newAccounts[i]?.id || a.status !== newAccounts[i]?.status || a.username !== newAccounts[i]?.username);
 
-                if (
-                  next[platformKey].status !== newStatus ||
-                  next[platformKey].username !== newUsername ||
-                  next[platformKey].streamConfigured !== typedVal.streamConfigured ||
-                  accountsChanged
-                ) {
-                  next[platformKey] = {
-                    ...next[platformKey],
-                    status: newStatus,
-                    username: newUsername,
-                    displayName: typedVal.displayName,
-                    connectedAt: typedVal.connectedAt,
-                    expiresAt: typedVal.expiresAt,
-                    streamConfigured: typedVal.streamConfigured,
-                    accounts: newAccounts,
-                  };
-                  changed = true;
-                }
+              if (
+                next[platformKey].status !== newStatus ||
+                next[platformKey].username !== newUsername ||
+                next[platformKey].streamConfigured !== typedVal.streamConfigured ||
+                accountsChanged
+              ) {
+                next[platformKey] = {
+                  ...next[platformKey],
+                  status: newStatus,
+                  username: newUsername,
+                  displayName: typedVal.displayName,
+                  connectedAt: typedVal.connectedAt,
+                  expiresAt: typedVal.expiresAt,
+                  streamConfigured: typedVal.streamConfigured,
+                  accounts: newAccounts,
+                };
+                changed = true;
               }
             }
-            if (changed) {
-              memoryConnectionsCache.set(workspaceId, next);
-              onConnectionChange?.(next);
-              return next;
-            }
-            return prev;
-          });
+          }
+          if (changed) {
+            memoryConnectionsCache.set(workspaceId, next);
+            setConnections(next);
+            onConnectionChangeRef.current?.(next);
+          }
         }
         // Cache dependency counts and userId returned from the API
         if (data.dependencyCounts && typeof data.dependencyCounts === 'object') {

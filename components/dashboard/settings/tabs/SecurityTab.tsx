@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   Shield,
@@ -146,8 +146,16 @@ export function SecurityTab({
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [savedAccountCount, setSavedAccountCount] = useState(0);
 
+  const onMfaChangedRef = useRef(onMfaChanged);
+  onMfaChangedRef.current = onMfaChanged;
+  const lastReportedMfaRef = useRef<boolean>(initialMfaEnabled);
+  const hasLoadedFactorsRef = useRef(false);
+  const hasLoadedSessionsRef = useRef(false);
+
   const loadMfaFactors = useCallback(async () => {
-    setLoadingFactors(true);
+    if (!hasLoadedFactorsRef.current) {
+      setLoadingFactors(true);
+    }
     try {
       const supabase = getSupabaseBrowserClient();
       const { data, error } = await supabase.auth.mfa.listFactors();
@@ -165,18 +173,24 @@ export function SecurityTab({
         );
         const active = verified.length > 0;
         setMfaEnabled(active);
-        onMfaChanged(active);
+        if (active !== lastReportedMfaRef.current) {
+          lastReportedMfaRef.current = active;
+          onMfaChangedRef.current(active);
+        }
       }
     } catch {
       // Fallback to SSR initial boolean
     } finally {
+      hasLoadedFactorsRef.current = true;
       setLoadingFactors(false);
     }
-  }, [onMfaChanged]);
+  }, []);
 
   const loadSessionsAndEvents = useCallback(async () => {
-    setLoadingSessions(true);
-    setLoadingEvents(true);
+    if (!hasLoadedSessionsRef.current) {
+      setLoadingSessions(true);
+      setLoadingEvents(true);
+    }
     try {
       const [sessRes, evRes] = await Promise.all([
         fetch('/api/auth/sessions', { credentials: 'include', cache: 'no-store' }),
@@ -197,6 +211,7 @@ export function SecurityTab({
     } catch {
       // Non-fatal
     } finally {
+      hasLoadedSessionsRef.current = true;
       setLoadingSessions(false);
       setLoadingEvents(false);
     }

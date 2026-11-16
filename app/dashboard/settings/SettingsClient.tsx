@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   User,
@@ -83,12 +83,21 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
   const [tabDirty, setTabDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<SettingsSectionId | null>(null);
 
+  const lastRedirectedFromRef = useRef<string | null>(null);
+
   useEffect(() => {
     setActiveTab(resolved.section);
     if (resolved.presenceNotice) setPresenceNotice(resolved.presenceNotice);
     if (resolved.dangerNotice) setDangerNotice(true);
-    if (resolved.redirectedFrom && resolved.redirectedFrom !== resolved.section) {
+    if (
+      resolved.redirectedFrom &&
+      resolved.redirectedFrom !== resolved.section &&
+      lastRedirectedFromRef.current !== resolved.redirectedFrom
+    ) {
+      lastRedirectedFromRef.current = resolved.redirectedFrom;
       router.replace(`${pathname}?tab=${resolved.section}`, { scroll: false });
+    } else if (!resolved.redirectedFrom) {
+      lastRedirectedFromRef.current = null;
     }
   }, [resolved, pathname, router]);
 
@@ -145,12 +154,33 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
     }
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     const supabase = getSupabaseBrowserClient();
     await supabase.auth.signOut();
     clearAllClientCaches();
     router.push('/login');
-  };
+  }, [router]);
+
+  const handleMfaChanged = useCallback((enabled: boolean) => {
+    setAccount((prev) => (prev.mfaEnabled === enabled ? prev : { ...prev, mfaEnabled: enabled }));
+  }, []);
+
+  const handleProfileUpdated = useCallback(
+    (nextProfile: StudioProfile | null, nextVersion: number, nextCompleted: boolean) => {
+      setStudioProfile(nextProfile);
+      setStudioVersion(nextVersion);
+      setStudioCompleted(nextCompleted);
+    },
+    []
+  );
+
+  const handleWorkspaceUpdated = useCallback(
+    (nextWs: WorkspaceSummaryDto, nextMembers?: WorkspaceMemberDto[]) => {
+      setWorkspace(nextWs);
+      if (nextMembers) setMembers(nextMembers);
+    },
+    []
+  );
 
   const readiness = useMemo(
     () =>
@@ -333,9 +363,7 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
                 userEmail={account.email}
                 initialMfaEnabled={account.mfaEnabled}
                 isImpersonated={initialData.isImpersonated}
-                onMfaChanged={(enabled) =>
-                  setAccount((prev) => ({ ...prev, mfaEnabled: enabled }))
-                }
+                onMfaChanged={handleMfaChanged}
                 onSignOut={handleSignOut}
               />
             )}
@@ -370,11 +398,7 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
                 initialCompleted={studioCompleted}
                 presenceNotice={presenceNotice}
                 onPreferencesUpdated={setPreferences}
-                onProfileUpdated={(nextProfile, nextVersion, nextCompleted) => {
-                  setStudioProfile(nextProfile);
-                  setStudioVersion(nextVersion);
-                  setStudioCompleted(nextCompleted);
-                }}
+                onProfileUpdated={handleProfileUpdated}
                 onDirtyChange={setTabDirty}
               />
             )}
@@ -388,10 +412,7 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
                 workspaces={initialData.workspaces}
                 billing={initialData.billing}
                 isImpersonated={initialData.isImpersonated}
-                onWorkspaceUpdated={(nextWs, nextMembers) => {
-                  setWorkspace(nextWs);
-                  if (nextMembers) setMembers(nextMembers);
-                }}
+                onWorkspaceUpdated={handleWorkspaceUpdated}
                 onDirtyChange={setTabDirty}
               />
             )}

@@ -8,11 +8,12 @@ import type { SettingsInitialData } from '../types';
 
 (globalThis as unknown as { React: typeof React }).React = React;
 
-const { mockReplace, mockPush, mockRefresh, mockSearchParamsGet } = vi.hoisted(() => ({
+const { mockReplace, mockPush, mockRefresh, mockSearchParamsGet, mockListFactors } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockPush: vi.fn(),
   mockRefresh: vi.fn(),
   mockSearchParamsGet: vi.fn(),
+  mockListFactors: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -32,7 +33,7 @@ vi.mock('@/lib/supabase/browser', () => ({
     auth: {
       signOut: vi.fn().mockResolvedValue({ error: null }),
       mfa: {
-        listFactors: vi.fn().mockResolvedValue({ data: { totp: [], phone: [] }, error: null }),
+        listFactors: mockListFactors,
       },
     },
   }),
@@ -157,6 +158,7 @@ describe('Settings UI workflows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParamsGet.mockReturnValue(null);
+    mockListFactors.mockResolvedValue({ data: { totp: [], phone: [] }, error: null });
     global.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ sessions: [], events: [] }), {
         status: 200,
@@ -339,5 +341,37 @@ describe('Settings UI workflows', () => {
         })
       );
     });
+  });
+
+  it('loads SecurityTab once without an infinite MFA-callback blink or pulse loop', async () => {
+    mockSearchParamsGet.mockReturnValue('security');
+    mockListFactors.mockResolvedValue({
+      data: {
+        totp: [
+          {
+            id: 'factor-1',
+            friendly_name: '1Password',
+            factor_type: 'totp',
+            status: 'verified',
+          },
+        ],
+        phone: [],
+      },
+      error: null,
+    });
+
+    const { container } = render(<SettingsClient initialData={makeInitialData()} />);
+
+    await screen.findByText('1Password');
+    expect((await screen.findAllByText('2FA Active')).length).toBeGreaterThanOrEqual(2);
+    await screen.findByText(/Only your current authenticated browser session is active/i);
+
+    await new Promise((r) => setTimeout(r, 80));
+
+    expect(mockListFactors).toHaveBeenCalledTimes(1);
+    const fetchCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+    expect(fetchCalls.filter((u) => u === '/api/auth/sessions')).toHaveLength(1);
+    expect(fetchCalls.filter((u) => u === '/api/auth/security-events')).toHaveLength(1);
+    expect(container.querySelectorAll('.animate-pulse')).toHaveLength(0);
   });
 });

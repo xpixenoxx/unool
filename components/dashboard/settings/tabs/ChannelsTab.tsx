@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Share2, CheckCircle2, AlertTriangle, Code2, Info } from 'lucide-react';
 import { PlatformConnections, type ConnectedAccountItem } from '@/components/dashboard/PlatformConnections';
 import { IntegrationsTab } from './IntegrationsTab';
@@ -43,19 +43,36 @@ export function ChannelsTab({
     return out;
   }, [connectionsSummary]);
 
-  const handleConnectionChange = (
-    next: Record<string, { status: string; username?: string; accounts?: ConnectedAccountItem[] }>
-  ) => {
-    const summary: Record<string, InitialConnectionSummary> = {};
-    for (const [platform, val] of Object.entries(next || {})) {
-      summary[platform] = {
-        status: val.status,
-        username: val.username,
-        expiresAt: val.accounts?.[0]?.expiresAt,
-      };
-    }
-    onConnectionsUpdated(summary);
-  };
+  const handleConnectionChange = useCallback(
+    (next: Record<string, { status: string; username?: string; accounts?: ConnectedAccountItem[] }>) => {
+      const summary: Record<string, InitialConnectionSummary> = {};
+      for (const [platform, val] of Object.entries(next || {})) {
+        summary[platform] = {
+          status: val.status,
+          username: val.username,
+          expiresAt: val.accounts?.[0]?.expiresAt,
+        };
+      }
+      const prevKeys = Object.keys(connectionsSummary || {});
+      const nextKeys = Object.keys(summary);
+      const isSame =
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((k) => {
+          const prevVal = connectionsSummary?.[k];
+          const nextVal = summary[k];
+          return (
+            prevVal &&
+            prevVal.status === nextVal.status &&
+            prevVal.username === nextVal.username &&
+            prevVal.expiresAt === nextVal.expiresAt
+          );
+        });
+      if (!isSame) {
+        onConnectionsUpdated(summary);
+      }
+    },
+    [connectionsSummary, onConnectionsUpdated]
+  );
 
   return (
     <div className="space-y-6">
