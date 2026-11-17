@@ -1,237 +1,261 @@
 import { cache } from 'react';
-import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
-import { config } from '@/lib/config/schema';
+import { createClient } from '@supabase/supabase-js';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { config } from '@/lib/config/schema';
+import { logger } from '@/lib/logger';
+import {
+  verifyInternalAuthHeaders,
+  INTERNAL_AUTH_SIGNATURE_HEADER,
+} from '@/lib/auth/internal-header';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 export interface AuthContext {
   userId: string;
   workspaceId: string;
-}
-
-// In-memory workspace cache with 5-minute TTL to eliminate DB queries on every page transition
-const workspaceMemoryCache = new Map<string, { workspaceId: string; expiresAt: number }>();
-
-function createServiceClient() {
-  return supabaseAdmin;
+  email: string;
+  userRole: string;
+  isImpersonated: boolean;
 }
 
 /**
- * Fast synchronous decode of user ID from the Supabase auth cookie
- * Returns userId if valid and unexpired (with 30s buffer)
+ * Resolves the active workspace for a user without using .single() (which fails
+ * on multi-workspace accounts and previously triggered duplicate workspace creation).
+ * Only provisions an initial 'spark' workspace when the user truly has 0 active
+ * memberships AND 0 owned workspaces (or during legitimate first login).
  */
-function extractUserFromCookieStore(cookieStore: Awaited<ReturnType<typeof cookies>>): { userId: string } | null {
+async function resolveOrProvisionWorkspace(
+  userId: string,
+  userEmail: string,
+  userMetadata: Record<string, unknown> | undefined,
+  preferredWorkspaceId?: string
+): Promise<{ workspaceId: string; userRole: string }> {
+  if (preferredWorkspaceId) {
+    const { data: prefMember } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id, role, status')
+      .eq('workspace_id', preferredWorkspaceId)
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (prefMember?.workspace_id && (!prefMember.status || prefMember.status === 'active')) {
+      return {
+        workspaceId: prefMember.workspace_id,
+        userRole: (prefMember.role as string) || 'editor',
+      };
+    }
+
+    const { data: prefOwned } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('id', preferredWorkspaceId)
+      .eq('owner_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (prefOwned?.id) {
+      return { workspaceId: prefOwned.id, userRole: 'owner' };
+    }
+  }
+
+  // Deterministic first active membership
+  const { data: membershipRows, error: membershipErr } = await supabaseAdmin
+    .from('workspace_members')
+    .select('workspace_id, role, status, joined_at')
+    .eq('user_id', userId)
+    .order('joined_at', { ascending: true })
+    .limit(20);
+
+  if (membershipErr) {
+    logger.warn('Failed to query workspace_members in context resolution', {
+      userId,
+      error: membershipErr.message,
+    });
+  } else if (Array.isArray(membershipRows)) {
+    const active = membershipRows.find((r) => !r.status || r.status === 'active');
+    if (active?.workspace_id) {
+      return {
+        workspaceId: active.workspace_id,
+        userRole: active.role || 'editor',
+      };
+    }
+  }
+
+  // Check workspaces directly owned by user before ever provisioning a new one
+  const { data: ownedRows, error: ownedErr } = await supabaseAdmin
+    .from('workspaces')
+    .select('id')
+    .eq('owner_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (!ownedErr && Array.isArray(ownedRows) && ownedRows.length > 0 && ownedRows[0]?.id) {
+    const ownedId = ownedRows[0].id;
+    // Heal missing owner membership row if needed
+    await supabaseAdmin
+      .from('workspace_members')
+      .upsert(
+        {
+          workspace_id: ownedId,
+          user_id: userId,
+          role: 'owner',
+          status: 'active',
+        },
+        { onConflict: 'workspace_id,user_id' }
+      );
+    return { workspaceId: ownedId, userRole: 'owner' };
+  }
+
+  // Only create initial workspace when BOTH queries succeeded cleanly with 0 rows
+  if (membershipErr || ownedErr) {
+    return { workspaceId: userId, userRole: 'owner' };
+  }
+
+  // Ensure public.users row exists cleanly first
+  await supabaseAdmin
+    .from('users')
+    .upsert(
+      {
+        id: userId,
+        email: userEmail || `${userId}@unool.co`,
+        full_name:
+          (typeof userMetadata?.full_name === 'string' && userMetadata.full_name) ||
+          (typeof userMetadata?.name === 'string' && userMetadata.name) ||
+          null,
+      },
+      { onConflict: 'id', ignoreDuplicates: true }
+    );
+
+  const { data: newWorkspace, error: wsError } = await supabaseAdmin
+    .from('workspaces')
+    .insert({
+      name: 'Personal Workspace',
+      owner_id: userId,
+      plan: 'spark',
+      plan_status: 'active',
+    })
+    .select('id')
+    .limit(1)
+    .maybeSingle();
+
+  if (wsError || !newWorkspace?.id) {
+    logger.warn('Failed to provision initial workspace in context resolution', {
+      userId,
+      error: wsError?.message,
+    });
+    return { workspaceId: userId, userRole: 'owner' };
+  }
+
+  await supabaseAdmin.from('workspace_members').insert({
+    workspace_id: newWorkspace.id,
+    user_id: userId,
+    role: 'owner',
+    status: 'active',
+  });
+
+  return { workspaceId: newWorkspace.id, userRole: 'owner' };
+}
+
+export const getAuthContext = cache(async function getAuthContext(): Promise<AuthContext | null> {
   try {
-    const all = cookieStore.getAll();
-    const tokenChunks = all
-      .filter((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token'))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const cookieStore = await cookies();
+    const isImpersonated = Boolean(
+      cookieStore.get('impersonating')?.value === 'true' ||
+      cookieStore.get('impersonated_as')?.value
+    );
+    const preferredWorkspaceId = cookieStore.get('active_workspace_id')?.value?.trim();
 
-    if (!tokenChunks.length) return null;
+    // Fast-path: ONLY accept middleware headers when signed with internal HMAC proof
+    const headersList = await headers();
+    const headerUserId = headersList.get('x-user-id');
+    const headerWorkspaceId = headersList.get('x-workspace-id');
+    const headerSig = headersList.get(INTERNAL_AUTH_SIGNATURE_HEADER);
 
-    let rawValue = tokenChunks.map((c) => c.value).join('');
-    if (!rawValue) return null;
-
-    if (rawValue.startsWith('base64-')) {
-      try {
-        rawValue = Buffer.from(rawValue.slice(7), 'base64').toString('utf8');
-      } catch {
-        // Continue with raw
+    if (headerUserId && headerWorkspaceId && headerSig) {
+      const valid = await verifyInternalAuthHeaders(headerUserId, headerWorkspaceId, headerSig);
+      if (valid) {
+        const finalWs =
+          preferredWorkspaceId && (await verifyWorkspaceAccess(headerUserId, preferredWorkspaceId))
+            ? preferredWorkspaceId
+            : headerWorkspaceId;
+        return {
+          userId: headerUserId,
+          workspaceId: finalWs,
+          email: '',
+          userRole: 'authenticated',
+          isImpersonated,
+        };
       }
     }
 
-    let parsed: any;
-    try {
-      parsed = JSON.parse(rawValue);
-    } catch {
-      try {
-        parsed = JSON.parse(decodeURIComponent(rawValue));
-      } catch {
+    // Check Bearer token if provided
+    const authHeader = headersList.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      if (token) {
+        const anonClient = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+        const {
+          data: { user },
+          error,
+        } = await anonClient.auth.getUser(token);
+        if (!error && user && user.user_metadata?.is_deleted !== true) {
+          const { workspaceId, userRole } = await resolveOrProvisionWorkspace(
+            user.id,
+            user.email || '',
+            user.user_metadata,
+            preferredWorkspaceId
+          );
+          return {
+            userId: user.id,
+            workspaceId,
+            email: user.email || '',
+            userRole,
+            isImpersonated,
+          };
+        }
         return null;
       }
     }
 
-    let accessToken: string | undefined;
-    if (Array.isArray(parsed) && typeof parsed[0] === 'string') {
-      accessToken = parsed[0];
-    } else if (parsed && typeof parsed === 'object') {
-      accessToken = parsed.access_token || parsed.token;
+    // Fall back to Supabase SSR session cookies
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error || !user || user.user_metadata?.is_deleted === true) {
+      return null;
     }
 
-    if (!accessToken || typeof accessToken !== 'string') return null;
+    const { workspaceId, userRole } = await resolveOrProvisionWorkspace(
+      user.id,
+      user.email || '',
+      user.user_metadata,
+      preferredWorkspaceId
+    );
 
-    const parts = accessToken.split('.');
-    if (parts.length !== 3) return null;
-
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-    if (!payload || !payload.sub) return null;
-
-    // Check expiry with 30s buffer
-    const exp = typeof payload.exp === 'number' ? payload.exp : 0;
-    const nowSec = Math.floor(Date.now() / 1000);
-    if (exp && exp < nowSec + 30) {
-      return null; // Expired, fallback to normal auth
-    }
-
-    return { userId: payload.sub };
-  } catch {
+    return {
+      userId: user.id,
+      workspaceId,
+      email: user.email || '',
+      userRole,
+      isImpersonated,
+    };
+  } catch (err) {
+    logger.warn('getAuthContext returned null cleanly', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return null;
   }
-}
-
-/**
- * Get authenticated user and workspace from request cookies
- * Returns null if not authenticated
- */
-export const getAuthContext = cache(async function getAuthContext(): Promise<AuthContext | null> {
-
-  // Fast-path 1: Check request headers (injected by middleware or upstream)
-  try {
-    const headerStore = await headers();
-    const headerUserId = headerStore.get('x-user-id');
-    const headerWorkspaceId = headerStore.get('x-workspace-id');
-    if (headerUserId && headerWorkspaceId) {
-      return { userId: headerUserId, workspaceId: headerWorkspaceId };
-    }
-  } catch {
-    // headers() might not be available in some contexts
-  }
-
-  const cookieStore = await cookies();
-
-  // Full Supabase SSR verification (never trust unsigned/unverified JWT payloads from cookies)
-  const supabase = createServerClient(
-    config.SUPABASE_URL,
-    config.SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignored from Server Component
-          }
-        },
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return null;
-  }
-
-  // Get user's workspace (first one they belong to)
-  const adminClient = config.SUPABASE_SERVICE_ROLE_KEY
-    ? createServiceClient()
-    : null;
-
-  if (!adminClient) {
-    return { userId: user.id, workspaceId: user.id };
-  }
-
-  const requestedWorkspaceId = cookieStore.get('unool_active_ws')?.value;
-
-  if (requestedWorkspaceId) {
-    const [{ data: memberMatch }, { data: ownerMatch }] = await Promise.all([
-      adminClient
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('workspace_id', requestedWorkspaceId)
-        .eq('user_id', user.id)
-        .limit(1)
-        .maybeSingle(),
-      adminClient
-        .from('workspaces')
-        .select('id')
-        .eq('id', requestedWorkspaceId)
-        .eq('owner_id', user.id)
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    if (memberMatch?.workspace_id || ownerMatch?.id) {
-      return { userId: user.id, workspaceId: requestedWorkspaceId };
-    }
-  }
-
-  const [{ data: membership }, { data: ownedWs }] = await Promise.all([
-    adminClient
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    adminClient
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', user.id)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  if (!membership && ownedWs) {
-    await adminClient.from('workspace_members').insert({
-      workspace_id: ownedWs.id,
-      user_id: user.id,
-      role: 'owner',
-    });
-    workspaceMemoryCache.set(user.id, {
-      workspaceId: ownedWs.id,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    });
-    return { userId: user.id, workspaceId: ownedWs.id };
-  }
-
-  if (!membership) {
-    // User has no workspace - create a default one for them
-    const { data: workspace } = await adminClient
-      .from('workspaces')
-      .insert({ owner_id: user.id, name: 'Personal Workspace', plan: 'spark' })
-      .select('id')
-      .single();
-
-    if (workspace) {
-      await adminClient.from('workspace_members').insert({
-        workspace_id: workspace.id,
-        user_id: user.id,
-        role: 'owner',
-      });
-      workspaceMemoryCache.set(user.id, {
-        workspaceId: workspace.id,
-        expiresAt: Date.now() + 5 * 60 * 1000,
-      });
-      return { userId: user.id, workspaceId: workspace.id };
-    }
-
-    return { userId: user.id, workspaceId: user.id };
-  }
-
-  workspaceMemoryCache.set(user.id, {
-    workspaceId: membership.workspace_id,
-    expiresAt: Date.now() + 5 * 60 * 1000,
-  });
-
-  return { userId: user.id, workspaceId: membership.workspace_id };
 });
 
-/**
- * Extract auth headers for API routes
- * Sets x-user-id and x-workspace-id headers for downstream use
- */
-export async function setAuthHeaders(headers: Headers): Promise<AuthContext | null> {
-  const auth = await getAuthContext();
-  if (auth) {
-    headers.set('x-user-id', auth.userId);
-    headers.set('x-workspace-id', auth.workspaceId);
+export async function requireAuthContext(): Promise<AuthContext> {
+  const ctx = await getAuthContext();
+  if (!ctx) {
+    throw new Error('Unauthorized: Authentication required');
   }
-  return auth;
+  return ctx;
 }

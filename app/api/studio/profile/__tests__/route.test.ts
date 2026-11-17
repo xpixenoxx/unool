@@ -8,6 +8,13 @@ const { mockGetCurrentAuth, mockFindByWorkspaceId, mockCreate, mockUpdate } = vi
   mockUpdate: vi.fn(),
 }));
 
+const mockRequireWorkspaceRole = vi.fn();
+
+vi.mock('@/lib/auth/workspaceAccess', () => ({
+  requireWorkspaceRole: (...args: unknown[]) => mockRequireWorkspaceRole(...args),
+  verifyWorkspaceAccess: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock('@/lib/auth/server', () => ({
   getCurrentAuth: (req: any) => mockGetCurrentAuth(req),
 }));
@@ -44,6 +51,10 @@ import { GET, PUT } from '../route';
 describe('/api/studio/profile route handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRequireWorkspaceRole.mockResolvedValue({
+      allowed: true,
+      membership: { workspaceId: 'ws-1', userId: 'user-1', role: 'owner', status: 'active', isOwner: true },
+    });
   });
 
   const validProfilePayload = {

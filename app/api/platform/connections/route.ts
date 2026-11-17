@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
-import { config } from '@/lib/config/schema';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -98,18 +98,44 @@ async function tryRefreshToken(row: Record<string, any>, supabaseAdmin: any): Pr
         .update({ status: 'expired', updated_at: new Date().toISOString() })
         .eq('id', row.id);
 
-      // Best-effort email notification when a previously connected platform transitions to expired (P1-3)
+      // Best-effort email notification when a previously connected platform transitions to expired,
+      // respecting the user's notify_token_expiry preference.
       if (row.status === 'connected' && row.user_id) {
         try {
-          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
-          const email = authUser?.user?.email;
-          if (email) {
-            const { sendTokenExpiredAlertEmail } = await import('@/lib/auth/email');
-            await sendTokenExpiredAlertEmail({
-              to: email,
-              platform: row.platform,
-              username: row.username || undefined,
-            });
+          let shouldNotify = true;
+          const { data: prefRow, error: prefErr } = await supabaseAdmin
+            .from('user_preferences')
+            .select('notify_token_expiry')
+            .eq('user_id', row.user_id)
+            .limit(1)
+            .maybeSingle();
+
+          if (!prefErr && prefRow && prefRow.notify_token_expiry === false) {
+            shouldNotify = false;
+          } else {
+            const { data: wsRow } = await supabaseAdmin
+              .from('workspaces')
+              .select('settings')
+              .eq('id', row.workspace_id)
+              .limit(1)
+              .maybeSingle();
+            const wsPrefs = (wsRow?.settings as Record<string, any> | undefined)?.preferences;
+            if (wsPrefs?.notifyTokenExpiry === false || wsPrefs?.notify_token_expiry === false) {
+              shouldNotify = false;
+            }
+          }
+
+          if (shouldNotify) {
+            const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
+            const email = authUser?.user?.email;
+            if (email) {
+              const { sendTokenExpiredAlertEmail } = await import('@/lib/auth/email');
+              await sendTokenExpiredAlertEmail({
+                to: email,
+                platform: row.platform,
+                username: row.username || undefined,
+              });
+            }
           }
         } catch {
           // Non-fatal alert dispatch
@@ -133,59 +159,44 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getCurrentAuth(request);
     if (!auth) {
-      debug.push('auth_null');
       logger.warn('Platform connections fetch: Unauthorized', { traceId });
-      return NextResponse.json({ error: 'Unauthorized', debug }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     debug.push(`auth:uid=${auth.userId.slice(0, 8)}:wid=${auth.workspaceId.slice(0, 8)}`);
 
-    
+    // Strictly scope platform connections to the active authorized workspace (no cross-workspace bleed)
+    const { data: rows, error: rowsErr } = await supabaseAdmin
+      .from('platform_connections')
+      .select('*')
+      .eq('workspace_id', auth.workspaceId);
 
-    // Strategies 1 & 2: run in parallel — query by workspace_id and by userId-as-workspace_id simultaneously
-    const needsBothQueries = auth.userId !== auth.workspaceId;
-    const [s1Result, s2Result] = await Promise.all([
-      supabaseAdmin.from('platform_connections').select('*').eq('workspace_id', auth.workspaceId),
-      needsBothQueries
-        ? supabaseAdmin.from('platform_connections').select('*').eq('workspace_id', auth.userId)
-        : Promise.resolve({ data: null, error: null }),
-    ]);
+    debug.push(`ws:wid=${auth.workspaceId.slice(0, 8)}:count=${rows?.length || 0}:err=${rowsErr?.message || 'none'}`);
 
-    let rows = s1Result.data;
-    debug.push(`s1:wid=${auth.workspaceId.slice(0, 8)}:count=${rows?.length || 0}:err=${s1Result.error?.message || 'none'}`);
+    // Compute scheduled post dependency counts per platform (best-effort)
+    const dependencyCounts: Record<string, { scheduledPosts: number }> = {};
+    try {
+      const { data: scheduledPosts } = await supabaseAdmin
+        .from('posts')
+        .select('id, post_variants(platform, status)')
+        .eq('workspace_id', auth.workspaceId)
+        .in('status', ['scheduled', 'queued']);
 
-    if ((!rows || rows.length === 0) && s2Result.data && s2Result.data.length > 0) {
-      rows = s2Result.data;
-      debug.push(`s2:uid_as_wid=${auth.userId.slice(0, 8)}:count=${rows.length}`);
-    }
-
-    // Strategy 3: Check all workspaces the user belongs to (only if still empty)
-    if (!rows || rows.length === 0) {
-      const { data: memberships } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', auth.userId);
-
-      if (memberships && memberships.length > 0) {
-        // Fetch all member workspaces in parallel
-        const memberResults = await Promise.all(
-          memberships
-            .filter((m) => m.workspace_id !== auth.workspaceId && m.workspace_id !== auth.userId)
-            .map((m) =>
-              supabaseAdmin
-                .from('platform_connections')
-                .select('*')
-                .eq('workspace_id', m.workspace_id)
-                .then((r) => ({ workspaceId: m.workspace_id, data: r.data }))
-            )
-        );
-
-        const found = memberResults.find((r) => r.data && r.data.length > 0);
-        if (found) {
-          rows = found.data;
-          debug.push(`s3:found_in_member_ws=${found.workspaceId.slice(0, 8)}:count=${rows?.length || 0}`);
+      if (scheduledPosts) {
+        for (const post of scheduledPosts as any[]) {
+          const variants = Array.isArray(post.post_variants) ? post.post_variants : [];
+          for (const v of variants) {
+            if (v?.platform && v.status !== 'published' && v.status !== 'cancelled') {
+              const p = String(v.platform);
+              dependencyCounts[p] = {
+                scheduledPosts: (dependencyCounts[p]?.scheduledPosts || 0) + 1,
+              };
+            }
+          }
         }
       }
+    } catch {
+      // Non-fatal dependency lookup
     }
 
     interface ConnectedAccountEntry {
@@ -344,14 +355,14 @@ export async function GET(request: NextRequest) {
       connections: result,
       accounts: allAccounts,
       totalFound,
+      dependencyCounts,
       userId: auth.userId,
-      debug,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     debug.push(`error:${err.message}`);
     logger.error('Failed to fetch platform connections', { traceId, error: err, debug });
-    return NextResponse.json({ error: 'Failed to fetch connections', debug }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch connections' }, { status: 500 });
   }
 }
 
@@ -363,6 +374,18 @@ export async function DELETE(request: NextRequest) {
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, [
+      'owner',
+      'admin',
+      'editor',
+    ]);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Forbidden: Only owners, admins, or editors can disconnect channels.' },
+        { status: 403 }
+      );
     }
 
     if (!connectionId) {

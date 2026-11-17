@@ -219,7 +219,8 @@ async function getPlanDefinition(planId: string): Promise<Plan> {
     .from('plans')
     .select('*')
     .eq('id', normalizedId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (error || !data) {
     const fallbackPlan: Plan = {
@@ -418,7 +419,8 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
     .from('workspaces')
     .select('plan, plan_status, plan_expires_at, settings, owner_id')
     .eq('id', workspaceId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (!wsError && wsById) {
     workspace = wsById;
@@ -427,9 +429,10 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
 
     const { data: member } = await supabaseAdmin
       .from('workspace_members')
-      .select('workspace_id')
+      .select('workspace_id, status')
       .eq('user_id', userId)
-      .order('created_at', { ascending: true })
+      .or('status.eq.active,status.is.null')
+      .order('joined_at', { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -439,7 +442,8 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
         .from('workspaces')
         .select('plan, plan_status, plan_expires_at, settings, owner_id')
         .eq('id', member.workspace_id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (wsFromMember) {
         workspace = wsFromMember;
@@ -563,7 +567,8 @@ export async function getPlanContext(userId: string, workspaceId: string): Promi
     .from('plans')
     .select('limits, features')
     .eq('id', effectivePlan)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   const dbFeatures = (planInfo?.features || {}) as Record<string, unknown>;
   const dbLimits = (planInfo?.limits || {}) as Record<string, unknown>;
@@ -641,7 +646,8 @@ export async function getWorkspacePlanInfo(workspaceId: string): Promise<Workspa
     .from('workspace_admin_view')
     .select('plan, plan_status, plan_expires_at, plan_limits, plan_features')
     .eq('id', workspaceId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (!viewError && viewData) {
     const rawPlan = normalizePlanId(viewData.plan);
@@ -747,7 +753,7 @@ export async function getUsageSnapshot(workspaceId: string, ownerUserId?: string
         .from('instagram_comment_logs')
         .select('id', { count: 'exact', head: true })
         .eq('workspace_id', workspaceId)
-        .eq('replied', true)
+        .eq('auto_replied', true)
         .gte('created_at', monthStart.toISOString()),
 
       supabaseAdmin
@@ -932,7 +938,7 @@ export async function checkQuota(
     use_ai: { table: 'ai_usage', limitKey: 'ai_credits_per_month', timeWindow: monthStart },
     upload_media: { table: 'media_uploads', limitKey: 'media_uploads_per_month', timeWindow: monthStart },
     connect_channel: { table: 'platform_connections', limitKey: 'channels', timeWindow: new Date(0), filterStatus: 'connected' },
-    ig_comment_reply: { table: 'instagram_comment_logs', limitKey: 'ig_comments_per_month', timeWindow: monthStart, filterBool: ['replied', true] },
+    ig_comment_reply: { table: 'instagram_comment_logs', limitKey: 'ig_comments_per_month', timeWindow: monthStart, filterBool: ['auto_replied', true] },
     brand_voice: { table: 'brand_materials_pages', limitKey: 'brand_voices', timeWindow: new Date(0) },
   };
 
@@ -1311,8 +1317,8 @@ export function withMiddlewarePlanEnforcement(
       auth = null;
     }
 
-    const userId = auth?.userId || request.headers.get('x-user-id');
-    let workspaceId = auth?.workspaceId || request.headers.get('x-workspace-id');
+    const userId = auth?.userId;
+    let workspaceId = auth?.workspaceId;
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -1321,9 +1327,10 @@ export function withMiddlewarePlanEnforcement(
     if (!workspaceId) {
       const { data: membership } = await supabaseAdmin
         .from('workspace_members')
-        .select('workspace_id')
+        .select('workspace_id, status')
         .eq('user_id', userId)
-        .order('created_at', { ascending: true })
+        .or('status.eq.active,status.is.null')
+        .order('joined_at', { ascending: true })
         .limit(1)
         .maybeSingle();
 

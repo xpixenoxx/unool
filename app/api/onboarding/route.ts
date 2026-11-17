@@ -35,19 +35,20 @@ async function authorizeOnboardingRequest(
   return { userId: auth.userId, workspaceId };
 }
 
-
-
 async function getChecklist(workspaceId: string, userId: string): Promise<OnboardingChecklist | null> {
   const { data, error } = await supabaseAdmin
     .from('onboarding_checklists')
     .select('*')
     .eq('workspace_id', workspaceId)
     .eq('user_id', userId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') return null;
     throw error;
+  }
+  if (!data) {
+    return null;
   }
 
   return {

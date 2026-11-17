@@ -391,7 +391,7 @@ export function StudioIdeaGenerator({
             <div className="flex items-center gap-2 pt-1">
               {error.isProfileMissing ? (
                 <Link
-                  href="/dashboard/settings?tab=persona"
+                  href="/dashboard/settings?tab=ai-voice"
                   className="px-3.5 py-1.5 rounded-lg bg-[#3D2B1F] hover:bg-[#2A1D15] dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />

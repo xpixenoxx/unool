@@ -504,7 +504,7 @@ export default function PrivacyPolicyPage() {
                 <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
                   <h4 className="font-semibold text-white/90 text-xs uppercase tracking-wider">In-App Disconnection</h4>
                   <p className="text-xs text-white/60">
-                    Navigate to <strong>Dashboard &gt; Settings &gt; Connected Platforms</strong> and click <strong>Disconnect</strong> next to any account.
+                    Navigate to <strong>Dashboard &gt; Settings &gt; Connected Channels</strong> and click <strong>Disconnect</strong> next to any account.
                     Access tokens are instantly revoked, and platform data is purged from our systems.
                   </p>
                 </div>
@@ -531,7 +531,7 @@ export default function PrivacyPolicyPage() {
 
               <p className="text-xs text-white/60">
                 <strong>Complete Workspace Deletion:</strong> You can permanently delete your entire account and all associated workspace data at any time via{' '}
-                <strong>Settings &gt; Delete Account</strong>, or by emailing{' '}
+                <strong>Settings &gt; Account &amp; Prefs &gt; Delete Account</strong>, or by emailing{' '}
                 <a href="mailto:support@unool.co" className="text-[#C84B31] hover:underline">support@unool.co</a> or{' '}
                 <a href="mailto:connect@pixenox.com" className="text-[#C84B31] hover:underline">connect@pixenox.com</a> with the subject line <em>&ldquo;Data Deletion Request&rdquo;</em> from your registered address.
               </p>
@@ -573,7 +573,7 @@ export default function PrivacyPolicyPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
                   <p className="font-semibold text-white/90">Right to Access &amp; Portability</p>
-                  <p className="text-white/50">Obtain confirmation of data being processed and a machine-readable export of your personal information.</p>
+                  <p className="text-white/50">Obtain confirmation of data being processed and download a machine-readable JSON export directly from Settings &gt; Account &amp; Prefs.</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
                   <p className="font-semibold text-white/90">Right to Correction &amp; Erasure</p>

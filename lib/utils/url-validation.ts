@@ -12,11 +12,12 @@ export interface ValidationResult {
 // Private IP ranges (IPv4)
 const PRIVATE_IPV4_RANGES: Array<{ start: number; end: number }> = [
   { start: ipToNumber('10.0.0.0'), end: ipToNumber('10.255.255.255') },       // 10.0.0.0/8
-  { start: ipToNumber('172.16.0.0'), end: ipToNumber('172.31.255.255') },       // 172.16.0.0/12
-  { start: ipToNumber('192.168.0.0'), end: ipToNumber('192.168.255.255') },     // 192.168.0.0/16
-  { start: ipToNumber('169.254.0.0'), end: ipToNumber('169.254.255.255') },     // 169.254.0.0/16 (metadata)
-  { start: ipToNumber('127.0.0.0'), end: ipToNumber('127.255.255.255') },       // 127.0.0.0/8 (loopback)
-  { start: ipToNumber('0.0.0.0'), end: ipToNumber('0.255.255.255') },           // 0.0.0.0/8
+  { start: ipToNumber('100.64.0.0'), end: ipToNumber('100.127.255.255') },   // 100.64.0.0/10 (Carrier-Grade NAT RFC 6598)
+  { start: ipToNumber('172.16.0.0'), end: ipToNumber('172.31.255.255') },     // 172.16.0.0/12
+  { start: ipToNumber('192.168.0.0'), end: ipToNumber('192.168.255.255') }, // 192.168.0.0/16
+  { start: ipToNumber('169.254.0.0'), end: ipToNumber('169.254.255.255') }, // 169.254.0.0/16 (link-local / metadata)
+  { start: ipToNumber('127.0.0.0'), end: ipToNumber('127.255.255.255') },   // 127.0.0.0/8 (loopback)
+  { start: ipToNumber('0.0.0.0'), end: ipToNumber('0.255.255.255') },       // 0.0.0.0/8
 ];
 
 // Private IPv6 ranges
@@ -200,6 +201,11 @@ function isPrivateIp(ip: string): boolean {
 
   // Check IPv6
   if (isValidIpv6(cleanIp)) {
+    if (cleanIp === '::' || cleanIp === '::1') return true;
+    // fc00::/7 unique local addresses (fc.. and fd..) & fe80::/10 link-local
+    if (/^f[cd][0-9a-f]{0,2}:/i.test(cleanIp) || /^fe[89ab][0-9a-f]?:/i.test(cleanIp)) {
+      return true;
+    }
     for (const prefix of PRIVATE_IPV6_PREFIXES) {
       if (cleanIp.startsWith(prefix)) {
         return true;
@@ -257,4 +263,50 @@ async function resolveHostname(hostname: string): Promise<{ addresses: string[] 
     // In production, ensure DNS resolution is configured
     return { addresses: [hostname] };
   }
+}
+
+/**
+ * Fetches an external HTTP/HTTPS resource with manual redirect handling so
+ * every redirect hop is re-validated against SSRF rules before fetching.
+ */
+export async function safeFetchExternalPage(
+  initialUrl: string,
+  options: {
+    headers?: Record<string, string>;
+    timeoutMs?: number;
+    maxRedirects?: number;
+  } = {}
+): Promise<Response> {
+  const maxRedirects = options.maxRedirects ?? 3;
+  const timeoutMs = options.timeoutMs ?? 6000;
+  let currentUrl = initialUrl;
+
+  for (let hop = 0; hop <= maxRedirects; hop += 1) {
+    const check = await validateUrlForFetch(currentUrl);
+    if (!check.allowed) {
+      throw new Error(`Blocked URL (${check.reason || 'SSRF policy'})`);
+    }
+
+    const response = await fetch(currentUrl, {
+      headers: options.headers,
+      signal: AbortSignal.timeout(timeoutMs),
+      redirect: 'manual',
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (!location) {
+        return response;
+      }
+      if (hop === maxRedirects) {
+        throw new Error('Too many redirects while fetching URL');
+      }
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    return response;
+  }
+
+  throw new Error('Too many redirects while fetching URL');
 }

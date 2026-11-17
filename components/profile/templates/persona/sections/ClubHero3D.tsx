@@ -114,6 +114,7 @@ const LiquidChromeMaterial = ({
         uniform vec2 uMouse;
         uniform float uIntensity;
         uniform vec2 uResolution;
+        uniform float uScrollProgress;
 
         // Fresnel effect
         float fresnel(vec3 viewDir, vec3 normal, float power) {
@@ -341,35 +342,44 @@ export function ClubHero3D({
   const mouseRef = useRef(new THREE.Vector2(0, 0));
   const scrollRef = useRef(0);
   const timeRef = useRef(0);
-  const prefersReduced = false; // Will be overridden by parent context
+  const [prefersReduced, setPrefersReduced] = useState(false);
 
   useEffect(() => {
     setCanRender3D(checkWebGLAvailable());
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReduced(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   // Track mouse position
   useEffect(() => {
+    if (prefersReduced) return;
     const handleMouseMove = (e: MouseEvent) => {
-      mouseRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouseRef.current.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      mouseRef.current.x = (e.clientX / Math.max(window.innerWidth, 1)) * 2 - 1;
+      mouseRef.current.y = -(e.clientY / Math.max(window.innerHeight, 1)) * 2 + 1;
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [prefersReduced]);
 
-  // Track scroll
+  // Track scroll safely without 0/0 -> NaN
   useEffect(() => {
+    if (prefersReduced) return;
     const handleScroll = () => {
       const scrollY = window.scrollY;
-      const maxScroll = document.body.scrollHeight - window.innerHeight;
-      scrollRef.current = Math.min(scrollY / maxScroll, 1);
+      const maxScroll = Math.max(document.body.scrollHeight - window.innerHeight, 0);
+      scrollRef.current = maxScroll > 0 ? Math.min(Math.max(scrollY / maxScroll, 0), 1) : 0;
     };
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [prefersReduced]);
 
   // Animation loop
   useEffect(() => {
+    if (prefersReduced) return;
     let frame = 0;
     let rafId: number;
     const animate = () => {
@@ -379,7 +389,7 @@ export function ClubHero3D({
     };
     rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
-  }, []);
+  }, [prefersReduced]);
 
   const effectiveIntensity = prefersReduced ? 0 : intensity;
 

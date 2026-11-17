@@ -92,6 +92,30 @@ CREATE POLICY "Service role full access to follow_gate_sessions"
   USING (true)
   WITH CHECK (true);
 
+-- ── 2b. Enable RLS on public.plans catalog table ─────────────────────────────
+DO $$
+BEGIN
+  IF to_regclass('public.plans') IS NOT NULL THEN
+    ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "Public can view active plans" ON public.plans;
+    DROP POLICY IF EXISTS "Service role full access to plans" ON public.plans;
+
+    CREATE POLICY "Public can view active plans"
+      ON public.plans
+      FOR SELECT
+      TO anon, authenticated
+      USING (is_active = true);
+
+    CREATE POLICY "Service role full access to plans"
+      ON public.plans
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
+
 -- ── 3. Ensure referral_rewards exists + referral schema & RLS hardening ───────
 CREATE TABLE IF NOT EXISTS public.referral_rewards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -187,7 +211,7 @@ CREATE OR REPLACE FUNCTION public.delete_workspace_data(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 BEGIN
   -- 0. Verify workspace ownership & ensure no other active team members remain
@@ -360,7 +384,7 @@ CREATE OR REPLACE FUNCTION public.increment_referral_click(target_code text)
 RETURNS SETOF public.referral_codes
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   UPDATE public.referral_codes
   SET click_count = click_count + 1,
@@ -379,14 +403,14 @@ CREATE OR REPLACE FUNCTION public.apply_referral_signup_reward(
 RETURNS TABLE(user_id uuid, rewards_earned integer)
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
-  UPDATE public.referral_codes
-  SET signup_count = signup_count + 1,
-      rewards_earned = rewards_earned + GREATEST(0, reward_credits),
+  UPDATE public.referral_codes AS rc
+  SET signup_count = rc.signup_count + 1,
+      rewards_earned = rc.rewards_earned + GREATEST(0, reward_credits),
       updated_at = NOW()
-  WHERE code = UPPER(TRIM(target_code))
-  RETURNING referral_codes.user_id, referral_codes.rewards_earned;
+  WHERE rc.code = UPPER(TRIM(target_code))
+  RETURNING rc.user_id, rc.rewards_earned;
 $$;
 
 REVOKE ALL ON FUNCTION public.apply_referral_signup_reward(text, integer) FROM PUBLIC, anon, authenticated;
@@ -399,7 +423,7 @@ CREATE OR REPLACE FUNCTION public.consume_referral_ai_credit(
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   consumed boolean := false;
@@ -438,7 +462,7 @@ CREATE OR REPLACE FUNCTION public.adjust_referral_conversion_rewards(
 RETURNS SETOF public.referral_codes
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   UPDATE public.referral_codes
   SET conversion_count = GREATEST(0, conversion_count + delta_conversions),

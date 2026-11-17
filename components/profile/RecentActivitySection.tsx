@@ -9,52 +9,26 @@ import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 export interface RecentActivityPlatform {
   platform: string;
   url: string;
-  adaptedContent: string;
+  adaptedContent?: string;
 }
 
 export interface RecentActivityData {
-  id: string;
+  id?: string;
   content: string;
-  publishedAt: string | null;
-  platforms: RecentActivityPlatform[];
+  publishedAt?: string | null;
+  platforms?: RecentActivityPlatform[];
 }
 
 export interface RecentActivitySectionProps {
   activity: RecentActivityData | RecentActivityData[] | null | undefined;
   /** Template style variant */
   variant?:
-  | 'lover'
-  | 'lone'
-  | 'rebellion'
-  | 'builder'
-  | 'visionary'
-  | 'hustler'
-  | 'creator'
-  | 'studio'
-  | 'machine'
-  | 'club'
-  | 'energy'
-  | 'vision'
-  | 'human'
-  | 'aesthete'
-  | 'voice'
-  | 'stack'
-  | 'the-stack'
-  | 'the-bookshelf'
-  | 'bookshelf'
-  | 'the-cube'
-  | 'cube'
-  | 'the-monolith'
-  | 'monolith'
-  | 'the-metro'
-  | 'metro'
-  | 'the-noren'
-  | 'noren'
-  | 'the-desktop'
-  | 'desktop'
-  | 'the-calendar'
-  | 'calendar'
-  | 'default';
+  | VariantKey
+  | 'editorial'
+  | 'obsidian'
+  | 'minimal'
+  | 'dark'
+  | 'light';
   /** Whether the parent template has a dark background */
   isDark?: boolean;
   /** Accent colour from the profile theme */
@@ -180,16 +154,26 @@ export function RecentActivitySection({
     `}</style>
   );
 
-  // Get variant config
-  const config = VARIANT_CONFIGS[variant as VariantKey] ?? VARIANT_CONFIGS.default;
-  const isDefaultVariant = variant === 'default';
+  const effectiveIsDark = Boolean(isDark || variant === 'obsidian' || variant === 'dark');
+
+  // Get variant config (normalize visual mode aliases onto default glass card)
+  const resolvedVariant: VariantKey =
+    variant === 'editorial' ||
+    variant === 'obsidian' ||
+    variant === 'minimal' ||
+    variant === 'dark' ||
+    variant === 'light'
+      ? 'default'
+      : variant;
+  const config = VARIANT_CONFIGS[resolvedVariant] ?? VARIANT_CONFIGS.default;
+  const isDefaultVariant = resolvedVariant === 'default';
 
   // ── DEFAULT VARIANT (Universal Adaptive Glassmorphism) ──
   if (isDefaultVariant) {
-    const sectionBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)';
-    const borderCol = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
-    const labelCol = isDark ? 'rgba(255,255,255,0.60)' : 'rgba(0,0,0,0.55)';
-    const textCol = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.85)';
+    const sectionBg = effectiveIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)';
+    const borderCol = effectiveIsDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)';
+    const labelCol = effectiveIsDark ? 'rgba(255,255,255,0.82)' : 'rgba(0,0,0,0.72)';
+    const textCol = effectiveIsDark ? 'rgba(255,255,255,0.94)' : 'rgba(0,0,0,0.88)';
 
     return (
       <div
@@ -243,24 +227,24 @@ export function RecentActivitySection({
           "{excerpt(activityItem.content, 140)}"
         </p>
 
-        {renderPlatformButtons(published, config, true, isDark, accent)}
+        {renderPlatformButtons(published, config, true, effectiveIsDark, accent)}
 
-        {renderFooter(published, config, true, isDark)}
+        {renderFooter(published, config, true, effectiveIsDark)}
       </div>
     );
   }
 
   // ── CONFIG-DRIVEN VARIANTS ──
   const containerStyle = typeof config.containerStyle === 'function'
-    ? config.containerStyle(isDark, accent)
+    ? config.containerStyle(effectiveIsDark, accent)
     : config.containerStyle;
   const contentStyle = typeof config.contentStyle === 'function'
-    ? config.contentStyle(isDark)
+    ? config.contentStyle(effectiveIsDark)
     : config.contentStyle;
-  const titleStyle = config.titleStyle?.(isDark);
-  const timestampStyle = config.timestampStyle?.(isDark);
-  const platformContainerStyle = config.platformContainerStyle?.(isDark);
-  const footerStyle = config.footerStyle?.(isDark);
+  const titleStyle = config.titleStyle?.(effectiveIsDark);
+  const timestampStyle = config.timestampStyle?.(effectiveIsDark);
+  const platformContainerStyle = config.platformContainerStyle?.(effectiveIsDark);
+  const footerStyle = config.footerStyle?.(effectiveIsDark);
 
   // Custom render overrides
   const customContainer = config.customRender?.container;

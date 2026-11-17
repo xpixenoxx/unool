@@ -3,6 +3,9 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { createAccountSwitchToken, verifyAccountSwitchToken } from '@/lib/auth/account-switch-token';
+import { getUserSecurityVersion } from '@/lib/auth/security-version';
+import { NO_STORE_HEADERS } from '@/lib/auth/session-cookies';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { config } from '@/lib/config/schema';
@@ -41,7 +44,8 @@ export async function GET(request: NextRequest) {
         ? user.email.split('@')[0]
         : rawName;
 
-    const switchToken = createAccountSwitchToken(userId, user.email);
+    const securityVersion = await getUserSecurityVersion(userId);
+    const switchToken = createAccountSwitchToken(userId, user.email, undefined, undefined, securityVersion);
 
     return NextResponse.json({
       account: {
@@ -52,7 +56,7 @@ export async function GET(request: NextRequest) {
         avatarUrl: (user.user_metadata?.avatar_url as string | undefined) || null,
         switchToken,
       },
-    });
+    }, { headers: NO_STORE_HEADERS });
   } catch (err) {
     logger.error('GET /api/auth/switch-account failed', {
       error: err instanceof Error ? err : new Error(String(err)),
@@ -70,7 +74,15 @@ export async function POST(request: NextRequest) {
     if (!verified) {
       return NextResponse.json(
         { success: false, message: 'Saved session expired. Please sign in to that account again.' },
-        { status: 401 }
+        { status: 401, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    const rate = await checkRateLimit(request, 'accountAction', verified.userId);
+    if (!rate.success) {
+      return NextResponse.json(
+        { success: false, message: 'Too many switch attempts. Please wait a moment.' },
+        { status: 429, headers: { ...NO_STORE_HEADERS, ...rateLimitHeaders(rate.remaining, rate.reset) } }
       );
     }
 
@@ -81,7 +93,44 @@ export async function POST(request: NextRequest) {
     if (lookupError || !user || !user.email || user.email.toLowerCase().trim() !== verified.email) {
       return NextResponse.json(
         { success: false, message: 'Account not found. Please sign in again.' },
-        { status: 404 }
+        { status: 404, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    const currentSecurityVersion = await getUserSecurityVersion(user.id);
+    if ((verified.securityVersion ?? 0) !== currentSecurityVersion) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'SESSION_REVOKED',
+          message: 'Saved session was invalidated after a security change. Please sign in again.',
+        },
+        { status: 401, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    let hasMfa = user.user_metadata?.mfa_enabled === true ||
+      (Array.isArray((user as { factors?: Array<{ status?: string }> }).factors) &&
+        ((user as { factors?: Array<{ status?: string }> }).factors ?? []).some((f) => f?.status === 'verified'));
+
+    if (!hasMfa && typeof supabaseAdmin.auth.admin?.mfa?.listFactors === 'function') {
+      try {
+        const { data: factorList } = await supabaseAdmin.auth.admin.mfa.listFactors({ userId: user.id });
+        const factors = factorList?.factors || [];
+        hasMfa = factors.some((f) => f?.status === 'verified');
+      } catch {
+        // Non-fatal
+      }
+    }
+
+    if (hasMfa) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'MFA_REQUIRED',
+          message: 'Multi-factor authentication is enabled on this account. Please sign in to verify.',
+        },
+        { status: 403, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -162,7 +211,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Session switch failed.' }, { status: 500 });
     }
 
-    const freshSwitchToken = createAccountSwitchToken(user.id, user.email);
+    const freshSwitchToken = createAccountSwitchToken(
+      user.id,
+      user.email,
+      undefined,
+      undefined,
+      currentSecurityVersion
+    );
 
     const response = NextResponse.json(
       {

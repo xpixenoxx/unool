@@ -1,106 +1,69 @@
 'use client';
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import type { TemplateProps, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
 import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
-import { Phone, Mail, MessageCircle, Download, ExternalLink, MapPin } from 'lucide-react';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { getActionVerb, cleanDisplayUrl, downloadProfileVCard } from '@/lib/profile/templateActions';
+import { pickReadableText, solveAccessibleAccent } from '@/lib/profile/contrast';
+import { Phone, Mail, MessageCircle, Download, MapPin } from 'lucide-react';
 
-/* ─────────────────────────────────────────────────────────────
-   Contextual CTA Action Verbs for Metro Station Stops
-   ───────────────────────────────────────────────────────────── */
-function getMetroActionVerb(url: string, label: string): string {
-  const u = (url || '').toLowerCase();
-  const l = (label || '').toLowerCase();
-
-  if (l.includes('portfolio') || l.includes('work') || l.includes('case stud') || u.includes('dribbble.com') || u.includes('behance.net')) return 'Explore';
-  if (l.includes('website') || l.includes('site') || l.includes('homepage') || l.includes('web')) return 'Visit';
-  if (u.includes('cal.com') || u.includes('calendly.com') || l.includes('book') || l.includes('schedule')) return 'Book';
-  if (u.includes('wa.me') || u.includes('whatsapp') || l.includes('chat')) return 'Chat';
-  if (u.includes('linkedin.com') || l.includes('connect')) return 'Connect';
-  if (u.includes('.pdf') || l.includes('resume') || l.includes('cv') || l.includes('download')) return 'Get';
-  if (u.includes('github.com') || u.includes('gitlab.com') || l.includes('code')) return 'Inspect';
-  if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('vimeo') || l.includes('watch')) return 'Watch';
-  if (u.includes('spotify.com') || u.includes('apple.com/music') || l.includes('listen')) return 'Listen';
-  if (u.includes('substack.com') || u.includes('medium.com') || l.includes('blog') || l.includes('read')) return 'Read';
-
-  const isSocial = /(?:^|[\/\.])x\.com(?=[\/\?#:]|$)/i.test(u) || u.includes('twitter.com') || u.includes('instagram.com') || u.includes('threads.net');
-  if (isSocial) return 'Follow';
-
-  return 'Visit';
-}
-
-function cleanDisplayUrl(rawUrl: string): string {
-  if (!rawUrl) return '';
-  return rawUrl
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\/$/, '');
-}
-
-export function MetroTemplate({
+function MetroTemplateInner({
   profile,
-  accentColor = '#e5452b',
+  accentColor,
   isPreview = false,
   onLinkClick,
 }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2600);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
-  const name = profile?.name || 'Your Name';
-  const role = profile?.role || profile?.headline || 'Creator & Designer';
-  const bio = profile?.bio || 'Building and crafting digital experiences. Connect to learn more about my work and journey.';
-  const location = profile?.location || (profile as any)?.city || '';
-  const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar_url || '';
-  const email = profile?.email || '';
+  const name = normalized.name;
+  const role = normalized.role || normalized.headline;
+  const bio = normalized.bio;
+  const location = normalized.location;
+  const avatarUrl = normalized.avatarUrl;
+  const initials = normalized.initials;
+  const email = normalized.showEmail ? normalized.email : '';
   const phone = (profile as any)?.phone || '';
-  const links: ProfileLink[] = (profile?.links || []).filter((l) => l.isVisible !== false);
-  const proofs: ProfileProof[] = profile?.proofs || (profile as any)?.proofPoints || [];
+  const links: ProfileLink[] = normalized.links;
+  const proofs = normalized.proofs;
+
+  const rawAccent = accentColor || normalized.accentColor || '#e5452b';
+  const surfaceBg = '#f4f1ea';
+  const readableAccent = useMemo(() => solveAccessibleAccent(rawAccent, surfaceBg), [rawAccent]);
+  const badgeInk = useMemo(() => pickReadableText(rawAccent), [rawAccent]);
 
   const numericPhone = useMemo(() => (phone || '').replace(/[^\d+]/g, ''), [phone]);
   const cleanWaNumber = useMemo(() => (phone || '').replace(/[^\d]/g, ''), [phone]);
 
-  const initials = useMemo(() => {
-    return (name || '')
-      .trim()
-      .split(/\s+/)
-      .map((w) => w.charAt(0))
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-  }, [name]);
-
   const handleSaveContact = useCallback((e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     try {
-      const vcard = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `FN:${name}`,
-        `TITLE:${role}`,
-        email ? `EMAIL;TYPE=INTERNET,WORK:${email}` : '',
-        numericPhone ? `TEL;TYPE=CELL,VOICE:${numericPhone}` : '',
-        location ? `ADR;TYPE=WORK:;;${location};;;;` : '',
-        `NOTE:${bio.replace(/\n/g, ' ')}`,
-        `URL:${typeof window !== 'undefined' ? window.location.href : `https://${profile?.subdomain}.unool.com`}`,
-        'END:VCARD',
-      ]
-        .filter(Boolean)
-        .join('\r\n');
-
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${name.replace(/\s+/g, '_')}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadProfileVCard({
+        name,
+        role,
+        email,
+        phone: numericPhone,
+        location,
+        bio,
+        subdomain: profile?.subdomain,
+        website: typeof window !== 'undefined' ? window.location.href : undefined,
+      });
       showToast('Contact card downloaded');
     } catch (err) {
       console.error('vCard generation error:', err);
@@ -135,7 +98,7 @@ export function MetroTemplate({
   }, [profile?.socialHandles]);
 
   /* ─────────────────────────────────────────────────────────────
-     Metro Line Stations: Curates user links + connected channels
+     Metro Line Stations: User links, channels & active projects
      ───────────────────────────────────────────────────────────── */
   const stations = useMemo(() => {
     const items: Array<{
@@ -145,8 +108,7 @@ export function MetroTemplate({
       url: string;
       verb: string;
       platform?: string;
-      customIcon?: string;
-      isContactAction?: boolean;
+      rawLink?: ProfileLink;
       action?: () => void;
     }> = [];
 
@@ -157,8 +119,8 @@ export function MetroTemplate({
         title: l.label,
         subtitle: cleanDisplayUrl(l.url),
         url: l.url,
-        verb: getMetroActionVerb(l.url, l.label),
-        customIcon: l.icon || undefined,
+        verb: getActionVerb(l.url, l.label),
+        rawLink: l,
       });
     });
 
@@ -171,7 +133,7 @@ export function MetroTemplate({
           title: s.label,
           subtitle: cleanDisplayUrl(s.url),
           url: s.url,
-          verb: getMetroActionVerb(s.url, s.label),
+          verb: getActionVerb(s.url, s.label),
           platform: s.platform,
         });
       }
@@ -198,91 +160,82 @@ export function MetroTemplate({
       }
     });
 
-    // Fallback station if list is brief
-    if (items.length === 0) {
-      items.push({
-        id: 'station-dispatch',
-        title: 'Direct Dispatch',
-        subtitle: email || 'Connect with me',
-        url: email ? `mailto:${email}` : '#',
-        verb: 'Connect',
-      });
-    }
-
     return items;
-  }, [links, socialEntries, proofs, email]);
+  }, [links, socialEntries, proofs]);
 
   /* ─────────────────────────────────────────────────────────────
-     Metro Facilities: Skills, proofs, specialties
+     Metro Facilities: Real skills & proof metrics (no fake items)
      ───────────────────────────────────────────────────────────── */
   const facilities = useMemo(() => {
     const list: string[] = [];
     proofs.forEach((p) => {
-      const label = p.title || p.value;
+      const label = [p.title, p.value].filter(Boolean).join(': ').trim();
       if (label && !list.includes(label)) list.push(label);
     });
-    if (list.length === 0) {
-      list.push('Brand Identity', 'Digital Craft', 'System Architecture', 'Advisory');
-    }
     return list;
   }, [proofs]);
 
   return (
-    <div className="metro-root min-h-screen text-[#1b1b1b] relative selection:bg-[#e5452b] selection:text-white">
-      {/* Google Font Embed for Japanese & International Transit Typography */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @import url('https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@500;800&display=swap');
+    <div className="metro-root min-h-screen text-[#1b1b1b] relative overflow-x-clip">
+      <style>{`
+        .metro-root {
+          --bg: #f4f1ea;
+          --ink: #1b1b1b;
+          --muted: #45423d;
+          --c3: #cfc9bb;
+          --accent: ${rawAccent};
+          --accent-text: ${readableAccent};
+          --e: cubic-bezier(0.2, 0.8, 0.2, 1);
+          --s: var(--font-jakarta), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          background-color: var(--bg);
+          font-family: var(--s);
+        }
 
-            .metro-root {
-              --bg: #f4f1ea;
-              --ink: #1b1b1b;
-              --c3: #cfc9bb;
-              --accent: ${accentColor || '#e5452b'};
-              --e: cubic-bezier(0.2, 0.8, 0.2, 1);
-              --s: 'M PLUS 1p', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              background-color: var(--bg);
-              font-family: var(--s);
-            }
+        @keyframes metroGrow {
+          from {
+            transform: scaleY(0);
+          }
+          to {
+            transform: scaleY(1);
+          }
+        }
 
-            @keyframes metroGrow {
-              from {
-                transform: scaleY(0);
-              }
-              to {
-                transform: scaleY(1);
-              }
-            }
+        .metro-track-line {
+          transform-origin: top;
+          animation: metroGrow 1.2s var(--e) both;
+        }
 
-            .metro-track-line {
-              transform-origin: top;
-              animation: metroGrow 1.2s var(--e) both;
-            }
+        .metro-station-node {
+          transition: transform 0.3s var(--e), background-color 0.3s var(--e);
+        }
 
-            .metro-station-node {
-              transition: all 0.3s var(--e);
-            }
+        .metro-station-card:hover .metro-station-node {
+          background-color: var(--accent) !important;
+          transform: scale(1.18);
+          border-color: #1b1b1b;
+        }
 
-            .metro-station-card:hover .metro-station-node {
-              background-color: var(--accent) !important;
-              transform: scale(1.22);
-              border-color: #1b1b1b;
-            }
+        .metro-station-card {
+          transition: transform 0.3s var(--e), box-shadow 0.3s var(--e);
+        }
 
-            .metro-station-card {
-              transition: transform 0.35s var(--e), box-shadow 0.35s var(--e);
-            }
+        .metro-station-card:hover {
+          transform: translateX(6px);
+        }
 
-            .metro-station-card:hover {
-              transform: translateX(8px);
-            }
-          `,
-        }}
-      />
+        @media (prefers-reduced-motion: reduce) {
+          .metro-track-line,
+          .metro-station-node,
+          .metro-station-card {
+            animation: none !important;
+            transition: none !important;
+            transform: none !important;
+          }
+        }
+      `}</style>
 
       {/* Main Container */}
-      <main className="w-full max-w-[680px] mx-auto px-5 py-12 sm:py-16 md:py-20 relative z-10">
+      <main className="w-full max-w-[680px] mx-auto px-4 sm:px-6 py-10 sm:py-16 md:py-20 relative z-10">
         {/* Header Profile Station */}
         <header className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-start sm:items-center">
           {/* Avatar Station Badge */}
@@ -291,15 +244,15 @@ export function MetroTemplate({
               <img
                 src={avatarUrl}
                 alt={name}
-                className="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover border-[7px] sm:border-[8px] shadow-sm"
-                style={{ borderColor: accentColor || '#e5452b' }}
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-[7px] sm:border-[8px] shadow-sm"
+                style={{ borderColor: rawAccent }}
               />
             ) : (
               <div
-                className="w-28 h-28 sm:w-32 sm:h-32 rounded-full grid place-items-center font-extrabold text-3xl sm:text-4xl text-white shadow-sm border-[7px] sm:border-[8px]"
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full grid place-items-center font-extrabold text-3xl sm:text-4xl text-white shadow-sm border-[7px] sm:border-[8px]"
                 style={{
                   backgroundColor: '#1b1b1b',
-                  borderColor: accentColor || '#e5452b',
+                  borderColor: rawAccent,
                 }}
               >
                 {initials}
@@ -311,202 +264,225 @@ export function MetroTemplate({
           <div className="flex-1 min-w-0">
             {/* Station Route Pill */}
             <div
-              className="inline-grid place-items-center w-10 h-10 sm:w-11 sm:h-11 rounded-full text-white font-extrabold text-lg sm:text-xl mb-2.5 shadow-sm"
-              style={{ backgroundColor: accentColor || '#e5452b' }}
+              className="inline-grid place-items-center w-10 h-10 sm:w-11 sm:h-11 rounded-full font-extrabold text-lg sm:text-xl mb-2.5 shadow-sm"
+              style={{ backgroundColor: rawAccent, color: badgeInk }}
+              aria-hidden="true"
             >
               01
             </div>
 
             {/* Profile Name */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-[1.08] text-[#1b1b1b]">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-[1.08] text-[#1b1b1b] break-words">
               {name}
             </h1>
 
             {/* Role / Headline */}
-            <p
-              className="text-base sm:text-lg font-extrabold mt-1.5"
-              style={{ color: accentColor || '#e5452b' }}
-            >
-              {role}
-            </p>
+            {role && (
+              <p
+                className="text-base sm:text-lg font-extrabold mt-1.5"
+                style={{ color: readableAccent }}
+              >
+                {role}
+              </p>
+            )}
+
+            {/* OpenTo Intent Badges */}
+            {normalized.sectionVisibility.openTo && normalized.openTo.length > 0 && (
+              <div className="mt-3">
+                <OpenToBadges intents={normalized.openTo} accentColor={readableAccent} variant="light" />
+              </div>
+            )}
 
             {/* Bio */}
-            {bio && (
-              <p className="mt-2.5 text-sm sm:text-base font-medium leading-relaxed text-[#1b1b1b]/80 max-w-xl">
+            {normalized.sectionVisibility.bio && bio && (
+              <p className="mt-2.5 text-sm sm:text-base font-medium leading-relaxed text-[#2d2b27] max-w-xl">
                 {bio}
               </p>
             )}
 
-            {/* Location Tag */}
-            {location && (
-              <div className="flex items-center gap-1.5 mt-2.5 text-xs font-bold uppercase tracking-wider text-[#1b1b1b]/60">
-                <MapPin size={13} style={{ color: accentColor || '#e5452b' }} />
-                <span>{location}</span>
+            {/* Location & Timezone */}
+            {(location || normalized.timezone) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-xs font-bold uppercase tracking-wider text-[#45423d]">
+                <MapPin size={13} style={{ color: readableAccent }} aria-hidden="true" />
+                <span>{[location, normalized.timezone].filter(Boolean).join(' · ')}</span>
               </div>
             )}
 
-            {/* Action Buttons: Call, Email, WhatsApp, Save Contact */}
-            <div className="flex flex-wrap gap-2.5 mt-5">
-              {phone && (
-                <a
-                  href={`tel:${numericPhone}`}
-                  className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-all duration-300 hover:text-white"
-                  style={{
-                    ['--hover-bg' as any]: accentColor || '#e5452b',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = accentColor || '#e5452b')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b1b1b')}
-                >
-                  <Phone size={13} />
-                  <span>Call</span>
-                </a>
-              )}
+            {/* Action Buttons */}
+            {normalized.sectionVisibility.contact && (
+              <div className="flex flex-wrap gap-2.5 mt-5">
+                {numericPhone && (
+                  <a
+                    href={`tel:${numericPhone}`}
+                    onClick={() => onLinkClick?.({ id: 'call', label: 'Call', url: `tel:${numericPhone}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                    className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-colors hover:bg-[#35332f]"
+                  >
+                    <Phone size={13} aria-hidden="true" />
+                    <span>Call</span>
+                  </a>
+                )}
 
-              {email && (
-                <a
-                  href={`mailto:${email}`}
-                  className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-all duration-300"
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = accentColor || '#e5452b')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b1b1b')}
-                >
-                  <Mail size={13} />
-                  <span>Email</span>
-                </a>
-              )}
+                {email && (
+                  <a
+                    href={`mailto:${email}`}
+                    onClick={() => onLinkClick?.({ id: 'email', label: 'Email', url: `mailto:${email}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                    className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-colors hover:bg-[#35332f]"
+                  >
+                    <Mail size={13} aria-hidden="true" />
+                    <span>Email</span>
+                  </a>
+                )}
 
-              {cleanWaNumber && (
-                <a
-                  href={`https://wa.me/${cleanWaNumber}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-all duration-300"
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = accentColor || '#e5452b')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b1b1b')}
-                >
-                  <MessageCircle size={13} />
-                  <span>WhatsApp</span>
-                </a>
-              )}
+                {cleanWaNumber && (
+                  <a
+                    href={`https://wa.me/${cleanWaNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onLinkClick?.({ id: 'whatsapp', label: 'WhatsApp', url: `https://wa.me/${cleanWaNumber}`, icon: null, clicks: 0, order: 0, isVisible: true })}
+                    className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-colors hover:bg-[#35332f]"
+                  >
+                    <MessageCircle size={13} aria-hidden="true" />
+                    <span>WhatsApp</span>
+                  </a>
+                )}
 
-              <button
-                type="button"
-                onClick={handleSaveContact}
-                className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-all duration-300"
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = accentColor || '#e5452b')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b1b1b')}
-              >
-                <Download size={13} />
-                <span>Save contact</span>
-              </button>
-            </div>
+                {normalized.hasContactChannel && (
+                  <button
+                    type="button"
+                    onClick={openContact}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-opacity hover:opacity-90 cursor-pointer"
+                    style={{ backgroundColor: rawAccent, color: badgeInk }}
+                  >
+                    <MessageCircle size={13} aria-hidden="true" />
+                    <span>Message</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSaveContact}
+                  className="inline-flex items-center gap-1.5 bg-[#1b1b1b] text-white px-4 py-2 rounded-full font-extrabold text-xs tracking-wide transition-colors hover:bg-[#35332f] cursor-pointer"
+                >
+                  <Download size={13} aria-hidden="true" />
+                  <span>Save contact</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
         {/* Section: STATIONS (Transit route list) */}
-        <div className="mt-12 sm:mt-16">
-          <h2 className="text-[12px] font-extrabold tracking-[0.3em] uppercase text-[#1b1b1b]/60 mb-6">
-            STATIONS
-          </h2>
+        {normalized.sectionVisibility.links && stations.length > 0 && (
+          <section className="mt-12 sm:mt-16" aria-label="Stations and Links">
+            <h2 className="text-[12px] font-extrabold tracking-[0.3em] uppercase text-[#45423d] mb-6">
+              STATIONS
+            </h2>
 
-          {/* Transit Line & Stations Container */}
-          <div className="relative pl-[58px] sm:pl-[72px] grid gap-4">
-            {/* The Vertical Metro Track Line */}
-            <div
-              className="metro-track-line absolute left-[18px] sm:left-[22px] top-4 bottom-4 w-3 sm:w-3.5 rounded-full z-0 shadow-inner"
-              style={{ backgroundColor: accentColor || '#e5452b' }}
-            />
+            {/* Transit Line & Stations Container */}
+            <div className="relative pl-10 sm:pl-[72px] grid gap-4">
+              {/* The Vertical Metro Track Line */}
+              <div
+                className="metro-track-line absolute left-3 sm:left-[22px] top-4 bottom-4 w-3 sm:w-3.5 rounded-full z-0 shadow-inner"
+                style={{ backgroundColor: rawAccent }}
+                aria-hidden="true"
+              />
 
-            {/* Station Stops */}
-            {stations.map((st, idx) => {
-              const stationNumber = String(idx + 1).padStart(2, '0');
-              const isExt = st.url && (st.url.startsWith('http://') || st.url.startsWith('https://'));
+              {/* Station Stops */}
+              {stations.map((st, idx) => {
+                const stationNumber = String(idx + 1).padStart(2, '0');
+                const isExt = st.url && (st.url.startsWith('http://') || st.url.startsWith('https://'));
 
-              return (
-                <a
-                  key={st.id}
-                  href={st.url}
-                  target={isExt ? '_blank' : undefined}
-                  rel={isExt ? 'noopener noreferrer' : undefined}
-                  onClick={(e) => {
-                    if (st.action) {
-                      e.preventDefault();
-                      st.action();
-                    } else if (onLinkClick) {
-                      onLinkClick({
-                        id: st.id,
-                        label: st.title,
-                        url: st.url,
-                        icon: null,
-                        clicks: 0,
-                        order: 0,
-                        isVisible: true,
-                      });
-                    }
-                  }}
-                  className="metro-station-card group relative bg-white border-[3px] border-[#1b1b1b] rounded-xl p-3.5 sm:p-4 font-extrabold flex items-center gap-3.5 sm:gap-4 no-underline z-10 shadow-sm"
-                >
-                  {/* Station Node on Track Line */}
-                  <div
-                    className="metro-station-node absolute -left-[50px] sm:-left-[61px] top-1/2 -mt-3.5 w-7 h-7 sm:w-7 sm:h-7 rounded-full bg-white border-[6px] sm:border-[6px] border-[#1b1b1b]"
-                  />
-
-                  {/* Station Number Badge */}
-                  <span
-                    className="shrink-0 text-xs sm:text-sm font-extrabold px-2 py-0.5 rounded-md text-white font-mono"
-                    style={{ backgroundColor: '#1b1b1b' }}
+                return (
+                  <a
+                    key={st.id}
+                    href={st.url}
+                    target={isExt ? '_blank' : undefined}
+                    rel={isExt ? 'noopener noreferrer' : undefined}
+                    onClick={(e) => {
+                      if (st.action) {
+                        e.preventDefault();
+                        st.action();
+                      } else if (onLinkClick) {
+                        onLinkClick(
+                          st.rawLink || {
+                            id: st.id,
+                            label: st.title,
+                            url: st.url,
+                            icon: null,
+                            clicks: 0,
+                            order: idx,
+                            isVisible: true,
+                          }
+                        );
+                      }
+                    }}
+                    className="metro-station-card group relative bg-white border-[3px] border-[#1b1b1b] rounded-xl p-3.5 sm:p-4 font-extrabold flex items-center gap-3 sm:gap-4 no-underline z-10 shadow-sm min-w-0"
                   >
-                    {stationNumber}
-                  </span>
+                    {/* Station Node on Track Line */}
+                    <div
+                      className="metro-station-node absolute -left-[38px] sm:-left-[61px] top-1/2 -mt-3.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border-[5px] sm:border-[6px] border-[#1b1b1b]"
+                      aria-hidden="true"
+                    />
 
-                  {/* Brand / Platform Icon (if applicable) */}
-                  {st.platform && (
-                    <span className="shrink-0 text-[#1b1b1b]">
-                      <SocialIcon icon={st.platform} className="w-[18px] h-[18px]" />
+                    {/* Station Number Badge */}
+                    <span
+                      className="shrink-0 text-xs sm:text-sm font-extrabold px-2 py-0.5 rounded-md text-white font-mono"
+                      style={{ backgroundColor: '#1b1b1b' }}
+                    >
+                      {stationNumber}
                     </span>
-                  )}
 
-                  {/* Station Name & Subtitle */}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm sm:text-base font-extrabold text-[#1b1b1b] truncate group-hover:text-[#e5452b] transition-colors">
-                      {st.title}
-                    </div>
-                    {st.subtitle && (
-                      <div className="text-xs font-medium text-[#1b1b1b]/50 truncate mt-0.5 font-mono">
-                        {st.subtitle}
-                      </div>
+                    {/* Brand / Platform Icon (if applicable) */}
+                    {st.platform && (
+                      <span className="shrink-0 text-[#1b1b1b]">
+                        <SocialIcon icon={st.platform} className="w-[18px] h-[18px]" />
+                      </span>
                     )}
-                  </div>
 
-                  {/* Action Verb / Subway Arrow */}
-                  <div className="shrink-0 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-[#1b1b1b]/70 group-hover:text-[#e5452b] transition-colors">
-                    <span className="hidden sm:inline">{st.verb}</span>
-                    <span className="text-base leading-none">→</span>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        </div>
+                    {/* Station Name & Subtitle */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm sm:text-base font-extrabold text-[#1b1b1b] truncate transition-colors">
+                        {st.title}
+                      </div>
+                      {st.subtitle && (
+                        <div className="text-xs font-medium text-[#45423d] truncate mt-0.5 font-mono">
+                          {st.subtitle}
+                        </div>
+                      )}
+                    </div>
 
-        {/* Section: RECENT ACTIVITY (Subway Dispatch) */}
-        {(profile as any)?.activity && (
-          <div className="mt-12 sm:mt-16">
-            <h2 className="text-[12px] font-extrabold tracking-[0.3em] uppercase text-[#1b1b1b]/60 mb-4">
+                    {/* Action Verb / Subway Arrow */}
+                    <div className="shrink-0 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-[#35332f] transition-colors">
+                      <span className="hidden sm:inline">{st.verb}</span>
+                      <span className="text-base leading-none" aria-hidden="true">→</span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Section: RECENT ACTIVITY */}
+        {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
+          <section className="mt-12 sm:mt-16" aria-label="Dispatch Bulletin">
+            <h2 className="text-[12px] font-extrabold tracking-[0.3em] uppercase text-[#45423d] mb-4">
               DISPATCH // BULLETIN
             </h2>
             <RecentActivitySection
-              activity={(profile as any)?.activity}
+              activity={normalized.recentActivity}
               variant="the-metro"
-              accentColor={accentColor || '#e5452b'}
+              accentColor={readableAccent}
+              autoScroll={profile.autoScroll}
             />
-          </div>
+          </section>
         )}
 
-        {/* Section: FACILITIES (Services, Skills & Specialties) */}
-        {facilities.length > 0 && (
-          <div className="mt-12 sm:mt-16">
-            <h2 className="text-[12px] font-extrabold tracking-[0.3em] uppercase text-[#1b1b1b]/60 mb-4">
-              FACILITIES & SPECIALTIES
+        {/* Section: FACILITIES (Skills & proofs) */}
+        {normalized.sectionVisibility.proof && facilities.length > 0 && (
+          <section className="mt-12 sm:mt-16" aria-label="Facilities and Highlights">
+            <h2 className="text-[12px] font-extrabold tracking-[0.3em] uppercase text-[#45423d] mb-4">
+              FACILITIES & HIGHLIGHTS
             </h2>
             <ul className="flex flex-wrap gap-2.5 p-0 list-none m-0">
               {facilities.map((fac, idx) => (
@@ -518,23 +494,43 @@ export function MetroTemplate({
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         )}
 
         {/* Transit Footer */}
-        <footer className="mt-16 sm:mt-20 pt-6 border-t-2 border-[#1b1b1b]/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold text-[#1b1b1b]/50 uppercase tracking-widest font-mono">
-          <span>Tokyo & Worldwide · Transit System</span>
-          <span>UNOOL // THE METRO</span>
+        <footer className="mt-16 sm:mt-20 pt-6 border-t-2 border-[#1b1b1b]/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold text-[#45423d] uppercase tracking-widest font-mono">
+          <span>{location || `@${normalized.handle}`}</span>
+          <span>&copy; {new Date().getFullYear()} {name}</span>
         </footer>
       </main>
 
       {/* Toast Feedback */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#1b1b1b] text-white border-2 border-[#e5452b] px-4 py-2.5 rounded-xl font-extrabold text-xs shadow-2xl animate-fade-in flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#e5452b] animate-pulse" />
+        <div
+          className="fixed bottom-6 right-6 z-50 bg-[#1b1b1b] text-white border-2 px-4 py-2.5 rounded-xl font-extrabold text-xs shadow-2xl flex items-center gap-2"
+          style={{ borderColor: rawAccent }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawAccent }} aria-hidden="true" />
           <span>{toastMessage}</span>
         </div>
       )}
     </div>
   );
 }
+
+export function MetroTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#f4f1ea"
+      defaultAccent="#e5452b"
+      isPreview={props.isPreview}
+    >
+      <MetroTemplateInner {...props} />
+    </ProfileTemplateShell>
+  );
+}
+
+export default MetroTemplate;

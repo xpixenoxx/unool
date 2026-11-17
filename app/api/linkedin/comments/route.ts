@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
@@ -342,47 +342,17 @@ export async function POST(request: NextRequest) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    // ── Find LinkedIn connection ──────────────────────────
-    let { data: connRows } = await supabaseAdmin
+    // Strictly scope LinkedIn connection lookup to the authorized workspace
+    const { data: connRows } = await supabaseAdmin
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', workspaceId)
       .eq('platform', 'linkedin');
 
-    if ((!connRows || connRows.length === 0) && user.id !== workspaceId) {
-      const s2 = await supabaseAdmin
-        .from('platform_connections')
-        .select('*')
-        .eq('workspace_id', user.id)
-        .eq('platform', 'linkedin');
-      if (s2.data && s2.data.length > 0) connRows = s2.data;
-    }
-
-    if (!connRows || connRows.length === 0) {
-      const { data: memberships } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', user.id);
-      if (memberships) {
-        for (const m of memberships) {
-          const s3 = await supabaseAdmin
-            .from('platform_connections')
-            .select('*')
-            .eq('workspace_id', m.workspace_id)
-            .eq('platform', 'linkedin');
-          if (s3.data && s3.data.length > 0) {
-            connRows = s3.data;
-            break;
-          }
-        }
-      }
-    }
-
     if (!connRows || connRows.length === 0) {
       return NextResponse.json({
         ok: false,
-        error: 'LinkedIn account is not connected. Connect LinkedIn under Settings or Automation header first.',
-        debug,
+        error: 'LinkedIn account is not connected. Connect LinkedIn under Settings → Channels first.',
       }, { status: 404 });
     }
 
@@ -395,7 +365,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: false,
         error: 'Failed to decrypt LinkedIn token. Please reconnect your account.',
-        debug,
       }, { status: 401 });
     }
 
@@ -404,7 +373,7 @@ export async function POST(request: NextRequest) {
       .from('workspaces')
       .select('settings')
       .eq('id', workspaceId)
-      .single();
+      .maybeSingle();
 
     const currentSettings = (ws?.settings as Record<string, unknown>) || {};
     const autoConfig = (currentSettings.linkedin_automation_config as Record<string, unknown>) || {};
@@ -526,6 +495,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (postUrnsToAudit.length === 0) {
+      logger.debug('LinkedIn comments audit: no posts found', { workspaceId, debug });
       return NextResponse.json({
         ok: true,
         mediaCount: 0,
@@ -533,7 +503,6 @@ export async function POST(request: NextRequest) {
         newCommentsProcessed: 0,
         comments: existingLogs,
         message: 'No LinkedIn posts found in your workspace. If you published directly on LinkedIn, use "Audit by Post URL" above.',
-        debug,
       });
     }
 
@@ -636,6 +605,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
+    logger.debug('LinkedIn comments audit complete', { workspaceId, debug });
     return NextResponse.json({
       ok: true,
       mediaCount: postUrnsToAudit.length,
@@ -644,11 +614,10 @@ export async function POST(request: NextRequest) {
       comments: mergedLogs,
       stats,
       diagnostics: allDiagnostics,
-      debug,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error('POST /api/linkedin/comments error', { error: err });
-    return NextResponse.json({ ok: false, error: 'Internal server error while auditing LinkedIn comments', debug }, { status: 500 });
+    logger.error('POST /api/linkedin/comments error', { error: err, debug });
+    return NextResponse.json({ ok: false, error: 'Internal server error while auditing LinkedIn comments' }, { status: 500 });
   }
 }

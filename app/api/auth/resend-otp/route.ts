@@ -98,7 +98,11 @@ export async function POST(request: NextRequest) {
 
     // ── Handle Signin Resend (user exists in Supabase auth) ────────────────
     const foundUser = await findUserByEmail(emailLower);
-    if (!foundUser) {
+    const bannedUntil = (foundUser as { banned_until?: string | null } | null)?.banned_until;
+    const isDeleted = foundUser?.user_metadata?.is_deleted === true;
+    const isBanned = Boolean(bannedUntil && new Date(bannedUntil) > new Date());
+
+    if (!foundUser || isDeleted || isBanned) {
       // Same response regardless — no enumeration
       return NextResponse.json({
         success:      true,

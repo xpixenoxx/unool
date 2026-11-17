@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, LayoutGrid, Radio, Network, BarChart3, Bell, CalendarDays, Zap, CreditCard, Lock, Gift, Copy, Check, ExternalLink, UserPlus, Loader2, X } from 'lucide-react';
+import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, LayoutGrid, Radio, Network, BarChart3, Bell, CalendarDays, Zap, CreditCard, Gift, Copy, Check, ExternalLink, UserPlus, Loader2, X } from 'lucide-react';
 import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
 import { FeatureFlagsProvider, useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { SignalStrip } from './signal/SignalStrip';
@@ -27,7 +27,7 @@ const biscuit = {
   accentLight: '#D4B87A',
   accentBg: '#F5EFE2',
   text: '#3D2B1F',
-  textMuted: '#8B7355',
+  textMuted: '#6E5A48',
   textLight: '#A69279',
   activeBg: '#3D2B1F',
   activeFg: '#FAF7F2',
@@ -369,7 +369,7 @@ function DashboardSidebar({
           name: 'Signal',
           href: '/dashboard/signal',
           icon: Radio,
-          description: 'Cross-platform post composer',
+          description: 'Analytics, hook intelligence & feed',
           badge: dynamicPendingCount > 0 ? dynamicPendingCount : undefined,
         },
         ...(featureFlags.automationEnabled
@@ -386,13 +386,6 @@ function DashboardSidebar({
     {
       title: 'Grow',
       items: [
-        {
-          id: 'unlock-gates',
-          name: 'Unlock gates',
-          href: '/dashboard/unlock-gates',
-          icon: Lock,
-          description: 'Follow-to-unlock content gates',
-        },
         {
           id: 'referrals',
           name: 'Referrals',
@@ -692,7 +685,7 @@ function DashboardSidebar({
                 {/* Name & URL */}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-[#231C16] truncate leading-tight">
-                    {displayName.toLowerCase() === 'user' ? 'Creator' : displayName}
+                    {displayName}
                   </p>
                   <p className="text-xs text-[#7A6B60] truncate mt-0.5 leading-tight">
                     {displayUrl}
@@ -825,11 +818,12 @@ function DashboardSidebar({
               <DropdownMenuItem
                 onClick={() => {
                   const sub = profile?.subdomain;
-                  if (sub) {
-                    window.open(`https://${sub}.unool.co`, '_blank');
-                  } else {
-                    router.push('/dashboard/profile');
+                  if (!sub) {
+                    toast.info('Claim your unool.co subdomain in Presence first');
+                    router.push('/dashboard/presence');
+                    return;
                   }
+                  window.open(`https://${sub}.unool.co`, '_blank');
                 }}
                 className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-[#231C16] hover:bg-[#F3EAD9] rounded-lg cursor-pointer transition-colors"
               >

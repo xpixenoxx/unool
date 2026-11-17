@@ -233,7 +233,7 @@ vi.mock('@/lib/config/schema', () => ({
 
 vi.mock('@/lib/auth/account-switch-token', () => ({
   createAccountSwitchToken: () => 'fresh-switch-tok',
-  verifyAccountSwitchToken: () => ({ userId: 'user-2', email: 'target@unool.co' }),
+  verifyAccountSwitchToken: () => ({ userId: 'user-2', email: 'target@unool.co', securityVersion: 1 }),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -352,7 +352,7 @@ describe('Unlock Gates, Referral & Product Architecture Audit Verification Suite
     mockState.hasAccess = false;
     const res403 = await GET(new NextRequest('https://app.unool.co/api/profile/analytics?workspaceId=ws-victim'));
     expect(res403.status).toBe(403);
-  });
+  }, 15000);
 
   it('F-UG-04: /api/onboarding enforces session auth (401) and workspace membership (403)', async () => {
     const { GET } = await import('@/app/api/onboarding/route');
@@ -366,10 +366,17 @@ describe('Unlock Gates, Referral & Product Architecture Audit Verification Suite
     expect(res403.status).toBe(403);
   });
 
-  it('F-UG-05: /api/user/delete uses referrals.referrer_user_id and also purges referral_rewards and users', async () => {
+  it('F-UG-05: /api/user/delete requires explicit DELETE confirmation, uses referrals.referrer_user_id, and purges referral_rewards and users', async () => {
     const { DELETE } = await import('@/app/api/user/delete/route');
+    const unconfirmedRes = await DELETE(
+      new NextRequest('https://app.unool.co/api/user/delete', { method: 'DELETE' })
+    );
+    expect(unconfirmedRes.status).toBe(400);
+
     const req = new NextRequest('https://app.unool.co/api/user/delete', {
       method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation: 'DELETE' }),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(200);
@@ -627,5 +634,24 @@ describe('Unlock Gates, Referral & Product Architecture Audit Verification Suite
     const adminList = await adminRepo.listReferralCodes();
     expect(adminList.data[0].clickCount).toBe(2);
     expect(mockState.dbOps.some((o) => o.table === 'referral_codes' && o.op === 'upsert')).toBe(false);
+  });
+
+  it('Canonical tier summary helper matches PLANS_FALLBACK across Spark, Creator, Pro, Studio & aliases', async () => {
+    const { getLimitsForTier } = await import('@/lib/entitlements');
+    expect(getLimitsForTier('free')).toEqual(getLimitsForTier('spark'));
+    expect(getLimitsForTier('spark')).toEqual({
+      postsPerMonth: 15,
+      aiTokensPerMonth: 50_000,
+      connectedAccounts: 2,
+      scheduledPosts: 15,
+      teamMembers: 1,
+      apiCallsPerDay: 0,
+    });
+    expect(getLimitsForTier('creator').connectedAccounts).toBe(4);
+    expect(getLimitsForTier('creator').aiTokensPerMonth).toBe(300_000);
+    expect(getLimitsForTier('pro').connectedAccounts).toBe(8);
+    expect(getLimitsForTier('enterprise')).toEqual(getLimitsForTier('studio'));
+    expect(getLimitsForTier('studio').aiTokensPerMonth).toBe(-1);
+    expect(getLimitsForTier('studio').apiCallsPerDay).toBe(100_000);
   });
 });

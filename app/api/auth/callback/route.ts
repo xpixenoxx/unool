@@ -65,12 +65,13 @@ export async function POST(request: NextRequest) {
         full_name: user.user_metadata?.full_name,
       }, { onConflict: 'id' });
 
-      // Ensure workspace exists for this user (multi-workspace safe)
+      // Ensure workspace exists for this user (multi-workspace safe & heals missing owner membership)
       const [{ data: existingMember }, { data: existingOwnedWs }] = await Promise.all([
         supabaseAdmin
           .from('workspace_members')
           .select('workspace_id')
           .eq('user_id', user.id)
+          .or('status.eq.active,status.is.null')
           .order('created_at', { ascending: true })
           .limit(1)
           .maybeSingle(),
@@ -84,15 +85,19 @@ export async function POST(request: NextRequest) {
       ]);
 
       if (!existingMember && existingOwnedWs) {
-        await supabaseAdmin.from('workspace_members').insert({
-          workspace_id: existingOwnedWs.id,
-          user_id: user.id,
-          role: 'owner',
-        });
+        await supabaseAdmin.from('workspace_members').upsert(
+          {
+            workspace_id: existingOwnedWs.id,
+            user_id: user.id,
+            role: 'owner',
+            status: 'active',
+          },
+          { onConflict: 'workspace_id,user_id' }
+        );
       }
 
       if (!existingMember && !existingOwnedWs) {
-        // Create a new workspace for the user
+        // Create a new workspace for the user on canonical 'spark' tier
         const { data: newWorkspace } = await supabaseAdmin
           .from('workspaces')
           .insert({
@@ -101,13 +106,15 @@ export async function POST(request: NextRequest) {
             plan: 'spark',
           })
           .select('id')
-          .single();
+          .limit(1)
+          .maybeSingle();
 
         if (newWorkspace) {
           await supabaseAdmin.from('workspace_members').insert({
             workspace_id: newWorkspace.id,
             user_id: user.id,
             role: 'owner',
+            status: 'active',
           });
           logger.info('Created workspace for new user', { userId: user.id, workspaceId: newWorkspace.id, traceId });
         }

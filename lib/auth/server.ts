@@ -1,111 +1,189 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { config } from '@/lib/config/schema';
-import { resolvePrimaryWorkspaceId, verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { logger } from '@/lib/logger';
+import {
+  verifyInternalAuthHeaders,
+  INTERNAL_AUTH_SIGNATURE_HEADER,
+} from '@/lib/auth/internal-header';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 export interface AuthContext {
   userId: string;
   workspaceId: string;
+  email?: string;
+  isImpersonated: boolean;
 }
 
-export async function getCurrentAuth(request: NextRequest): Promise<AuthContext | null> {
-  const debugLines: string[] = [];
+const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+
+async function resolveWorkspaceForUser(
+  userId: string,
+  preferredWorkspaceId: string | null | undefined,
+  metadataWorkspaceId?: string | null
+): Promise<string> {
+  const candidates = [preferredWorkspaceId, metadataWorkspaceId]
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    .map((v) => v.trim());
+
+  for (const candidate of candidates) {
+    const allowed = await verifyWorkspaceAccess(userId, candidate);
+    if (allowed) {
+      return candidate;
+    }
+  }
+
+  // Deterministic oldest active membership -> oldest owned workspace -> userId fallback
   try {
-    const activeCookieWsId = request.cookies?.get?.('unool_active_ws')?.value;
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id, status')
+      .eq('user_id', userId)
+      .or('status.eq.active,status.is.null')
+      .order('joined_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-    // Priority 1: Check for secure headers injected by middleware.ts
-    const headerUserId = request.headers.get('x-user-id');
-    let headerWorkspaceId = request.headers.get('x-workspace-id');
-
-    if (headerUserId) {
-      if (headerWorkspaceId && activeCookieWsId && headerWorkspaceId !== activeCookieWsId) {
-        const cookieOk = await verifyWorkspaceAccess(headerUserId, activeCookieWsId);
-        if (cookieOk) {
-          headerWorkspaceId = activeCookieWsId;
-        }
-      } else if (headerWorkspaceId) {
-        const headerOk = await verifyWorkspaceAccess(headerUserId, headerWorkspaceId);
-        if (!headerOk) {
-          headerWorkspaceId = null;
-        }
-      }
-
-      if (!headerWorkspaceId) {
-        headerWorkspaceId =
-          (await resolvePrimaryWorkspaceId(headerUserId, activeCookieWsId)) || headerUserId;
-      }
-
-      if (headerWorkspaceId) {
-        return { userId: headerUserId, workspaceId: headerWorkspaceId };
-      }
+    if (member?.workspace_id) {
+      return member.workspace_id;
     }
+  } catch (err) {
+    logger.warn('Failed to resolve workspace from workspace_members', {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
-    let userObj: any = null;
+  try {
+    const { data: owned } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-    // Priority 2: Fallback to direct Bearer token
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.slice(7);
-      
-      // Use clean anon client to verify user token to avoid Service Role Key overrides
-      const anonSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-      const { data: { user }, error } = await anonSupabase.auth.getUser(token);
-      
-      if (error) {
-        debugLines.push(`bearer_error:${error.message}`);
-      } else if (user) {
-        userObj = user;
-        debugLines.push('bearer_success');
-      } else {
-        debugLines.push('bearer_no_user');
-      }
-    } else {
-      debugLines.push('no_bearer');
+    if (owned?.id) {
+      return owned.id;
     }
+  } catch {
+    // Non-fatal fallback
+  }
 
-    // Priority 3: Fallback to cookie-based session via SSR client
-    if (!userObj) {
-      const { getUser } = await import('@/lib/supabase/server');
-      try {
-        const user = await getUser();
-        if (user) {
-          userObj = user;
-          debugLines.push('cookie_success');
-        } else {
-          debugLines.push('cookie_no_user');
-        }
-      } catch (err: any) {
-        debugLines.push(`cookie_error:${err.message}`);
-      }
-    }
+  return userId;
+}
 
-    if (!userObj) {
-      // Append the debug traces into a custom header on a thrown error to be caught by route handler
-      throw new Error(`Auth resolution failed: ${debugLines.join(' | ')}`);
-    }
-
-    // Get workspace ID deterministically (multi-workspace safe)
-    const resolvedWsId = await resolvePrimaryWorkspaceId(
-      userObj.id,
-      activeCookieWsId || (userObj.user_metadata?.workspace_id as string | undefined)
+/**
+ * Resolves the authenticated user and active workspace from:
+ * 1. HMAC-verified internal headers injected by middleware.ts (never unsigned client headers)
+ * 2. Authorization: Bearer <jwt>
+ * 3. Supabase SSR auth cookies
+ *
+ * Returns null gracefully when unauthenticated or when verification fails (never throws 500).
+ */
+export async function getCurrentAuth(request?: NextRequest): Promise<AuthContext | null> {
+  try {
+    const isImpersonated = Boolean(
+      request?.cookies.get('impersonating')?.value === 'true' ||
+      request?.cookies.get('impersonated_as')?.value
     );
-    const workspaceId = resolvedWsId || userObj.id;
-    if (!workspaceId) {
-      throw new Error(`Workspace ID resolution failed: ${debugLines.join(' | ')}`);
+    const preferredWorkspaceId = request?.cookies.get('active_workspace_id')?.value;
+
+    // 1. Check HMAC-signed middleware headers (rejects spoofed x-user-id/x-workspace-id)
+    if (request) {
+      const headerUserId = request.headers.get('x-user-id');
+      const headerWorkspaceId = request.headers.get('x-workspace-id');
+      const sig = request.headers.get(INTERNAL_AUTH_SIGNATURE_HEADER);
+
+      if (headerUserId && headerWorkspaceId && sig) {
+        const validSig = await verifyInternalAuthHeaders(headerUserId, headerWorkspaceId, sig);
+        if (validSig) {
+          const resolvedWs = await resolveWorkspaceForUser(
+            headerUserId,
+            preferredWorkspaceId || headerWorkspaceId
+          );
+          return {
+            userId: headerUserId,
+            workspaceId: resolvedWs,
+            isImpersonated,
+          };
+        }
+      }
     }
 
-    return { userId: userObj.id, workspaceId };
-  } catch (error: any) {
-    if (error.message.includes('Auth resolution failed')) {
-      // Re-throw so upstream can catch the debug string
-      throw error;
+    // 2. Check Authorization: Bearer <token>
+    if (request) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.slice(7).trim();
+        if (token) {
+          const {
+            data: { user },
+            error,
+          } = await supabase.auth.getUser(token);
+          if (!error && user && user.user_metadata?.is_deleted !== true) {
+            const workspaceId = await resolveWorkspaceForUser(
+              user.id,
+              preferredWorkspaceId,
+              user.user_metadata?.workspace_id
+            );
+            return {
+              userId: user.id,
+              workspaceId,
+              email: user.email ?? undefined,
+              isImpersonated,
+            };
+          }
+          return null;
+        }
+      }
     }
-    // Standard return null for everything else
+
+    // 3. Check SSR session cookies
+    const serverClient = await createSupabaseServerClient();
+    const {
+      data: { user: cookieUser },
+      error: cookieErr,
+    } = await serverClient.auth.getUser();
+
+    if (cookieErr || !cookieUser || cookieUser.user_metadata?.is_deleted === true) {
+      return null;
+    }
+
+    const workspaceId = await resolveWorkspaceForUser(
+      cookieUser.id,
+      preferredWorkspaceId,
+      cookieUser.user_metadata?.workspace_id
+    );
+
+    return {
+      userId: cookieUser.id,
+      workspaceId,
+      email: cookieUser.email ?? undefined,
+      isImpersonated,
+    };
+  } catch (err) {
+    logger.warn('Auth resolution returned null safely', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return null;
   }
 }
 
+export async function requireAuth(request?: NextRequest): Promise<AuthContext> {
+  const auth = await getCurrentAuth(request);
+  if (!auth) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+  return auth;
+}
 
-export async function getCurrentUser(request: NextRequest) {
-  return getCurrentAuth(request);
+export function getAuthHeaders(request: NextRequest) {
+  return {
+    userId: request.headers.get('x-user-id'),
+    workspaceId: request.headers.get('x-workspace-id'),
+    planTier: request.headers.get('x-plan-tier'),
+  };
 }

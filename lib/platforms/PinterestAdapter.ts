@@ -270,11 +270,31 @@ export class PinterestAdapter implements PlatformAdapter {
 
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('pinterest', async () => {
-      const response = await fetchWithRetry(`${PINTEREST_API_BASE}/pins/${platformPostId}/analytics?metric_types=IMPRESSIONS,SAVES,PIN_CLICKS`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const end = new Date();
+      const start = new Date(end.getTime() - 89 * 24 * 60 * 60 * 1000);
+      const startDate = start.toISOString().split('T')[0];
+      const endDate = end.toISOString().split('T')[0];
+
+      let response = await fetchWithRetry(
+        `${PINTEREST_API_BASE}/pins/${encodeURIComponent(platformPostId)}/analytics?start_date=${startDate}&end_date=${endDate}&metric_types=IMPRESSION,SAVE,PIN_CLICK,OUTBOUND_CLICK`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      // Compatibility fallback if older proxy/sandbox expects legacy parameter names
+      if (!response.ok && response.status === 400) {
+        response = await fetchWithRetry(
+          `${PINTEREST_API_BASE}/pins/${encodeURIComponent(platformPostId)}/analytics?start_date=${startDate}&end_date=${endDate}&metric_types=IMPRESSIONS,SAVES,PIN_CLICKS`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+      }
 
       if (!response.ok) {
         const error = await response.text();
@@ -283,13 +303,21 @@ export class PinterestAdapter implements PlatformAdapter {
       }
 
       const data = await response.json();
-      
-      const metrics = data.all || {};
+      const metrics = data.all?.summary_metrics || data.summary_metrics || data.all || {};
+
+      const saves = Number(metrics.SAVE ?? metrics.SAVES ?? 0);
+      const impressions = Number(metrics.IMPRESSION ?? metrics.IMPRESSIONS ?? 0);
+      const pinClicks = Number(metrics.PIN_CLICK ?? metrics.PIN_CLICKS ?? 0);
+      const outboundClicks = Number(metrics.OUTBOUND_CLICK ?? 0);
+      const clicks = pinClicks + outboundClicks;
+
       return {
-        likes: 0, // Pinterest doesn't strictly have likes via analytics this way, usually SAVES.
-        saves: metrics.SAVES || 0,
-        impressions: metrics.IMPRESSIONS || 0,
-        clicks: metrics.PIN_CLICKS || 0,
+        likes: 0, // Pinterest does not expose traditional likes on pin analytics; uses saves/clicks
+        saves,
+        impressions,
+        views: impressions,
+        clicks,
+        outboundClicks,
       };
     });
   }

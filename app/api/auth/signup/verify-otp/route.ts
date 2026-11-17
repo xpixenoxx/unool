@@ -18,6 +18,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 import { verifySignupOtp } from '@/lib/auth/otp';
+import { saveUserPasswordHash } from '@/lib/auth/credentials';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
@@ -110,13 +111,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create the user with email already confirmed (no email needed from Supabase)
+    // Create the user with email already confirmed (store password hash via credentials helper)
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email:         emailLower,
       email_confirm: true,    // ✅ mark as verified immediately
       user_metadata: {
         full_name:     name,
-        password_hash: password_hash,
         referral_code: referral_code || undefined,
       },
     });
@@ -132,9 +132,13 @@ export async function POST(request: NextRequest) {
           await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
             email_confirm: true,
             user_metadata: {
-              full_name:     name,
-              password_hash: password_hash,
+              ...(existingUser.user_metadata || {}),
+              full_name: name,
             },
+          });
+          await saveUserPasswordHash(existingUser.id, password_hash, {
+            ...(existingUser.user_metadata || {}),
+            full_name: name,
           });
           logger.info('Signup: updated existing unverified user', { userId: existingUser.id, email: emailLower });
           return await logUserInAndRedirect(existingUser.id, emailLower);
@@ -144,6 +148,14 @@ export async function POST(request: NextRequest) {
       }
       logger.error('Failed to create user after OTP verification', { error: new Error(createError.message), email: emailLower });
       return NextResponse.json({ success: false, message: `Account creation failed: ${createError.message}` }, { status: 500 });
+    }
+
+    if (userData?.user?.id) {
+      await saveUserPasswordHash(
+        userData.user.id,
+        password_hash,
+        userData.user.user_metadata as Record<string, unknown> | undefined
+      );
     }
 
     // Record referral attribution if signup was via a referral link

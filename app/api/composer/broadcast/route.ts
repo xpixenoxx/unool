@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
-      const { workspaceId } = auth;
+      const { userId, workspaceId } = auth;
 
       const body = await request.json();
       const { content, profileId, mediaItems, selectedPlatforms, selectedTargets, studioProfile: clientStudioProfile, postId: incomingPostId } = body;
@@ -51,19 +51,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(ContentGuard.blockedResponse(guard.violation), { status: 400 });
       }
 
-      let resolvedProfileId = profileId;
-      const workspaceProfile = await profileRepository.findByWorkspaceId(workspaceId);
-
-      if (!resolvedProfileId && workspaceProfile) {
-        resolvedProfileId = workspaceProfile.id;
-      }
-
-      if (!resolvedProfileId) {
+      let workspaceProfile = await profileRepository.findByWorkspaceId(workspaceId);
+      if (profileId && (!workspaceProfile || profileId !== workspaceProfile.id)) {
         return NextResponse.json(
-          { error: 'No profile found for workspace. Create a profile first.' },
-          { status: 400 }
+          { error: 'Forbidden: profile does not belong to this workspace' },
+          { status: 403 }
         );
       }
+
+      if (!workspaceProfile) {
+        const tempSubdomain = `user-${userId.substring(0, 8)}-${Date.now().toString(36)}`;
+        workspaceProfile = await profileRepository.create({
+          workspaceId,
+          userId,
+          subdomain: tempSubdomain,
+          name: 'Creator',
+        });
+      }
+
+      const resolvedProfileId = workspaceProfile.id;
 
       const effectiveStudioProfile = clientStudioProfile || workspaceProfile?.studioProfile || null;
 

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { config } from '@/lib/config/schema';
-import { extractNormalizedEngagement } from '@/lib/services/analytics/normalize';
+import { extractExtendedEngagement } from '@/lib/services/analytics/normalize';
 import { syncWorkspaceEngagement } from '@/lib/services/analytics/syncEngagement';
 import { scheduleService } from '@/lib/services/ScheduleService';
+import { extractPostTelemetry } from '@/lib/analytics/postTelemetry';
+import { getPlatformCapability } from '@/lib/analytics/platformCapabilities';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
-
-
 
 export async function GET(request: NextRequest) {
   const auth = await getCurrentAuth(request);
@@ -16,6 +15,7 @@ export async function GET(request: NextRequest) {
 
   const { workspaceId } = auth;
   const shouldSync = request.nextUrl.searchParams.get('sync') === 'true';
+  const filterPostId = request.nextUrl.searchParams.get('postId');
 
   // Self-heal: process any scheduled posts that have become due in background without blocking GET
   try {
@@ -36,30 +36,42 @@ export async function GET(request: NextRequest) {
     scheduleService.processDueScheduledPosts(workspaceId).catch(() => {});
   }
 
-  // Trigger live engagement sync if requested
+  let syncResult = null;
   if (shouldSync) {
     try {
-      await syncWorkspaceEngagement(workspaceId, { maxPosts: 50, forceRefresh: true });
+      syncResult = await syncWorkspaceEngagement(workspaceId, {
+        maxPosts: 50,
+        forceRefresh: true,
+        ...(filterPostId ? { postIds: [filterPostId] } : {}),
+      });
     } catch {
       // Non-blocking sync error
     }
   }
 
-  // Fetch last 50 posts (published, scheduled, draft, failed, publishing with variants)
-  const { data: posts, error: postsError } = await supabaseAdmin
+  // Fetch posts (optionally filtered to a single postId for quick fallback detail refresh)
+  let postsQuery = supabaseAdmin
     .from('posts')
     .select('*')
     .eq('workspace_id', workspaceId)
-    .in('status', ['published', 'scheduled', 'draft', 'failed', 'publishing'])
-    .order('updated_at', { ascending: false, nullsFirst: false })
-    .limit(50);
+    .in('status', ['published', 'scheduled', 'draft', 'failed', 'publishing']);
+
+  if (filterPostId) {
+    postsQuery = postsQuery.eq('id', filterPostId).limit(1);
+  } else {
+    postsQuery = postsQuery
+      .order('updated_at', { ascending: false, nullsFirst: false })
+      .limit(100);
+  }
+
+  const { data: posts, error: postsError } = await postsQuery;
 
   if (postsError) {
     return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
   }
 
   if (!posts || posts.length === 0) {
-    return NextResponse.json({ posts: [] });
+    return NextResponse.json({ posts: [], syncResult });
   }
 
   const postIds = posts.map((p: any) => p.id);
@@ -75,13 +87,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch variants' }, { status: 500 });
   }
 
-  // Fetch real platform_posts records containing live engagement metrics
+  // Fetch real platform_posts records containing live engagement & sync provenance
   const variantIds = (variants || []).map((v: any) => v.id);
   const platformPostsByVariant: Record<string, any[]> = {};
   if (variantIds.length > 0) {
     const { data: pPosts } = await supabaseAdmin
       .from('platform_posts')
-      .select('id, post_variant_id, platform_connection_id, platform_post_id, platform_url, engagement')
+      .select('*')
       .in('post_variant_id', variantIds);
 
     for (const pp of pPosts || []) {
@@ -92,9 +104,12 @@ export async function GET(request: NextRequest) {
 
   const signalConnIds = Array.from(
     new Set(
-      (variants || [])
-        .map((v: any) => v.platform_connection_id as string | null | undefined)
-        .filter((id): id is string => Boolean(id))
+      [
+        ...(variants || []).map((v: any) => v.platform_connection_id),
+        ...Object.values(platformPostsByVariant)
+          .flat()
+          .map((pp: any) => pp.platform_connection_id),
+      ].filter((id): id is string => Boolean(id))
     )
   );
   const connectionMetaById: Record<string, { username?: string | null; displayName?: string | null }> = {};
@@ -111,37 +126,71 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Group variants by post_id and attach real engagement
+  // Group variants by post_id and attach real engagement + honest capability flags
   const variantsByPost: Record<string, any[]> = {};
+  const variantMediaByPost: Record<string, unknown[]> = {};
   for (const v of variants || []) {
     if (!variantsByPost[v.post_id]) variantsByPost[v.post_id] = [];
+    if (!variantMediaByPost[v.post_id]) variantMediaByPost[v.post_id] = [];
+    if (Array.isArray(v.media_urls)) {
+      variantMediaByPost[v.post_id].push(v.media_urls);
+    }
+
     const ppList = platformPostsByVariant[v.id] || [];
     const primaryPp = ppList[0];
-    const normalizedEngagement = extractNormalizedEngagement(primaryPp?.engagement);
-    const connMeta = v.platform_connection_id ? connectionMetaById[v.platform_connection_id] : undefined;
+    const normalizedEngagement = extractExtendedEngagement(primaryPp?.engagement);
+    const resolvedConnId = v.platform_connection_id || primaryPp?.platform_connection_id || null;
+    const connMeta = resolvedConnId ? connectionMetaById[resolvedConnId] : undefined;
+    const cap = getPlatformCapability(v.platform);
 
     variantsByPost[v.post_id].push({
       id: v.id,
       platform: v.platform,
-      platformConnectionId: v.platform_connection_id || primaryPp?.platform_connection_id || null,
+      platformConnectionId: resolvedConnId,
       accountUsername: connMeta?.username ?? null,
       accountDisplayName: connMeta?.displayName ?? null,
       status: v.status,
+      adaptedContent: v.adapted_content ?? null,
       platformUrl: primaryPp?.platform_url || v.platform_url || null,
       platformPostId: primaryPp?.platform_post_id || v.platform_post_id || null,
       characterCount: v.character_count,
+      scheduledAt: v.scheduled_at ?? null,
+      publishedAt: v.published_at ?? null,
       error: v.error,
       createdAt: v.created_at,
       updatedAt: v.updated_at,
-      engagement: normalizedEngagement,
+      syncStatus: cap.telemetryTier === 'publish_only'
+        ? 'unsupported'
+        : primaryPp?.sync_status || (primaryPp?.engagement?._syncError ? 'error' : primaryPp?.engagement?.syncedAt ? 'synced' : 'pending'),
+      syncError: primaryPp?.sync_error ?? primaryPp?.engagement?._syncError ?? null,
+      lastSyncedAt: primaryPp?.last_synced_at ?? primaryPp?.engagement?._lastSyncedAt ?? primaryPp?.engagement?.syncedAt ?? null,
+      engagement: {
+        ...normalizedEngagement,
+        views: cap.supportedMetrics.views ? normalizedEngagement.views : null,
+      },
     });
   }
 
   const result = posts.map((p: any) => {
     const pVariants = variantsByPost[p.id] || [];
+    const telemetry = extractPostTelemetry({
+      content: p.content || '',
+      variantMediaUrls: variantMediaByPost[p.id] || [],
+      platforms: pVariants.map((v: any) => v.platform),
+      existingHookType: p.hook_type,
+      existingHookFormulaId: p.hook_formula_id,
+      existingHookScore: p.hook_score,
+      existingWordCount: p.word_count,
+      existingHasMedia: p.has_media,
+      existingMediaCount: p.media_count,
+      existingFormat: p.content_format,
+    });
+
     let postLikes = 0;
     let postComments = 0;
     let postShares = 0;
+    let postSaves = 0;
+    let postClicks = 0;
     let postViews = 0;
     let hasRealData = false;
 
@@ -150,14 +199,18 @@ export async function GET(request: NextRequest) {
         postLikes += v.engagement.likes || 0;
         postComments += v.engagement.comments || 0;
         postShares += v.engagement.shares || 0;
-        postViews += v.engagement.views || 0;
+        postSaves += v.engagement.saves || 0;
+        postClicks += v.engagement.clicks || 0;
+        if (typeof v.engagement.views === 'number') {
+          postViews += v.engagement.views;
+        }
         if (v.engagement.hasRealData) hasRealData = true;
       }
     }
 
-    const totalInteractions = postLikes + postComments + postShares;
+    const totalInteractions = postLikes + postComments + postShares + postSaves + postClicks;
 
-    const isFlightPlan = Boolean(p.arc_id || p.adaptation_prompt_version === 'schedule-engine-v1');
+    const isFlightPlan = Boolean(p.arc_id || p.adaptation_prompt_version === 'schedule-engine-v1' || p.adaptation_prompt_version === 'flightplan-legacy-v1');
     const isQuickBroadcast = p.adaptation_prompt_version === 'direct-broadcast';
     const origin: 'flightplan' | 'quick-broadcast' | 'ai-composer' = isFlightPlan
       ? 'flightplan'
@@ -169,12 +222,17 @@ export async function GET(request: NextRequest) {
       id: p.id,
       content: p.content,
       status: p.status,
-      hookType: p.hook_type || null,
-      wordCount: p.word_count || null,
-      hasMedia: p.has_media || false,
+      hookType: telemetry.hookType,
+      hookFormulaId: telemetry.hookFormulaId,
+      hookScore: telemetry.hookScore,
+      wordCount: telemetry.wordCount,
+      hasMedia: telemetry.hasMedia,
+      mediaCount: telemetry.mediaCount,
+      contentFormat: telemetry.contentFormat,
       createdAt: p.created_at,
       updatedAt: p.updated_at || p.created_at,
       publishedAt: p.published_at || null,
+      scheduledAt: p.scheduled_at || null,
       adaptationPromptVersion: p.adaptation_prompt_version || null,
       arcId: p.arc_id || null,
       origin,
@@ -183,6 +241,8 @@ export async function GET(request: NextRequest) {
         likes: postLikes,
         comments: postComments,
         shares: postShares,
+        saves: postSaves,
+        clicks: postClicks,
         views: postViews,
         total: totalInteractions,
         hasRealData,
@@ -202,7 +262,7 @@ export async function GET(request: NextRequest) {
     return timeB - timeA;
   });
 
-  return NextResponse.json({ posts: result });
+  return NextResponse.json({ posts: result, syncResult });
 }
 
 export async function DELETE(request: NextRequest) {

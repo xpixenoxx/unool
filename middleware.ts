@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { isOriginAllowed } from '@/lib/security/cors';
+
+function applyApiCorsHeaders(request: NextRequest, response: NextResponse): NextResponse {
+  if (!request.nextUrl.pathname.startsWith('/api/')) {
+    return response;
+  }
+
+  response.headers.set('Vary', 'Origin');
+  const origin = request.headers.get('origin');
+  const allowedOrigin = isOriginAllowed(origin);
+  if (allowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    response.headers.set(
+      'Access-Control-Allow-Headers',
+      'X-Requested-With, Content-Type, Authorization'
+    );
+  }
+  return response;
+}
 
 const publicPaths = [
   '/',
@@ -72,6 +93,46 @@ function isProfilePath(pathname: string): string | null {
   return null;
 }
 
+const customDomainCache = new Map<string, { subdomain: string | null; expiresAt: number }>();
+const CUSTOM_DOMAIN_TTL_MS = 60_000;
+
+async function resolveVerifiedCustomDomainSubdomain(hostWithoutPort: string): Promise<string | null> {
+  const now = Date.now();
+  const cached = customDomainCache.get(hostWithoutPort);
+  if (cached && cached.expiresAt > now) {
+    return cached.subdomain;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null;
+  }
+
+  try {
+    const { createClient: createSbClient } = await import('@supabase/supabase-js');
+    const admin = createSbClient(supabaseUrl, supabaseServiceKey);
+    const lookupPromise = admin
+      .from('profiles')
+      .select('subdomain')
+      .eq('custom_domain', hostWithoutPort)
+      .not('custom_domain_verified_at', 'is', null)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 1500)
+    );
+
+    const result = await Promise.race([lookupPromise, timeoutPromise]);
+    const subdomain = typeof result.data?.subdomain === 'string' ? result.data.subdomain : null;
+    customDomainCache.set(hostWithoutPort, { subdomain, expiresAt: now + CUSTOM_DOMAIN_TTL_MS });
+    return subdomain;
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -118,15 +179,31 @@ export async function middleware(request: NextRequest) {
     return refResponse ?? NextResponse.next();
   }
 
-  // Host-based subdomain routing
-  const hostname = request.headers.get('host') || '';
+  // Host-based subdomain and verified custom-domain routing
+  const rawHost = (request.headers.get('host') || '').toLowerCase();
+  const hostWithoutPort = rawHost.split(':')[0];
   let hostSubdomain: string | null = null;
 
-  if (hostname.endsWith('.unool.co') && hostname !== 'unool.co' && hostname !== 'www.unool.co') {
-    hostSubdomain = hostname.replace('.unool.co', '');
-  } else if (hostname.includes('.localhost:')) {
-    const match = hostname.match(/^([^.]+)\.localhost:\d+$/);
+  if (hostWithoutPort.endsWith('.unool.co') && hostWithoutPort !== 'unool.co' && hostWithoutPort !== 'www.unool.co') {
+    hostSubdomain = hostWithoutPort.replace('.unool.co', '');
+  } else if (rawHost.includes('.localhost:')) {
+    const match = rawHost.match(/^([^.]+)\.localhost:\d+$/);
     if (match) hostSubdomain = match[1];
+  } else if (
+    hostWithoutPort &&
+    hostWithoutPort !== 'unool.co' &&
+    hostWithoutPort !== 'www.unool.co' &&
+    hostWithoutPort !== 'localhost' &&
+    hostWithoutPort !== '127.0.0.1' &&
+    !hostWithoutPort.endsWith('.vercel.app') &&
+    !pathname.startsWith('/u/') &&
+    !pathname.startsWith('/api/') &&
+    !pathname.startsWith('/dashboard') &&
+    !pathname.startsWith('/admin') &&
+    !pathname.startsWith('/signin') &&
+    !pathname.startsWith('/signup')
+  ) {
+    hostSubdomain = await resolveVerifiedCustomDomainSubdomain(hostWithoutPort);
   }
 
   if (
@@ -149,24 +226,45 @@ export async function middleware(request: NextRequest) {
     return rewriteRes;
   }
 
-  // Public paths
-  if (!hostSubdomain && isPublicPath(pathname)) {
-    if (pathname.startsWith('/api/')) {
-      const sanitizedHeaders = new Headers(request.headers);
-      sanitizedHeaders.delete('x-user-id');
-      sanitizedHeaders.delete('x-workspace-id');
-      const apiNext = NextResponse.next({ request: { headers: sanitizedHeaders } });
-      if (refResponse) {
-        refResponse.cookies.getAll().forEach((c) => apiNext.cookies.set(c));
-      }
-      return apiNext;
+  // Security: Strip all internal auth/workspace/impersonation headers from every incoming request
+  // before any public-path or rewrite branch executes.
+  const sanitizedHeaders = new Headers(request.headers);
+  sanitizedHeaders.delete('x-user-id');
+  sanitizedHeaders.delete('x-workspace-id');
+  sanitizedHeaders.delete('x-plan-tier');
+  sanitizedHeaders.delete('x-impersonating');
+  sanitizedHeaders.delete('x-unool-internal-auth');
+
+  const attachRefCookie = (res: NextResponse) => {
+    if (refResponse) {
+      refResponse.cookies.getAll().forEach(({ name, value, ...opts }) =>
+        res.cookies.set(name, value, opts)
+      );
     }
-    return refResponse ?? NextResponse.next();
+    return res;
+  };
+
+  // Handle CORS preflight strictly using allowlisted origins
+  if (pathname.startsWith('/api/') && request.method === 'OPTIONS') {
+    const origin = request.headers.get('origin');
+    const allowedOrigin = isOriginAllowed(origin);
+    if (origin && !allowedOrigin) {
+      return new NextResponse(null, { status: 403, headers: { Vary: 'Origin' } });
+    }
+    return applyApiCorsHeaders(request, new NextResponse(null, { status: 204 }));
+  }
+
+  // Public paths (still strip spoofed internal identity headers for /api/auth/* etc.)
+  if (!hostSubdomain && isPublicPath(pathname)) {
+    return applyApiCorsHeaders(
+      request,
+      attachRefCookie(NextResponse.next({ request: { headers: sanitizedHeaders } }))
+    );
   }
 
   // Profile paths
   if (isProfilePath(pathname)) {
-    return refResponse ?? NextResponse.next();
+    return attachRefCookie(NextResponse.next());
   }
 
   // ── Protected Dashboard Routes ───────────────────────────────────────────
@@ -186,17 +284,11 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    return refResponse ?? NextResponse.next();
+    return attachRefCookie(NextResponse.next());
   }
 
   // ── Inject auth identity headers for API routes ──────────────────────────
-  // SECURITY: Always strip client-supplied x-user-id / x-workspace-id headers first
-  // to prevent authentication bypass and cross-tenant account takeover via header spoofing.
   if (pathname.startsWith('/api/')) {
-    const sanitizedHeaders = new Headers(request.headers);
-    sanitizedHeaders.delete('x-user-id');
-    sanitizedHeaders.delete('x-workspace-id');
-
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -212,64 +304,88 @@ export async function middleware(request: NextRequest) {
         if (user) {
           sanitizedHeaders.set('x-user-id', user.id);
 
-          // Also resolve workspace ID so getCurrentAuth needs zero DB calls (multi-workspace safe)
+          // Resolve workspace ID deterministically (honoring validated active_workspace_id cookie)
           if (supabaseServiceKey) {
             try {
               const { createClient: createSbClient } = await import('@supabase/supabase-js');
+              const { signInternalAuthHeaders, INTERNAL_AUTH_SIGNATURE_HEADER } = await import('@/lib/auth/internal-header');
               const admin = createSbClient(supabaseUrl, supabaseServiceKey);
-              const preferredWsId = request.cookies.get('unool_active_ws')?.value;
+              const preferredWsId = request.cookies.get('active_workspace_id')?.value?.trim() || '';
 
-              const resolveWs = async (): Promise<string | null> => {
+              const resolveWs = async (): Promise<string> => {
                 if (preferredWsId) {
-                  const { data: preferredMember } = await admin
+                  const { data: prefMember } = await admin
                     .from('workspace_members')
-                    .select('workspace_id')
+                    .select('workspace_id, status')
                     .eq('workspace_id', preferredWsId)
                     .eq('user_id', user.id)
                     .limit(1)
                     .maybeSingle();
-                  if (preferredMember?.workspace_id) return preferredMember.workspace_id;
+                  if (prefMember?.workspace_id && (!prefMember.status || prefMember.status === 'active')) {
+                    return prefMember.workspace_id;
+                  }
+                  const { data: prefOwner } = await admin
+                    .from('workspaces')
+                    .select('id')
+                    .eq('id', preferredWsId)
+                    .eq('owner_id', user.id)
+                    .limit(1)
+                    .maybeSingle();
+                  if (prefOwner?.id) {
+                    return prefOwner.id;
+                  }
                 }
 
                 const { data: firstMember } = await admin
                   .from('workspace_members')
-                  .select('workspace_id')
+                  .select('workspace_id, status')
                   .eq('user_id', user.id)
-                  .order('created_at', { ascending: true })
+                  .or('status.eq.active,status.is.null')
+                  .order('joined_at', { ascending: true })
                   .limit(1)
                   .maybeSingle();
-                if (firstMember?.workspace_id) return firstMember.workspace_id;
+                if (firstMember?.workspace_id) {
+                  return firstMember.workspace_id;
+                }
 
-                const { data: owned } = await admin
+                const { data: firstOwned } = await admin
                   .from('workspaces')
                   .select('id')
                   .eq('owner_id', user.id)
                   .order('created_at', { ascending: true })
                   .limit(1)
                   .maybeSingle();
-                return owned?.id ?? null;
+                return firstOwned?.id || user.id;
               };
 
-              // Use a short timeout (1.5s) so a slow DB never blocks the API call
-              const timeoutPromise = new Promise<null>(
-                (resolve) => setTimeout(() => resolve(null), 1500)
+              const timeoutPromise = new Promise<string>((resolve) =>
+                setTimeout(() => resolve(user.id), 1500)
               );
-              const resolvedWsId = await Promise.race([resolveWs(), timeoutPromise]);
-              const workspaceId = resolvedWsId || user.id;
+              const workspaceId = await Promise.race([resolveWs(), timeoutPromise]);
               sanitizedHeaders.set('x-workspace-id', workspaceId);
+              const sig = await signInternalAuthHeaders(user.id, workspaceId);
+              if (sig) {
+                sanitizedHeaders.set(INTERNAL_AUTH_SIGNATURE_HEADER, sig);
+              }
             } catch {
               // workspace lookup failed — getCurrentAuth will resolve it
             }
           }
 
-          return NextResponse.next({ request: { headers: sanitizedHeaders } });
+          return applyApiCorsHeaders(
+            request,
+            NextResponse.next({ request: { headers: sanitizedHeaders } })
+          );
         }
       }
     } catch {
       // Auth injection failed — let routes handle their own auth with stripped headers
     }
 
-    return NextResponse.next({ request: { headers: sanitizedHeaders } });
+    return applyApiCorsHeaders(
+      request,
+      NextResponse.next({ request: { headers: sanitizedHeaders } })
+    );
   }
 
   // For everything else, allow through (let page components handle auth)

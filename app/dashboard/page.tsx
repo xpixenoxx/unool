@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getAuthContext } from '@/lib/auth/context';
-import { config } from '@/lib/config/schema';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { getOverviewUsage, getLimitsForTier, Tier } from '@/lib/entitlements';
@@ -172,7 +172,11 @@ async function getDashboardData(): Promise<{
           headline: profile.headline,
           status: (profile.subdomain ? 'published' : 'draft') as 'published' | 'draft',
           updatedAt: profile.updatedAt.toISOString(),
-          links: profile.links,
+          links: (profile.links || []).map((l) => ({
+            label: l.label,
+            url: l.url,
+            type: l.type || l.category || 'other',
+          })),
           proofPoints: profile.proofPoints,
         }
       : null,
@@ -196,7 +200,6 @@ async function getDashboardData(): Promise<{
 }
 
 import DashboardLoading from './loading';
-import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export default async function DashboardPage() {
   try {

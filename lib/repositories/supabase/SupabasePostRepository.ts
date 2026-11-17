@@ -1,4 +1,5 @@
 import { config } from '@/lib/config/schema';
+import { extractPostTelemetry } from '@/lib/analytics/postTelemetry';
 import type { IPostRepository } from '../interfaces/IPostRepository';
 import type {
   Post,
@@ -98,6 +99,19 @@ export class SupabasePostRepository implements IPostRepository {
   }
 
   async create(input: CreatePostInput): Promise<Post> {
+    const telemetry = extractPostTelemetry({
+      content: input.content,
+      mediaUrls: input.mediaUrls,
+      platforms: input.platforms,
+      existingHookType: input.hookType,
+      existingHookFormulaId: input.hookFormulaId,
+      existingHookScore: input.hookScore,
+      existingWordCount: input.wordCount,
+      existingHasMedia: input.hasMedia,
+      existingMediaCount: input.mediaCount,
+      existingFormat: input.contentFormat,
+    });
+
     const insertRow: Record<string, unknown> = {
       profile_id: input.profileId,
       workspace_id: input.workspaceId,
@@ -105,7 +119,15 @@ export class SupabasePostRepository implements IPostRepository {
       adaptation_prompt_version: input.adaptationPromptVersion,
       status: 'draft',
       version: 1,
+      hook_type: telemetry.hookType,
+      hook_formula_id: telemetry.hookFormulaId,
+      hook_score: telemetry.hookScore,
+      word_count: telemetry.wordCount,
+      has_media: telemetry.hasMedia,
+      media_count: telemetry.mediaCount,
+      content_format: telemetry.contentFormat,
     };
+    if (input.campaignTag !== undefined) insertRow.campaign_tag = input.campaignTag;
     if (input.arcBeat !== undefined) {
       insertRow.arc_beat = input.arcBeat;
     }
@@ -116,8 +138,16 @@ export class SupabasePostRepository implements IPostRepository {
       .select()
       .single();
 
-    if (error && input.arcBeat !== undefined && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('arc_beat'))) {
+    if (error && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('column'))) {
       delete insertRow.arc_beat;
+      delete insertRow.hook_type;
+      delete insertRow.hook_formula_id;
+      delete insertRow.hook_score;
+      delete insertRow.word_count;
+      delete insertRow.has_media;
+      delete insertRow.media_count;
+      delete insertRow.content_format;
+      delete insertRow.campaign_tag;
       const retry = await this.supabase.from('posts').insert(insertRow).select().single();
       if (retry.error) throw retry.error;
       return { ...this.mapPostRow(retry.data), arcBeat: input.arcBeat ?? null };
@@ -128,7 +158,36 @@ export class SupabasePostRepository implements IPostRepository {
 
   async update(id: string, data: UpdatePostInput): Promise<Post> {
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (data.content !== undefined) updateData.content = data.content;
+    if (data.content !== undefined) {
+      updateData.content = data.content;
+      const telemetry = extractPostTelemetry({
+        content: data.content,
+        mediaUrls: data.mediaUrls,
+        existingHookType: data.hookType,
+        existingHookFormulaId: data.hookFormulaId,
+        existingHookScore: data.hookScore,
+        existingWordCount: data.wordCount,
+        existingHasMedia: data.hasMedia,
+        existingMediaCount: data.mediaCount,
+        existingFormat: data.contentFormat,
+      });
+      updateData.hook_type = telemetry.hookType;
+      updateData.hook_formula_id = telemetry.hookFormulaId;
+      updateData.hook_score = telemetry.hookScore;
+      updateData.word_count = telemetry.wordCount;
+      updateData.has_media = telemetry.hasMedia;
+      updateData.media_count = telemetry.mediaCount;
+      updateData.content_format = telemetry.contentFormat;
+    } else {
+      if (data.hookType !== undefined) updateData.hook_type = data.hookType;
+      if (data.hookFormulaId !== undefined) updateData.hook_formula_id = data.hookFormulaId;
+      if (data.hookScore !== undefined) updateData.hook_score = data.hookScore;
+      if (data.wordCount !== undefined) updateData.word_count = data.wordCount;
+      if (data.hasMedia !== undefined) updateData.has_media = data.hasMedia;
+      if (data.mediaCount !== undefined) updateData.media_count = data.mediaCount;
+      if (data.contentFormat !== undefined) updateData.content_format = data.contentFormat;
+    }
+    if (data.campaignTag !== undefined) updateData.campaign_tag = data.campaignTag;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.scheduledAt !== undefined) updateData.scheduled_at = data.scheduledAt?.toISOString() ?? null;
     if (data.adaptationPromptVersion !== undefined) updateData.adaptation_prompt_version = data.adaptationPromptVersion;
@@ -138,8 +197,16 @@ export class SupabasePostRepository implements IPostRepository {
     if (data.arcBeat !== undefined) updateData.arc_beat = data.arcBeat;
 
     const { data: row, error } = await this.supabase.from('posts').update(updateData).eq('id', id).select().single();
-    if (error && data.arcBeat !== undefined && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('arc_beat'))) {
+    if (error && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('column'))) {
       delete updateData.arc_beat;
+      delete updateData.hook_type;
+      delete updateData.hook_formula_id;
+      delete updateData.hook_score;
+      delete updateData.word_count;
+      delete updateData.has_media;
+      delete updateData.media_count;
+      delete updateData.content_format;
+      delete updateData.campaign_tag;
       const retry = await this.supabase.from('posts').update(updateData).eq('id', id).select().single();
       if (retry.error) throw retry.error;
       return { ...this.mapPostRow(retry.data), arcBeat: data.arcBeat ?? null };
@@ -324,10 +391,27 @@ export class SupabasePostRepository implements IPostRepository {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async saveDraft(postId: string, content: string, _clientVersion: string): Promise<void> {
+    const telemetry = extractPostTelemetry({ content });
+    const updateFields: Record<string, unknown> = {
+      content,
+      updated_at: new Date().toISOString(),
+      hook_type: telemetry.hookType,
+      hook_formula_id: telemetry.hookFormulaId,
+      hook_score: telemetry.hookScore,
+      word_count: telemetry.wordCount,
+    };
     const { error } = await this.supabase
       .from('posts')
-      .update({ content, updated_at: new Date().toISOString() })
+      .update(updateFields)
       .eq('id', postId);
+    if (error && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('column'))) {
+      const retry = await this.supabase
+        .from('posts')
+        .update({ content, updated_at: updateFields.updated_at })
+        .eq('id', postId);
+      if (retry.error) throw retry.error;
+      return;
+    }
     if (error) throw error;
   }
 

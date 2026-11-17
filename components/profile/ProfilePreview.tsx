@@ -6,12 +6,16 @@ import { cn } from '@/lib/utils';
 import type { TemplateProps } from '@/components/profile/templates/types';
 import { TemplateSkeleton, getSkeletonCategory } from '@/components/profile/templates/TemplateSkeletons';
 import { MadeWithUnoolCTA } from '@/components/profile/MadeWithUnoolCTA';
+import { normalizeTemplateId } from '@/lib/profile/templateNormalization';
 
 // Map template IDs to their components for dynamic loading
 // Each template is now in its own file for better code-splitting and maintainability
 const templateComponents: Record<string, React.LazyExoticComponent<React.ComponentType<TemplateProps & { templateId: string }>>> = {
   // Individual
   'lover': React.lazy(() => import('@/components/profile/templates/persona/lover').then(m => ({ default: m.LoverTemplate }))),
+  'the-bento': React.lazy(() => import('@/components/profile/templates/persona/the-bento').then(m => ({ default: m.BentoTemplate }))),
+  'bento': React.lazy(() => import('@/components/profile/templates/persona/the-bento').then(m => ({ default: m.BentoTemplate }))),
+  'minimalist': React.lazy(() => import('@/components/profile/templates/persona/lone').then(m => ({ default: m.LoneTemplate }))),
   'lone': React.lazy(() => import('@/components/profile/templates/persona/lone').then(m => ({ default: m.LoneTemplate }))),
   'energy': React.lazy(() => import('@/components/profile/templates/persona/energy').then(m => ({ default: m.EnergyTemplate }))),
   // Startup
@@ -59,14 +63,9 @@ interface TemplateWrapperProps extends TemplateProps {
 }
 
 function TemplateWrapper({ templateId, profile, accentColor, isPreview, onLinkClick }: TemplateWrapperProps) {
-  // Normalize templateId: handle aliases with or without "the-" prefix, and fallback safely
-  const resolvedTemplateId = templateComponents[templateId]
-    ? templateId
-    : (templateComponents[`the-${templateId}`]
-      ? `the-${templateId}`
-      : (templateId?.startsWith('the-') && templateComponents[templateId.replace(/^the-/, '')]
-        ? templateId.replace(/^the-/, '')
-        : 'lone'));
+  // Normalize templateId via canonical alias map and fallback safely
+  const canonicalId = normalizeTemplateId(templateId);
+  const resolvedTemplateId = templateComponents[canonicalId] ? canonicalId : 'lone';
 
   const Component = templateComponents[resolvedTemplateId] || templateComponents['lone'];
   const effectiveTemplateId = templateComponents[resolvedTemplateId] ? resolvedTemplateId : 'lone';

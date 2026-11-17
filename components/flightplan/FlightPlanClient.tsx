@@ -89,6 +89,16 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
 
   const searchParams = useSearchParams();
   const targetPostId = searchParams?.get('postId') || null;
+  const rawSlotDay = searchParams?.get('slotDay');
+  const recommendedDayIndex =
+    rawSlotDay !== null && /^\d$/.test(rawSlotDay)
+      ? (Number(rawSlotDay) + 6) % 7
+      : null;
+  const rawSlotHour = searchParams?.get('slotHour');
+  const recommendedHour =
+    rawSlotHour !== null && /^\d{1,2}$/.test(rawSlotHour) ? Number(rawSlotHour) : null;
+  const recommendedTz = searchParams?.get('tz') || null;
+  const fromSignal = searchParams?.get('source') === 'signal';
   const [view, setView] = useState<ViewMode>('canvas');
   const [arc, setArc] = useState<WeekArc | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -264,6 +274,12 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             key="canvas"
             workspaceId={workspaceId}
             targetPostId={targetPostId}
+            initialSelectedDay={recommendedDayIndex}
+            recommendedSlotLabel={
+              fromSignal && recommendedDayIndex !== null
+                ? `Recommended from Signal${recommendedHour !== null ? ` · ${recommendedHour}:00` : ''}${recommendedTz ? ` (${recommendedTz})` : ''}`
+                : null
+            }
             onNewArc={() => setView('story')}
             initialWeekOffset={canvasWeekOffset}
             autoTour={showTourAfterSchedule}

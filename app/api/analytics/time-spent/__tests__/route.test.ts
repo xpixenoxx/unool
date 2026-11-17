@@ -139,7 +139,10 @@ describe('Analytics Time-Spent Tracker', () => {
 
       const req = new NextRequest('http://localhost:3000/api/analytics/time-spent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': 'verified-user-2' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': 'verified-user-2',
+        },
         body: JSON.stringify({ section: 'referrals', durationSeconds: 15, userId: 'verified-user-2' }),
       });
 

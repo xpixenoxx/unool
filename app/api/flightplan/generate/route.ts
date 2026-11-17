@@ -20,6 +20,7 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { config } from '@/lib/config/schema';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { resolveAiPersonalization } from '@/lib/ai/resolvePersonalization';
 
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
@@ -94,8 +95,17 @@ export async function POST(request: NextRequest) {
         profileContext.profileHeadline = targetProfile.headline || undefined;
       }
 
-      // Check for onboarding profile (either passed in body or saved on profile)
-      const effectiveAnswers = body.onboardingAnswers || targetProfile?.onboardingAnswers;
+      const personalization = await resolveAiPersonalization({
+        userId,
+        workspaceId,
+        disablePersonalization: Boolean(body.disablePersonalization),
+        bodyStudioProfile: body.onboardingAnswers || body.studioProfile,
+        profileStudioProfile: (targetProfile?.studioProfile as Record<string, any> | null) ?? null,
+        profileOnboardingAnswers: (targetProfile?.onboardingAnswers as Record<string, any> | null) ?? null,
+      });
+
+      // Check for onboarding profile only when AI personalization is enabled
+      const effectiveAnswers = personalization.enabled ? personalization.studioProfile : null;
       if (effectiveAnswers) {
         const onboardingPrompt = buildOnboardingPrompt(effectiveAnswers);
         if (onboardingPrompt) {
@@ -192,12 +202,14 @@ export async function POST(request: NextRequest) {
           ? (sequenceResults[firstPlatform] as { ok: true; value: PostSequence }).value.posts[day]?.content || content.trim()
           : content.trim();
 
-        // Create the post
+        // Create the post (explicitly tagged as Flight Plan origin)
         const post = await postRepository.create({
           profileId: resolvedProfileId || '',
           workspaceId,
           content: dayContent,
-          adaptationPromptVersion: PostAdapter['PROMPT_VERSION'],
+          adaptationPromptVersion: 'flightplan-legacy-v1',
+          mediaUrls: mediaItemsByDay?.[day] || [],
+          platforms: activePlatforms,
         });
 
         // If scheduled, update status and enqueue via QStash

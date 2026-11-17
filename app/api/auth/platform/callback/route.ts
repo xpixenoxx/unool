@@ -9,22 +9,19 @@ import type { Platform } from '@/lib/repositories/interfaces/IPlatformRepository
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
 import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
+import { buildSafeRedirectUrl } from '@/lib/auth/redirect';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 
 const platformRepository = new SupabasePlatformRepository();
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Build a redirect URL that respects the returnUrl from OAuth state.
- * Falls back to /dashboard/settings if no returnUrl is available.
+ * Build a safe relative redirect URL that respects the returnUrl from OAuth state.
+ * Falls back to /dashboard if no valid relative returnUrl is available.
  */
 function buildRedirectUrl(request: NextRequest, returnUrl: string | undefined, params: Record<string, string>): string {
-  const fallback = returnUrl || '/dashboard';
-  const url = new URL(fallback, request.url);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, value);
-  }
-  return url.toString();
+  return buildSafeRedirectUrl(request.url, returnUrl, params, '/dashboard');
 }
 
 export async function GET(request: NextRequest) {
@@ -157,21 +154,25 @@ export async function GET(request: NextRequest) {
     // The OAuth state might have passed a userId instead of workspaceId,
     // or an incorrect/stale workspaceId. We must verify and correct it.
     let finalWorkspaceId = workspaceId;
-    const { createClient } = await import('@supabase/supabase-js');
-    const { config } = await import('@/lib/config/schema');
-    
 
-    // Run workspace existence check + member lookup in PARALLEL (saves one DB round-trip)
+    // Run workspace existence check + active member lookup in PARALLEL (saves one DB round-trip)
     const [workspaceResult, memberResult] = await Promise.all([
-      supabaseAdmin.from('workspaces').select('id').eq('id', workspaceId).single(),
-      supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', workspaceId).single(),
+      supabaseAdmin.from('workspaces').select('id').eq('id', workspaceId).limit(1).maybeSingle(),
+      supabaseAdmin
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', workspaceId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     if (workspaceResult.data) {
       // workspaceId is already a valid workspace — nothing to do
       logger.debug('WorkspaceId verified as existing workspace', { workspaceId: finalWorkspaceId });
     } else if (memberResult.data?.workspace_id) {
-      // workspaceId was actually the userId — resolved via membership
+      // workspaceId was actually the userId — resolved via active membership
       finalWorkspaceId = memberResult.data.workspace_id;
       logger.info('Resolved workspaceId from userId (workspaceId was not a valid workspace)', {
         userId: workspaceId,
@@ -183,7 +184,9 @@ export async function GET(request: NextRequest) {
         .from('workspaces')
         .select('id')
         .eq('owner_id', workspaceId)
-        .single();
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
       if (ownedWorkspace?.id) {
         finalWorkspaceId = ownedWorkspace.id;
@@ -192,10 +195,28 @@ export async function GET(request: NextRequest) {
           workspaceId: finalWorkspaceId,
         });
       } else {
-        logger.warn('Could not resolve valid workspaceId — using original value', {
+        logger.warn('Could not resolve valid workspaceId — rejecting OAuth callback', {
           workspaceId,
+          userId,
         });
+        return NextResponse.redirect(
+          buildRedirectUrl(request, returnUrl, { error: 'forbidden_workspace', platform })
+        );
       }
+    }
+
+    const roleCheck = await requireWorkspaceRole(userId, finalWorkspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      logger.warn('OAuth callback blocked: insufficient workspace role', {
+        userId,
+        workspaceId: finalWorkspaceId,
+        platform,
+        reason: roleCheck.reason,
+        role: roleCheck.role,
+      });
+      return NextResponse.redirect(
+        buildRedirectUrl(request, returnUrl, { error: 'forbidden_workspace', platform })
+      );
     }
 
 
@@ -357,14 +378,14 @@ export async function GET(request: NextRequest) {
 
     // Invalidate dashboard overview cache so the newly connected platform shows immediately
     try {
-      invalidateOverviewCache(workspaceId);
+      invalidateOverviewCache(finalWorkspaceId);
     } catch {
       /* silent */
     }
 
     // Build success redirect URL
     const successUrl = buildRedirectUrl(request, returnUrl, { connected: platform });
-    
+
     const response = NextResponse.redirect(successUrl);
     response.headers.append('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
     if (platform === 'x') {

@@ -59,8 +59,8 @@
   --club-void-card: oklch(0.055 0.018 250);
 
   --club-fg: oklch(0.985 0 0);
-  --club-fg-muted: oklch(0.72 0.01 250);
-  --club-fg-subtle: oklch(0.55 0.01 250);
+  --club-fg-muted: oklch(0.84 0.01 250);
+  --club-fg-subtle: oklch(0.74 0.01 250);
 
   --club-electric-cyan: oklch(0.72 0.22 200);
   --club-electric-cyan-dim: oklch(0.72 0.22 200 / 0.15);

@@ -25,11 +25,12 @@ export async function GET(request: NextRequest) {
     const workspaceId =
       requestedWorkspaceId || (await resolvePrimaryWorkspaceId(user.id)) || user.id;
 
-    // Get display name for code generation (multi-workspace safe)
+    // Get display name for code generation (avoid .single() across multiple workspace profiles)
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('name')
       .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 

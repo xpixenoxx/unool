@@ -1,54 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ProfileExtractor, ExtractedProfile } from '@/lib/ai/ProfileExtractor';
-import { logger } from '@/lib/logger';
-import { config } from '@/lib/config/schema';
-import { trackAiUsage, withWorkspacePlan } from '@/lib/entitlements';
+import { NextRequest } from 'next/server';
+import { withWorkspacePlan } from '@/lib/entitlements';
+import { handleProfileExtractionRequest } from '@/lib/profile/extractionService';
 
-
-async function handleGenerate(request: NextRequest) {
-  const traceId = crypto.randomUUID();
-
-  try {
-    const userId = request.headers.get('x-user-id');
-    const workspaceId = request.headers.get('x-workspace-id');
-
-
-    if (!userId || !workspaceId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { url } = body;
-
-    if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 });
-    }
-
-    logger.info('Profile autofill generation requested', { traceId, url, workspaceId });
-
-    const result = await ProfileExtractor.extractFromUrl(url);
-
-    if (!result.ok) {
-      logger.error('Profile extraction failed', { traceId, error: result.error });
-      return NextResponse.json(
-        { error: result.error.message || 'Failed to extract profile' },
-        { status: 500 }
-      );
-    }
-
-    const extracted: ExtractedProfile = result.value;
-
-    const estimatedTokens = url.length + JSON.stringify(extracted).length;
-    await trackAiUsage(workspaceId, userId, Math.ceil(estimatedTokens / 4), Math.ceil(estimatedTokens / 4), 'profile-extraction', config.AI_DEFAULT_MODEL);
-
-    logger.info('Profile extraction completed successfully', { traceId, workspaceId });
-
-    return NextResponse.json({ profile: extracted });
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.error('Profile generate API error', { traceId, error: err });
-    return NextResponse.json({ error: err.message || 'Generation failed' }, { status: 500 });
-  }
-}
-
-export const POST = withWorkspacePlan(handleGenerate, { action: 'use_ai' });
+/**
+ * Deprecated alias for POST /api/profile/extract.
+ * Consolidated onto the shared SSRF-safe extraction pipeline with plan enforcement.
+ */
+export const POST = withWorkspacePlan(
+  async (request: NextRequest, context) => {
+    return handleProfileExtractionRequest(request, context, { deprecated: true });
+  },
+  { action: 'use_ai' }
+);

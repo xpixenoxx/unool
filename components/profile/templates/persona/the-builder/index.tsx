@@ -1,185 +1,345 @@
 'use client';
 
+import React, { useMemo } from 'react';
+import { ArrowUpRight, Mail, MapPin, ShieldCheck, Wrench } from 'lucide-react';
+import type { TemplateProps } from '../types';
+import { getSharedLinkIcon } from '../../utils/socialIcons';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
-import { getAestheteSocialIcon } from '@/components/profile/templates/utils/socialIcons';
-import type { TemplateProps } from '@/components/profile/templates/types';
+import { ProfileTemplateShell, useProfileShell } from '@/components/profile/ProfileTemplateShell';
+import { cleanDisplayUrl } from '@/lib/profile/templateActions';
+import { rgbaFromHex, solveAccessibleAccent } from '@/lib/profile/contrast';
 
-interface BuilderTemplateProps extends TemplateProps {}
+function BuilderContent({ profile, isPreview, onLinkClick }: TemplateProps) {
+  const { normalized, openContact } = useProfileShell();
+  const isDark = normalized.colorMode === 'dark';
 
-export function BuilderTemplate({ profile }: BuilderTemplateProps) {
-  const name = profile?.name || "";
-  const role = profile?.role || profile?.headline || "BUILDER & ARCHITECT";
-  const bio = profile?.bio || "I construct systems and experiences that turn abstract possibilities into tangible utility.";
-  const email = profile?.email || "";
+  const bgMain = isDark ? '#111618' : '#E8EEF2';
+  const cardBg = isDark ? '#192124' : '#FAFAFA';
+  const cardAltBg = isDark ? '#1F292D' : '#F3F6F8';
+  const ink = isDark ? '#F3F6F8' : '#141B19';
+  const muted = isDark ? '#B7C2C8' : '#4E5B57'; // >= 4.5:1 on both dark and light cards
+  const borderCol = isDark ? 'rgba(243,246,248,0.14)' : '#CBD5DC';
+  const accent = useMemo(
+    () => solveAccessibleAccent(normalized.accentColor || '#1D6B68', cardBg, 4.5),
+    [normalized.accentColor, cardBg],
+  );
 
-  const links = profile?.links || [];
-  const metrics = profile?.metrics || [];
-  const proofs = profile?.proofPoints || profile?.proofs || [];
+  const initials = useMemo(() => {
+    const parts = (normalized.name || 'B').trim().split(/\s+/);
+    return parts.length >= 2
+      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+      : (normalized.name || 'B').slice(0, 2).toUpperCase();
+  }, [normalized.name]);
 
-  const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
-
-    .builder-theme {
-      background-color: #FAFAFA;
-      color: #292226;
-      font-family: 'Outfit', sans-serif;
-    }
-
-    .builder-serif {
-      font-family: 'DM Serif Display', serif;
-    }
-
-    .builder-container {
-      background-color: #E8EEF2;
-      box-shadow: 0 20px 40px rgba(52, 38, 50, 0.08);
-    }
-
-    .builder-blueprint-grid {
-      background-image:
-        linear-gradient(rgba(135, 149, 138, 0.15) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(135, 149, 138, 0.15) 1px, transparent 1px);
-      background-size: 24px 24px;
-    }
-
-    .builder-module-shadow {
-      box-shadow: 4px 4px 0px rgba(52, 38, 50, 1);
-      transition: all 0.2s ease;
-    }
-    .builder-module-shadow:hover {
-      box-shadow: 2px 2px 0px rgba(52, 38, 50, 1);
-      transform: translate(2px, 2px);
-    }
-
-    /* Focus visible styles for accessibility */
-    :focus-visible {
-      outline: 2px solid #A85C4A;
-      outline-offset: 2px;
-    }
-  `;
+  const avatarRadiusClass =
+    normalized.avatarStyle === 'circle'
+      ? 'rounded-full'
+      : normalized.avatarStyle === 'rounded'
+      ? 'rounded-xl'
+      : 'rounded-none';
 
   return (
-    <div className="builder-theme min-h-screen w-full flex justify-center py-4 md:py-12 px-4 md:px-8">
-      <style>{customStyles}</style>
-
-      <div className="builder-container w-full max-w-[1200px] rounded-[32px] md:rounded-[40px] border border-[#292226]/10 overflow-hidden flex flex-col relative pb-20">
-
-        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#292226]/10">
-          <div className="flex items-center gap-3">
-             <div className="w-5 h-5 bg-[#342632] flex items-center justify-center">
-                <div className="w-1.5 h-1.5 bg-[#C5A86A]" />
-             </div>
-             <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#342632]">BUILDER // {name ? name.split(' ')[0] : 'ID'}</span>
+    <div
+      className="min-h-screen w-full antialiased selection:bg-teal-900 selection:text-white"
+      style={{
+        backgroundColor: bgMain,
+        color: ink,
+        fontFamily: 'var(--profile-font-body)',
+      }}
+    >
+      {/* Top Technical Telemetry Bar */}
+      <header
+        className="border-b px-4 sm:px-6 lg:px-10 py-3.5"
+        style={{ backgroundColor: cardBg, borderColor: borderCol }}
+      >
+        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: accent }}
+              aria-hidden="true"
+            />
+            <span
+              className="text-xs uppercase tracking-[0.18em] font-semibold truncate"
+              style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace', color: muted }}
+            >
+              {normalized.handle || 'blueprint'} // BUILDER_SPEC
+            </span>
           </div>
-        </header>
 
-        <div className="px-6 md:px-12 pt-16 md:pt-24 max-w-[960px] mx-auto w-full">
-          <section className="mb-16 relative">
-             <div className="w-full bg-[#342632] text-[#F3EEE6] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group builder-module-shadow border border-[#292226]">
-                <div className="absolute inset-0 builder-blueprint-grid opacity-30" aria-hidden="true" />
-
-                <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-white/10 pb-8 md:pb-0 md:pr-8">
-                   {profile?.avatarUrl ? (
-                     <img src={profile.avatarUrl} alt={name} className="w-48 h-48 md:w-56 md:h-56 object-cover rounded-sm border-2 border-[#C5A86A] z-10 relative" />
-                   ) : (
-                     <div className="w-48 h-48 md:w-56 md:h-56 bg-[#292226] border-2 border-[#C5A86A] flex items-center justify-center text-xs font-bold text-[#C5A86A] z-10 relative">ID</div>
-                   )}
-                </div>
-
-                <div className="flex-1 relative z-10 flex flex-col justify-center">
-                   <div className="flex items-center gap-5 mb-6">
-                     <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
-                   </div>
-
-                   <div className="text-[12px] font-bold text-[#C5A86A] mb-3 uppercase tracking-widest">{role}</div>
-                   <p className="text-lg text-[#F3EEE6]/80 max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
-                </div>
-             </div>
-          </section>
-
-          <section className="mb-24 flex flex-col text-sm font-bold uppercase tracking-widest">
-             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
-                <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">POSITION</span>
-                <span className="text-[#342632]">{role}</span>
-             </div>
-             {links.length > 0 && (
-               <div className="flex flex-col md:flex-row py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
-                  <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors pt-1">NETWORK</span>
-                  <div className="flex gap-4 flex-wrap">
-                     {links.map((link: any, i: number) => {
-                        const icon = getAestheteSocialIcon(link.label || link.title, link.url, link.icon);
-                        return (
-                          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#342632] border border-[#292226]/30 px-4 py-2 hover:border-[#A85C4A] hover:text-[#A85C4A] transition-colors text-[#F3EEE6]">
-                             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">{icon}</svg>
-                             <span>{link.label}</span>
-                          </a>
-                        );
-                     })}
-                  </div>
-               </div>
-             )}
-          </section>
-
-          {metrics && metrics.length > 0 && (
-             <section className="mb-24">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold border-l-2 border-[#A85C4A] pl-3">SYSTEM DIAGNOSTICS</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                   {metrics.map((m: any, i: number) => (
-                      <div key={i} className="bg-[#342632] border border-[#292226]/20 p-6 flex flex-col justify-center items-center text-center hover:border-[#A85C4A] transition-colors group">
-                         <div className="builder-serif text-5xl md:text-6xl text-[#F3EEE6] mb-2 group-hover:text-[#A85C4A] transition-colors">{m.value}</div>
-                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#C5A86A]">{m.label || m.title || m.name}</div>
-                      </div>
-                   ))}
-                </div>
-             </section>
-          )}
-
-          {proofs && proofs.length > 0 && (
-             <section className="mb-24">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold border-l-2 border-[#A85C4A] pl-3">SYSTEM CREDENTIALS</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {proofs.filter((p: any) => p.type || p.title || p.label).map((p: any, i: number) => (
-                      <div key={i} className="bg-[#FAFAFA] border-2 border-[#292226]/40 p-6 flex flex-col justify-center hover:border-[#A85C4A] transition-colors group relative overflow-hidden builder-module-shadow">
-                         <div className="absolute inset-0 builder-blueprint-grid opacity-10 pointer-events-none" aria-hidden="true" />
-                         <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#292226]/10 group-hover:bg-[#A85C4A] transition-colors" />
-                         <div className="flex items-baseline gap-4 mb-2 pl-4">
-                           <div className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#342632] relative z-10">{p.type || p.title || p.label}</div>
-                           <div className="builder-serif text-3xl md:text-4xl text-[#A85C4A] relative z-10">{p.value}</div>
-                         </div>
-                         {p.url && (
-                           <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#87958A] hover:text-[#A85C4A] border-b border-[#87958A] hover:border-[#A85C4A] w-max mt-4 pl-4 pb-0.5 relative z-10">
-                             VERIFY PROOF ↗
-                           </a>
-                         )}
-                      </div>
-                   ))}
-                </div>
-             </section>
-          )}
-
-          <RecentActivitySection
-            activity={profile.recentActivity}
-            variant="builder"
-            autoScroll={profile.autoScroll}
-          />
-
-          <section className="mt-32 mb-16 bg-[#A85C4A] text-[#F3EEE6] p-8 md:p-16 flex flex-col items-center text-center relative overflow-hidden border border-[#292226] builder-module-shadow">
-             <div className="absolute inset-0 builder-blueprint-grid opacity-20 pointer-events-none" aria-hidden="true" />
-             <h2 className="builder-serif text-5xl md:text-6xl mb-6 max-w-2xl leading-[1.05] relative z-10 text-[#F3EEE6]">Ready to initialize?</h2>
-             <p className="text-xs text-[#F3EEE6]/80 mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
-               Begin sequence transfer.
-             </p>
-             {email && (
-             <a
-               href={`mailto:${email}`}
-               className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(41,34,38,1)] border border-[#292226]"
-             >
-               GET IN TOUCH <span className="text-[#F3EEE6]" aria-hidden="true">↗</span>
-             </a>
-           )}
-          </section>
-
+          <div className="flex items-center gap-3 text-xs font-medium" style={{ color: muted }}>
+            {normalized.location && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{normalized.location}</span>
+              </span>
+            )}
+            {normalized.availabilityBadge && (
+              <span
+                className="px-2.5 py-0.5 border text-[11px] font-semibold uppercase tracking-wider"
+                style={{
+                  borderColor: rgbaFromHex(accent, 0.35),
+                  backgroundColor: rgbaFromHex(accent, 0.1),
+                  color: accent,
+                }}
+              >
+                {normalized.availabilityBadge}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-10 sm:py-16 space-y-8">
+        {/* Blueprint Hero Sheet */}
+        <section
+          className="relative border p-6 sm:p-10 shadow-sm"
+          style={{
+            backgroundColor: cardBg,
+            borderColor: borderCol,
+            backgroundImage: `radial-gradient(${rgbaFromHex(muted, 0.16)} 1px, transparent 1px)`,
+            backgroundSize: '20px 20px',
+          }}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 sm:gap-10 items-start">
+            {/* Technical Specimen Portrait */}
+            <div className="space-y-2.5">
+              <div
+                className={`w-36 h-40 sm:w-44 sm:h-48 border overflow-hidden relative flex items-center justify-center ${avatarRadiusClass}`}
+                style={{ backgroundColor: cardAltBg, borderColor: borderCol }}
+              >
+                {normalized.avatarUrl ? (
+                  <img
+                    src={normalized.avatarUrl}
+                    alt={`${normalized.name} portrait`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span
+                    className="text-4xl font-bold tracking-tight"
+                    style={{ fontFamily: 'var(--profile-font-heading)', color: accent }}
+                  >
+                    {initials}
+                  </span>
+                )}
+              </div>
+              <div
+                className="text-[11px] uppercase tracking-[0.16em]"
+                style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace', color: muted }}
+              >
+                FIG. 01 — SPECIMEN
+              </div>
+            </div>
+
+            {/* Identity Specification */}
+            <div className="min-w-0 space-y-5">
+              {(normalized.role || normalized.company) && (
+                <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] font-semibold" style={{ color: accent }}>
+                  <Wrench className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>
+                    {[normalized.role, normalized.company].filter(Boolean).join(' · ')}
+                  </span>
+                </div>
+              )}
+
+              <h1
+                className="text-3xl sm:text-5xl font-bold tracking-tight leading-[1.08] break-words"
+                style={{ fontFamily: 'var(--profile-font-heading)', color: ink }}
+              >
+                {normalized.name}
+              </h1>
+
+              {normalized.headline && normalized.headline !== normalized.role && (
+                <p className="text-base sm:text-lg font-medium leading-relaxed" style={{ color: ink }}>
+                  {normalized.headline}
+                </p>
+              )}
+
+              {normalized.sectionVisibility.bio && normalized.bio && (
+                <p className="text-sm sm:text-base leading-relaxed max-w-2xl" style={{ color: muted }}>
+                  {normalized.bio}
+                </p>
+              )}
+
+              {normalized.sectionVisibility.openTo && normalized.openTo.length > 0 && (
+                <div className="pt-1">
+                  <OpenToBadges
+                    intents={normalized.openTo}
+                    accentColor={accent}
+                    variant={isDark ? 'dark' : 'light'}
+                  />
+                </div>
+              )}
+
+              {normalized.sectionVisibility.contact && normalized.hasContactChannel && (
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={openContact}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border transition-colors focus-visible:outline-none focus-visible:ring-2"
+                    style={{
+                      backgroundColor: accent,
+                      color: isDark ? '#0D1314' : '#FFFFFF',
+                      borderColor: accent,
+                    }}
+                  >
+                    <Mail className="w-4 h-4" aria-hidden="true" />
+                    <span>Connect</span>
+                  </button>
+                  {normalized.showEmail && normalized.email && (
+                    <a
+                      href={`mailto:${normalized.email}`}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border transition-colors hover:opacity-80"
+                      style={{ borderColor: borderCol, color: ink, backgroundColor: cardAltBg }}
+                    >
+                      <span>{normalized.email}</span>
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Metrics / Proof Spec Grid */}
+        {normalized.sectionVisibility.proof && normalized.proofs.length > 0 && (
+          <section aria-labelledby="builder-proof-heading" className="space-y-3">
+            <h2
+              id="builder-proof-heading"
+              className="text-xs uppercase tracking-[0.2em] font-semibold"
+              style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace', color: muted }}
+            >
+              01 // VERIFIED_TELEMETRY
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {normalized.proofs.map((proof, idx) => (
+                <div
+                  key={proof.id || idx}
+                  className="border p-5 flex flex-col justify-between gap-2"
+                  style={{ backgroundColor: cardBg, borderColor: borderCol }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="text-[11px] uppercase tracking-[0.16em] font-semibold"
+                      style={{ color: accent }}
+                    >
+                      {proof.label}
+                    </span>
+                    <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: accent }} aria-hidden="true" />
+                  </div>
+                  <div
+                    className="text-2xl sm:text-3xl font-bold tracking-tight tabular-nums break-words"
+                    style={{ color: ink }}
+                  >
+                    {proof.value}
+                  </div>
+                  {proof.description && (
+                    <p className="text-xs leading-relaxed" style={{ color: muted }}>
+                      {proof.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Links Specification Index */}
+        {normalized.sectionVisibility.links && normalized.links.length > 0 && (
+          <section aria-labelledby="builder-links-heading" className="space-y-3">
+            <h2
+              id="builder-links-heading"
+              className="text-xs uppercase tracking-[0.2em] font-semibold"
+              style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace', color: muted }}
+            >
+              02 // SYSTEM_ENDPOINTS
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {normalized.links.map((link, idx) => (
+                <a
+                  key={link.id || idx}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => onLinkClick?.(link)}
+                  className="group border p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors focus-visible:outline-none focus-visible:ring-2"
+                  style={{ backgroundColor: cardBg, borderColor: borderCol }}
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div
+                      className="w-10 h-10 border flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: cardAltBg, borderColor: borderCol, color: accent }}
+                    >
+                      {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm sm:text-base truncate" style={{ color: ink }}>
+                        {link.label}
+                      </div>
+                      <div className="text-xs truncate" style={{ color: muted }}>
+                        {cleanDisplayUrl(link.url)}
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowUpRight
+                    className="w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    style={{ color: muted }}
+                    aria-hidden="true"
+                  />
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Recent Activity Telemetry */}
+        {normalized.sectionVisibility.recentActivity && normalized.recentActivity && (
+          <section aria-labelledby="builder-activity-heading" className="space-y-3">
+            <h2
+              id="builder-activity-heading"
+              className="text-xs uppercase tracking-[0.2em] font-semibold"
+              style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace', color: muted }}
+            >
+              03 // RECENT_LOGS
+            </h2>
+            <RecentActivitySection
+              activity={normalized.recentActivity}
+              variant="editorial"
+              accentColor={accent}
+              autoScroll={!isPreview}
+            />
+          </section>
+        )}
+
+        {/* Coordinate Footer */}
+        <footer
+          className="border-t pt-6 flex flex-wrap items-center justify-between gap-4 text-xs"
+          style={{ borderColor: borderCol, color: muted }}
+        >
+          <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace' }}>
+            {normalized.handle || profile?.subdomain || 'spec'}
+          </span>
+          {normalized.timezone && (
+            <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace' }}>
+              TZ // {normalized.timezone}
+            </span>
+          )}
+        </footer>
+      </main>
     </div>
+  );
+}
+
+export function BuilderTemplate(props: TemplateProps) {
+  return (
+    <ProfileTemplateShell
+      profile={props.profile}
+      surfaceHex="#FAFAFA"
+      defaultAccent="#1D6B68"
+      isPreview={props.isPreview}
+    >
+      <BuilderContent {...props} />
+    </ProfileTemplateShell>
   );
 }

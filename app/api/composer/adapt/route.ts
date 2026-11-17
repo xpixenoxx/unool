@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PostAdapter, PlatformType, AdaptedPost, AdaptationContext, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
-import { buildStudioContext } from '@/lib/ai/studioContext';
+import { PostAdapter, PlatformType, AdaptedPost, AdaptationContext } from '@/lib/ai/PostAdapter';
+import { buildCreatorIdentityContext } from '@/lib/ai/studioContext';
+import { resolveAiPersonalization } from '@/lib/ai/resolvePersonalization';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { trackAiUsage, planEnforcement } from '@/lib/entitlements';
@@ -51,28 +52,55 @@ export async function POST(request: NextRequest) {
       const safeContent = guard.sanitizedContent;
 
       // Load profile strictly server-side from authenticated workspace
-      const targetProfile = await profileRepository.findByWorkspaceId(workspaceId);
-      const profileContext: AdaptationContext = {};
-      const resolvedProfileId = targetProfile?.id || profileId;
+      let targetProfile = await profileRepository.findByWorkspaceId(workspaceId);
 
-      if (targetProfile) {
-        profileContext.profileName = targetProfile.name || undefined;
-        profileContext.profileHeadline = targetProfile.headline || undefined;
+      // Reject cross-workspace profileId spoofing if client specified a mismatched profileId
+      if (profileId && targetProfile && profileId !== targetProfile.id) {
+        return NextResponse.json({ error: 'Forbidden: profile does not belong to this workspace' }, { status: 403 });
+      }
+      if (profileId && !targetProfile) {
+        return NextResponse.json({ error: 'Forbidden: profile does not belong to this workspace' }, { status: 403 });
       }
 
-      // Check if personalization is toggled off by user
-      const disablePersonalization = Boolean(body.disablePersonalization);
+      // Auto-provision an initial workspace profile row if none exists yet so adaptation never hard-blocks
+      if (!targetProfile) {
+        const tempSubdomain = `user-${userId.substring(0, 8)}-${Date.now().toString(36)}`;
+        targetProfile = await profileRepository.create({
+          workspaceId,
+          userId,
+          subdomain: tempSubdomain,
+          name: 'Creator',
+        });
+      }
+
+      const resolvedProfileId = targetProfile.id;
+      const profileContext: AdaptationContext = {
+        profileName: targetProfile.name || undefined,
+        profileHeadline: targetProfile.headline || undefined,
+      };
+
+      // Check if personalization is toggled off in request or Settings > AI & Brand Voice
+      const personalization = await resolveAiPersonalization({
+        userId,
+        workspaceId,
+        disablePersonalization: Boolean(body.disablePersonalization),
+        bodyStudioProfile: body.studioProfile,
+        profileStudioProfile: targetProfile.studioProfile as Record<string, any> | null,
+        profileOnboardingAnswers: targetProfile.onboardingAnswers as Record<string, any> | null,
+      });
+
       let profileApplied = false;
 
-      if (!disablePersonalization) {
-        const effectiveProfile = body.studioProfile || targetProfile?.studioProfile || targetProfile?.onboardingAnswers;
-        if (effectiveProfile) {
-          const studioContext = buildStudioContext(effectiveProfile);
-          if (studioContext) {
-            profileContext.studioProfile = effectiveProfile;
-            profileContext.studioContext = studioContext;
-            profileApplied = true;
-          }
+      if (personalization.enabled) {
+        const effectiveStudio = personalization.studioProfile;
+        const creatorContext = buildCreatorIdentityContext({
+          profile: targetProfile,
+          studioProfile: effectiveStudio,
+        });
+        if (creatorContext) {
+          profileContext.studioProfile = effectiveStudio;
+          profileContext.studioContext = creatorContext;
+          profileApplied = true;
         }
       } else {
         profileContext.disablePersonalization = true;
@@ -83,14 +111,6 @@ export async function POST(request: NextRequest) {
         workspaceId,
         applied: profileApplied,
       });
-
-      // Ensure we have a valid profile ID
-      if (!resolvedProfileId) {
-        return NextResponse.json(
-          { error: 'No profile found for workspace. Create a profile first.' },
-          { status: 400 }
-        );
-      }
 
       const { PLATFORM_SPECS } = await import('@/lib/ai/PostAdapter');
       const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');

@@ -1,16 +1,13 @@
 'use client';
 
 import type { PublicProfile, ProfileLink, ProfileProof, ProfileProject } from './types';
-import { normalizeSocialPlatformKey, getClubBrandIcon, CLUB_BRAND_ICONS, type ClubBrandIconKey } from './ClubBrandIcons';
-
-/* ============================================================
-   CLUB TEMPLATE DATA TYPES
-   ============================================================ */
+import { normalizeSocialPlatformKey, getClubBrandIcon, type ClubBrandIconKey } from './ClubBrandIcons';
+import { sanitizeHref } from '@/lib/validation/profileSchemas';
 
 export interface ClubProofPoint {
   id: string;
   label: string;
-  value: number;
+  value: number | string;
   suffix?: string;
   icon?: string;
   subtext?: string;
@@ -21,11 +18,13 @@ export interface ClubProject {
   title: string;
   category: string;
   description: string;
+  type?: 'work' | 'editorial' | 'brand' | 'video';
   image?: string;
   images?: string[];
   blurDataURL?: string;
   metrics?: Record<string, string | number>;
   links?: Array<{ label: string; url: string; icon?: string }>;
+  link?: string;
   tags?: string[];
 }
 
@@ -36,6 +35,7 @@ export interface ClubSocialLink {
   label: string;
   icon: React.ReactNode;
   iconKey: ClubBrandIconKey;
+  raw: ProfileLink;
 }
 
 export interface ClubOpenToItem {
@@ -47,16 +47,16 @@ export interface ClubOpenToItem {
 
 export interface ClubActivityItem {
   id: string;
-  type: 'post' | 'project' | 'collab' | 'milestone' | 'media' | 'speaking' | 'award' | 'press' | 'hiring' | 'custom';
+  type: 'post' | 'release' | 'event' | 'collab' | 'media';
   title: string;
   description?: string;
   timestamp: string;
   link?: string;
+  platform?: string;
   metadata?: Record<string, string | number>;
 }
 
 export interface ClubTemplateData {
-  // Identity
   name: string;
   handle: string;
   tagline: string;
@@ -64,233 +64,139 @@ export interface ClubTemplateData {
   manifesto: string;
   avatar?: string;
   availability?: 'open' | 'busy' | 'selective' | 'closed';
-
-  // Proof Points
   proofPoints: ClubProofPoint[];
-
-  // Projects
   projects: ClubProject[];
-
-  // Socials
   socialLinks: ClubSocialLink[];
-
-  // Primary CTA
   primaryCTA?: ProfileLink;
-
-  // OpenTo
   openTo: ClubOpenToItem[];
-
-  // Activity
   activities: ClubActivityItem[];
-
-  // Contact
   email?: string;
   location?: string;
   calendlyUrl?: string;
 }
 
-/* ============================================================
-   DEFAULT FALLBACKS
-   ============================================================ */
-
-const DEFAULT_PROOF_POINTS: ClubProofPoint[] = [
-  { id: '1', label: 'Projects Delivered', value: 147, suffix: '+', icon: 'CheckCircle', subtext: 'Across 3 continents' },
-  { id: '2', label: 'Brand Partners', value: 89, suffix: '+', icon: 'Users', subtext: 'Culture & lifestyle' },
-  { id: '3', label: 'Awards Won', value: 23, suffix: '', icon: 'Award', subtext: 'Cannes, D&AD, One Show' },
-  { id: '4', label: 'Team Members', value: 34, suffix: '', icon: 'UserGroup', subtext: 'Strategists, designers, devs' },
-];
-
-const DEFAULT_PROJECTS: ClubProject[] = [
-  {
-    id: '1',
-    title: 'Nike — Dream Campaign',
-    category: 'Brand Identity',
-    description: 'Global brand campaign spanning 40+ markets. Redefined athlete storytelling for the digital age.',
-    image: '/templates/previews/project-nike.jpg',
-    metrics: { 'Reach': '2.3B', 'Engagement': '8.4%', 'Markets': '40+' },
-    tags: ['Brand', 'Campaign', 'Global'],
-  },
-  {
-    id: '2',
-    title: 'Spotify — Wrapped Experience',
-    category: 'Digital Product',
-    description: 'Annual personalized experience reaching 500M+ users. Data visualization meets emotional storytelling.',
-    image: '/templates/previews/project-spotify.jpg',
-    metrics: { 'Users': '500M+', 'Shares': '120M', 'Countries': '180' },
-    tags: ['Product', 'Data Viz', 'Personalization'],
-  },
-  {
-    id: '3',
-    title: 'Dior — Atelier Digital',
-    category: 'Experience Design',
-    description: 'Immersive digital flagship for haute couture. WebGL-powered virtual atelier with AR try-on.',
-    image: '/templates/previews/project-dior.jpg',
-    metrics: { 'Session Time': '4:32', 'Conversion': '+340%', 'Press': 'Vogue, WWD' },
-    tags: ['Luxury', 'WebGL', 'AR', 'E-commerce'],
-  },
-  {
-    id: '4',
-    title: 'The New York Times — Visual Essays',
-    category: 'Editorial Design',
-    description: 'Interactive long-form journalism platform. Redefining how stories live on the web.',
-    image: '/templates/previews/project-nyt.jpg',
-    metrics: { 'Read Time': '+67%', 'Subscriptions': '+23%', 'Awards': '5' },
-    tags: ['Editorial', 'Journalism', 'Interactive'],
-  },
-];
-
-const DEFAULT_ACTIVITIES: ClubActivityItem[] = [
-  {
-    id: '1',
-    type: 'speaking',
-    title: 'Keynote: The Future of Brand Experience',
-    description: 'Cannes Lions International Festival of Creativity',
-    timestamp: '2026-06-15T10:00:00Z',
-    link: 'https://canneslions.com/speakers',
-  },
-  {
-    id: '2',
-    type: 'project',
-    title: 'Launched: Dior Atelier Digital',
-    description: 'Immersive WebGL experience for Spring/Summer 2026',
-    timestamp: '2026-03-20T14:30:00Z',
-    link: '/works/dior-atelier',
-  },
-  {
-    id: '3',
-    type: 'award',
-    title: 'Gold Cannes Lion — Digital Craft',
-    description: 'Spotify Wrapped 2025 Experience',
-    timestamp: '2026-06-20T18:00:00Z',
-  },
-  {
-    id: '4',
-    type: 'press',
-    title: 'Featured in Vogue Business',
-    description: '"How The Club is Redefining Luxury Digital Experiences"',
-    timestamp: '2026-02-14T09:00:00Z',
-    link: 'https://voguebusiness.com',
-  },
-  {
-    id: '5',
-    type: 'milestone',
-    title: '10 Years of The Club',
-    description: 'A decade of shaping culture. 500+ projects. 50+ countries.',
-    timestamp: '2026-01-01T00:00:00Z',
-  },
-];
-
-/* ============================================================
-   ADAPTER FUNCTION
-   ============================================================ */
+function normalizeAvailability(raw?: string | null): ClubTemplateData['availability'] {
+  if (!raw) return undefined;
+  const v = raw.toLowerCase();
+  if (v.includes('open') || v.includes('avail')) return 'open';
+  if (v.includes('busy') || v.includes('booked')) return 'busy';
+  if (v.includes('closed')) return 'closed';
+  return 'selective';
+}
 
 export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateData {
-  // Process proof points
-  const proofPoints: ClubProofPoint[] = (profile.proofPoints && profile.proofPoints.length > 0)
-    ? profile.proofPoints.map((p, i) => ({
-        id: p.id || `proof-${i}`,
-        label: p.label,
-        value: typeof p.value === 'number' ? p.value : parseInt(String(p.value).replace(/[^\d]/g, '')) || 0,
-        suffix: p.suffix || '',
-        icon: p.icon || 'TrendingUp',
-        subtext: p.description,
-      }))
-    : DEFAULT_PROOF_POINTS;
+  const rawProofs = (profile.proofs && profile.proofs.length > 0)
+    ? profile.proofs
+    : ((profile as any).proofPoints || []);
 
-  // Process projects
-  const projects: ClubProject[] = (profile.projects && profile.projects.length > 0)
-    ? profile.projects.map((p, i) => ({
+  const proofPoints: ClubProofPoint[] = Array.isArray(rawProofs)
+    ? rawProofs
+        .filter((p: any) => p && (p.label || p.title || p.value))
+        .map((p: any, i: number) => ({
+          id: p.id || `proof-${i}`,
+          label: p.label || p.title || 'Highlight',
+          value: p.value ?? '',
+          suffix: p.suffix || '',
+          icon: p.icon || 'TrendingUp',
+          subtext: p.description || p.context || undefined,
+        }))
+    : [];
+
+  const rawProjects = (profile as any).projects;
+  const projects: ClubProject[] = Array.isArray(rawProjects)
+    ? rawProjects.map((p: any, i: number) => ({
         id: p.id || `project-${i}`,
-        title: p.title,
+        title: p.title || 'Featured Work',
         category: p.category || 'Project',
         description: p.description || '',
+        type: 'work',
         image: p.coverImage || p.images?.[0],
         images: p.images || [],
         blurDataURL: p.blurDataURL,
         metrics: p.metrics || {},
         links: p.links || [],
+        link: sanitizeHref(p.url || p.links?.[0]?.url) || undefined,
         tags: p.tags || [],
       }))
-    : DEFAULT_PROJECTS;
+    : [];
 
-  // Process social links
-  const socialLinks: ClubSocialLink[] = (profile.links || [])
-    .filter((l): l is ProfileLink & { platform: string } => Boolean(l.platform) && !l.isPrimaryAction)
+  const visibleLinks = (profile.links || []).filter((l) => l.isVisible !== false && sanitizeHref(l.url));
+  const primaryCTA = visibleLinks.find((l) => l.isPrimaryAction || (l as any).isPrimary);
+
+  const socialLinks: ClubSocialLink[] = visibleLinks
+    .filter((l) => l !== primaryCTA)
     .map((l, i) => {
-      const iconKey = normalizeSocialPlatformKey(l.platform);
+      const safeUrl = sanitizeHref(l.url) || '#';
+      const candidate = l.platform || l.label || safeUrl;
+      const iconKey = normalizeSocialPlatformKey(candidate);
       return {
         id: l.id || `social-${i}`,
-        platform: l.platform,
-        url: l.url,
-        label: l.label || l.platform,
-        icon: getClubBrandIcon(l.platform),
+        platform: l.platform || l.label || 'Link',
+        url: safeUrl,
+        label: l.label || l.platform || 'Link',
+        icon: getClubBrandIcon(candidate),
         iconKey,
+        raw: l,
       };
     });
 
-  // Find primary CTA
-  const primaryCTA = profile.links?.find(l => l.isPrimaryAction);
+  const rawOpenTo = profile.openTo || (profile as any).open_to || [];
+  const openTo: ClubOpenToItem[] = Array.isArray(rawOpenTo)
+    ? rawOpenTo.map((o: any, i: number) =>
+        typeof o === 'string'
+          ? { id: `open-${i}`, label: o, icon: 'Sparkles', variant: 'default' }
+          : {
+              id: o.id || `open-${i}`,
+              label: o.label || String(o),
+              icon: o.icon || 'Sparkles',
+              variant: o.variant || 'default',
+            }
+      )
+    : [];
 
-  // Process OpenTo
-  const openTo: ClubOpenToItem[] = (profile.openTo && profile.openTo.length > 0)
-    ? profile.openTo.map((o: any, i: number) => ({
-        id: o.id || `open-${i}`,
-        label: o.label,
-        icon: o.icon || 'Sparkles',
-        variant: o.variant || 'default',
-      }))
-    : [
-        { id: '1', label: 'Brand Partnerships', icon: 'Handshake', variant: 'primary' },
-        { id: '2', label: 'Speaking Engagements', icon: 'Mic', variant: 'accent' },
-        { id: '3', label: 'Advisory Roles', icon: 'Compass', variant: 'default' },
-        { id: '4', label: 'Creative Collaborations', icon: 'Sparkles', variant: 'primary' },
-      ];
-
-  // Process activities
-  const activities: ClubActivityItem[] = (profile.activity && profile.activity.length > 0)
-    ? profile.activity.map((a: any, i: number) => ({
+  const rawActivity = profile.recentActivity || (profile as any).activity;
+  const activities: ClubActivityItem[] = Array.isArray(rawActivity)
+    ? rawActivity.map((a: any, i: number) => ({
         id: a.id || `activity-${i}`,
-        type: a.type || 'custom',
-        title: a.title,
-        description: a.description,
-        timestamp: a.timestamp,
-        link: a.link,
-        metadata: a.metadata,
+        type: (['post', 'release', 'event', 'collab', 'media'].includes(a.type) ? a.type : 'post') as ClubActivityItem['type'],
+        title: a.title || a.content || 'Recent update',
+        description: a.description || (a.title && a.content ? a.content : undefined),
+        timestamp: a.timestamp || a.createdAt || new Date().toISOString(),
+        link: sanitizeHref(a.link || a.url) || undefined,
+        platform: a.platform,
       }))
-    : DEFAULT_ACTIVITIES;
+    : rawActivity && typeof rawActivity === 'object' && (rawActivity.content || rawActivity.title)
+    ? [
+        {
+          id: 'activity-0',
+          type: 'post',
+          title: rawActivity.title || rawActivity.content,
+          description: rawActivity.title ? rawActivity.content : undefined,
+          timestamp: rawActivity.timestamp || new Date().toISOString(),
+          link: sanitizeHref(rawActivity.url) || undefined,
+          platform: rawActivity.platform,
+        },
+      ]
+    : [];
 
   return {
-    // Identity
-    name: profile.name || 'The Club',
-    handle: profile.handle || 'theclub',
-    tagline: profile.tagline || 'We shape culture.',
-    bio: profile.bio || 'Culture isn\'t borrowed. It\'s built. Every campaign, every collaboration, every pixel — intentional. We don\'t follow trends. We originate them.',
-    manifesto: profile.manifesto || 'A collective of strategists, designers, and cultural architects. We partner with brands that want to matter. Not just sell. Matter. Our work lives at the intersection of culture, technology, and human truth. We build worlds, not just campaigns.',
-    avatar: profile.avatar || profile.avatarUrl || (profile as any).avatar_url,
-    availability: (profile.availability as any) || 'selective',
-
-    // Data
+    name: profile.name || 'Creator',
+    handle: profile.handle || profile.subdomain || 'profile',
+    tagline: profile.headline || (profile as any).tagline || profile.role || '',
+    bio: profile.bio || '',
+    manifesto: (profile as any).manifesto || '',
+    avatar: profile.avatarUrl || (profile as any).avatar || (profile as any).avatar_url || undefined,
+    availability: normalizeAvailability(profile.availabilityBadge || (profile as any).availability),
     proofPoints,
     projects,
     socialLinks,
     primaryCTA,
     openTo,
     activities,
-
-    // Contact
-    email: profile.email,
-    location: profile.location,
-    calendlyUrl: profile.calendlyUrl,
+    email: profile.showEmail ? (profile.email || undefined) : undefined,
+    location: profile.location || undefined,
+    calendlyUrl: sanitizeHref(profile.bookingUrl || (profile as any).calendlyUrl) || undefined,
   };
 }
 
-/* ============================================================
-   TYPE EXPORTS FOR COMPONENTS
-   ============================================================ */
-
-export type {
-  PublicProfile,
-  ProfileLink,
-  ProfileProof,
-  ProfileProject,
-};
+export type { PublicProfile, ProfileLink, ProfileProof, ProfileProject };

@@ -1,5 +1,6 @@
 import { PlatformAdapter, PlatformAuthConfig, TokenResponse, UserProfile, PublishInput, PublishResult } from './adapter';
 import { logger } from '@/lib/logger';
+import { validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
 
 export interface ListmonkTokenData {
   instanceUrl: string;
@@ -68,9 +69,23 @@ export class ListmonkAdapter implements PlatformAdapter {
     }
   }
 
+  private async safeInstanceFetch(
+    rawInstanceUrl: string,
+    path: string,
+    init?: RequestInit
+  ): Promise<Response> {
+    const check = await validateExternalInstanceUrl(rawInstanceUrl);
+    if (!check.ok) {
+      throw new Error(`Invalid or disallowed Listmonk instance URL: ${check.error}`);
+    }
+    return fetch(`${check.origin}${path}`, {
+      ...init,
+      redirect: 'manual',
+    });
+  }
+
   async fetchLists(parsed: ListmonkTokenData): Promise<ListmonkList[]> {
-    const url = `${parsed.instanceUrl}/api/lists?per_page=100`;
-    const res = await fetch(url, {
+    const res = await this.safeInstanceFetch(parsed.instanceUrl, '/api/lists?per_page=100', {
       headers: {
         Authorization: this.getAuthHeader(parsed.username, parsed.apiKey),
         Accept: 'application/json',
@@ -92,7 +107,7 @@ export class ListmonkAdapter implements PlatformAdapter {
 
     try {
       // Validate credentials by fetching lists or health
-      const res = await fetch(`${parsed.instanceUrl}/api/lists?per_page=1`, {
+      const res = await this.safeInstanceFetch(parsed.instanceUrl, '/api/lists?per_page=1', {
         headers: {
           Authorization: authHeader,
           Accept: 'application/json',
@@ -172,7 +187,7 @@ export class ListmonkAdapter implements PlatformAdapter {
     });
 
     // 4. Create campaign
-    const createRes = await fetch(`${parsed.instanceUrl}/api/campaigns`, {
+    const createRes = await this.safeInstanceFetch(parsed.instanceUrl, '/api/campaigns', {
       method: 'POST',
       headers: {
         Authorization: authHeader,
@@ -206,15 +221,19 @@ export class ListmonkAdapter implements PlatformAdapter {
     // 5. If sendImmediately is true, update status to running
     if (parsed.sendImmediately !== false) {
       logger.info('Listmonk: Starting campaign broadcast', { campaignId });
-      const statusRes = await fetch(`${parsed.instanceUrl}/api/campaigns/${campaignId}/status`, {
-        method: 'PUT',
-        headers: {
-          Authorization: authHeader,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ status: 'running' }),
-      });
+      const statusRes = await this.safeInstanceFetch(
+        parsed.instanceUrl,
+        `/api/campaigns/${campaignId}/status`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: authHeader,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ status: 'running' }),
+        }
+      );
 
       if (!statusRes.ok) {
         const statusErr = await statusRes.text();
@@ -239,7 +258,7 @@ export class ListmonkAdapter implements PlatformAdapter {
     const parsed = this.parseToken(tokenData);
     const authHeader = this.getAuthHeader(parsed.username, parsed.apiKey);
 
-    const res = await fetch(`${parsed.instanceUrl}/api/campaigns/${platformPostId}`, {
+    const res = await this.safeInstanceFetch(parsed.instanceUrl, `/api/campaigns/${platformPostId}`, {
       method: 'DELETE',
       headers: {
         Authorization: authHeader,
@@ -259,7 +278,7 @@ export class ListmonkAdapter implements PlatformAdapter {
       const parsed = this.parseToken(tokenData);
       const authHeader = this.getAuthHeader(parsed.username, parsed.apiKey);
 
-      const res = await fetch(`${parsed.instanceUrl}/api/campaigns/${platformPostId}`, {
+      const res = await this.safeInstanceFetch(parsed.instanceUrl, `/api/campaigns/${platformPostId}`, {
         headers: {
           Authorization: authHeader,
           Accept: 'application/json',

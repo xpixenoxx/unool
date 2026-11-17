@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mastodonAdapter } from '@/lib/platforms/MastodonAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { getAuthContext } from '@/lib/auth/context';
+import { resolvePlatformConnectContext, validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -21,22 +21,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve workspace and user
-    let workspaceId = bodyWorkspaceId;
-    let userId = '';
-    
-    const authCtx = await getAuthContext();
-    if (authCtx) {
-      workspaceId = workspaceId || authCtx.workspaceId;
-      userId = authCtx.userId;
-    }
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    if ('error' in resolved) return resolved.error;
+    const { userId, workspaceId } = resolved.context;
 
-    if (!workspaceId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const instanceCheck = await validateExternalInstanceUrl(instanceUrl);
+    if (!instanceCheck.ok) {
+      return NextResponse.json({ error: instanceCheck.error }, { status: 400 });
     }
-
     // Normalize instance URL: remove protocol and trailing slashes
-    const normalizedUrl = instanceUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const normalizedUrl = instanceCheck.origin.replace(/^https?:\/\//i, '').replace(/\/$/, '');
 
     const tokenPayload = JSON.stringify({ instanceUrl: normalizedUrl, accessToken });
 

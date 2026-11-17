@@ -2,2038 +2,1830 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ExternalLink, RefreshCw, Zap,
-  TrendingUp, BarChart2, Calendar, Pencil, Trash2, Loader2,
-  FileText, Activity, Target, Flame, ArrowUpRight, Layers, Eye,
-  Award, PieChart, Hash, Type, BarChart3, HelpCircle, Info,
-  Share2, Search, Filter, Check, ChevronRight, ChevronDown,
-  BookOpen, ShieldCheck, ArrowRight, Compass, Copy, Link2, X,
-  Radio, Lightbulb, AlertTriangle
-} from 'lucide-react';
 import Link from 'next/link';
-import { formatDistanceToNow, format } from 'date-fns';
+import { useSearchParams } from 'next/navigation';
+import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
-
-import { PlatformLogos, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
-import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
-import { AnalyticsDNA } from '@/components/analytics/AnalyticsDNA';
-import { formatPlatformError } from '@/lib/utils';
-
 import {
-  type PostVariant,
-  type SignalPost,
-  type ResonanceData,
-  getDraftOrigin,
-  getDraftRedirect,
-  HOOK_META,
-  getPostAge,
-  getGoldenHourRemaining,
-} from './types';
+  Activity,
+  AlertTriangle,
+  ArrowUpRight,
+  BarChart3,
+  Bot,
+  Calendar,
+  Check,
+  Clock,
+  Download,
+  ExternalLink,
+  Flame,
+  Filter,
+  Globe,
+  Info,
+  Layers,
+  LayoutGrid,
+  Link2,
+  Loader2,
+  Lock,
+  Printer,
+  Radio,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Share2,
+  Sparkles,
+  Table2,
+  TrendingDown,
+  TrendingUp,
+  X,
+} from 'lucide-react';
+
+import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
+import { useUserContext } from '@/lib/hooks/use-user-context';
+import { registerClientCacheReset, syncClientCacheScope } from '@/lib/utils/clientCache';
+import type {
+  EnrichedSignalPost,
+  SignalAnalyticsPayload,
+  SignalOriginFilter,
+  SignalRange,
+  SignalSort,
+} from '@/lib/analytics/signalEngine';
+import { HOOK_TYPE_META } from '@/lib/analytics/postTelemetry';
+import { getAllPlatformCapabilities } from '@/lib/analytics/platformCapabilities';
+import {
+  ChannelComparisonBars,
+  ConfidenceBadge,
+  DailyPerformanceChart,
+  HookLeaderboard,
+  TimingHeatmapMatrix,
+  WordCountEffortPanel,
+} from '@/components/analytics/SignalCharts';
+import { PostInspectorDrawer } from '@/components/analytics/PostInspectorDrawer';
+
+import { getDraftOrigin, getDraftRedirect, type SignalPost } from './types';
 export { getDraftOrigin, getDraftRedirect, type SignalPost };
-function LiveIndicator() {
+
+type SignalView = 'overview' | 'content' | 'timing' | 'channels';
+
+const COMMON_TIMEZONES = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Europe/London',
+  'Europe/Berlin',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+];
+
+// Workspace-scoped in-memory SWR cache (registered with clientCache for safe logout/account switch reset)
+let memorySignalAnalytics: SignalAnalyticsPayload | null = null;
+let memoryAnalyticsKey: string | null = null;
+
+registerClientCacheReset(() => {
+  memorySignalAnalytics = null;
+  memoryAnalyticsKey = null;
+});
+
+function formatCompact(num: number): string {
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}k`;
+  return String(num);
+}
+
+function DeltaPill({ value, suffix = '%' }: { value: number; suffix?: string }) {
+  if (value > 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+        <TrendingUp className="w-3 h-3" />+{value}{suffix}
+      </span>
+    );
+  }
+  if (value < 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full">
+        <TrendingDown className="w-3 h-3" />{value}{suffix}
+      </span>
+    );
+  }
   return (
-    <span className="relative flex h-2 w-2">
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+    <span className="inline-flex items-center text-[11px] font-medium text-[#78716C] bg-[#FAF7F2] border border-[#E8E0D4] px-1.5 py-0.5 rounded-full">
+      0{suffix}
     </span>
   );
 }
 
-function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    const start = 0;
-    const end = value;
-    const duration = 700;
-    const startTime = Date.now();
-    const tick = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(start + (end - start) * eased));
-      if (progress < 1) requestAnimationFrame(tick);
-    };
-    tick();
-  }, [value]);
-  return <>{display}{suffix}</>;
-}
-
-import { registerClientCacheReset } from '@/lib/utils/clientCache';
-
-// In-memory module cache for instant (0ms) revisits across sidebar navigation
-let memorySignalPosts: SignalPost[] | null = null;
-let memoryResonance: ResonanceData | null = null;
-let memoryProfileSubdomain: string | null = null;
-let memoryWorkspaceId: string | null = null;
-let memoryAutomationStats: {
-  enabled: boolean;
-  todayComments: number;
-  todayDms: number;
-  hotLeads: number;
-  pendingFlagged: number;
-} | null = null;
-registerClientCacheReset(() => {
-  memorySignalPosts = null;
-  memoryResonance = null;
-  memoryProfileSubdomain = null;
-  memoryWorkspaceId = null;
-  memoryAutomationStats = null;
-});
-
-/* ── Main Signal Client ─────────────────────────────────────────────────────── */
 export function SignalClient() {
-  const { flags: featureFlags } = useFeatureFlags();
-  const [posts, setPosts] = useState<SignalPost[]>(() => memorySignalPosts || []);
-  const [resonance, setResonance] = useState<ResonanceData | null>(() => memoryResonance);
-  const [loading, setLoading] = useState(() => !memorySignalPosts);
-  const [tab, setTab] = useState<'feed' | 'dna' | 'analytics'>('feed');
-  const [profileSubdomain, setProfileSubdomain] = useState<string | null>(() => memoryProfileSubdomain);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(() => memoryWorkspaceId);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'publishing' | 'active' | 'draft' | 'failed'>('all');
-  const [activePublishingPostIds, setActivePublishingPostIds] = useState<Set<string>>(() => new Set());
-  const [showDNAInfo, setShowDNAInfo] = useState(true);
-  const [automationStats, setAutomationStats] = useState(() => memoryAutomationStats);
+  const { user, workspace } = useUserContext();
+  const activeWorkspaceId = workspace?.id || null;
+  const urlParams = useSearchParams();
 
-  const hasLoadedOnce = useRef(Boolean(memorySignalPosts));
-  const prevPendingPostIds = useRef<Set<string>>(new Set());
+  const browserTz = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch {
+      return 'UTC';
+    }
+  }, []);
 
-  // Hydrate active publishing posts from sessionStorage on client mount
+  const timezoneOptions = useMemo(() => {
+    return Array.from(new Set([browserTz, ...COMMON_TIMEZONES]));
+  }, [browserTz]);
+
+  // Persistent filter & view state initialized from URL searchParams
+  const [view, setView] = useState<SignalView>(() => {
+    const v = urlParams?.get('view');
+    if (v === 'content' || v === 'timing' || v === 'channels') return v;
+    // Map legacy ?tab=analytics|dna|feed gracefully
+    const legacy = urlParams?.get('tab');
+    if (legacy === 'analytics') return 'overview';
+    if (legacy === 'dna' || legacy === 'feed') return 'content';
+    return 'overview';
+  });
+  const [range, setRange] = useState<SignalRange>(() => {
+    const r = urlParams?.get('range');
+    if (r === '7d' || r === '14d' || r === '30d' || r === '90d' || r === '365d' || r === 'all') return r;
+    return '30d';
+  });
+  const [platform, setPlatform] = useState<string>(() => urlParams?.get('platform') || 'all');
+  const [accountId, setAccountId] = useState<string>(() => urlParams?.get('account') || 'all');
+  const [statusFilter, setStatusFilter] = useState<string>(() => urlParams?.get('status') || 'all');
+  const [hookFilter, setHookFilter] = useState<string>(() => urlParams?.get('hook') || 'all');
+  const [formatFilter, setFormatFilter] = useState<string>(() => urlParams?.get('format') || 'all');
+  const [originFilter, setOriginFilter] = useState<SignalOriginFilter>(() => {
+    const o = urlParams?.get('origin');
+    return o === 'flightplan' || o === 'studio' ? o : 'all';
+  });
+  const [sortMode, setSortMode] = useState<SignalSort>(() => {
+    const s = urlParams?.get('sort');
+    if (s === 'top_engagement' || s === 'top_views' || s === 'top_eng_rate' || s === 'most_discussed') return s;
+    return 'newest';
+  });
+  const [timezone, setTimezone] = useState<string>(() => urlParams?.get('tz') || browserTz);
+  const [comparePeriod, setComparePeriod] = useState<boolean>(() => urlParams?.get('compare') !== 'false');
+  const [searchText, setSearchText] = useState<string>(() => urlParams?.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(searchText);
+
+  const [contentLayout, setContentLayout] = useState<'cards' | 'table'>('cards');
+  const [analytics, setAnalytics] = useState<SignalAnalyticsPayload | null>(() => memorySignalAnalytics);
+  const [loading, setLoading] = useState<boolean>(() => !memorySignalAnalytics);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [inspectorPost, setInspectorPost] = useState<EnrichedSignalPost | null>(null);
+  const [sharePost, setSharePost] = useState<EnrichedSignalPost | null>(null);
+  const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
+  const hasLoadedOnce = useRef(Boolean(memorySignalAnalytics));
+
+  // Enforce workspace-scoped client cache isolation
+  useEffect(() => {
+    syncClientCacheScope(user?.id, activeWorkspaceId);
+  }, [user?.id, activeWorkspaceId]);
+
+  // Debounce search query
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchText), 250);
+    return () => clearTimeout(t);
+  }, [searchText]);
+
+  // Fetch profile subdomain for Share Story deep links
+  useEffect(() => {
+    let active = true;
+    fetch('/api/profile', { credentials: 'include' })
+      .then(async res => {
+        if (!res.ok) return;
+        const data = await res.json();
+        const sub = data?.profile?.subdomain || data?.subdomain || null;
+        if (active && sub) setProfileSubdomain(sub);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [activeWorkspaceId]);
+
+  const queryString = useMemo(() => {
+    const p = new URLSearchParams();
+    p.set('range', range);
+    if (platform !== 'all') p.set('platform', platform);
+    if (accountId !== 'all') p.set('account', accountId);
+    if (statusFilter !== 'all') p.set('status', statusFilter);
+    if (hookFilter !== 'all') p.set('hook', hookFilter);
+    if (formatFilter !== 'all') p.set('format', formatFilter);
+    if (originFilter !== 'all') p.set('origin', originFilter);
+    if (sortMode !== 'newest') p.set('sort', sortMode);
+    if (debouncedSearch.trim()) p.set('search', debouncedSearch.trim());
+    p.set('tz', timezone);
+    p.set('compare', comparePeriod ? 'true' : 'false');
+    if (activeWorkspaceId) p.set('workspaceId', activeWorkspaceId);
+    return p.toString();
+  }, [
+    range,
+    platform,
+    accountId,
+    statusFilter,
+    hookFilter,
+    formatFilter,
+    originFilter,
+    sortMode,
+    debouncedSearch,
+    timezone,
+    comparePeriod,
+    activeWorkspaceId,
+  ]);
+
+  // Keep browser URL synchronized cleanly
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const initialIds = new Set<string>();
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith('unool_publishing_')) {
-        try {
-          const item = JSON.parse(sessionStorage.getItem(key) || '{}');
-          if (item?.postId && (Date.now() - (item.timestamp || 0)) < 10 * 60 * 1000) {
-            initialIds.add(item.postId);
-          } else if (item?.postId) {
-            sessionStorage.removeItem(key);
-          }
-        } catch {}
-      }
-    }
-    if (initialIds.size > 0) {
-      setActivePublishingPostIds(initialIds);
-    }
-  }, []);
+    const p = new URLSearchParams(queryString);
+    p.set('view', view);
+    p.delete('workspaceId');
+    const nextUrl = `${window.location.pathname}?${p.toString()}`;
+    window.history.replaceState(null, '', nextUrl);
+  }, [queryString, view]);
 
-  useEffect(() => {
-    async function fetchSub() {
+  const fetchAnalytics = useCallback(
+    async (options: { sync?: boolean; silent?: boolean } = {}) => {
+      const { sync = false, silent = false } = options;
+      const cacheKey = `${activeWorkspaceId || 'default'}:${queryString}`;
+
+      if (!silent && (!hasLoadedOnce.current || memoryAnalyticsKey !== cacheKey) && !sync) {
+        if (!memorySignalAnalytics) setLoading(true);
+      }
+
+      if (sync) {
+        setIsSyncing(true);
+        setSyncNotice(null);
+      } else {
+        setLoadError(null);
+      }
+
       try {
-        const res = await fetch('/api/profile', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.profile?.subdomain) {
-            memoryProfileSubdomain = data.profile.subdomain;
-            setProfileSubdomain(data.profile.subdomain);
+        const url = `/api/signal/analytics?${queryString}${sync ? '&sync=true' : ''}`;
+        const res = await fetch(url, { credentials: 'include' });
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          const msg = errBody.error || `Request failed (${res.status})`;
+          if (sync) {
+            setSyncNotice(`Sync failed: ${msg}`);
+            toast.error(`Live sync failed: ${msg}`);
+          } else {
+            setLoadError(msg);
           }
-        }
-      } catch {}
-      try {
-        const ctxRes = await fetch('/api/user/context', { credentials: 'include' });
-        if (ctxRes.ok) {
-          const ctxData = await ctxRes.json();
-          if (ctxData?.profile?.subdomain) {
-            memoryProfileSubdomain = ctxData.profile.subdomain;
-            setProfileSubdomain(ctxData.profile.subdomain);
-          }
-          if (ctxData?.workspace?.id) {
-            memoryWorkspaceId = ctxData.workspace.id;
-            setWorkspaceId(ctxData.workspace.id);
-          }
-        }
-      } catch {}
-    }
-    fetchSub();
-  }, []);
-
-  const loadData = useCallback(async (silent = false) => {
-    if (!silent && !hasLoadedOnce.current && !memorySignalPosts) {
-      setLoading(true);
-    }
-    try {
-      const postsPromise = fetch('/api/signal/posts', { credentials: 'include' })
-        .then(async (res) => {
-          if (res.ok) {
-            const data = await res.json();
-            const fetched = data.posts || [];
-            memorySignalPosts = fetched;
-            setPosts(fetched);
-            // Unblock UI immediately once posts are in — don't wait for heavy analytics
-            setLoading(false);
-
-            // Synchronize exact live pending drafts/posts count to sidebar (past 24h only)
-            try {
-              const now = Date.now();
-              const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
-              const draftCount = fetched.filter((p: any) => {
-                if (p.status !== 'draft') return false;
-                const postTime = new Date(p.createdAt || p.created_at).getTime();
-                return !isNaN(postTime) && postTime >= twentyFourHoursAgo;
-              }).length;
-
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('signal-pending-count-updated', { detail: { count: draftCount } }));
-              }
-            } catch {
-              // Ignore event dispatch errors
-            }
-          }
-        })
-        .catch(() => {});
-
-      const resonancePromise = fetch('/api/signal/resonance', { credentials: 'include' })
-        .then(async (res) => {
-          if (res.ok) {
-            const data = await res.json();
-            memoryResonance = data;
-            setResonance(data);
-          }
-        })
-        .catch(() => {});
-
-      await Promise.all([postsPromise, resonancePromise]);
-    } catch {
-      // silent
-    } finally {
-      hasLoadedOnce.current = true;
-      setLoading(false);
-    }
-  }, []);
-
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  const syncLiveEngagement = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      toast.info('Fetching live metrics from social channels…');
-      const [postsRes, resonanceRes] = await Promise.all([
-        fetch('/api/signal/posts?sync=true', { credentials: 'include' }),
-        fetch('/api/signal/resonance?sync=true', { credentials: 'include' }),
-      ]);
-      if (postsRes.ok) {
-        const postsData = await postsRes.json();
-        setPosts(postsData.posts || []);
-      }
-      if (resonanceRes.ok) {
-        const resData = await resonanceRes.json();
-        setResonance(resData);
-      }
-      toast.success('Live engagement updated across all networks!');
-    } catch {
-      toast.error('Could not sync live stats. Using cached metrics.');
-    } finally {
-      setIsSyncing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Listen to broadcast/publishing events so Signal feed updates immediately
-  useEffect(() => {
-    const handleSignalUpdate = () => {
-      loadData(true);
-    };
-    window.addEventListener('signal-posts-updated', handleSignalUpdate);
-    window.addEventListener('signal-strip-publish', handleSignalUpdate);
-    return () => {
-      window.removeEventListener('signal-posts-updated', handleSignalUpdate);
-      window.removeEventListener('signal-strip-publish', handleSignalUpdate);
-    };
-  }, [loadData]);
-
-  // ── Auto-Detect Transitions & Celebrate When Live ─────────────────────────────
-  useEffect(() => {
-    const currentPending = new Set<string>();
-    posts.forEach(p => {
-      const isPostPublishing = p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(p.id);
-      const isUnfinishedPost = isPostPublishing || p.status === 'draft' || p.status === 'scheduled';
-      const hasUnfinishedVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending' || v.status === 'publishing');
-      if (isUnfinishedPost && hasUnfinishedVariants) {
-        currentPending.add(p.id);
-      } else if (activePublishingPostIds.has(p.id)) {
-        // Post has completed all variants!
-        setActivePublishingPostIds(prev => {
-          const next = new Set(prev);
-          next.delete(p.id);
-          return next;
-        });
-        try {
-          sessionStorage.removeItem(`unool_publishing_${p.id}`);
-        } catch {}
-      }
-    });
-
-    if (prevPendingPostIds.current.size > 0) {
-      prevPendingPostIds.current.forEach(id => {
-        if (!currentPending.has(id)) {
-          const updatedPost = posts.find(p => p.id === id);
-          if (updatedPost && (updatedPost.status === 'published' || updatedPost.variants.some(v => v.status === 'published'))) {
-            toast.success('Post published live across all platforms!', {
-              description: 'Updated automatically to live stream.',
-            });
-          }
-        }
-      });
-    }
-
-    prevPendingPostIds.current = currentPending;
-  }, [posts, activePublishingPostIds]);
-
-  // ── Smart Dynamic Polling ───────────────────────────────────────────────────
-  // Active fast polling (2.5s) if recent pending/publishing posts exist; background heartbeat (25s) otherwise
-  const hasActiveOrPendingPosts = useMemo(() => {
-    return posts.some(p => {
-      const isRecent = (Date.now() - new Date(p.createdAt).getTime()) < 20 * 60 * 1000;
-      const hasPendingVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending' || v.status === 'publishing');
-      const isPendingStatus = p.status === 'draft' || p.status === 'scheduled' || p.status === 'publishing';
-      const isActivePublishing = activePublishingPostIds.has(p.id);
-      return isRecent && (hasPendingVariants || isPendingStatus || isActivePublishing);
-    });
-  }, [posts, activePublishingPostIds]);
-
-  useEffect(() => {
-    const pollInterval = hasActiveOrPendingPosts ? 2500 : 25000;
-    const interval = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        loadData(true);
-      }
-    }, pollInterval);
-
-    return () => clearInterval(interval);
-  }, [hasActiveOrPendingPosts, loadData]);
-
-  // ── Window Focus & Tab Re-entry Synchronization ──────────────────────────────
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        loadData(true);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', handleVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', handleVisibility);
-    };
-  }, [loadData]);
-
-  // ── Cross-Component Global Event Bus Listeners ───────────────────────────────
-  useEffect(() => {
-    const handleGlobalPublish = (e: Event) => {
-      const detail = (e as CustomEvent)?.detail;
-      if (detail?.postId) {
-        setActivePublishingPostIds(prev => new Set([...prev, detail.postId]));
-      }
-      loadData(true);
-    };
-
-    const handleGlobalUpdated = (e: Event) => {
-      const detail = (e as CustomEvent)?.detail;
-      if (detail?.postId) {
-        setActivePublishingPostIds(prev => {
-          const next = new Set(prev);
-          next.delete(detail.postId);
-          return next;
-        });
-        try {
-          sessionStorage.removeItem(`unool_publishing_${detail.postId}`);
-        } catch {}
-      }
-      loadData(true);
-    };
-
-    window.addEventListener('signal-strip-publish', handleGlobalPublish);
-    window.addEventListener('signal-posts-updated', handleGlobalUpdated);
-
-    return () => {
-      window.removeEventListener('signal-strip-publish', handleGlobalPublish);
-      window.removeEventListener('signal-posts-updated', handleGlobalUpdated);
-    };
-  }, [loadData]);
-
-  // ── Supabase Realtime Push Synchronization ──────────────────────────────────
-  useEffect(() => {
-    if (!workspaceId) return;
-    let channel: any = null;
-    (async () => {
-      try {
-        const { getSupabaseBrowserClient } = await import('@/lib/supabase/browser');
-        const supabase = getSupabaseBrowserClient();
-        channel = supabase.channel(`signal-live-${workspaceId}`)
-          .on(
-            'postgres_changes' as any,
-            { event: '*', schema: 'public', table: 'posts', filter: `workspace_id=eq.${workspaceId}` },
-            () => { loadData(true); }
-          )
-          .on(
-            'postgres_changes' as any,
-            { event: '*', schema: 'public', table: 'post_variants' },
-            () => { loadData(true); }
-          )
-          .subscribe();
-      } catch (err) {
-        console.warn('[Signal] Realtime subscription notice', err);
-      }
-    })();
-
-    return () => {
-      if (channel) {
-        import('@/lib/supabase/browser').then(({ getSupabaseBrowserClient }) => {
-          getSupabaseBrowserClient().removeChannel(channel!);
-        }).catch(() => {});
-      }
-    };
-  }, [workspaceId, loadData]);
-
-  // ── Fetch automation stats for the metrics card (best-effort) ─────────────────
-  useEffect(() => {
-    if (!featureFlags.automationEnabled) {
-      setAutomationStats(null);
-      return;
-    }
-    const fetchAutomationStats = async () => {
-      try {
-        const ctxRes = await fetch('/api/user/context', { credentials: 'include' });
-        if (!ctxRes.ok) return;
-        const ctxData = await ctxRes.json();
-        const wsId = ctxData?.workspace?.id || workspaceId;
-        if (!wsId) return;
-
-        const [configRes, commentsRes, flaggedRes] = await Promise.all([
-          fetch(`/api/instagram/automation?workspaceId=${wsId}`, { credentials: 'include' }),
-          fetch(`/api/instagram/comments?workspaceId=${wsId}&limit=100`, { credentials: 'include' }),
-          fetch(`/api/instagram/flagged?workspaceId=${wsId}&status=pending`, { credentials: 'include' }),
-        ]);
-
-        if (!configRes.ok) return;
-        const config = await configRes.json();
-        if (!config.enabled) {
-          setAutomationStats(null);
           return;
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const data = await res.json();
+        memorySignalAnalytics = data;
+        memoryAnalyticsKey = cacheKey;
+        hasLoadedOnce.current = true;
+        setAnalytics(data);
+        setLoadError(null);
 
-        let todayComments = 0;
-        let todayDms = 0;
-        let hotLeads = 0;
+        // Notify sidebar badge of current 24h drafts cleanly
+        if (typeof window !== 'undefined' && Array.isArray(data.posts)) {
+          const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+          const draft24h = data.posts.filter((p: EnrichedSignalPost) => {
+            if (p.effectiveStatus !== 'draft') return false;
+            const ms = new Date(p.createdAt).getTime();
+            return Number.isFinite(ms) && ms >= dayAgo;
+          }).length;
+          window.dispatchEvent(
+            new CustomEvent('signal-pending-count-updated', { detail: { count: draft24h } })
+          );
+        }
 
-        if (commentsRes.ok) {
-          const commentsData = await commentsRes.json();
-          for (const c of (commentsData.comments || [])) {
-            const createdAt = new Date(c.created_at);
-            if (createdAt >= today) {
-              todayComments++;
-              if (c.dm_sent) todayDms++;
-              if ((c.lead_score || 0) >= 2) hotLeads++;
+        if (sync && data.syncSummary) {
+          const s = data.syncSummary;
+          if (s.expiredTokenCount > 0 || s.rateLimitedCount > 0 || s.failedCount > 0) {
+            const parts: string[] = [];
+            if (s.syncedCount > 0) parts.push(`${s.syncedCount} updated`);
+            if (s.expiredTokenCount > 0) parts.push(`${s.expiredTokenCount} expired token(s)`);
+            if (s.rateLimitedCount > 0) parts.push(`${s.rateLimitedCount} rate limited`);
+            if (s.failedCount - s.expiredTokenCount - s.rateLimitedCount > 0) {
+              parts.push(`${s.failedCount - s.expiredTokenCount - s.rateLimitedCount} API error(s)`);
             }
+            const summaryText = `Partial sync: ${parts.join(', ')}. Cached metrics preserved.`;
+            setSyncNotice(summaryText);
+            toast.warning(summaryText);
+          } else if (s.syncedCount > 0) {
+            toast.success(`Synced live metrics across ${s.syncedCount} post(s).`);
+          } else {
+            toast.info('Metrics checked — up to date.');
           }
         }
-
-        let pendingFlagged = 0;
-        if (flaggedRes.ok) {
-          const flaggedData = await flaggedRes.json();
-          pendingFlagged = flaggedData.statusCounts?.pending || 0;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Network error';
+        if (sync) {
+          setSyncNotice(`Could not reach sync service: ${msg}`);
+          toast.error('Could not reach live sync service.');
+        } else {
+          setLoadError(`Unable to load Signal analytics: ${msg}`);
         }
-
-        const statsObj = { enabled: true, todayComments, todayDms, hotLeads, pendingFlagged };
-        memoryAutomationStats = statsObj;
-        setAutomationStats(statsObj);
-      } catch {
-        // Non-critical — hide card silently
+      } finally {
+        setLoading(false);
+        setIsSyncing(false);
       }
-    };
-    fetchAutomationStats();
-  }, [workspaceId, featureFlags.automationEnabled]);
-
-  // Filtered posts for feed
-  const filteredPosts = useMemo(() => {
-    const list = posts.filter(post => {
-      const isStuck = (post.status === 'publishing' || post.variants.some(v => v.status === 'publishing' || v.status === 'pending')) &&
-        (Date.now() - new Date(post.updatedAt || post.createdAt).getTime()) > 5 * 60 * 1000;
-      const isPublishing = !isStuck && (post.status === 'publishing' || post.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(post.id));
-
-      // Status filter
-      if (filterStatus === 'published') {
-        if (!post.variants.some(v => v.status === 'published')) return false;
-      } else if (filterStatus === 'publishing') {
-        if (!isPublishing) return false;
-      } else if (filterStatus === 'active') {
-        if (getPostAge(post.createdAt) !== 'active' || !post.variants.some(v => v.status === 'published')) return false;
-      } else if (filterStatus === 'draft') {
-        // While publishing, a post MUST NOT be shown as a draft!
-        if (isPublishing) return false;
-        const isFailed = post.status === 'failed' || (post.variants.some(v => v.status === 'failed') && !post.variants.some(v => v.status === 'published'));
-        if (isFailed) return false;
-        const isDraft = post.status === 'draft' || !post.variants.some(v => v.status === 'published');
-        if (!isDraft) return false;
-      } else if (filterStatus === 'failed') {
-        if (isPublishing) return false;
-        const isFailed = post.status === 'failed' || post.variants.some(v => v.status === 'failed');
-        if (!isFailed) return false;
-      }
-
-      // Query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesContent = post.content.toLowerCase().includes(q);
-        const matchesPlatform = post.variants.some(v => v.platform.toLowerCase().includes(q));
-        const matchesHook = post.hookType?.toLowerCase().includes(q);
-        if (!matchesContent && !matchesPlatform && !matchesHook) return false;
-      }
-
-      return true;
-    });
-
-    // Ensure published and actively publishing posts float to top
-    return list.sort((a: SignalPost, b: SignalPost) => {
-      const aPublishing = a.status === 'publishing' || a.variants.some((v: PostVariant) => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(a.id);
-      const bPublishing = b.status === 'publishing' || b.variants.some((v: PostVariant) => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(b.id);
-      if (aPublishing && !bPublishing) return -1;
-      if (!aPublishing && bPublishing) return 1;
-
-      const timeA = new Date(a.publishedAt || a.updatedAt || a.createdAt).getTime();
-      const timeB = new Date(b.publishedAt || b.updatedAt || b.createdAt).getTime();
-      return timeB - timeA;
-    });
-  }, [posts, filterStatus, searchQuery, activePublishingPostIds]);
-
-  // Live overview metrics
-  const liveStats = useMemo(() => {
-    const total = posts.length;
-    const publishing = posts.filter(p => {
-      const isStuck = (p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending')) &&
-        (Date.now() - new Date(p.updatedAt || p.createdAt).getTime()) > 5 * 60 * 1000;
-      return !isStuck && (p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(p.id));
-    }).length;
-    const published = posts.filter(p => p.variants.some(v => v.status === 'published')).length;
-    const active = posts.filter(p => getPostAge(p.createdAt) === 'active' && p.variants.some(v => v.status === 'published')).length;
-    const platformReach = new Set(posts.flatMap(p => p.variants.filter(v => v.status === 'published').map(v => v.platform))).size;
-    const totalVariants = posts.flatMap(p => p.variants).length;
-    const liveVariants = posts.flatMap(p => p.variants.filter(v => v.status === 'published')).length;
-    const deliveryRate = totalVariants > 0 ? Math.round((liveVariants / totalVariants) * 100) : 100;
-    const totalInteractions = posts.reduce((sum, p) => sum + (p.engagement?.total || 0), 0);
-
-    return { total, publishing, published, active, platformReach, deliveryRate, totalInteractions };
-  }, [posts, activePublishingPostIds]);
-
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 animate-in fade-in duration-150">
-        {/* Editorial Header Skeleton */}
-        <div className="flex items-start justify-between gap-4 flex-wrap pb-4 border-b border-[#E8E0D4]">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-extrabold text-[#3D2B1F] tracking-tight font-serif">Signal</h1>
-            <p className="text-sm text-[#8B7355]">Your posts, live. Where they go, what they build.</p>
-          </div>
-        </div>
-
-        {/* Live Overview Cards Skeleton */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="p-4 rounded-xl bg-white border border-[#E8E0D4] space-y-2 shadow-2xs">
-              <div className="h-3.5 w-20 rounded bg-[#EDE7DD] animate-pulse" />
-              <div className="h-6 w-12 rounded bg-[#EDE7DD] animate-pulse" />
-            </div>
-          ))}
-        </div>
-
-        {/* Tab switcher skeleton */}
-        <div className="flex items-center gap-2 border-b border-[#E8E0D4] pb-2">
-          <div className="h-8 w-24 rounded-lg bg-[#FAF7F2] border border-[#E8E0D4] animate-pulse" />
-          <div className="h-8 w-24 rounded-lg bg-[#FAF7F2] border border-[#E8E0D4] animate-pulse" />
-        </div>
-
-        {/* Feed Cards Skeleton */}
-        <div className="space-y-4 pt-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="p-5 rounded-2xl bg-white border border-[#E8E0D4] space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="h-4 w-32 rounded bg-[#EDE7DD] animate-pulse" />
-                <div className="h-5 w-16 rounded-full bg-[#EDE7DD]/60 animate-pulse" />
-              </div>
-              <div className="h-4 w-full rounded bg-[#FAF7F2] animate-pulse" />
-              <div className="h-4 w-3/4 rounded bg-[#FAF7F2] animate-pulse" />
-              <div className="flex items-center gap-2 pt-2">
-                <div className="h-6 w-16 rounded bg-[#F5EFE2] animate-pulse" />
-                <div className="h-6 w-20 rounded bg-[#F5EFE2] animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      {/* ── Editorial Header ────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-3xl font-extrabold text-[#3D2B1F] tracking-tight font-serif">Signal</h1>
-            {liveStats.active > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FDF0EC] text-[#C25E38] border border-[#C25E38]/20">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
-                </span>
-                {liveStats.active} in Golden Hour
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-[#8B7355] mt-1">Your posts, live. Where they go, what they build.</p>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 p-1 bg-[#F0EBE3] rounded-xl border border-[#E5DFD5]">
-          <button
-            onClick={() => setTab('feed')}
-            className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-              tab === 'feed'
-                ? 'bg-white text-[#3D2B1F] shadow-sm'
-                : 'text-[#8B7355] hover:text-[#3D2B1F]'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Feed</span>
-            {posts.length > 0 && (
-              <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-[#F5EFE2] text-[#3D2B1F] font-bold">
-                {posts.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab('dna')}
-            className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-              tab === 'dna'
-                ? 'bg-white text-[#3D2B1F] shadow-sm'
-                : 'text-[#8B7355] hover:text-[#3D2B1F]'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5 text-[#C4A265]" />
-            <span>Post DNA</span>
-          </button>
-          <button
-            onClick={() => setTab('analytics')}
-            className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-              tab === 'analytics'
-                ? 'bg-white text-[#3D2B1F] shadow-sm'
-                : 'text-[#8B7355] hover:text-[#3D2B1F]'
-            }`}
-          >
-            <BarChart2 className="w-3.5 h-3.5 text-[#C4A265]" />
-            <span>Analytics</span>
-            {resonance?.hasRealEngagement && (
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            )}
-          </button>
-          <Link
-            href="/dashboard/schedule"
-            className="px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 text-[#8B7355] hover:text-[#3D2B1F] hover:bg-[#EDE7DD]"
-            title="View or plan upcoming scheduled posts"
-          >
-            <Calendar className="w-3.5 h-3.5 text-[#C4A265]" />
-            <span>Flight Plan</span>
-          </Link>
-        </div>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {/* ── Feed Tab ──────────────────────────────────────────────────── */}
-        {tab === 'feed' && (
-          <motion.div
-            key="feed"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-            className="space-y-4"
-          >
-            {/* ── SignalDM Automation Metrics Card ── */}
-            {featureFlags.automationEnabled && automationStats && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(139,92,246,0.07) 0%, rgba(236,72,153,0.05) 100%)',
-                  border: '1px solid rgba(139,92,246,0.2)',
-                  borderRadius: 16,
-                  padding: '16px 20px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 18 }}>⚡</span>
-                    <span style={{ fontSize: 13.5, fontWeight: 700, color: '#7c3aed' }}>SignalDM</span>
-                    <span style={{
-                      fontSize: 10.5, fontWeight: 600, color: '#22c55e',
-                      background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)',
-                      borderRadius: 20, padding: '1px 8px'
-                    }}>ACTIVE</span>
-                  </div>
-                  <Link
-                    href="/dashboard/automation"
-                    style={{
-                      fontSize: 12, fontWeight: 600, color: '#8b5cf6',
-                      textDecoration: 'none',
-                      padding: '4px 12px',
-                      borderRadius: 8,
-                      background: 'rgba(139,92,246,0.1)',
-                      border: '1px solid rgba(139,92,246,0.2)',
-                    }}
-                  >
-                    Manage →
-                  </Link>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-                  {[
-                    { label: 'Comments today', value: automationStats.todayComments, color: '#3b82f6' },
-                    { label: 'DMs sent today', value: automationStats.todayDms, color: '#8b5cf6' },
-                    { label: 'Hot leads', value: automationStats.hotLeads, color: '#f97316' },
-                    { label: 'Pending review', value: automationStats.pendingFlagged, color: automationStats.pendingFlagged > 0 ? '#ef4444' : '#9ca3af' },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} style={{ textAlign: 'center', padding: '10px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.6)' }}>
-                      <div style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1.2 }}>{value}</div>
-                      <div style={{ fontSize: 10.5, color: '#6b7280', marginTop: 3 }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Quick stats strip */}
-            {posts.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: 'Dispatches', value: liveStats.total, icon: <Layers className="w-4 h-4 text-[#C4A265]" /> },
-                  { label: 'Live Posts', value: liveStats.published, icon: <Radio className="w-4 h-4 text-emerald-600" /> },
-                  {
-                    label: liveStats.totalInteractions > 0 ? 'Interactions' : 'Golden Hour',
-                    value: liveStats.totalInteractions > 0 ? liveStats.totalInteractions : liveStats.active,
-                    icon: <Flame className={`w-4 h-4 ${liveStats.totalInteractions > 0 ? 'text-rose-500' : 'text-orange-600'}`} />,
-                  },
-                  { label: 'Network Reach', value: liveStats.platformReach, suffix: ' nets', icon: <Target className="w-4 h-4 text-indigo-600" /> },
-                ].map((stat) => (
-                  <div key={stat.label} className="bg-white rounded-2xl p-4 border border-[#E8E0D4] shadow-xs">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#8B7355] uppercase tracking-wider mb-1">
-                      {stat.icon}
-                      <span>{stat.label}</span>
-                    </div>
-                    <p className="text-2xl font-bold text-[#3D2B1F]">
-                      <AnimatedNumber value={stat.value} suffix={stat.suffix || ''} />
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Filter and Search Bar */}
-            {posts.length > 0 && (
-              <div className="bg-white rounded-2xl p-3 border border-[#E8E0D4] flex items-center justify-between gap-3 flex-wrap shadow-xs">
-                <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                  <Search className="w-4 h-4 text-[#A69279]" />
-                  <input
-                    type="text"
-                    placeholder="Search posts by content, hook, or network…"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="border-none outline-none bg-transparent text-sm text-[#3D2B1F] placeholder-[#A69279] w-full"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="text-xs text-[#8B7355] hover:text-[#3D2B1F] cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {[
-                    { id: 'all', label: 'All' },
-                    { id: 'published', label: 'Live' },
-                    ...(liveStats.publishing > 0
-                      ? [{ id: 'publishing', label: `Publishing (${liveStats.publishing})` }]
-                      : []),
-                    { id: 'active', label: 'Golden Hour' },
-                    { id: 'draft', label: 'Drafts' },
-                    { id: 'failed', label: 'Failed' },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setFilterStatus(f.id as any)}
-                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
-                        filterStatus === f.id
-                          ? f.id === 'publishing'
-                            ? 'bg-sky-600 text-white border-sky-600'
-                            : 'bg-[#3D2B1F] text-white border-[#3D2B1F]'
-                          : f.id === 'publishing'
-                          ? 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-300'
-                          : 'bg-white text-[#8B7355] border-[#E8E0D4] hover:bg-[#F7F3ED]'
-                      }`}
-                    >
-                      {f.id === 'publishing' && <Loader2 className="w-3 h-3 animate-spin text-current" />}
-                      <span>{f.label}</span>
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => { void loadData(); }}
-                    className="p-1.5 rounded-lg border border-[#E8E0D4] bg-[#FAF7F2] text-[#8B7355] hover:text-[#3D2B1F] cursor-pointer"
-                    title="Refresh feed"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Post feed list */}
-            {posts.length === 0 ? (
-              <EmptyState />
-            ) : filteredPosts.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-dashed border-[#E8E0D4] p-12 text-center">
-                <Search className="w-8 h-8 text-[#A69279] mx-auto mb-2" />
-                <h3 className="font-bold text-[#3D2B1F] mb-1">No matching dispatches found</h3>
-                <p className="text-sm text-[#8B7355] mb-4">Try clearing filters or searching for different keywords.</p>
-                <button
-                  onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}
-                  className="px-4 py-1.5 rounded-xl border border-[#E8E0D4] bg-[#FAF7F2] text-xs font-bold text-[#3D2B1F] cursor-pointer"
-                >
-                  Reset filters
-                </button>
-              </div>
-            ) : (() => {
-              const mostRecentPublishedPostId = posts.find(p => p.variants.some(v => v.status === 'published'))?.id;
-              return (
-                <div className="space-y-4">
-                  {filteredPosts.map((post, i) => (
-                    <PostCard
-                      key={post.id}
-                      post={post}
-                      delay={i * 0.04}
-                      onRefresh={loadData}
-                      onDelete={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
-                      profileSubdomain={profileSubdomain}
-                      isMostRecentPublished={post.id === mostRecentPublishedPostId}
-                      isPublishingTracked={activePublishingPostIds.has(post.id)}
-                    />
-                  ))}
-                </div>
-              );
-            })()}
-          </motion.div>
-        )}
-
-        {/* ── Post DNA Tab ──────────────────────────────────────────────── */}
-        {tab === 'dna' && (
-          <motion.div
-            key="dna"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-            className="space-y-5"
-          >
-            {/* Educational "Why Post DNA?" Card */}
-            <AnimatePresence>
-              {showDNAInfo && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="bg-gradient-to-br from-white to-[#FAF5ED] rounded-2xl border border-[#E8E0D4] p-5 shadow-xs"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-[#F5EFE2] flex items-center justify-center text-[#C4A265]">
-                        <Layers className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base font-bold text-[#3D2B1F]">What is Post DNA & Why Does It Matter?</h2>
-                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#C4A265] text-white tracking-wider">
-                            Content Intelligence
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#8B7355] mt-0.5">Your algorithmic fingerprint across social networks.</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowDNAInfo(false)}
-                      className="text-xs font-semibold text-[#A69279] hover:text-[#3D2B1F] cursor-pointer"
-                    >
-                      Hide
-                    </button>
-                  </div>
-
-                  <p className="text-xs text-[#3D2B1F] leading-relaxed mb-3">
-                    Social algorithms on LinkedIn, X, Threads, and Bluesky evaluate <strong>structural patterns</strong>:
-                    opening hook styles, character pacing, visual density, and release windows. Post DNA decodes your real
-                    broadcasts to reveal what stops the scroll so you never post blind again.
-                  </p>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-[#F0EBE3]">
-                    {[
-                      { icon: <Zap className="w-3.5 h-3.5 text-amber-500" />, title: '1. Hook Style', desc: 'The 3-second dropoff trigger' },
-                      { icon: <Activity className="w-3.5 h-3.5 text-blue-500" />, title: '2. Golden Hour', desc: '60-min viral velocity testing' },
-                      { icon: <BarChart2 className="w-3.5 h-3.5 text-emerald-500" />, title: '3. Density', desc: 'Word count pacing for dwell time' },
-                      { icon: <Target className="w-3.5 h-3.5 text-purple-500" />, title: '4. Synergy', desc: 'Cross-platform audience footprint' },
-                    ].map((item) => (
-                      <div key={item.title} className="bg-white/80 rounded-xl p-2.5 border border-[#F0EBE3]">
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-[#3D2B1F] mb-0.5">
-                          {item.icon}
-                          <span>{item.title}</span>
-                        </div>
-                        <p className="text-[11px] text-[#8B7355]">{item.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {!showDNAInfo && (
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setShowDNAInfo(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C4A265] bg-white border border-[#E8E0D4] px-3 py-1.5 rounded-xl cursor-pointer hover:bg-[#FAF7F2]"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                  <span>How Post DNA works</span>
-                </button>
-              </div>
-            )}
-
-            <DNAView
-              resonance={resonance}
-              posts={posts}
-              onSync={syncLiveEngagement}
-              isSyncing={isSyncing}
-            />
-          </motion.div>
-        )}
-
-        {/* ── Analytics Tab ──────────────────────────────────────────────── */}
-        {tab === 'analytics' && (
-          <motion.div
-            key="analytics"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-          >
-            <AnalyticsDNA
-              resonance={resonance}
-              posts={posts}
-              onSync={syncLiveEngagement}
-              isSyncing={isSyncing}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    },
+    [queryString, activeWorkspaceId]
   );
-}
 
-/* ── Post Card ──────────────────────────────────────────────────────────────── */
-function PostCard({
-  post,
-  delay = 0,
-  onRefresh,
-  onDelete,
-  profileSubdomain,
-  isMostRecentPublished = false,
-  isPublishingTracked = false,
-}: {
-  post: SignalPost;
-  delay?: number;
-  onRefresh: () => void;
-  onDelete?: (postId: string) => void;
-  profileSubdomain?: string | null;
-  isMostRecentPublished?: boolean;
-  isPublishingTracked?: boolean;
-}) {
-  const age = getPostAge(post.createdAt);
-  const goldenRemaining = getGoldenHourRemaining(post.createdAt);
-  const publishedVariants = post.variants.filter(v => v.status === 'published');
-  const publishingVariants = post.variants.filter(v => v.status === 'publishing' || v.status === 'pending');
-  const pendingVariants = publishingVariants;
-  const failedVariants = post.variants.filter(v => v.status === 'failed');
-  const draftVariants = post.variants.filter(v => v.status === 'draft');
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
-  // Stuck detection: if marked 'publishing' for more than 5 minutes, consider it stuck/failed
-  const isStuckPublishing = (post.status === 'publishing' || publishingVariants.length > 0) &&
-    (Date.now() - new Date(post.updatedAt || post.createdAt).getTime()) > 5 * 60 * 1000;
+  // Listen to Studio / SignalStrip broadcast events + gently poll while publishing is active
+  useEffect(() => {
+    const handleSignalEvent = () => {
+      fetchAnalytics({ silent: true });
+    };
+    window.addEventListener('signal-posts-updated', handleSignalEvent);
+    window.addEventListener('signal-strip-publish', handleSignalEvent);
 
-  // Active publishing detection: post is in progress of publishing to networks
-  const isActivelyPublishing = !isStuckPublishing && (post.status === 'publishing' || publishingVariants.length > 0 || (isPublishingTracked && publishedVariants.length < post.variants.length));
+    const hasPublishing = (analytics?.operational?.publishingPosts ?? 0) > 0;
+    const intervalMs = hasPublishing ? 3000 : 30000;
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchAnalytics({ silent: true });
+      }
+    }, intervalMs);
 
-  const isFailedPost = isStuckPublishing || (!isActivelyPublishing && (post.status === 'failed' || (failedVariants.length > 0 && publishedVariants.length === 0 && publishingVariants.length === 0 && draftVariants.length === 0)));
+    return () => {
+      window.removeEventListener('signal-posts-updated', handleSignalEvent);
+      window.removeEventListener('signal-strip-publish', handleSignalEvent);
+      clearInterval(timer);
+    };
+  }, [fetchAnalytics, analytics?.operational?.publishingPosts]);
 
-  // A post is a draft ONLY IF it is not currently publishing, not failed, and has no live dispatches
-  const isDraft = !isFailedPost && !isActivelyPublishing && (post.status === 'draft' || publishedVariants.length === 0);
-
-  // Deduplicate variants by platform for clean display (defensive against duplicate platform rows)
-  const displayVariants = useMemo(() => {
-    const seen = new Set<string>();
-    return post.variants.filter(v => {
-      if (seen.has(v.platform)) return false;
-      seen.add(v.platform);
-      return true;
-    });
-  }, [post.variants]);
-
-  const displayFailedVariants = useMemo(() => {
-    const seen = new Set<string>();
-    return failedVariants.filter(v => {
-      if (seen.has(v.platform)) return false;
-      seen.add(v.platform);
-      return true;
-    });
-  }, [failedVariants]);
-
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const hookMeta = HOOK_META[post.hookType || ''] || HOOK_META.statement;
-
-  const shareOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://unool.co';
-  const shareUrl = `${shareOrigin}/u/${profileSubdomain || 'preview'}?activity=1`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
-    `Hey! Check out my latest story across platforms. Pick your favourite to view & support:\n\n👉 ${shareUrl}\n\nThanks! ❤️`
-  )}`;
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      toast.success('Link copied to clipboard!');
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Failed to copy link');
-    }
-  };
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`/api/publish/${post.id}`, {
+  const handleDeletePost = useCallback(
+    async (postId: string) => {
+      const res = await fetch(`/api/signal/posts?postId=${encodeURIComponent(postId)}`, {
         method: 'DELETE',
         credentials: 'include',
       });
       if (!res.ok) {
-        const fallbackRes = await fetch(`/api/signal/posts?postId=${post.id}`, {
-          method: 'DELETE',
-          credentials: 'include',
-        });
-        if (!fallbackRes.ok) {
-          const errData = await fallbackRes.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to remove draft');
-        }
+        toast.error('Failed to delete post');
+        return;
       }
-      toast.success(isFailedPost ? 'Failed dispatch dismissed' : 'Draft cancelled and removed');
-      onDelete?.(post.id);
-      onRefresh();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('signal-posts-updated', { detail: { postId: post.id } }));
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to remove draft');
-      setIsDeleting(false);
-      setConfirmDelete(false);
+      toast.success('Post removed');
+      if (inspectorPost?.id === postId) setInspectorPost(null);
+      await fetchAnalytics({ silent: true });
+    },
+    [fetchAnalytics, inspectorPost?.id]
+  );
+
+  const handleExportCsv = useCallback(async () => {
+    if (!analytics?.meta?.csvExportAllowed) {
+      toast.error('CSV export requires a Pro or Studio plan. Use Print Report or upgrade in Billing.');
+      return;
     }
-  };
-  const cachePostForEdit = () => {
-    try {
-      const anyPost = post as any;
-      sessionStorage.setItem(
-        `unool_edit_post_${post.id}`,
-        JSON.stringify({
-          postId: post.id,
-          content: post.content,
-          status: post.status,
-          scheduledAt: anyPost.scheduledAt || post.publishedAt || null,
-          arcId: post.arcId || null,
-          createdAt: post.createdAt,
-          platforms: post.variants.map((v: any) => ({
-            variantId: v.id,
-            platform: v.platform,
-            content: v.adaptedContent || post.content,
-            status: v.status,
-            scheduledAt: v.scheduledAt || anyPost.scheduledAt || post.publishedAt || null,
-            mediaUrls: v.mediaUrls || [],
-            hashtags: [],
-          })),
-        })
-      );
-    } catch {
-      // ignore
+    const url = `/api/signal/export?${queryString}`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      toast.error(errBody.error || 'CSV export blocked');
+      return;
     }
-  };
+    const blob = await res.blob();
+    const dlUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = dlUrl;
+    a.download = `unool-signal-${analytics.meta.effectiveRange}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(dlUrl);
+    toast.success('CSV report downloaded');
+  }, [analytics?.meta?.csvExportAllowed, analytics?.meta?.effectiveRange, queryString]);
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.22 }}
-      className="bg-white rounded-2xl border overflow-hidden transition-all shadow-xs"
-      style={{
-        borderColor: isActivelyPublishing
-          ? '#7dd3fc'
-          : isFailedPost
-          ? '#fecdd3'
-          : isDraft
-          ? '#fed7aa'
-          : age === 'active'
-          ? '#fbbf24'
-          : age === 'settling'
-          ? '#e5e7eb'
-          : '#f3f4f6',
-        boxShadow: isActivelyPublishing
-          ? '0 0 0 1px #38bdf830, 0 4px 20px #0284c715'
-          : isFailedPost
-          ? '0 1px 6px #f43f5e10'
-          : isDraft
-          ? '0 1px 6px #f9731610'
-          : age === 'active'
-          ? '0 0 0 1px #fbbf2420, 0 4px 24px #fbbf2415'
-          : '0 1px 4px #0000000a',
-      }}
-    >
-      {/* Active Publishing glowing progress bar */}
-      {isActivelyPublishing && (
-        <div className="h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-sky-400 animate-pulse" />
-      )}
+  const resetAllFilters = useCallback(() => {
+    setRange('30d');
+    setPlatform('all');
+    setAccountId('all');
+    setStatusFilter('all');
+    setHookFilter('all');
+    setFormatFilter('all');
+    setOriginFilter('all');
+    setSortMode('newest');
+    setSearchText('');
+  }, []);
 
-      {/* Active Golden Hour glowing top strip */}
-      {age === 'active' && !isDraft && !isActivelyPublishing && (
-        <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-400 to-amber-500 animate-pulse" />
-      )}
+  const hasActiveFilters =
+    range !== '30d' ||
+    platform !== 'all' ||
+    accountId !== 'all' ||
+    statusFilter !== 'all' ||
+    hookFilter !== 'all' ||
+    formatFilter !== 'all' ||
+    originFilter !== 'all' ||
+    Boolean(searchText.trim());
 
-      {/* Card header: age badge + time */}
-      <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          {isActivelyPublishing ? (
-            <span className="flex items-center gap-1.5 text-xs font-bold text-sky-800 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300 px-3 py-1 rounded-full border border-sky-300 dark:border-sky-800 shadow-xs">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600 dark:text-sky-400" />
-              <span>Publishing in progress&hellip;</span>
-            </span>
-          ) : isFailedPost ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-              <span>Delivery Failed</span>
-            </span>
-          ) : isDraft ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-              <FileText className="w-3.5 h-3.5 text-amber-600" />
-              <span>{getDraftRedirect(post).label}</span>
-            </span>
-          ) : age === 'active' ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-              <LiveIndicator />
-              Active — {goldenRemaining}m left in golden hour
-            </span>
-          ) : age === 'settling' ? (
-            <span className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-              Settling (Active 24h)
-            </span>
-          ) : (
-            <span className="text-xs text-gray-400">{format(new Date(post.createdAt), 'MMM d, h:mm a')}</span>
-          )}
+  const availablePlatforms = useMemo(() => {
+    if (!analytics) return [];
+    const seen = new Map<string, string>();
+    for (const c of analytics.channelBreakdown) {
+      if (!seen.has(c.platform)) seen.set(c.platform, c.label);
+    }
+    return Array.from(seen.entries()).map(([id, label]) => ({ id, label }));
+  }, [analytics]);
 
-          {post.hookType && (
-            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${hookMeta.bg} ${hookMeta.text}`}>
-              {hookMeta.icon}
-              <span>{hookMeta.label}</span>
-            </span>
-          )}
+  const availableAccounts = useMemo(() => {
+    if (!analytics) return [];
+    return analytics.channelBreakdown.filter(c => platform === 'all' || c.platform === platform);
+  }, [analytics, platform]);
+
+  const publishedPostsInWindow = useMemo(
+    () => (analytics?.posts || []).filter(p => p.effectiveStatus === 'published'),
+    [analytics?.posts]
+  );
+
+  /* ── Render: Full-page Loading Skeleton ─────────────────────────────────── */
+  if (loading && !analytics) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-56 rounded-xl bg-[#EFE9DF] animate-pulse" />
+          <div className="h-9 w-44 rounded-xl bg-[#EFE9DF] animate-pulse" />
         </div>
-
-        {age !== 'cooled' && (
-          <span className="text-xs text-gray-400">{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
-        )}
-      </div>
-
-      {/* Content preview */}
-      <p className="px-5 py-2 text-[15px] text-[#3D2B1F] leading-relaxed line-clamp-3">
-        {post.content}
-      </p>
-
-      {/* Live Publishing Progress Meter */}
-      {isActivelyPublishing && (
-        <div className="mx-5 my-2.5 p-3.5 rounded-xl bg-gradient-to-r from-sky-50/80 via-indigo-50/40 to-sky-50/80 border border-sky-200/90 dark:from-sky-950/40 dark:to-indigo-950/30 dark:border-sky-900/60 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-semibold text-sky-900 dark:text-sky-200 mb-2">
-            <span className="flex items-center gap-1.5">
-              <Radio className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
-              Live Dispatch in Progress
-            </span>
-            <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-white dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-              {publishedVariants.length} of {displayVariants.length} published
-            </span>
-          </div>
-          <div className="w-full bg-sky-200/60 dark:bg-sky-900/60 rounded-full h-1.5 overflow-hidden">
-            <motion.div
-              className="bg-gradient-to-r from-sky-500 to-indigo-600 h-1.5 rounded-full"
-              initial={{ width: '15%' }}
-              animate={{
-                width: `${Math.max(15, Math.round((publishedVariants.length / (displayVariants.length || 1)) * 100))}%`
-              }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            />
-          </div>
-          <p className="text-[11px] text-sky-700/80 dark:text-sky-300/80 mt-2 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping inline-block" />
-            Live dispatch active. Links will update automatically as each network confirms.
-          </p>
-        </div>
-      )}
-
-      {/* Live Audience Engagement Metrics */}
-      {post.engagement && post.engagement.hasRealData && (
-        <div className="px-5 py-2 flex items-center gap-2 text-xs bg-[#FAF7F2] border-t border-[#EDE7DD] flex-wrap">
-          <div className="flex items-center gap-1 font-bold text-[#3D2B1F] mr-1">
-            <Flame className="w-3.5 h-3.5 text-orange-500" />
-            <span>Audience:</span>
-          </div>
-          {post.engagement.likes > 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
-              <span className="text-[10px] font-mono">LIKES</span>
-              <span>{post.engagement.likes}</span>
-            </span>
-          )}
-          {post.engagement.comments > 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-              <span className="text-[10px] font-mono">COMMENTS</span>
-              <span>{post.engagement.comments}</span>
-            </span>
-          )}
-          {post.engagement.shares > 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              <span className="text-[10px] font-mono">SHARES</span>
-              <span>{post.engagement.shares}</span>
-            </span>
-          )}
-          {post.engagement.views > 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
-              <span className="text-[10px] font-mono">VIEWS</span>
-              <span>{post.engagement.views}</span>
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Platform status row */}
-      {displayVariants.length > 0 && (
-        <div className="px-5 py-3 flex flex-wrap gap-2 border-t border-gray-50 bg-[#FAF7F2]/50">
-          {displayVariants.map(variant => {
-            const cfg = getPlatformConfig(variant.platform);
-            const Logo = cfg.logo;
-            const isLive = variant.status === 'published';
-            const isVariantPublishing = variant.status === 'publishing' || variant.status === 'pending' || (isActivelyPublishing && variant.status === 'draft');
-            const isFailed = variant.status === 'failed';
-
-            return (
-              <div key={variant.id}>
-                {isLive && variant.platformUrl ? (
-                  <a
-                    href={variant.platformUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white hover:bg-gray-50 transition-colors group cursor-pointer"
-                    style={{ borderColor: cfg.color ? `${cfg.color}30` : '#e5e7eb' }}
-                    title={`View on ${cfg.name}`}
-                  >
-                    <Logo size={16} />
-                    <span className="text-xs font-medium text-gray-700">{cfg.name}</span>
-                    {variant.engagement && variant.engagement.totalInteractions > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#F5EFE2] text-[#3D2B1F]">
-                        <span className="text-[9px] font-mono">ENGAGE</span>{' '}
-                        {variant.engagement.totalInteractions}
-                      </span>
-                    )}
-                    <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                  </a>
-                ) : isVariantPublishing ? (
-                  <motion.div
-                    animate={{ opacity: [1, 0.6, 1] }}
-                    transition={{ repeat: Infinity, duration: 1.2 }}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-sky-50/70 border-sky-200 text-sky-800 dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-300"
-                    title={`Publishing to ${cfg.name}...`}
-                  >
-                    <Logo size={16} />
-                    <span className="text-xs font-semibold">{cfg.name}</span>
-                    <Loader2 className="w-3 h-3 animate-spin text-sky-600 dark:text-sky-400" />
-                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">publishing&hellip;</span>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    animate={isVariantPublishing ? { opacity: [1, 0.5, 1] } : {}}
-                    transition={{ repeat: Infinity, duration: 1.4 }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
-                      isFailed ? 'bg-red-50 border-red-200 cursor-pointer hover:bg-red-100 transition-colors' : 'bg-gray-50 border-gray-200'
-                    }`}
-                    onClick={isFailed ? () => toast.error(`${cfg.name} Failed`, { description: formatPlatformError(variant.error?.message) }) : undefined}
-                    title={isFailed ? `${formatPlatformError(variant.error?.message)} (Click to view)` : `Publishing to ${cfg.name}...`}
-                  >
-                    <Logo size={16} />
-                    <span className={`text-xs font-medium ${isFailed ? 'text-red-600' : 'text-gray-500'}`}>
-                      {cfg.name}
-                    </span>
-                    {isFailed && <span className="w-2 h-2 rounded-full bg-[#B85450] inline-block" aria-hidden="true" />}
-                  </motion.div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Inline failed variants banner */}
-      {displayFailedVariants.length > 0 && (
-        <div className="px-5 py-2.5 bg-red-50/70 border-t border-red-100 flex flex-col gap-1.5 text-xs text-red-700">
-          {displayFailedVariants.map(fv => (
-            <div key={fv.id} className="flex items-start gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#B85450] shrink-0 mt-1.5 inline-block" aria-hidden="true" />
-              <div>
-                <span className="font-semibold">{getPlatformConfig(fv.platform).name}:</span>{' '}
-                <span>{formatPlatformError(fv.error?.message)}</span>
-              </div>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-24 rounded-2xl bg-[#EFE9DF]/70 animate-pulse" />
           ))}
         </div>
-      )}
-
-      {/* Summary footer */}
-      <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between gap-3 text-xs text-gray-500 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          {isActivelyPublishing ? (
-            <span className="text-sky-700 font-semibold flex items-center gap-1.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
-              Broadcasting ({publishedVariants.length}/{displayVariants.length} published)
-            </span>
-          ) : (
-            <>
-              {publishedVariants.length > 0 && (
-                <span className="text-green-600 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#4A8C5C]" aria-hidden="true" />
-                  {publishedVariants.length} live
-                </span>
-              )}
-              {pendingVariants.length > 0 && (
-                <span className="text-amber-600 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#C49B3C]" aria-hidden="true" />
-                  {pendingVariants.length} pending
-                </span>
-              )}
-              {failedVariants.length > 0 && (
-                <span className="text-red-500 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#B85450]" aria-hidden="true" />
-                  {failedVariants.length} failed
-                </span>
-              )}
-            </>
-          )}
-          <span className="text-gray-400">
-            {post.wordCount || post.content.split(/\s+/).filter(Boolean).length} words
-          </span>
-        </div>
-
-        {/* Action buttons: When publishing, show active status instead of draft/review buttons */}
-        {isActivelyPublishing ? (
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 shadow-xs">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600 dark:text-sky-400" />
-              <span>Publishing in progress</span>
-            </span>
-          </div>
-        ) : isFailedPost ? (
-          /* ── Failed post: Review & fix + Dismiss ── */
-          <div className="flex flex-col gap-1.5 ml-auto items-end">
-            <div className="flex items-center gap-2">
-              <Link
-                href={getDraftRedirect(post).href}
-                prefetch={true}
-                onClick={cachePostForEdit}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-900 text-white hover:bg-rose-950 transition-colors shadow-xs cursor-pointer"
-                title="Review and fix failed post"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span>Review &amp; fix</span>
-              </Link>
-              {confirmDelete ? (
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <><X className="w-3 h-3" /><span>Confirm dismiss</span></>}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/60 transition-colors cursor-pointer"
-                  title="Dismiss this failed dispatch"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Dismiss</span>
-                </button>
-              )}
-            </div>
-            {confirmDelete && (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer underline underline-offset-2"
-              >
-                Keep it
-              </button>
-            )}
-          </div>
-        ) : isDraft ? (
-          /* ── Draft post: Cancel draft + Review & edit (primary) ── */
-          <div className="flex items-center gap-2 ml-auto flex-wrap">
-            {confirmDelete ? (
-              <div className="inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-xl border border-red-200 dark:border-red-900/50">
-                <span className="text-[11px] font-medium text-red-700 dark:text-red-300">Cancel draft?</span>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                  <span>Yes, cancel</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors cursor-pointer underline underline-offset-2 ml-1"
-                >
-                  Keep
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                title="Cancel and remove this draft"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Cancel draft</span>
-              </button>
-            )}
-            <Link
-              href={getDraftRedirect(post).href}
-              prefetch={true}
-              onClick={cachePostForEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
-              title="Review context, edit, or publish this draft"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>Review &amp; edit</span>
-            </Link>
-          </div>
-        ) : (
-          publishedVariants.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowShareModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-gray-900 hover:bg-black transition-all shadow-sm ml-auto cursor-pointer"
-              title="Share this story"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>Share Story</span>
-            </button>
-          )
-        )}
-      </div>
-
-      {/* Share Modal Window */}
-      {showShareModal && typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowShareModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              transition={{ duration: 0.18 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-6 relative"
-            >
-              <button
-                type="button"
-                onClick={() => setShowShareModal(false)}
-                className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-700">
-                  <Share2 className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-bold text-gray-900">Share Story</h3>
-              </div>
-              <p className="text-xs text-gray-500 mb-4">
-                Share this post across your network or copy the link directly.
-              </p>
-
-              <div className="mb-4">
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                  Universal Activity Link
-                </label>
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-700 font-mono">
-                  <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <span className="truncate flex-1 select-all">{shareUrl}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 transition-colors shadow-sm cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5 text-gray-600" />
-                  <span>{copied ? 'Copied to Clipboard!' : 'Copy Link'}</span>
-                </button>
-
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-gray-900 hover:bg-black transition-colors shadow-sm cursor-pointer"
-                >
-                  {PlatformLogos.whatsapp && <PlatformLogos.whatsapp.logo size={15} />}
-                  <span>Share on WhatsApp</span>
-                </a>
-              </div>
-            </motion.div>
-          </div>
-        </AnimatePresence>,
-        document.body
-      )}
-    </motion.div>
-  );
-}
-
-/* ── Post DNA / Advanced Resonance View ─────────────────────────────────────── */
-function DNAView({
-  resonance,
-  posts,
-  onSync,
-  isSyncing = false,
-}: {
-  resonance: ResonanceData | null;
-  posts: SignalPost[];
-  onSync?: () => void;
-  isSyncing?: boolean;
-}) {
-  if (!resonance) {
-    return (
-      <div className="py-16 text-center text-gray-400">
-        <Loader2 className="w-8 h-8 mx-auto mb-3 text-[#C4A265] animate-spin" />
-        <p className="text-sm font-medium">Analyzing your Post DNA patterns…</p>
+        <div className="h-64 rounded-2xl bg-[#EFE9DF]/60 animate-pulse" />
       </div>
     );
   }
 
-  if (!resonance.hasData || resonance.totalPosts === 0) {
+  /* ── Render: Network / API Error State (never masked as 0s) ─────────────── */
+  if (loadError && !analytics) {
     return (
-      <div className="bg-white rounded-2xl border border-dashed border-[#E8E0D4] p-12 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-[#F0EBE3] flex items-center justify-center mx-auto mb-3">
-          <Layers className="w-6 h-6 text-[#C4A265]" />
-        </div>
-        <h3 className="font-bold text-[#3D2B1F] mb-1">Building Your Post DNA</h3>
-        <p className="text-sm text-[#8B7355] max-w-sm mx-auto mb-5 leading-relaxed">
-          Post DNA decodes your content patterns across social algorithms. Once you broadcast your first story
-          from Studio or queue a dispatch in Flight Plan, your genetic intelligence engine will automatically unlock.
-        </p>
-        <div className="flex items-center justify-center gap-3">
-          <Link
-            href="/dashboard/studio"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3D2B1F] text-white text-sm font-semibold hover:bg-black transition-colors"
+      <div className="max-w-3xl mx-auto px-4 py-14">
+        <div className="bg-white border border-rose-200 rounded-2xl p-6 text-center space-y-3">
+          <AlertTriangle className="w-10 h-10 text-rose-600 mx-auto" />
+          <h2 className="text-lg font-semibold text-[#1A1612]">Could not load Signal Analytics</h2>
+          <p className="text-xs text-[#57534E]">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => fetchAnalytics()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1A1612] text-white text-xs font-medium hover:bg-[#332C25]"
           >
-            <span>Open Studio</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="/dashboard/schedule"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5EFE2] text-[#3D2B1F] border border-[#E8E0D4] text-sm font-semibold hover:bg-[#EDE7DD] transition-colors"
-          >
-            <Calendar className="w-4 h-4 text-[#C4A265]" />
-            <span>Plan My Week</span>
-          </Link>
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry Load</span>
+          </button>
         </div>
       </div>
     );
   }
 
-  const patternRows = resonance.recentPatternRows || [];
-  const avgWords = resonance.avgWordCount || (patternRows.length > 0
-    ? Math.round(patternRows.reduce((s, r) => s + r.wordCount, 0) / patternRows.length)
-    : 0);
-  const mediaRatio = resonance.mediaRatio !== undefined
-    ? resonance.mediaRatio
-    : (patternRows.length > 0 ? Math.round((patternRows.filter(r => r.hasMedia).length / patternRows.length) * 100) : 0);
-  const resonanceScore = resonance.resonanceScore || Math.min(Math.round((resonance.totalPosts * 12) + 40), 96);
-
-  // Platform distribution
-  const platformCounts: Record<string, number> = {};
-  posts.forEach(p => {
-    p.variants.filter(v => v.status === 'published').forEach(v => {
-      platformCounts[v.platform] = (platformCounts[v.platform] || 0) + 1;
-    });
-  });
-  const topPlatforms = Object.entries(platformCounts).sort((a, b) => b[1] - a[1]);
-
-  // Days heatmap
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dayDistribution = resonance.dayDistribution || new Array(7).fill(0);
-  if (!resonance.dayDistribution && patternRows.length > 0) {
-    patternRows.forEach(r => { dayDistribution[r.dayOfWeek]++; });
-  }
-  const maxDay = Math.max(...dayDistribution, 1);
-
-  // Hours distribution
-  const hourDistribution = resonance.hourDistribution || new Array(24).fill(0);
-  if (!resonance.hourDistribution && patternRows.length > 0) {
-    patternRows.forEach(r => { hourDistribution[r.hourOfDay]++; });
-  }
-  const maxHour = Math.max(...hourDistribution, 1);
-
-  // Word length breakdown
-  const wcBuckets = [
-    { label: 'Micro (<50w)', min: 0, max: 49, count: 0 },
-    { label: 'Sweet-spot (50–120w)', min: 50, max: 120, count: 0 },
-    { label: 'Thought (120–250w)', min: 121, max: 250, count: 0 },
-    { label: 'Deep (250w+)', min: 251, max: Infinity, count: 0 },
-  ];
-  patternRows.forEach(r => {
-    const bucket = wcBuckets.find(b => r.wordCount >= b.min && r.wordCount <= b.max);
-    if (bucket) bucket.count++;
-  });
-  const maxWc = Math.max(...wcBuckets.map(b => b.count), 1);
-
-  const tierName = resonanceScore >= 80 ? 'Authority Architect' : resonanceScore >= 50 ? 'Ascending Catalyst' : 'Emerging Voice';
+  const isBrandNewWorkspace =
+    analytics &&
+    analytics.syncHealth.connectedAccountCount === 0 &&
+    analytics.operational.totalPosts === 0;
 
   return (
-    <div className="space-y-4">
-      {/* ── Content Resonance Score ─────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Target className="w-4 h-4 text-[#C4A265]" />
-              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Content Resonance Index</p>
-            </div>
-            <div className="flex items-baseline gap-3">
-              <p className="text-4xl font-extrabold text-[#3D2B1F] tracking-tight">
-                <AnimatedNumber value={resonanceScore} suffix="/100" />
-              </p>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#F5EFE2] text-[#3D2B1F] border border-[#E8E0D4]">
-                {tierName}
-              </span>
-            </div>
-            <p className="text-xs text-[#8B7355] mt-1">
-              {resonance.hasRealEngagement
-                ? 'Calculated from live audience interactions, comment triggers, dwell density, and multi-network spread.'
-                : 'Based on hook variety, delivery rate, pacing, and multi-network spread.'}
-            </p>
-
-            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-              {resonance.hasRealEngagement ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Platform Analytics Active
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#8B7355] bg-[#F5EFE2] px-2.5 py-0.5 rounded-full border border-[#E8E0D4]">
-                  Algorithmic Baseline
-                </span>
-              )}
-              {onSync && (
-                <button
-                  onClick={onSync}
-                  disabled={isSyncing}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#3D2B1F] hover:text-black bg-white hover:bg-[#FAF7F2] px-2.5 py-0.5 rounded-full border border-[#E8E0D4] transition-all cursor-pointer shadow-2xs"
-                  title="Sync live likes, comments, and views directly from connected platforms"
-                >
-                  <RefreshCw className={`w-3 h-3 text-[#C4A265] ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span>{isSyncing ? 'Syncing...' : 'Sync Live Stats'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center min-w-[280px]">
-            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">
-                {resonance.hasRealEngagement ? 'Total Reactions' : 'Analyzed'}
-              </span>
-              <p className="text-lg font-bold text-[#3D2B1F]">
-                {resonance.hasRealEngagement ? (
-                  <span className="text-orange-600 font-extrabold">🔥 {resonance.totalInteractions}</span>
-                ) : (
-                  `${resonance.totalPosts} posts`
-                )}
-              </p>
-            </div>
-            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">
-                {resonance.hasRealEngagement ? 'Avg / Post' : 'Avg Length'}
-              </span>
-              <p className="text-lg font-bold text-[#3D2B1F]">
-                {resonance.hasRealEngagement ? (
-                  `${resonance.avgInteractionsPerPost} acts`
-                ) : (
-                  `${avgWords}w`
-                )}
-              </p>
-            </div>
-            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">
-                {resonance.mediaLift && resonance.mediaLift > 0 ? 'Media Lift' : 'Media Rate'}
-              </span>
-              <p className="text-lg font-bold text-[#3D2B1F]">
-                {resonance.mediaLift && resonance.mediaLift > 0 ? (
-                  <span className="text-emerald-600 font-bold">+{resonance.mediaLift}%</span>
-                ) : (
-                  `${mediaRatio}%`
-                )}
-              </p>
-            </div>
-            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Winning Hook</span>
-              <p className="text-lg font-bold text-[#3D2B1F] capitalize truncate">
-                {resonance.topHook || resonance.hookBreakdown[0]?.type || 'Statement'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="h-2 bg-[#F0EBE3] rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${resonanceScore}%` }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
-            className="h-full rounded-full bg-gradient-to-r from-[#C4A265] to-[#C25E38]"
-          />
-        </div>
-      </div>
-
-      {/* ── Hook Archetype Spectrum ─────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-500" />
-            <p className="text-sm font-bold text-[#3D2B1F]">Hook Archetype Performance</p>
-          </div>
-          <span className="text-xs text-[#8B7355] font-medium">
-            {resonance.hookBreakdown.length} / 6 Styles Tracked
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {['statement', 'question', 'statistic', 'story', 'contrarian', 'framework'].map(hookKey => {
-            const meta = HOOK_META[hookKey];
-            const breakdownItem = resonance.hookBreakdown.find(b => b.type === hookKey);
-            const isUsed = Boolean(breakdownItem && breakdownItem.count > 0);
-            const count = breakdownItem?.count || 0;
-            const pct = resonance.totalPosts > 0 ? Math.round((count / resonance.totalPosts) * 100) : 0;
-            const sample = breakdownItem?.samples?.[0];
-            const isTopPerformer = breakdownItem?.type === resonance.topHook && Boolean(resonance.hasRealEngagement);
-
-            return (
-              <div
-                key={hookKey}
-                className={`p-3.5 rounded-xl border transition-all ${
-                  isTopPerformer
-                    ? 'bg-[#FFFDF7] border-amber-300 ring-1 ring-amber-200 shadow-2xs'
-                    : isUsed
-                    ? 'bg-white border-[#E8E0D4]'
-                    : 'bg-[#FAF7F2]/60 border-dashed border-[#E8E0D4] opacity-65'
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-5 print:p-0">
+      {/* ── Header + Sync Freshness + Report Actions ─────────────────────────── */}
+      <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-[#1A1612] flex items-center gap-2">
+              <Radio className="w-5 h-5 text-[#C8613D]" />
+              <span>Signal Intelligence</span>
+            </h1>
+            {analytics && (
+              <span
+                className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${
+                  analytics.syncHealth.status === 'healthy'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : analytics.syncHealth.status === 'partial' || analytics.syncHealth.status === 'degraded'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-[#FAF7F2] text-[#57534E] border-[#E8E0D4]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-6 h-6 rounded-lg ${meta.bg} ${meta.text} flex items-center justify-center`}>
-                      {meta.icon}
-                    </span>
-                    <span className="text-xs font-bold text-[#3D2B1F]">{meta.label}</span>
-                    {isTopPerformer && (
-                      <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
-                        ⭐ Top Performer
-                      </span>
-                    )}
-                  </div>
-                  {isUsed ? (
-                    <div className="flex items-center gap-1.5">
-                      {breakdownItem?.avgInteractions !== undefined && breakdownItem.avgInteractions > 0 && (
-                        <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200">
-                          🔥 {breakdownItem.avgInteractions} avg
-                        </span>
-                      )}
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${meta.bg} ${meta.text}`}>
-                        {count} ({pct}%)
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[11px] text-[#A69279]">Untapped</span>
-                  )}
-                </div>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    analytics.syncHealth.status === 'healthy'
+                      ? 'bg-emerald-500'
+                      : analytics.syncHealth.status === 'partial' || analytics.syncHealth.status === 'degraded'
+                      ? 'bg-amber-500'
+                      : 'bg-stone-400'
+                  }`}
+                />
+                <span>
+                  {analytics.syncHealth.lastSyncedAt
+                    ? `Synced ${formatDistanceToNow(new Date(analytics.syncHealth.lastSyncedAt), { addSuffix: true })}`
+                    : analytics.syncHealth.status === 'no_accounts'
+                    ? 'No social accounts connected'
+                    : 'Pending first live sync'}
+                </span>
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-[#78716C] mt-1">
+            Closed-loop performance across Hook Formulas, Multi-Account Channels, Publishing Windows, Bio-Links & SignalDM
+          </p>
+        </div>
 
-                <p className="text-[11px] text-[#8B7355] mb-2 leading-relaxed">{meta.desc}</p>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <button
+            type="button"
+            onClick={() => fetchAnalytics({ sync: true })}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#E8E0D4] text-xs font-semibold text-[#1A1612] hover:border-[#C8613D] disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#C8613D] ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing…' : 'Sync Live Metrics'}</span>
+          </button>
 
-                {isUsed && breakdownItem?.avgComments !== undefined && breakdownItem.avgComments > 0 && (
-                  <p className="text-[11px] font-medium text-blue-700 mb-1.5 flex items-center gap-1">
-                    <span>💬</span>
-                    <span>Generates avg <strong>{breakdownItem.avgComments}</strong> comments / dispatch</span>
-                  </p>
-                )}
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#E8E0D4] text-xs font-semibold text-[#1A1612] hover:border-[#C8613D]"
+          >
+            {analytics?.meta?.csvExportAllowed ? (
+              <Download className="w-3.5 h-3.5 text-[#57534E]" />
+            ) : (
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
+            )}
+            <span>Export CSV</span>
+          </button>
 
-                {isUsed && sample ? (
-                  <p className="text-[11px] italic text-[#3D2B1F] truncate bg-[#F7F3ED] px-2 py-1 rounded-md border-l-2 border-[#C4A265]">
-                    “{sample}…”
-                  </p>
-                ) : (
-                  <p className="text-[10px] text-[#C4A265] font-semibold">
-                    💡 Tip: Try this opener in your next dispatch
-                  </p>
-                )}
-              </div>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#E8E0D4] text-xs font-semibold text-[#1A1612] hover:border-[#C8613D]"
+          >
+            <Printer className="w-3.5 h-3.5 text-[#57534E]" />
+            <span>Print Report</span>
+          </button>
+
+          <Link
+            href="/dashboard/composer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#1A1612] text-white text-xs font-semibold hover:bg-[#332C25]"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Create Post</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* ── Partial Sync / Error / Retention Transparency Notices ─────────────── */}
+      {loadError && analytics && (
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-2 text-xs text-rose-800 print:hidden">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Refresh failed ({loadError}) — displaying last loaded snapshot.</span>
+          </span>
+          <button type="button" onClick={() => fetchAnalytics()} className="font-semibold underline">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {syncNotice && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2 text-xs text-amber-900 print:hidden">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{syncNotice}</span>
+          </span>
+          <Link href="/onboarding/connect" className="font-semibold underline shrink-0">
+            Check Connections
+          </Link>
+        </div>
+      )}
+
+      {analytics?.meta?.truncatedByPlan && (
+        <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4] flex flex-wrap items-center justify-between gap-2 text-xs text-[#57534E]">
+          <span>
+            <strong>{analytics.meta.planName} Plan</strong> retains up to{' '}
+            <strong>{analytics.meta.retentionDays} days</strong> of analytics history (clamped from{' '}
+            {analytics.meta.requestedRange}).
+          </span>
+          <Link href="/dashboard/billing" className="font-semibold text-[#C8613D] hover:underline print:hidden">
+            Upgrade retention →
+          </Link>
+        </div>
+      )}
+
+      {/* ── Navigation View Tabs (1-Level Coherent IA) ───────────────────────── */}
+      <nav
+        className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E8E0D4] pb-2 print:hidden"
+        aria-label="Signal analytics views"
+      >
+        <div className="flex flex-wrap items-center gap-1.5" role="tablist">
+          {(
+            [
+              { id: 'overview', label: 'Overview', icon: Activity },
+              {
+                id: 'content',
+                label: `Content & Hooks (${analytics?.operational.totalPosts ?? 0})`,
+                icon: Layers,
+              },
+              { id: 'timing', label: 'Timing & Cadence', icon: Clock },
+              { id: 'channels', label: 'Channels & Funnel', icon: BarChart3 },
+            ] as const
+          ).map(t => {
+            const Icon = t.icon;
+            const active = view === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setView(t.id)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C8613D] ${
+                  active
+                    ? 'bg-[#1A1612] text-white'
+                    : 'bg-white border border-[#E8E0D4] text-[#57534E] hover:text-[#1A1612]'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{t.label}</span>
+              </button>
             );
           })}
         </div>
-      </div>
 
-      {/* ── Best Timing ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {resonance.bestDay && (
-          <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-blue-500" />
-              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">
-                {resonance.bestDay.interactions && resonance.bestDay.interactions > 0 ? 'Peak Engagement Day' : 'Most Active Day'}
-              </p>
-            </div>
-            <p className="text-3xl font-extrabold text-[#3D2B1F]">{resonance.bestDay.name}</p>
-            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">
-              {resonance.bestDay.interactions && resonance.bestDay.interactions > 0
-                ? `${resonance.bestDay.interactions} audience interactions recorded (${resonance.bestDay.count} posts)`
-                : `${resonance.bestDay.count} posts published`}
-            </p>
-
-            {/* 7-day visual mini-bars */}
-            <div className="flex items-end gap-1.5 h-12">
-              {dayNames.map((d, i) => {
-                const count = dayDistribution[i] || 0;
-                const hPct = count > 0 ? (count / maxDay) * 100 : 10;
-                const isBest = resonance.bestDay?.day === i;
-                return (
-                  <div key={d} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                    <div
-                      className={`w-full rounded-xs transition-all ${isBest ? 'bg-[#C4A265]' : count > 0 ? 'bg-[#D4B87A]' : 'bg-[#F0EBE3]'}`}
-                      style={{ height: `${hPct}%` }}
-                      title={`${d}: ${count} posts`}
-                    />
-                    <span className={`text-[9px] ${isBest ? 'font-bold text-[#3D2B1F]' : 'text-gray-400'}`}>{d}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {resonance.bestHour && (
-          <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-            <div className="flex items-center gap-2 mb-2">
-              <Activity className="w-4 h-4 text-purple-500" />
-              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">
-                {resonance.bestHour.interactions && resonance.bestHour.interactions > 0 ? 'Peak Engagement Window' : 'Most Active Time'}
-              </p>
-            </div>
-            <p className="text-3xl font-extrabold text-[#3D2B1F]">{resonance.bestHour.label}</p>
-            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">
-              {resonance.bestHour.interactions && resonance.bestHour.interactions > 0
-                ? `${resonance.bestHour.interactions} audience interactions recorded (${resonance.bestHour.count} posts)`
-                : `${resonance.bestHour.count} posts published`}
-            </p>
-
-            {/* 24-hr horizon bar */}
-            <div className="flex items-end gap-0.5 h-12">
-              {Array.from({ length: 18 }, (_, i) => i + 6).map(h => {
-                const count = hourDistribution[h % 24] || 0;
-                const intensity = count / maxHour;
-                const isBest = resonance.bestHour?.hour === (h % 24);
-                return (
-                  <div
-                    key={h}
-                    className={`flex-1 rounded-xs ${isBest ? 'bg-purple-600' : count > 0 ? 'bg-purple-300' : 'bg-[#F0EBE3]'}`}
-                    style={{ height: `${Math.max(intensity * 100, 10)}%` }}
-                    title={`${h % 12 || 12}${h >= 12 ? 'pm' : 'am'}: ${count} posts`}
-                  />
-                );
-              })}
-            </div>
-            <div className="flex justify-between text-[9px] text-[#A69279] mt-1">
-              <span>6am</span>
-              <span>12pm</span>
-              <span>11pm</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Pacing Spectrum & Platform Reach ─────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Word length */}
-        <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-          <div className="flex items-center gap-2 mb-3">
-            <Type className="w-4 h-4 text-[#C4A265]" />
-            <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Length & Pacing Spectrum</p>
-          </div>
-          <div className="space-y-2.5">
-            {wcBuckets.map(b => {
-              const pct = (b.count / maxWc) * 100;
-              return (
-                <div key={b.label}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="font-medium text-[#3D2B1F]">{b.label}</span>
-                    <span className="font-bold text-[#8B7355]">{b.count} posts</span>
-                  </div>
-                  <div className="h-1.5 bg-[#F0EBE3] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#C4A265] rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Platform reach */}
-        <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-          <div className="flex items-center gap-2 mb-3">
-            <Target className="w-4 h-4 text-emerald-600" />
-            <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Network Distribution</p>
-          </div>
-          <div className="space-y-2.5">
-            {topPlatforms.length > 0 ? (
-              topPlatforms.map(([platform, count]) => {
-                const cfg = getPlatformConfig(platform);
-                const Logo = cfg.logo;
-                const maxP = topPlatforms[0][1];
-                const pct = (count / maxP) * 100;
-
-                return (
-                  <div key={platform}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <Logo size={14} />
-                        <span className="font-medium text-[#3D2B1F]">{cfg.name}</span>
-                      </div>
-                      <span className="font-bold text-[#8B7355]">{count} live</span>
-                    </div>
-                    <div className="h-1.5 bg-[#F0EBE3] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct}%`, backgroundColor: cfg.color || '#3D2B1F' }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-gray-400 py-4 text-center">No variant data yet</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Strategic Recommendations ─────────────────────────────────── */}
-      {resonance.recommendations && resonance.recommendations.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-          <div className="flex items-center gap-2 mb-3">
-            <Compass className="w-4 h-4 text-[#C4A265]" />
-            <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Algorithmic Content Prescriptions</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {resonance.recommendations.map(rec => (
-              <div key={rec.id} className="p-3.5 bg-[#FAF7F2] rounded-xl border border-[#E8E0D4] flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5 font-bold text-xs text-[#3D2B1F] mb-1">
-                    <Lightbulb className="w-3.5 h-3.5 text-[#C4A265]" />
-                    <span>{rec.title}</span>
-                  </div>
-                  <p className="text-xs text-[#8B7355] leading-relaxed mb-3">{rec.desc}</p>
-                </div>
-                <Link
-                  href="/dashboard/studio"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#C4A265] hover:text-[#3D2B1F]"
-                >
-                  <span>Apply in Studio</span>
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
+        {/* Timezone Selector */}
+        <div className="flex items-center gap-2 text-xs">
+          <Globe className="w-3.5 h-3.5 text-[#78716C]" aria-hidden="true" />
+          <label htmlFor="signal-tz-select" className="sr-only">
+            Analytics timezone
+          </label>
+          <select
+            id="signal-tz-select"
+            value={timezone}
+            onChange={e => setTimezone(e.target.value)}
+            className="bg-white border border-[#E8E0D4] rounded-xl px-2.5 py-1.5 text-xs text-[#1A1612] focus:outline-none focus:ring-2 focus:ring-[#C8613D]"
+          >
+            {timezoneOptions.map(tz => (
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
             ))}
+          </select>
+        </div>
+      </nav>
+
+      {/* ── Persistent Global Filter Bar (Applies Across ALL Views) ──────────── */}
+      <section
+        aria-label="Global Analytics Filters"
+        className="bg-white border border-[#E8E0D4] rounded-2xl p-3 sm:p-4 space-y-3 print:hidden"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Date Range Pills */}
+          <div className="inline-flex flex-wrap rounded-xl bg-[#FAF7F2] p-1 border border-[#E8E0D4]" role="group" aria-label="Date range">
+            {(['7d', '14d', '30d', '90d', '365d', 'all'] as SignalRange[]).map(r => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRange(r)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                  range === r ? 'bg-white text-[#1A1612] shadow-xs font-semibold' : 'text-[#78716C] hover:text-[#1A1612]'
+                }`}
+              >
+                {r === 'all' ? 'All' : r.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setComparePeriod(v => !v)}
+            aria-pressed={comparePeriod}
+            className={`px-2.5 py-1.5 text-xs font-medium rounded-xl border transition-colors ${
+              comparePeriod
+                ? 'bg-[#FAF7F2] border-[#C8613D] text-[#1A1612]'
+                : 'bg-white border-[#E8E0D4] text-[#78716C]'
+            }`}
+          >
+            Compare Prior Period
+          </button>
+
+          {/* Platform Select */}
+          <select
+            aria-label="Filter by platform"
+            value={platform}
+            onChange={e => {
+              setPlatform(e.target.value);
+              setAccountId('all');
+            }}
+            className="bg-white border border-[#E8E0D4] rounded-xl px-2.5 py-1.5 text-xs text-[#1A1612]"
+          >
+            <option value="all">All Platforms</option>
+            {availablePlatforms.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Multi-Account Select */}
+          {availableAccounts.length > 0 && (
+            <select
+              aria-label="Filter by connected account"
+              value={accountId}
+              onChange={e => setAccountId(e.target.value)}
+              className="bg-white border border-[#E8E0D4] rounded-xl px-2.5 py-1.5 text-xs text-[#1A1612]"
+            >
+              <option value="all">All Accounts ({availableAccounts.length})</option>
+              {availableAccounts.map(a => (
+                <option key={a.key} value={a.platformAccountId || a.key}>
+                  {a.label}
+                  {a.accountLabel ? ` · ${a.accountLabel}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Origin Select */}
+          <select
+            aria-label="Filter by workflow origin"
+            value={originFilter}
+            onChange={e => setOriginFilter(e.target.value as SignalOriginFilter)}
+            className="bg-white border border-[#E8E0D4] rounded-xl px-2.5 py-1.5 text-xs text-[#1A1612]"
+          >
+            <option value="all">All Sources</option>
+            <option value="studio">Studio / Composer</option>
+            <option value="flightplan">Flight Plan Arcs</option>
+          </select>
+
+          {/* Hook Filter */}
+          <select
+            aria-label="Filter by hook style"
+            value={hookFilter}
+            onChange={e => setHookFilter(e.target.value)}
+            className="bg-white border border-[#E8E0D4] rounded-xl px-2.5 py-1.5 text-xs text-[#1A1612]"
+          >
+            <option value="all">All Hook Styles</option>
+            {Object.values(HOOK_TYPE_META).map(h => (
+              <option key={h.id} value={h.id}>
+                {h.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="w-3.5 h-3.5 text-[#78716C] absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
+            <input
+              type="search"
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              placeholder="Search copy or hashtags…"
+              aria-label="Search posts"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#FAF7F2] border border-[#E8E0D4] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C8613D]"
+            />
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetAllFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#C8613D] hover:bg-[#FAF7F2]"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* ── Brand-New Onboarding Empty State ─────────────────────────────────── */}
+      {isBrandNewWorkspace && analytics && (
+        <section className="bg-white border border-[#E8E0D4] rounded-2xl p-6 sm:p-8 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#FAF7F2] border border-[#E8E0D4] flex items-center justify-center mx-auto">
+            <Radio className="w-6 h-6 text-[#C8613D]" />
+          </div>
+          <div className="max-w-lg mx-auto space-y-1.5">
+            <h2 className="text-lg font-bold text-[#1A1612]">Signal is ready for your first broadcast</h2>
+            <p className="text-xs text-[#57534E] leading-relaxed">
+              Once you connect social accounts and publish posts via Studio or Flight Plan, Signal automatically tracks per-variant views, engagements, hook formula winners, best posting windows, and Unool bio-link conversions.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+            <Link
+              href="/onboarding/connect"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-[#E8E0D4] text-xs font-semibold text-[#1A1612] hover:border-[#C8613D]"
+            >
+              <span>1. Connect Social Accounts</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+            <Link
+              href="/dashboard/composer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1A1612] text-white text-xs font-semibold hover:bg-[#332C25]"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>2. Draft First Post in Studio</span>
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ── Operational Queue Alert (Publishing / Failures / Expired Tokens) ─── */}
+      {analytics &&
+        (analytics.operational.publishingPosts > 0 ||
+          analytics.operational.failedPosts > 0 ||
+          analytics.operational.partialFailurePosts > 0 ||
+          analytics.operational.overdueScheduledPosts > 0) && (
+          <div className="bg-white border border-[#E8E0D4] rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              {analytics.operational.publishingPosts > 0 && (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>{analytics.operational.publishingPosts} publishing live</span>
+                </span>
+              )}
+              {(analytics.operational.failedPosts > 0 || analytics.operational.partialFailurePosts > 0) && (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>
+                    {analytics.operational.failedPosts + analytics.operational.partialFailurePosts} delivery issue(s) need attention
+                  </span>
+                </span>
+              )}
+              {analytics.operational.overdueScheduledPosts > 0 && (
+                <span className="inline-flex items-center gap-1.5 font-medium text-[#57534E]">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{analytics.operational.overdueScheduledPosts} overdue scheduled item(s)</span>
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setView('content');
+                if (analytics.operational.failedPosts > 0) setStatusFilter('failed');
+              }}
+              className="text-xs font-semibold text-[#C8613D] hover:underline"
+            >
+              Inspect Queue →
+            </button>
+          </div>
+        )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* VIEW 1: OVERVIEW                                                       */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {analytics && view === 'overview' && !isBrandNewWorkspace && (
+        <div className="space-y-5">
+          {/* 6-Card Executive KPI Strip */}
+          <section aria-label="Key performance indicators" className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+            {/* KPI 1: Views */}
+            <button
+              type="button"
+              onClick={() => {
+                setSortMode('top_views');
+                setView('content');
+              }}
+              className="bg-white border border-[#E8E0D4] hover:border-[#C8613D] rounded-2xl p-3.5 text-left transition-colors"
+            >
+              <div className="flex items-center justify-between text-[11px] text-[#78716C]">
+                <span>Views / Reach</span>
+                <Info className="w-3.5 h-3.5" aria-label="Measured on view-capable platforms only" />
+              </div>
+              <div className="text-xl font-bold text-[#1A1612] mt-1 tabular-nums">
+                {formatCompact(analytics.kpis.views.value)}
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-1">
+                <DeltaPill value={analytics.kpis.views.deltaPct} />
+                <span className="text-[10px] text-[#78716C]">{analytics.kpis.views.eligibleVariants} variants</span>
+              </div>
+            </button>
+
+            {/* KPI 2: Engagements */}
+            <button
+              type="button"
+              onClick={() => {
+                setSortMode('top_engagement');
+                setView('content');
+              }}
+              className="bg-white border border-[#E8E0D4] hover:border-[#C8613D] rounded-2xl p-3.5 text-left transition-colors"
+            >
+              <div className="flex items-center justify-between text-[11px] text-[#78716C]">
+                <span>Total Engagements</span>
+              </div>
+              <div className="text-xl font-bold text-[#1A1612] mt-1 tabular-nums">
+                {formatCompact(analytics.kpis.totalEngagements.value)}
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-1">
+                <DeltaPill value={analytics.kpis.totalEngagements.deltaPct} />
+                <span className="text-[10px] text-[#78716C]">
+                  Avg {analytics.kpis.avgEngagementsPerPost.value}/post
+                </span>
+              </div>
+            </button>
+
+            {/* KPI 3: Weighted Engagement Rate */}
+            <button
+              type="button"
+              onClick={() => {
+                setSortMode('top_eng_rate');
+                setView('content');
+              }}
+              className="bg-white border border-[#E8E0D4] hover:border-[#C8613D] rounded-2xl p-3.5 text-left transition-colors"
+            >
+              <div className="flex items-center justify-between text-[11px] text-[#78716C]">
+                <span>Engagement Rate</span>
+              </div>
+              <div className="text-xl font-bold text-[#1A1612] mt-1 tabular-nums">
+                {analytics.kpis.weightedEngagementRate.value !== null
+                  ? `${analytics.kpis.weightedEngagementRate.value}%`
+                  : 'N/A'}
+              </div>
+              <div className="mt-1.5 text-[10px] text-[#78716C]">
+                {analytics.kpis.weightedEngagementRate.eligibleVariants > 0
+                  ? `${analytics.kpis.weightedEngagementRate.eligibleVariants} view-backed variants`
+                  : 'Needs view-capable impressions'}
+              </div>
+            </button>
+
+            {/* KPI 4: Chronological Momentum */}
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-3.5 text-left">
+              <div className="flex items-center justify-between text-[11px] text-[#78716C]">
+                <span>Momentum</span>
+                <span className="text-[10px] font-medium">vs prior</span>
+              </div>
+              <div className="text-xl font-bold text-[#1A1612] mt-1 tabular-nums">
+                {analytics.kpis.momentumPct.value > 0
+                  ? `+${analytics.kpis.momentumPct.value}%`
+                  : `${analytics.kpis.momentumPct.value}%`}
+              </div>
+              <div className="mt-1.5 text-[10px] text-[#78716C]">
+                {analytics.kpis.publishedCount.value} published · {analytics.operational.scheduledPosts} sched
+              </div>
+            </div>
+
+            {/* KPI 5: Presence Bio-Link Funnel */}
+            <button
+              type="button"
+              onClick={() => setView('channels')}
+              className="bg-white border border-[#E8E0D4] hover:border-[#C8613D] rounded-2xl p-3.5 text-left transition-colors"
+            >
+              <div className="flex items-center justify-between text-[11px] text-[#78716C]">
+                <span>Bio Link Clicks</span>
+                <Link2 className="w-3.5 h-3.5 text-[#C8613D]" />
+              </div>
+              <div className="text-xl font-bold text-[#1A1612] mt-1 tabular-nums">
+                {analytics.funnels.bioProfile.profileLinkClicks + analytics.funnels.bioProfile.profileCtaClicks}
+              </div>
+              <div className="mt-1.5 text-[10px] text-[#78716C]">
+                {analytics.funnels.bioProfile.profileViews} bio views ·{' '}
+                {analytics.funnels.bioProfile.ctrPct !== null
+                  ? `${analytics.funnels.bioProfile.ctrPct}% CTR`
+                  : 'CTR N/A'}
+              </div>
+            </button>
+
+            {/* KPI 6: SignalDM Automation Outcomes */}
+            <Link
+              href="/dashboard/automation"
+              className="bg-white border border-[#E8E0D4] hover:border-[#C8613D] rounded-2xl p-3.5 text-left transition-colors block"
+            >
+              <div className="flex items-center justify-between text-[11px] text-[#78716C]">
+                <span>SignalDM Leads</span>
+                <Bot className="w-3.5 h-3.5 text-[#C8613D]" />
+              </div>
+              <div className="text-xl font-bold text-[#1A1612] mt-1 tabular-nums">
+                {analytics.funnels.automation.dmSent}
+              </div>
+              <div className="mt-1.5 text-[10px] text-[#78716C]">
+                {analytics.funnels.automation.commentReplies} replies ·{' '}
+                {analytics.funnels.automation.highIntentLeads} high-intent
+              </div>
+            </Link>
+          </section>
+
+          {/* Daily Trend + Channel Split */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="lg:col-span-7">
+              <DailyPerformanceChart
+                series={analytics.dailySeries}
+                comparePeriod={analytics.meta.comparePeriod}
+              />
+            </div>
+            <div className="lg:col-span-5">
+              <ChannelComparisonBars
+                channels={analytics.channelBreakdown}
+                onSelectChannel={(plat, acct) => {
+                  setPlatform(plat);
+                  if (acct) setAccountId(acct);
+                  setView('content');
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Deterministic Actionable Intelligence */}
+          <section className="bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold text-[#1A1612] flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#C8613D]" />
+                  <span>What Worked &amp; Recommended Next Moves</span>
+                </h2>
+                <p className="text-xs text-[#78716C]">
+                  Deterministic insights derived strictly from your measured history — click any recommendation to act
+                </p>
+              </div>
+              {analytics.kpis.resonanceScore.value !== null && (
+                <div
+                  className="text-xs px-3 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4]"
+                  title="Composite internal index: Engagement Volume (45%) + View Reach (25%) + Consistency (15%) + Momentum (15%)"
+                >
+                  Signal Index: <strong className="text-[#1A1612]">{analytics.kpis.resonanceScore.value}/100</strong>
+                </div>
+              )}
+            </div>
+
+            {analytics.recommendations.length === 0 ? (
+              <p className="text-xs text-[#78716C]">
+                Publish at least 3 posts with synced engagement to generate evidence-backed hook and slot recommendations.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {analytics.recommendations.map(rec => (
+                  <div
+                    key={rec.id}
+                    className="p-3.5 rounded-xl bg-[#FAF7F2]/70 border border-[#E8E0D4] flex flex-col justify-between gap-2.5"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[#57534E] bg-white px-2 py-0.5 rounded-full border border-[#E8E0D4]">
+                          {rec.badge}
+                        </span>
+                        <ConfidenceBadge confidence={rec.confidence} n={rec.sampleSize} />
+                      </div>
+                      <h3 className="text-xs font-semibold text-[#1A1612]">{rec.title}</h3>
+                      <p className="text-xs text-[#57534E] leading-relaxed">{rec.detail}</p>
+                    </div>
+                    <div>
+                      <Link
+                        href={rec.actionHref}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#C8613D] hover:underline"
+                      >
+                        <span>{rec.actionLabel}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* VIEW 2: CONTENT & HOOKS (Unified Feed + Hook DNA + Effort Attribution) */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {analytics && view === 'content' && (
+        <div className="space-y-5">
+          {/* Hook Leaderboard + Media Lift */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="lg:col-span-8">
+              <HookLeaderboard
+                hooks={analytics.hookBreakdown}
+                activeHook={hookFilter}
+                onSelectHook={setHookFilter}
+              />
+            </div>
+            <div className="lg:col-span-4 bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-[#1A1612]">Media vs. Text-Only Impact</h3>
+                <p className="text-xs text-[#78716C] mt-0.5">
+                  Published posts only ({analytics.mediaComparison.withMediaCount} media vs{' '}
+                  {analytics.mediaComparison.withoutMediaCount} text)
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5 text-center">
+                <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4]">
+                  <div className="text-[11px] text-[#78716C]">With Media</div>
+                  <div className="text-lg font-bold text-[#1A1612] tabular-nums">
+                    {analytics.mediaComparison.withMediaAvg}
+                  </div>
+                  <div className="text-[10px] text-[#78716C]">avg eng (n={analytics.mediaComparison.withMediaCount})</div>
+                </div>
+                <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4]">
+                  <div className="text-[11px] text-[#78716C]">Text Only</div>
+                  <div className="text-lg font-bold text-[#1A1612] tabular-nums">
+                    {analytics.mediaComparison.withoutMediaAvg}
+                  </div>
+                  <div className="text-[10px] text-[#78716C]">
+                    avg eng (n={analytics.mediaComparison.withoutMediaCount})
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-[#57534E] bg-[#FAF7F2] rounded-xl p-2.5 flex items-center justify-between">
+                <span>Measured Media Lift</span>
+                <strong className="text-[#1A1612]">
+                  {analytics.mediaComparison.liftPct !== null
+                    ? `${analytics.mediaComparison.liftPct > 0 ? '+' : ''}${analytics.mediaComparison.liftPct}%`
+                    : 'Needs both formats'}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Effort & Word Count Brackets + Interactive Scatter */}
+          <WordCountEffortPanel
+            brackets={analytics.wordCountBrackets}
+            publishedPosts={publishedPostsInWindow}
+            onOpenPost={setInspectorPost}
+          />
+
+          {/* Status Filter Pills + Sort + Card/Table Switcher */}
+          <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Post status filter">
+                {[
+                  { id: 'all', label: `All (${analytics.operational.totalPosts})` },
+                  { id: 'published', label: `Published (${analytics.operational.publishedPosts})` },
+                  { id: 'publishing', label: `Publishing (${analytics.operational.publishingPosts})` },
+                  { id: 'scheduled', label: `Scheduled (${analytics.operational.scheduledPosts})` },
+                  { id: 'draft', label: `Drafts (${analytics.operational.draftPosts})` },
+                  { id: 'failed', label: `Failed (${analytics.operational.failedPosts})` },
+                ].map(st => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setStatusFilter(st.id)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+                      statusFilter === st.id
+                        ? 'bg-[#1A1612] text-white'
+                        : 'bg-[#FAF7F2] border border-[#E8E0D4] text-[#57534E] hover:text-[#1A1612]'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  aria-label="Sort posts"
+                  value={sortMode}
+                  onChange={e => setSortMode(e.target.value as SignalSort)}
+                  className="bg-[#FAF7F2] border border-[#E8E0D4] rounded-xl px-2.5 py-1.5 text-xs text-[#1A1612]"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="top_engagement">Highest Engagement</option>
+                  <option value="top_views">Highest Views</option>
+                  <option value="top_eng_rate">Highest Eng. Rate</option>
+                  <option value="most_discussed">Most Comments</option>
+                </select>
+                <div className="inline-flex rounded-xl bg-[#FAF7F2] p-0.5 border border-[#E8E0D4]">
+                  <button
+                    type="button"
+                    aria-label="Card view"
+                    onClick={() => setContentLayout('cards')}
+                    className={`p-1.5 rounded-lg ${contentLayout === 'cards' ? 'bg-white shadow-xs text-[#1A1612]' : 'text-[#78716C]'}`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Table view"
+                    onClick={() => setContentLayout('table')}
+                    className={`p-1.5 rounded-lg ${contentLayout === 'table' ? 'bg-white shadow-xs text-[#1A1612]' : 'text-[#78716C]'}`}
+                  >
+                    <Table2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {analytics.posts.length === 0 ? (
+              <div className="py-10 text-center space-y-2">
+                <Filter className="w-7 h-7 text-[#78716C] mx-auto" />
+                <p className="text-sm font-medium text-[#1A1612]">No posts match your current filters</p>
+                <button
+                  type="button"
+                  onClick={resetAllFilters}
+                  className="text-xs font-semibold text-[#C8613D] hover:underline"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            ) : contentLayout === 'table' ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="border-b border-[#E8E0D4] text-[#78716C]">
+                    <tr>
+                      <th className="py-2 pr-3 font-medium">Post</th>
+                      <th className="py-2 px-2 font-medium">Hook</th>
+                      <th className="py-2 px-2 font-medium">Channels</th>
+                      <th className="py-2 px-2 font-medium">Status</th>
+                      <th className="py-2 px-2 font-medium text-right">Views</th>
+                      <th className="py-2 px-2 font-medium text-right">Eng.</th>
+                      <th className="py-2 pl-2 font-medium text-right">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F3EFE8]">
+                    {analytics.posts.map(post => (
+                      <tr
+                        key={post.id}
+                        onClick={() => setInspectorPost(post)}
+                        className="hover:bg-[#FAF7F2] cursor-pointer"
+                      >
+                        <td className="py-2.5 pr-3 max-w-xs">
+                          <div className="font-medium text-[#1A1612] truncate">{post.content}</div>
+                          <div className="text-[10px] text-[#78716C]">
+                            {post.wordCount}w · {format(new Date(post.publishedAt || post.createdAt), 'MMM d')}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span
+                            className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium text-white"
+                            style={{ backgroundColor: post.hookColor }}
+                          >
+                            {post.hookLabel}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {post.variants.map(v => (
+                              <span key={v.id} title={`${v.capability.label}${v.accountLabel ? ` (${v.accountLabel})` : ''}`}>
+                                <PlatformBrandLogo platform={v.canonicalPlatform} className="w-4 h-4" />
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2 capitalize text-[#57534E]">{post.effectiveStatus}</td>
+                        <td className="py-2.5 px-2 text-right tabular-nums text-[#57534E]">
+                          {post.scopedEngagement.views !== null ? formatCompact(post.scopedEngagement.views) : 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums font-semibold text-[#1A1612]">
+                          {formatCompact(post.scopedEngagement.totalEngagements)}
+                        </td>
+                        <td className="py-2.5 pl-2 text-right tabular-nums text-[#57534E]">
+                          {post.scopedEngagement.engagementRate !== null
+                            ? `${post.scopedEngagement.engagementRate}%`
+                            : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {analytics.posts.map(post => {
+                  const hasFailedVar = post.variants.some(v => v.status === 'failed');
+                  const isDraft = post.effectiveStatus === 'draft' || post.effectiveStatus === 'scheduled';
+                  const draftRedirect = getDraftRedirect({
+                    id: post.id,
+                    content: post.content,
+                    status: post.status,
+                    hookType: post.hookType,
+                    wordCount: post.wordCount,
+                    hasMedia: post.hasMedia,
+                    createdAt: post.createdAt,
+                    updatedAt: post.createdAt,
+                    publishedAt: post.publishedAt,
+                    adaptationPromptVersion: post.aiOrigin === 'flightplan' ? 'schedule-engine-v1' : null,
+                    origin: post.originKind === 'flightplan' ? 'flightplan' : 'ai-composer',
+                    arcId: post.arcId,
+                    variants: [],
+                  });
+
+                  return (
+                    <article
+                      key={post.id}
+                      className="rounded-2xl border border-[#E8E0D4] bg-[#FAF9F6] hover:border-[#C8613D] transition-colors p-4 flex flex-col justify-between gap-3"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                              style={{ backgroundColor: post.hookColor }}
+                            >
+                              {post.hookLabel}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-[#E8E0D4] text-[#57534E]">
+                              {post.wordCount}w · {post.contentFormat}
+                            </span>
+                            {post.isGoldenHour && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                <Flame className="w-3 h-3" /> {post.goldenHourRemainingMin}m
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase ${
+                              post.effectiveStatus === 'published'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : post.effectiveStatus === 'failed' || hasFailedVar
+                                ? 'bg-rose-50 text-rose-700'
+                                : 'bg-stone-200/70 text-[#57534E]'
+                            }`}
+                          >
+                            {post.effectiveStatus}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setInspectorPost(post)}
+                          className="w-full text-left text-xs text-[#1A1612] leading-relaxed line-clamp-3 hover:text-[#C8613D]"
+                        >
+                          {post.content}
+                        </button>
+
+                        {/* Multi-Account Variant Pills (All Rendered by variant.id!) */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {post.variants.map(v => {
+                            const cfg = getPlatformConfig(v.canonicalPlatform);
+                            const label = v.accountLabel
+                              ? `${cfg?.name || v.capability.label} (${v.accountLabel})`
+                              : cfg?.name || v.capability.label;
+                            return v.platformUrl ? (
+                              <a
+                                key={v.id}
+                                href={v.platformUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-[#E8E0D4] hover:border-[#C8613D] text-[10px] text-[#1A1612]"
+                              >
+                                <PlatformBrandLogo platform={v.canonicalPlatform} className="w-3 h-3" />
+                                <span className="truncate max-w-[110px]">{label}</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-[#78716C]" />
+                              </a>
+                            ) : (
+                              <span
+                                key={v.id}
+                                title={
+                                  v.status === 'published'
+                                    ? 'Published (remote permalink not returned by platform)'
+                                    : v.error || v.status
+                                }
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] ${
+                                  v.status === 'failed'
+                                    ? 'bg-rose-50 border-rose-200 text-rose-700'
+                                    : 'bg-white border-[#E8E0D4] text-[#57534E]'
+                                }`}
+                              >
+                                <PlatformBrandLogo platform={v.canonicalPlatform} className="w-3 h-3" />
+                                <span className="truncate max-w-[110px]">{label}</span>
+                                {v.status === 'publishing' && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                                {v.status === 'failed' && <AlertTriangle className="w-2.5 h-2.5" />}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-[#E8E0D4] flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-3 text-[#57534E] tabular-nums">
+                          <span>
+                            <strong className="text-[#1A1612]">{post.scopedEngagement.totalEngagements}</strong> eng
+                          </span>
+                          <span>
+                            {post.scopedEngagement.views !== null
+                              ? `${formatCompact(post.scopedEngagement.views)} views`
+                              : 'Views N/A'}
+                          </span>
+                          {post.scopedEngagement.engagementRate !== null && (
+                            <span className="text-emerald-700 font-medium">
+                              {post.scopedEngagement.engagementRate}% ER
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isDraft && (
+                            <Link
+                              href={draftRedirect.href}
+                              className="text-[11px] font-semibold text-[#C8613D] hover:underline"
+                            >
+                              Resume
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setInspectorPost(post)}
+                            className="px-2.5 py-1 rounded-lg bg-white border border-[#E8E0D4] text-[11px] font-semibold text-[#1A1612] hover:border-[#C8613D]"
+                          >
+                            Inspect
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      <p className="text-xs text-gray-400 text-center pb-2">
-        Built directly from your actual publish history. Every post you dispatch refines your Post DNA.
-      </p>
-    </div>
-  );
-}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* VIEW 3: TIMING & CADENCE                                               */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {analytics && view === 'timing' && (
+        <div className="space-y-5">
+          <TimingHeatmapMatrix
+            timing={analytics.timing}
+            posts={analytics.posts}
+            onOpenPost={setInspectorPost}
+          />
 
-/* ── Empty State ────────────────────────────────────────────────────────────── */
-function EmptyState() {
-  return (
-    <div className="bg-white rounded-2xl border border-dashed border-[#E8E0D4] p-16 text-center">
-      <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-[#F0EBE3] flex items-center justify-center">
-        <Activity className="w-6 h-6 text-[#C4A265]" />
-      </div>
-      <h3 className="font-bold text-[#3D2B1F] mb-1 text-lg">No Signal dispatches yet</h3>
-      <p className="text-sm text-[#8B7355] mb-5 max-w-sm mx-auto">
-        Broadcast simultaneously to LinkedIn, X, Threads, Bluesky and Instagram in one click.
-      </p>
-      <div className="flex items-center justify-center gap-3">
-        <Link
-          href="/dashboard/studio"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3D2B1F] text-white text-sm font-semibold hover:bg-black transition-colors"
-        >
-          Open Studio
-        </Link>
-        <Link
-          href="/dashboard/schedule"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5EFE2] text-[#3D2B1F] border border-[#E8E0D4] text-sm font-semibold hover:bg-[#EDE7DD] transition-colors"
-        >
-          <Calendar className="w-4 h-4 text-[#C4A265]" />
-          Plan My Week
-        </Link>
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Day of Week Breakdown */}
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-[#1A1612]">Day-of-Week Breakdown ({analytics.timing.timezone})</h3>
+              <div className="space-y-2">
+                {(() => {
+                  const maxD = Math.max(...analytics.timing.dayStats.map(d => d.avgEngagements), 1);
+                  return analytics.timing.dayStats.map(d => {
+                    const pct = d.count > 0 ? Math.max(4, Math.round((d.avgEngagements / maxD) * 100)) : 0;
+                    return (
+                      <div key={d.dayIndex} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-[#1A1612]">{d.label}</span>
+                          <span className="text-[#57534E] tabular-nums">
+                            n={d.count} · <strong>{d.avgEngagements} avg</strong> (med {d.medianEngagements})
+                          </span>
+                        </div>
+                        <div className="h-2 bg-[#F3EFE8] rounded-full overflow-hidden">
+                          <div className="h-full bg-[#C8613D] rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
+            {/* Publishing Cadence Summary */}
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#1A1612]">Publishing Cadence &amp; Schedule Planning</h3>
+                <p className="text-xs text-[#78716C] mt-0.5">
+                  Measured strictly on completed publishes over your {analytics.meta.effectiveDays}-day window
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4]">
+                  <div className="text-[11px] text-[#78716C]">Published Posts</div>
+                  <div className="text-xl font-bold text-[#1A1612] tabular-nums">
+                    {analytics.operational.publishedPosts}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4]">
+                  <div className="text-[11px] text-[#78716C]">Scheduled Queue</div>
+                  <div className="text-xl font-bold text-[#1A1612] tabular-nums">
+                    {analytics.operational.scheduledPosts}
+                  </div>
+                </div>
+              </div>
+              <Link
+                href={`/dashboard/flightplan?tz=${encodeURIComponent(analytics.timing.timezone)}&source=signal`}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#1A1612] text-white text-xs font-semibold hover:bg-[#332C25]"
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Plan Next Week in Flight Plan</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* VIEW 4: CHANNELS, ACCOUNTS & ATTRIBUTION FUNNEL                        */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {analytics && view === 'channels' && (
+        <div className="space-y-5">
+          {/* Full Channel & Account Table */}
+          <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-[#1A1612]">Per-Account &amp; Channel Performance</h2>
+                <p className="text-xs text-[#78716C]">
+                  Each row tracks only variants published to that specific platform account · N/A indicates upstream platform API limits
+                </p>
+              </div>
+              <Link
+                href="/onboarding/connect"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4] text-xs font-semibold text-[#1A1612] hover:border-[#C8613D]"
+              >
+                <span>Manage Connections</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="border-b border-[#E8E0D4] text-[#78716C]">
+                  <tr>
+                    <th className="py-2 pr-3 font-medium">Channel / Account</th>
+                    <th className="py-2 px-2 font-medium">Telemetry Tier</th>
+                    <th className="py-2 px-2 font-medium text-right">Published</th>
+                    <th className="py-2 px-2 font-medium text-right">Views</th>
+                    <th className="py-2 px-2 font-medium text-right">Likes</th>
+                    <th className="py-2 px-2 font-medium text-right">Comments</th>
+                    <th className="py-2 px-2 font-medium text-right">Shares</th>
+                    <th className="py-2 px-2 font-medium text-right">Avg/Post</th>
+                    <th className="py-2 pl-2 font-medium text-right">ER</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F3EFE8]">
+                  {analytics.channelBreakdown.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-6 text-center text-[#78716C]">
+                        No connected accounts found in this workspace.
+                      </td>
+                    </tr>
+                  ) : (
+                    analytics.channelBreakdown.map(ch => (
+                      <tr key={ch.key} className="hover:bg-[#FAF7F2]/70">
+                        <td className="py-2.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <PlatformBrandLogo platform={ch.platform} className="w-4 h-4 shrink-0" />
+                            <div>
+                              <div className="font-semibold text-[#1A1612]">
+                                {ch.label}
+                                {ch.accountLabel ? ` · ${ch.accountLabel}` : ''}
+                              </div>
+                              {ch.connectionStatus !== 'connected' && (
+                                <Link href="/onboarding/connect" className="text-[10px] text-rose-700 font-semibold underline">
+                                  Reconnect ({ch.connectionStatus})
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span
+                            title={ch.capability.apiLimitationNote}
+                            className="inline-block px-2 py-0.5 rounded-full text-[10px] bg-[#FAF7F2] border border-[#E8E0D4] text-[#57534E]"
+                          >
+                            {ch.capability.capabilitySummary}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums">{ch.publishedCount}</td>
+                        <td className="py-2.5 px-2 text-right tabular-nums text-[#57534E]">
+                          {ch.views !== null ? formatCompact(ch.views) : 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums">
+                          {ch.capability.supportedMetrics.likes ? ch.likes : 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums">
+                          {ch.capability.supportedMetrics.comments ? ch.comments : 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums">
+                          {ch.capability.supportedMetrics.shares ? ch.shares : 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums font-semibold text-[#1A1612]">
+                          {ch.avgEngagementsPerPost}
+                        </td>
+                        <td className="py-2.5 pl-2 text-right tabular-nums">
+                          {ch.weightedEngagementRate !== null ? `${ch.weightedEngagementRate}%` : 'N/A'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Cross-Product Attribution Funnels: Presence Bio-Link + SignalDM + LinkedIn Insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Bio-Link Profile Attribution */}
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#1A1612] flex items-center gap-2">
+                  <Link2 className="w-4 h-4 text-[#C8613D]" />
+                  <span>Presence Bio-Link Funnel</span>
+                </h3>
+                <Link href="/dashboard/presence" className="text-xs font-semibold text-[#C8613D] hover:underline">
+                  Edit Profile →
+                </Link>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                  <div className="text-[10px] text-[#78716C]">Views</div>
+                  <div className="text-base font-bold text-[#1A1612] tabular-nums">
+                    {analytics.funnels.bioProfile.profileViews}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                  <div className="text-[10px] text-[#78716C]">Clicks</div>
+                  <div className="text-base font-bold text-[#1A1612] tabular-nums">
+                    {analytics.funnels.bioProfile.profileLinkClicks + analytics.funnels.bioProfile.profileCtaClicks}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                  <div className="text-[10px] text-[#78716C]">CTR</div>
+                  <div className="text-base font-bold text-[#1A1612] tabular-nums">
+                    {analytics.funnels.bioProfile.ctrPct !== null
+                      ? `${analytics.funnels.bioProfile.ctrPct}%`
+                      : 'N/A'}
+                  </div>
+                </div>
+              </div>
+              {analytics.funnels.bioProfile.topLinks.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-medium text-[#78716C]">Top Clicked Links</div>
+                  {analytics.funnels.bioProfile.topLinks.slice(0, 3).map((l, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-[#F3EFE8] last:border-0">
+                      <span className="truncate text-[#1A1612] max-w-[180px]">{l.label}</span>
+                      <span className="font-semibold tabular-nums text-[#57534E]">{l.clicks}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* SignalDM Automation Funnel */}
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#1A1612] flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-[#C8613D]" />
+                  <span>SignalDM Conversions</span>
+                </h3>
+                <Link href="/dashboard/automation" className="text-xs font-semibold text-[#C8613D] hover:underline">
+                  Manage Flows →
+                </Link>
+              </div>
+              <p className="text-[11px] text-[#78716C]">
+                Tracked independently from public post likes/comments so automation volume never distorts engagement rates.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                  <div className="text-[10px] text-[#78716C]">Auto Replies</div>
+                  <div className="text-base font-bold text-[#1A1612] tabular-nums">
+                    {analytics.funnels.automation.commentReplies}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                  <div className="text-[10px] text-[#78716C]">DMs Dispatched</div>
+                  <div className="text-base font-bold text-[#1A1612] tabular-nums">
+                    {analytics.funnels.automation.dmSent}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                  <div className="text-[10px] text-[#78716C]">Follow Unlocks</div>
+                  <div className="text-base font-bold text-[#1A1612] tabular-nums">
+                    {analytics.funnels.automation.followGateUnlocked}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                  <div className="text-[10px] text-[#78716C]">High-Intent Leads</div>
+                  <div className="text-base font-bold text-[#1A1612] tabular-nums">
+                    {analytics.funnels.automation.highIntentLeads}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Deep LinkedIn & Platform API Disclosure Card */}
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-3">
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-semibold text-[#1A1612] flex items-center gap-2">
+                  <PlatformBrandLogo platform="linkedin" className="w-4 h-4" />
+                  <span>LinkedIn &amp; Platform API Limits</span>
+                </h3>
+                <p className="text-xs text-[#57534E] leading-relaxed">
+                  Personal LinkedIn OAuth exposes reactions, comments, and reposts (`w_member_social`), while native impressions stay N/A unless granted Community Management API access. Use Unool&apos;s dedicated LinkedIn Insights view for comment workflows &amp; post copy triage.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <Link
+                  href="/analytics/linkedin"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1A1612] text-white text-xs font-semibold hover:bg-[#332C25]"
+                >
+                  <span>Open LinkedIn Insights</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link
+                  href="/dashboard/settings"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4] text-xs font-semibold text-[#1A1612] hover:border-[#C8613D]"
+                >
+                  <span>Template Analytics</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Expandable Full 27-Platform Capability Disclosure */}
+          <details className="bg-white border border-[#E8E0D4] rounded-2xl p-4">
+            <summary className="cursor-pointer text-xs font-semibold text-[#1A1612] flex items-center gap-2">
+              <Info className="w-4 h-4 text-[#C8613D]" />
+              <span>View Verified Telemetry Capability Reference (All 27 Unool Adapters)</span>
+            </summary>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+              {getAllPlatformCapabilities().map(cap => (
+                <div key={cap.id} className="p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8E0D4] space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-[#1A1612] flex items-center gap-1.5">
+                      <PlatformBrandLogo platform={cap.id} className="w-3.5 h-3.5" />
+                      {cap.label}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-[#E8E0D4] text-[#57534E]">
+                      {cap.capabilitySummary}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#78716C] leading-snug">{cap.apiLimitationNote}</p>
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
+
+      {/* ── Post Detail Inspector Drawer (Drill-down Target) ─────────────────── */}
+      <PostInspectorDrawer
+        post={inspectorPost}
+        profileSubdomain={profileSubdomain}
+        timezone={timezone}
+        onClose={() => setInspectorPost(null)}
+        onDelete={handleDeletePost}
+        onRefresh={() => fetchAnalytics({ sync: true, silent: true })}
+        onShareStory={p => {
+          setInspectorPost(null);
+          setSharePost(p);
+        }}
+      />
+
+      {/* ── Share Story Modal (Fixes ?activity=<postId> deep link) ───────────── */}
+      {sharePost &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Share post story"
+            onClick={() => setSharePost(null)}
+          >
+            <div
+              className="w-full max-w-md bg-white border border-[#E8E0D4] rounded-2xl p-5 space-y-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#1A1612] flex items-center gap-2">
+                  <Share2 className="w-4 h-4 text-[#C8613D]" />
+                  <span>Share Activity on Your Unool Profile</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSharePost(null)}
+                  aria-label="Close share dialog"
+                  className="p-1.5 rounded-lg text-[#78716C] hover:text-[#1A1612]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-[#57534E] line-clamp-3 bg-[#FAF7F2] p-3 rounded-xl border border-[#E8E0D4]">
+                {sharePost.content}
+              </p>
+              {profileSubdomain ? (
+                <div className="space-y-2">
+                  <div className="text-[11px] font-medium text-[#78716C]">Direct Post Link</div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={`https://unool.co/u/${profileSubdomain}?activity=${sharePost.id}`}
+                      aria-label="Shareable post URL"
+                      className="flex-1 text-xs bg-[#FAF7F2] border border-[#E8E0D4] rounded-xl px-3 py-2 text-[#1A1612]"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(
+                            `https://unool.co/u/${profileSubdomain}?activity=${sharePost.id}`
+                          );
+                          setCopiedShareLink(true);
+                          setTimeout(() => setCopiedShareLink(false), 1800);
+                        } catch {}
+                      }}
+                      className="px-3 py-2 rounded-xl bg-[#1A1612] text-white text-xs font-semibold"
+                    >
+                      {copiedShareLink ? <Check className="w-4 h-4" /> : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[#78716C]">
+                  Claim your Unool subdomain in Presence to generate shareable profile story links.
+                </p>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

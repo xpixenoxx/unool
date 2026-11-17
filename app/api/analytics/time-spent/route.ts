@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { createClient } from '@supabase/supabase-js';
@@ -30,24 +31,21 @@ export async function POST(request: NextRequest) {
     const { section: rawSection, durationSeconds, workspaceId: bodyWorkspaceId } = parsed.data;
     const section = normalizeSectionName(rawSection);
 
-    // Authentication resolution (verified session or Bearer token ONLY; never unverified body/header ID)
+    // Resolve authenticated user via server helper (verified internal header, Bearer token, or SSR cookies)
     let userId: string | null = null;
-    let workspaceId: string | null = bodyWorkspaceId || null;
+    let workspaceId: string | null = null;
 
-    // 1. Check current auth via server helper (checks middleware header, Bearer token, SSR cookies)
     try {
       const auth = await getCurrentAuth(request);
       if (auth?.userId) {
         userId = auth.userId;
-        if (!workspaceId && auth.workspaceId) {
-          workspaceId = auth.workspaceId;
-        }
+        workspaceId = auth.workspaceId || null;
       }
     } catch {
-      // Proceed to Bearer fallback
+      // Fall through to Bearer token check
     }
 
-    // 2. Direct Bearer token fallback if auth helper didn't resolve
+    // Direct Bearer token fallback if auth helper didn't resolve
     if (!userId) {
       const authHeader = request.headers.get('authorization');
       if (authHeader?.startsWith('Bearer ')) {
@@ -59,13 +57,20 @@ export async function POST(request: NextRequest) {
             userId = user.id;
           }
         } catch {
-          // Reject below
+          // Invalid or expired bearer token
         }
       }
     }
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
+    }
+
+    if (bodyWorkspaceId && bodyWorkspaceId !== workspaceId) {
+      const hasAccess = await verifyWorkspaceAccess(userId, bodyWorkspaceId);
+      if (hasAccess) {
+        workspaceId = bodyWorkspaceId;
+      }
     }
 
     const nowIso = new Date().toISOString();

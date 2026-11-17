@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sparkles, Check, X, ArrowRight, Loader2 } from 'lucide-react';
+import { validateSubdomain } from '@/lib/validation/subdomain';
 import './SubdomainClaimPopup.css';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -43,16 +44,9 @@ type ClaimState = 'idle' | 'claiming' | 'success' | 'error';
 
 // ── Validation ─────────────────────────────────────────────────────────────────
 
-const RESERVED = ['www', 'app', 'api', 'dashboard', 'admin', 'support', 'help', 'billing', 'mail', 'blog', 'docs', 'status', 'cdn', 'static', 'dev', 'staging'];
-
 function validateSlug(s: string): string | null {
-  if (s.length < 2) return 'At least 2 characters';
-  if (s.length > 32) return 'Maximum 32 characters';
-  if (!/^[a-z0-9-]+$/.test(s)) return 'Only lowercase letters, numbers, and hyphens';
-  if (s.startsWith('-') || s.endsWith('-')) return 'Cannot start or end with a hyphen';
-  if (s.includes('--')) return 'Cannot have consecutive hyphens';
-  if (RESERVED.includes(s)) return 'This subdomain is reserved';
-  return null;
+  const result = validateSubdomain(s);
+  return result.valid ? null : (result.error ?? 'Invalid subdomain');
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────

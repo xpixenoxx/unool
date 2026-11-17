@@ -79,6 +79,16 @@ export interface CreatePostInput {
   content: string;
   adaptationPromptVersion?: string;
   arcBeat?: string | null;
+  mediaUrls?: unknown[];
+  hookType?: string | null;
+  hookFormulaId?: number | null;
+  hookScore?: number | null;
+  wordCount?: number | null;
+  hasMedia?: boolean;
+  mediaCount?: number;
+  contentFormat?: string;
+  campaignTag?: string | null;
+  platforms?: string[];
 }
 
 export interface UpdatePostInput {
@@ -90,6 +100,15 @@ export interface UpdatePostInput {
   scheduleStrategy?: ScheduleStrategy;
   arcId?: string | null;
   arcBeat?: string | null;
+  mediaUrls?: unknown[];
+  hookType?: string | null;
+  hookFormulaId?: number | null;
+  hookScore?: number | null;
+  wordCount?: number | null;
+  hasMedia?: boolean;
+  mediaCount?: number;
+  contentFormat?: string;
+  campaignTag?: string | null;
 }
 
 export interface CreateContentArcInput {
