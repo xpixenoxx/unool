@@ -1,8 +1,39 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config/schema';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentAuth } from '@/lib/auth/server';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { logger } from '@/lib/logger';
 import { OnboardingChecklist, createInitialChecklist, markStepComplete } from '@/lib/onboarding/types';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+
+async function authorizeOnboardingRequest(
+  request: NextRequest,
+  requestedWorkspaceId?: string | null
+): Promise<{ userId: string; workspaceId: string } | NextResponse> {
+  let auth: Awaited<ReturnType<typeof getCurrentAuth>> = null;
+  try {
+    auth = await getCurrentAuth(request);
+  } catch {
+    auth = null;
+  }
+
+  if (!auth?.userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const workspaceId = requestedWorkspaceId || auth.workspaceId;
+  if (!workspaceId) {
+    return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 });
+  }
+
+  if (requestedWorkspaceId && requestedWorkspaceId !== auth.workspaceId) {
+    const hasAccess = await verifyWorkspaceAccess(auth.userId, requestedWorkspaceId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
+  return { userId: auth.userId, workspaceId };
+}
 
 
 
@@ -61,12 +92,12 @@ async function upsertChecklist(checklist: OnboardingChecklist): Promise<Onboardi
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
-
-    if (!userId || !workspaceId) {
-      return NextResponse.json({ error: 'Missing userId or workspaceId' }, { status: 400 });
-    }
+    const authResult = await authorizeOnboardingRequest(
+      request,
+      request.nextUrl.searchParams.get('workspaceId')
+    );
+    if (authResult instanceof NextResponse) return authResult;
+    const { userId, workspaceId } = authResult;
 
     let checklist = await getChecklist(workspaceId, userId);
     let isNew = false;
@@ -190,10 +221,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const { workspaceId, stepId, metadata } = await request.json();
+    const { workspaceId: requestedWsId, stepId, metadata } = await request.json();
+    const authResult = await authorizeOnboardingRequest(request, requestedWsId);
+    if (authResult instanceof NextResponse) return authResult;
+    const { userId, workspaceId } = authResult;
 
-    if (!userId || !workspaceId || !stepId) {
+    if (!stepId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -231,12 +264,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
-
-    if (!userId || !workspaceId) {
-      return NextResponse.json({ error: 'Missing userId or workspaceId' }, { status: 400 });
-    }
+    const authResult = await authorizeOnboardingRequest(
+      request,
+      request.nextUrl.searchParams.get('workspaceId')
+    );
+    if (authResult instanceof NextResponse) return authResult;
+    const { userId, workspaceId } = authResult;
 
     const { error } = await supabaseAdmin
       .from('onboarding_checklists')

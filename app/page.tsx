@@ -1464,7 +1464,7 @@ export default function HomePage() {
               <li>Basic DM Concierge &amp; 90-day analytics</li>
             </ul>
             <Link className="btn" href="/signup?plan=creator">
-              Start 14-day trial
+              Choose Creator
             </Link>
           </div>
 
@@ -1479,7 +1479,7 @@ export default function HomePage() {
             <ul>
               <li>Everything in Creator, plus:</li>
               <li>8 connected platforms</li>
-              <li>Custom domain (yourdomain.com)</li>
+              <li>Remove "Made with Unool" badge</li>
               <li>Full DM Concierge + Knowledge Base</li>
               <li>FlightPlan AI &amp; Lead Scoring</li>
               <li>3 team seats &amp; priority support</li>
@@ -1509,7 +1509,7 @@ export default function HomePage() {
               <li>Priority support + onboarding call</li>
             </ul>
             <Link className="btn" href="/signup?plan=studio" style={{ background: '#8b5cf6' }}>
-              Start 14-day trial →
+              Choose Studio →
             </Link>
           </div>
         </div>

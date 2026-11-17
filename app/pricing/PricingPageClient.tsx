@@ -34,7 +34,7 @@ const PLAN_LABELS = [
   'Brand voices',
   'Analytics',
   'Seats',
-  'Domain',
+  'Branding',
 ];
 
 interface PlanData {
@@ -64,7 +64,7 @@ const PLANS_FALLBACK: PlanData[] = [
       'None',
       '30 days',
       '1',
-      'unool.co address',
+      'Made with Unool badge',
     ],
   },
   {
@@ -85,7 +85,7 @@ const PLANS_FALLBACK: PlanData[] = [
       'None',
       '90 days',
       '1',
-      'unool.co address',
+      'Made with Unool badge',
     ],
   },
   {
@@ -106,7 +106,7 @@ const PLANS_FALLBACK: PlanData[] = [
       '5',
       '1 year',
       '3',
-      'Custom domain',
+      'Badge removal',
     ],
   },
   {
@@ -144,7 +144,6 @@ const COMPARISONS: [string, string, string][] = [
   ['AI content composer', '', 'ynnpy'],
   ['Follow-to-unlock gates', '', 'yynnn'],
   ['DM Concierge (AI responder)', 'Zorcha: rigid FAQ slots. Unool: full knowledge base', 'ypnnn'],
-  ['Custom domain', 'Pro and above on Unool', 'ynynn'],
   ['UPI / INR billing', 'Buffer and Taplio are USD only', 'yynnn'],
 ];
 
@@ -160,7 +159,7 @@ const calcPoints = (toolIdx: number) =>
 const FAQS: [string, string][] = [
   [
     'Do I need a credit card to start?',
-    'No. Every signup gets a 14-day Pro trial with no card. After that you can stay on Spark for free or pick a paid plan.',
+    'No. Spark is free forever with no credit card required. You can upgrade anytime inside your dashboard.',
   ],
   [
     'What payment methods do you accept?',
@@ -179,8 +178,8 @@ const FAQS: [string, string][] = [
     'Prices shown are before GST. Applicable GST is added at checkout.',
   ],
   [
-    'Can I connect my custom domain on Spark?',
-    'Custom domains start on Pro. Spark and Creator use your name.unool.co address.',
+    'Can I remove the Made with Unool badge?',
+    'Yes. Badge removal and white-label controls unlock on Pro and Studio. Profiles are hosted on your name.unool.co address.',
   ],
 ];
 
@@ -404,7 +403,7 @@ export function PricingPageClient() {
 
   // ── Competitor Head-to-Head Calculations ──
   const winsCount = COMPARISONS.filter((r) => r[2][who] !== 'y').length;
-  const tiesCount = 10 - winsCount;
+  const tiesCount = COMPARISONS.length - winsCount;
 
   return (
     <div className="pricing-page">
@@ -433,7 +432,7 @@ export function PricingPageClient() {
               Unool replaces Zorcha, Buffer, Linktree and Taplio. Profile page, publishing,
               Instagram automation and LinkedIn growth, for one flat price.
             </p>
-            <p>14-day Pro trial on every signup. No credit card.</p>
+            <p>Start free forever on Spark. Upgrade anytime inside your dashboard.</p>
           </div>
 
           <div className="rcs" id="rcs">
@@ -568,7 +567,7 @@ export function PricingPageClient() {
                       className="btn"
                       href={i === 0 ? '/signup' : `/signup?plan=${p.n.toLowerCase()}`}
                     >
-                      {i ? 'Start 14-day trial' : 'Start for free'}
+                      {i ? `Choose ${p.n}` : 'Start for free'}
                     </Link>
                   </div>
                 </article>
@@ -716,7 +715,7 @@ export function PricingPageClient() {
         <div className="w">
           <h2 className="d">Start free.</h2>
           <div className="row">
-            <p>No credit card. Every signup gets 14 days of full Pro.</p>
+            <p>No credit card required. Start on Spark for free forever.</p>
             <span>
               <Link className="btn" href="/signup">
                 Get started free

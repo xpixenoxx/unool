@@ -1311,7 +1311,7 @@ export default function BillingClient() {
                 <FeatureItem text={`${plan.limits?.ig_comments_per_month === -1 ? 'Unlimited' : (plan.limits?.ig_comments_per_month ?? 0)} IG comments/mo`} />
                 <FeatureItem text={`${plan.templateCount ?? 0} templates`} />
                 <FeatureItem text={`${plan.limits?.team_seats ?? 1} team seat${(plan.limits?.team_seats ?? 1) > 1 ? 's' : ''}`} />
-                {plan.features?.custom_domain && <FeatureItem text="Custom domain" highlight />}
+                {plan.features?.badge_removal && <FeatureItem text="Remove Unool badge" highlight />}
                 {plan.features?.dm_concierge_full && <FeatureItem text="Full DM Concierge" highlight />}
                 {plan.features?.lead_scoring && <FeatureItem text="Lead scoring" highlight />}
                 {plan.features?.white_label && <FeatureItem text="White label" highlight />}

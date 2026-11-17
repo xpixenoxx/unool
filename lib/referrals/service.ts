@@ -1,21 +1,24 @@
-﻿// ============================================================
-// lib/referrals/service.ts — Referral System Core
-// Generates codes, tracks clicks/signups, issues rewards.
 // ============================================================
-import { config } from '@/lib/config/schema';
+// lib/referrals/service.ts — Referral System Core
+// Generates codes, tracks clicks/signups atomically, issues
+// spendable AI credits + Spark 30d Creator rewards, and reverses
+// rewards cleanly on refunds.
+// ============================================================
+import { resolvePrimaryWorkspaceId } from '@/lib/auth/workspaceAccess';
+import { normalizePlanId } from '@/lib/billing/plans';
+import { clearPlanCache } from '@/lib/entitlements';
 import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 /** AI credits awarded to referrer when a free signup happens */
-const REWARD_FREE_SIGNUP_CREDITS = 200;
+export const REWARD_FREE_SIGNUP_CREDITS = 200;
 
-/** Free months (as AI credits equivalent) when referral converts to paid */
-const REWARD_PAID_CONVERSION_MONTHS = 1;
-const AI_CREDITS_PER_MONTH = 1000;
+/** Free months & bonus AI credits when referral converts to paid */
+export const REWARD_PAID_CONVERSION_MONTHS = 1;
+export const AI_CREDITS_PER_MONTH = 1000;
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -28,6 +31,8 @@ export interface ReferralCode {
   signupCount: number;
   conversionCount: number;
   rewardsEarned: number;
+  creditsUsed: number;
+  availableCredits: number;
   monthsEarned: number;
   createdAt: string;
   updatedAt: string;
@@ -38,7 +43,7 @@ export interface Referral {
   referrerUserId: string;
   referredUserId: string;
   referralCode: string;
-  status: 'signed_up' | 'converted' | 'rewarded';
+  status: 'signed_up' | 'converted' | 'rewarded' | 'refunded';
   rewardType: string | null;
   rewardAppliedAt: string | null;
   createdAt: string;
@@ -63,30 +68,44 @@ function generateCode(name: string): string {
 
 /**
  * Get or create a referral code for a user.
- * Safe to call on every dashboard load — returns existing code if present.
+ * Uses real resolved workspaceId (never stores userId as workspaceId if a workspace exists).
  */
 export async function getOrCreateReferralCode(
   userId: string,
   workspaceId: string,
   displayName: string
 ): Promise<ReferralCode> {
-  // Check existing
+  const resolvedWsId =
+    workspaceId && workspaceId !== userId
+      ? workspaceId
+      : (await resolvePrimaryWorkspaceId(userId)) || workspaceId || userId;
+
   const { data: existing } = await supabaseAdmin
     .from('referral_codes')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
-  if (existing) return rowToCode(existing as Record<string, unknown>);
+  if (existing) {
+    if (existing.workspace_id === userId && resolvedWsId !== userId) {
+      await supabaseAdmin
+        .from('referral_codes')
+        .update({ workspace_id: resolvedWsId, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      (existing as Record<string, unknown>).workspace_id = resolvedWsId;
+    }
+    return rowToCode(existing as Record<string, unknown>);
+  }
 
-  // Generate unique code (retry on collision)
   let code = generateCode(displayName || 'USER');
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data: collision } = await supabaseAdmin
       .from('referral_codes')
       .select('id')
       .eq('code', code)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (!collision) break;
     code = generateCode(displayName || 'USER');
@@ -94,45 +113,67 @@ export async function getOrCreateReferralCode(
 
   const { data, error } = await supabaseAdmin
     .from('referral_codes')
-    .insert({ user_id: userId, workspace_id: workspaceId, code })
+    .insert({ user_id: userId, workspace_id: resolvedWsId, code })
     .select()
     .single();
 
-  if (error) throw new Error(`getOrCreateReferralCode: ${error.message}`);
+  if (error) {
+    // Handle concurrent insert race cleanly
+    if (error.code === '23505') {
+      const { data: raced } = await supabaseAdmin
+        .from('referral_codes')
+        .select('*')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+      if (raced) return rowToCode(raced as Record<string, unknown>);
+    }
+    throw new Error(`getOrCreateReferralCode: ${error.message}`);
+  }
   return rowToCode(data as Record<string, unknown>);
 }
 
 /**
- * Record a referral click (visitor clicked a referral link).
- * Returns the code record so the caller can embed the ref param in signup.
+ * Atomically record a referral click.
  */
 export async function recordReferralClick(code: string): Promise<ReferralCode | null> {
   const cleanCode = (code || '').trim().toUpperCase();
   if (!cleanCode) return null;
 
+  try {
+    const { data: rpcRows, error: rpcErr } = await supabaseAdmin.rpc('increment_referral_click', {
+      target_code: cleanCode,
+    });
+    if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
+      return rowToCode(rpcRows[0] as Record<string, unknown>);
+    }
+  } catch {
+    // Fallback below if RPC is unavailable or mocked
+  }
+
   const { data, error } = await supabaseAdmin
     .from('referral_codes')
     .select('*')
     .eq('code', cleanCode)
+    .limit(1)
     .maybeSingle();
 
   if (error || !data) return null;
 
-  // Increment click count
+  const nextCount = (Number((data as Record<string, unknown>).click_count) || 0) + 1;
   await supabaseAdmin
     .from('referral_codes')
     .update({
-      click_count: (Number((data as Record<string, unknown>).click_count) || 0) + 1,
+      click_count: nextCount,
       updated_at: new Date().toISOString(),
     })
     .eq('code', cleanCode);
 
-  return rowToCode(data as Record<string, unknown>);
+  return rowToCode({ ...(data as Record<string, unknown>), click_count: nextCount });
 }
 
 /**
- * Called at signup when a user provides a referral code.
- * Creates the referral record. Rewards are separate (called on paid conversion).
+ * Record signup attribution once per new referred user and award signup AI credits.
  */
 export async function recordReferralSignup(
   referredUserId: string,
@@ -141,34 +182,31 @@ export async function recordReferralSignup(
   const cleanCode = (referralCode || '').trim().toUpperCase();
   if (!cleanCode) return;
 
-  // Look up referral code owner
   const { data: codeRow, error: codeErr } = await supabaseAdmin
     .from('referral_codes')
     .select('*')
     .eq('code', cleanCode)
+    .limit(1)
     .maybeSingle();
 
   if (codeErr || !codeRow) {
-    logger.warn('recordReferralSignup: code not found', { referralCode });
+    logger.warn('recordReferralSignup: code not found', { referralCode: cleanCode });
     return;
   }
 
   const code = codeRow as Record<string, unknown>;
   const referrerUserId = code.user_id as string;
-
-  // Don't let people refer themselves
   if (referrerUserId === referredUserId) return;
 
-  // Idempotency: already referred?
   const { data: existing } = await supabaseAdmin
     .from('referrals')
     .select('id')
     .eq('referred_user_id', referredUserId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (existing) return;
 
-  // Create referral record
   const { error: insertErr } = await supabaseAdmin.from('referrals').insert({
     referrer_user_id: referrerUserId,
     referred_user_id: referredUserId,
@@ -177,23 +215,40 @@ export async function recordReferralSignup(
   });
 
   if (insertErr) {
-    logger.error('recordReferralSignup insert failed', {
-      error: new Error(insertErr.message),
-    });
+    if (insertErr.code !== '23505') {
+      logger.error('recordReferralSignup insert failed', {
+        error: new Error(insertErr.message),
+      });
+    }
     return;
   }
 
-  // Increment signup count safely
-  await supabaseAdmin
-    .from('referral_codes')
-    .update({
-      signup_count: (Number(code.signup_count) || 0) + 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('code', cleanCode);
+  // Atomically increment signup_count + rewards_earned
+  let appliedViaRpc = false;
+  try {
+    const { data: rpcRes, error: rpcErr } = await supabaseAdmin.rpc('apply_referral_signup_reward', {
+      target_code: cleanCode,
+      reward_credits: REWARD_FREE_SIGNUP_CREDITS,
+    });
+    if (!rpcErr && Array.isArray(rpcRes) && rpcRes.length > 0) {
+      appliedViaRpc = true;
+    }
+  } catch {
+    appliedViaRpc = false;
+  }
 
-  // Give referrer 200 AI credits for free signup
-  await grantAiCredits(referrerUserId, REWARD_FREE_SIGNUP_CREDITS, 'referral_signup');
+  if (!appliedViaRpc) {
+    await supabaseAdmin
+      .from('referral_codes')
+      .update({
+        signup_count: (Number(code.signup_count) || 0) + 1,
+        rewards_earned: (Number(code.rewards_earned) || 0) + REWARD_FREE_SIGNUP_CREDITS,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('code', cleanCode);
+  }
+
+  await logReferralLedger(referrerUserId, REWARD_FREE_SIGNUP_CREDITS, 'referral_signup');
 
   logger.info('Referral signup recorded + credits granted', {
     referrerUserId,
@@ -204,93 +259,290 @@ export async function recordReferralSignup(
 }
 
 /**
- * Called when a referred user converts to a paid plan.
- * Grants referrer 1 free month (as credits) and marks referral as rewarded.
+ * Record paid conversion atomically:
+ *  - Claims pending referral (`status = 'signed_up' -> 'rewarded'`) once
+ *  - Grants spendable AI credits + conversion counters
+ *  - Extends active paid subscription OR upgrades Spark referrer to 30-day Creator plan
  */
 export async function recordReferralConversion(referredUserId: string): Promise<void> {
-  const { data: referral, error } = await supabaseAdmin
-    .from('referrals')
-    .select('*')
-    .eq('referred_user_id', referredUserId)
-    .eq('status', 'signed_up')
-    .maybeSingle();
-
-  if (error || !referral) {
-    logger.debug('recordReferralConversion: no pending referral found', { referredUserId });
-    return;
-  }
-
-  const ref = referral as Record<string, unknown>;
-  const referrerUserId = ref.referrer_user_id as string;
-  const referralCode = ((ref.referral_code as string) || '').trim().toUpperCase();
-
-  // Mark referral as converted + rewarded
-  await supabaseAdmin
+  const { data: claimedRows, error: claimErr } = await supabaseAdmin
     .from('referrals')
     .update({
       status: 'rewarded',
-      reward_type: 'free_month_credits',
+      reward_type: 'creator_30d_and_credits',
       reward_applied_at: new Date().toISOString(),
     })
-    .eq('id', ref.id as string);
+    .eq('referred_user_id', referredUserId)
+    .eq('status', 'signed_up')
+    .select('*');
 
-  // Grant 1 month of credits
-  const creditsToGrant = REWARD_PAID_CONVERSION_MONTHS * AI_CREDITS_PER_MONTH;
-  await grantAiCredits(referrerUserId, creditsToGrant, 'referral_conversion');
-
-  // Update referral_codes tracking
-  const { data: codeRow } = await supabaseAdmin
-    .from('referral_codes')
-    .select('conversion_count, months_earned')
-    .eq('code', referralCode)
-    .maybeSingle();
-
-  if (codeRow) {
-    const cr = codeRow as Record<string, unknown>;
-    await supabaseAdmin
-      .from('referral_codes')
-      .update({
-        conversion_count: (Number(cr.conversion_count) || 0) + 1,
-        months_earned: (Number(cr.months_earned) || 0) + REWARD_PAID_CONVERSION_MONTHS,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('code', referralCode);
+  if (claimErr || !claimedRows || claimedRows.length === 0) {
+    logger.debug('recordReferralConversion: no pending referral to claim', { referredUserId });
+    return;
   }
 
-  // Also extend active subscription by 30 days if referrer has one
+  const ref = claimedRows[0] as Record<string, unknown>;
+  const referrerUserId = ref.referrer_user_id as string;
+  const referralCode = ((ref.referral_code as string) || '').trim().toUpperCase();
+  const creditsToGrant = REWARD_PAID_CONVERSION_MONTHS * AI_CREDITS_PER_MONTH;
+
+  // Adjust referral_codes counters + credits atomically
+  let adjustedViaRpc = false;
   try {
-    const { data: sub } = await supabaseAdmin
-      .from('subscriptions')
-      .select('id, current_period_end, workspace_id')
-      .eq('user_id', referrerUserId)
-      .eq('status', 'active')
+    const { data: rpcRows, error: rpcErr } = await supabaseAdmin.rpc('adjust_referral_conversion_rewards', {
+      target_code: referralCode,
+      delta_conversions: 1,
+      delta_credits: creditsToGrant,
+      delta_months: REWARD_PAID_CONVERSION_MONTHS,
+    });
+    if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
+      adjustedViaRpc = true;
+    }
+  } catch {
+    adjustedViaRpc = false;
+  }
+
+  if (!adjustedViaRpc) {
+    const { data: codeRow } = await supabaseAdmin
+      .from('referral_codes')
+      .select('conversion_count, months_earned, rewards_earned')
+      .eq('code', referralCode)
+      .limit(1)
       .maybeSingle();
 
-    if (sub && sub.current_period_end) {
-      const currentEnd = new Date(sub.current_period_end);
-      const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + 30 * 24 * 60 * 60 * 1000).toISOString();
+    if (codeRow) {
+      const cr = codeRow as Record<string, unknown>;
       await supabaseAdmin
-        .from('subscriptions')
-        .update({ current_period_end: newEnd, updated_at: new Date().toISOString() })
-        .eq('id', sub.id);
+        .from('referral_codes')
+        .update({
+          conversion_count: (Number(cr.conversion_count) || 0) + 1,
+          months_earned: (Number(cr.months_earned) || 0) + REWARD_PAID_CONVERSION_MONTHS,
+          rewards_earned: (Number(cr.rewards_earned) || 0) + creditsToGrant,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('code', referralCode);
+    }
+  }
 
-      if (sub.workspace_id) {
+  await logReferralLedger(referrerUserId, creditsToGrant, 'referral_conversion');
+
+  // Grant real workspace plan time on referrer's primary owned workspace
+  try {
+    const { data: ownedWs } = await supabaseAdmin
+      .from('workspaces')
+      .select('id, plan, plan_status, plan_expires_at')
+      .eq('owner_id', referrerUserId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (ownedWs?.id) {
+      const { data: activeSub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id, plan_id, current_period_end, amount_paise')
+        .eq('workspace_id', ownedWs.id)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+
+      const nowMs = Date.now();
+      const currentPlan = normalizePlanId(ownedWs.plan as string | undefined);
+
+      if (activeSub?.id && activeSub.current_period_end) {
+        const currentEndMs = new Date(activeSub.current_period_end).getTime();
+        const newEnd = new Date(Math.max(currentEndMs, nowMs) + THIRTY_DAYS_MS).toISOString();
+
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({ current_period_end: newEnd, updated_at: new Date().toISOString() })
+          .eq('id', activeSub.id);
+
         await supabaseAdmin
           .from('workspaces')
           .update({ plan_expires_at: newEnd, updated_at: new Date().toISOString() })
-          .eq('id', sub.workspace_id);
+          .eq('id', ownedWs.id);
+
+        clearPlanCache(ownedWs.id);
+        logger.info('Extended referrer active subscription by 30 days', { referrerUserId, workspaceId: ownedWs.id, newEnd });
+      } else if (currentPlan === 'spark') {
+        const nowIso = new Date(nowMs).toISOString();
+        const creatorEndIso = new Date(nowMs + THIRTY_DAYS_MS).toISOString();
+
+        await supabaseAdmin
+          .from('workspaces')
+          .update({
+            plan: 'creator',
+            plan_status: 'active',
+            plan_expires_at: creatorEndIso,
+            updated_at: nowIso,
+          })
+          .eq('id', ownedWs.id);
+
+        await supabaseAdmin
+          .from('subscriptions')
+          .upsert(
+            {
+              workspace_id: ownedWs.id,
+              user_id: referrerUserId,
+              plan_id: 'creator',
+              billing_cycle: 'monthly',
+              amount_paise: 0,
+              currency: 'INR',
+              status: 'active',
+              current_period_start: nowIso,
+              current_period_end: creatorEndIso,
+              trial_end: creatorEndIso,
+              metadata: { source: 'referral_reward', referred_user_id: referredUserId },
+              updated_at: nowIso,
+            },
+            { onConflict: 'workspace_id' }
+          );
+
+        clearPlanCache(ownedWs.id);
+        logger.info('Granted 30-day Creator plan voucher to Spark referrer', {
+          referrerUserId,
+          workspaceId: ownedWs.id,
+          expiresAt: creatorEndIso,
+        });
       }
-      logger.info('Referrer subscription extended by 30 days', { referrerUserId, newEnd });
     }
   } catch (subErr) {
-    logger.warn('Failed to extend referrer subscription (non-fatal)', { subErr });
+    logger.warn('Failed to apply plan duration reward for referrer', { error: subErr, referrerUserId });
+  }
+}
+
+/**
+ * Reverse referral conversion rewards if the referred user's paid order is refunded.
+ */
+export async function revokeReferralConversionOnRefund(
+  referredUserId: string,
+  orderId?: string
+): Promise<{ revoked: boolean; referrerUserId?: string }> {
+  const { data: claimedRows, error: claimErr } = await supabaseAdmin
+    .from('referrals')
+    .update({ status: 'refunded' })
+    .eq('referred_user_id', referredUserId)
+    .in('status', ['converted', 'rewarded'])
+    .select('*');
+
+  if (claimErr || !claimedRows || claimedRows.length === 0) {
+    return { revoked: false };
   }
 
-  logger.info('Referral conversion recorded + month credits granted', {
+  const ref = claimedRows[0] as Record<string, unknown>;
+  const referrerUserId = ref.referrer_user_id as string;
+  const referralCode = ((ref.referral_code as string) || '').trim().toUpperCase();
+  const creditsToDebit = REWARD_PAID_CONVERSION_MONTHS * AI_CREDITS_PER_MONTH;
+
+  let adjustedViaRpc = false;
+  try {
+    const { data: rpcRows, error: rpcErr } = await supabaseAdmin.rpc('adjust_referral_conversion_rewards', {
+      target_code: referralCode,
+      delta_conversions: -1,
+      delta_credits: -creditsToDebit,
+      delta_months: -REWARD_PAID_CONVERSION_MONTHS,
+    });
+    if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
+      adjustedViaRpc = true;
+    }
+  } catch {
+    adjustedViaRpc = false;
+  }
+
+  if (!adjustedViaRpc) {
+    const { data: codeRow } = await supabaseAdmin
+      .from('referral_codes')
+      .select('conversion_count, months_earned, rewards_earned, credits_used')
+      .eq('code', referralCode)
+      .limit(1)
+      .maybeSingle();
+
+    if (codeRow) {
+      const cr = codeRow as Record<string, unknown>;
+      const used = Number(cr.credits_used) || 0;
+      await supabaseAdmin
+        .from('referral_codes')
+        .update({
+          conversion_count: Math.max(0, (Number(cr.conversion_count) || 0) - 1),
+          months_earned: Math.max(0, (Number(cr.months_earned) || 0) - REWARD_PAID_CONVERSION_MONTHS),
+          rewards_earned: Math.max(used, (Number(cr.rewards_earned) || 0) - creditsToDebit),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('code', referralCode);
+    }
+  }
+
+  await logReferralLedger(referrerUserId, -creditsToDebit, 'referral_refund_reversal');
+
+  // Reverse the 30-day workspace plan grant / extension if applicable
+  try {
+    const { data: ownedWs } = await supabaseAdmin
+      .from('workspaces')
+      .select('id, plan, plan_expires_at')
+      .eq('owner_id', referrerUserId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (ownedWs?.id) {
+      const { data: sub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id, plan_id, amount_paise, status, current_period_end, metadata')
+        .eq('workspace_id', ownedWs.id)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+
+      if (sub?.id) {
+        const nowMs = Date.now();
+        const isReferralGrantSub =
+          Number(sub.amount_paise) === 0 &&
+          sub.plan_id === 'creator' &&
+          (sub.metadata as Record<string, unknown> | null)?.source === 'referral_reward';
+
+        if (isReferralGrantSub) {
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({ status: 'expired', updated_at: new Date(nowMs).toISOString() })
+            .eq('id', sub.id);
+
+          await supabaseAdmin
+            .from('workspaces')
+            .update({ plan: 'spark', plan_status: 'active', plan_expires_at: null, updated_at: new Date(nowMs).toISOString() })
+            .eq('id', ownedWs.id);
+        } else if (sub.current_period_end) {
+          const reducedMs = new Date(sub.current_period_end).getTime() - THIRTY_DAYS_MS;
+          const clampedIso = new Date(Math.max(nowMs, reducedMs)).toISOString();
+
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({ current_period_end: clampedIso, updated_at: new Date(nowMs).toISOString() })
+            .eq('id', sub.id);
+
+          await supabaseAdmin
+            .from('workspaces')
+            .update({ plan_expires_at: clampedIso, updated_at: new Date(nowMs).toISOString() })
+            .eq('id', ownedWs.id);
+        }
+
+        clearPlanCache(ownedWs.id);
+      }
+    }
+  } catch (subErr) {
+    logger.warn('Failed to reverse referrer plan extension on refund', {
+      error: subErr,
+      referrerUserId,
+      orderId,
+    });
+  }
+
+  logger.info('Referral conversion reversed on refund', {
     referrerUserId,
     referredUserId,
-    credits: creditsToGrant,
+    orderId,
   });
+
+  return { revoked: true, referrerUserId };
 }
 
 /**
@@ -301,7 +553,12 @@ export async function getReferralStats(userId: string): Promise<{
   referrals: Referral[];
 }> {
   const [codeResult, referralsResult] = await Promise.all([
-    supabaseAdmin.from('referral_codes').select('*').eq('user_id', userId).single(),
+    supabaseAdmin
+      .from('referral_codes')
+      .select('*')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle(),
     supabaseAdmin
       .from('referrals')
       .select('*')
@@ -316,60 +573,52 @@ export async function getReferralStats(userId: string): Promise<{
   };
 }
 
-// ── Internal: Grant AI Credits ────────────────────────────────────────────────
+// ── Internal: Ledger Helper ───────────────────────────────────────────────────
 
-async function grantAiCredits(userId: string, credits: number, reason: string): Promise<void> {
+async function logReferralLedger(userId: string, credits: number, reason: string): Promise<void> {
   try {
-    logger.info('AI credits granted', { userId, credits, reason });
+    const { error } = await supabaseAdmin.from('referral_rewards').insert({
+      user_id: userId,
+      credits,
+      reason,
+      created_at: new Date().toISOString(),
+    });
 
-    // 1. Update rewards_earned counter on referral_codes (the visible tally)
-    const { data: existing } = await supabaseAdmin
-      .from('referral_codes')
-      .select('rewards_earned')
-      .eq('user_id', userId)
-      .single();
-
-    if (existing) {
-      const curr = (existing as Record<string, unknown>).rewards_earned as number ?? 0;
-      await supabaseAdmin
-        .from('referral_codes')
-        .update({ rewards_earned: curr + credits, updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
-    }
-
-    // 2. Log to referral_rewards ledger (best-effort; table may not exist yet)
-    try {
-      await supabaseAdmin
-        .from('referral_rewards')
-        .insert({
-          user_id: userId,
-          credits,
-          reason,
-          created_at: new Date().toISOString(),
-        });
-    } catch {
-      // ignore error if table does not exist
+    if (error) {
+      logger.error('Failed to insert referral_rewards ledger row', {
+        userId,
+        credits,
+        reason,
+        error: new Error(error.message),
+      });
     }
   } catch (err) {
-    logger.error('grantAiCredits failed', {
+    logger.error('referral_rewards ledger write threw', {
+      userId,
+      credits,
+      reason,
       error: err instanceof Error ? err : new Error(String(err)),
     });
   }
 }
 
-// ── Row mappers ────────────────────────────────────────────────────────────────
+// ── Mappers ───────────────────────────────────────────────────────────────────
 
 function rowToCode(row: Record<string, unknown>): ReferralCode {
+  const rewardsEarned = Number(row.rewards_earned ?? 0);
+  const creditsUsed = Number(row.credits_used ?? 0);
   return {
     id: row.id as string,
     userId: row.user_id as string,
     workspaceId: row.workspace_id as string,
     code: row.code as string,
-    clickCount: (row.click_count as number) ?? 0,
-    signupCount: (row.signup_count as number) ?? 0,
-    conversionCount: (row.conversion_count as number) ?? 0,
-    rewardsEarned: (row.rewards_earned as number) ?? 0,
-    monthsEarned: (row.months_earned as number) ?? 0,
+    clickCount: Number(row.click_count ?? 0),
+    signupCount: Number(row.signup_count ?? 0),
+    conversionCount: Number(row.conversion_count ?? 0),
+    rewardsEarned,
+    creditsUsed,
+    availableCredits: Math.max(0, rewardsEarned - creditsUsed),
+    monthsEarned: Number(row.months_earned ?? 0),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };

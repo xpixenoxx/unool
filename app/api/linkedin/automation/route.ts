@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
@@ -112,6 +112,11 @@ export async function PUT(request: NextRequest) {
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({ error: 'Automation features are currently disabled by administrator' }, { status: 403 });
+    }
 
     // Fetch existing workspace settings to preserve other properties
     const { data: ws } = await supabaseAdmin

@@ -1,15 +1,12 @@
-﻿// GET  /api/referrals — get my referral stats + code
-// POST /api/referrals/click — record a referral link click (public, no auth)
+// GET /api/referrals — get my referral stats + code
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { resolvePrimaryWorkspaceId, verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { getOrCreateReferralCode, getReferralStats } from '@/lib/referrals/service';
 import { logger } from '@/lib/logger';
-import { config } from '@/lib/config/schema';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
-
-
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,38 +14,44 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    let workspaceId = request.nextUrl.searchParams.get('workspaceId');
-    if (!workspaceId) {
-      const { data: member } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      workspaceId = (member as { workspace_id?: string } | null)?.workspace_id || user.id;
+    const requestedWorkspaceId = request.nextUrl.searchParams.get('workspaceId');
+    if (requestedWorkspaceId) {
+      const hasAccess = await verifyWorkspaceAccess(user.id, requestedWorkspaceId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
-    // Get display name for code generation
+    const workspaceId =
+      requestedWorkspaceId || (await resolvePrimaryWorkspaceId(user.id)) || user.id;
+
+    // Get display name for code generation (multi-workspace safe)
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('name')
       .eq('user_id', user.id)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     const displayName = (profile as Record<string, unknown> | null)?.name as string ?? '';
 
-    // Get or create code and stats in parallel
-    const [, stats] = await Promise.all([
-      getOrCreateReferralCode(user.id, workspaceId, displayName),
-      getReferralStats(user.id),
-    ]);
+    // Ensure code exists BEFORE reading stats (fixes first-visit null code race)
+    const code = await getOrCreateReferralCode(user.id, workspaceId, displayName);
+    const stats = await getReferralStats(user.id);
 
-    return NextResponse.json(stats, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
+    return NextResponse.json(
+      {
+        code: stats.code || code,
+        referrals: stats.referrals,
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('GET /api/referrals error', { error: err });

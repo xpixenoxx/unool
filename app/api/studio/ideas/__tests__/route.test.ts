@@ -3,12 +3,21 @@ import { NextRequest } from 'next/server';
 import * as authServer from '@/lib/auth/server';
 import { resetIdeasRateLimit } from '@/lib/ai/studioIdeas';
 
-const { mockFindByWorkspaceId, mockGenerateText } = vi.hoisted(() => {
+const { mockFindByWorkspaceId, mockGenerateText, mockGetPlanContext, mockEnforcePlanLimit, mockTrackAiUsage } = vi.hoisted(() => {
   return {
     mockFindByWorkspaceId: vi.fn(),
     mockGenerateText: vi.fn(),
+    mockGetPlanContext: vi.fn(),
+    mockEnforcePlanLimit: vi.fn(),
+    mockTrackAiUsage: vi.fn(),
   };
 });
+
+vi.mock('@/lib/entitlements', () => ({
+  getPlanContext: (...args: unknown[]) => mockGetPlanContext(...args),
+  enforcePlanLimit: (...args: unknown[]) => mockEnforcePlanLimit(...args),
+  trackAiUsage: (...args: unknown[]) => mockTrackAiUsage(...args),
+}));
 
 // Mock SupabaseProfileRepository
 vi.mock('@/lib/repositories/supabase/SupabaseProfileRepository', () => {
@@ -42,6 +51,16 @@ describe('POST /api/studio/ideas', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetIdeasRateLimit();
+    mockGetPlanContext.mockResolvedValue({
+      userId: 'user-1',
+      workspaceId: 'ws-1',
+      plan: 'creator',
+      features: { ai_credits_per_month: 150 },
+      limits: { ai_credits_per_month: 150 },
+      templateCount: 16,
+    });
+    mockEnforcePlanLimit.mockResolvedValue({ allowed: true });
+    mockTrackAiUsage.mockResolvedValue(undefined);
   });
 
   it('returns 401 when request is unauthorized', async () => {

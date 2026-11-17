@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhookSignature } from '@/lib/billing/cashfree';
-import { markOrderPaid, markOrderFailed, recordWebhookEvent, upsertSubscription, findOrderByCfOrderId } from '@/lib/billing/subscription';
-import { recordReferralConversion } from '@/lib/referrals/service';
+import {
+  markOrderPaid,
+  markOrderFailed,
+  markOrderRefunded,
+  recordWebhookEvent,
+} from '@/lib/billing/subscription';
 import { logger } from '@/lib/logger';
 import type { CashfreeWebhookPayload } from '@/lib/billing/cashfree';
 import type { PlanId, BillingCycle, Currency } from '@/lib/billing/plans';
@@ -146,6 +150,28 @@ export async function POST(request: NextRequest) {
         logger.info('User dropped payment', {
           orderId: payload.data?.order?.order_id,
         });
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      case 'REFUND_STATUS_WEBHOOK':
+      case 'REFUND_SUCCESS_WEBHOOK':
+      case 'PAYMENT_REFUNDED': {
+        const orderId = payload.data?.order?.order_id;
+        const paymentId = payload.data?.payment?.cf_payment_id || `refund_${orderId || 'unknown'}`;
+
+        if (orderId) {
+          const isNew = await recordWebhookEvent(
+            `${paymentId}:refund`,
+            orderId,
+            eventType,
+            payload
+          );
+
+          if (isNew) {
+            await markOrderRefunded(orderId);
+          }
+        }
+
         return NextResponse.json({ status: 'ok' });
       }
 

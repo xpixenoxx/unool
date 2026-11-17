@@ -65,21 +65,40 @@ export async function POST(request: NextRequest) {
         full_name: user.user_metadata?.full_name,
       }, { onConflict: 'id' });
 
-      // Ensure workspace exists for this user
-      const { data: existingMember } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', user.id)
-        .single();
+      // Ensure workspace exists for this user (multi-workspace safe)
+      const [{ data: existingMember }, { data: existingOwnedWs }] = await Promise.all([
+        supabaseAdmin
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('workspaces')
+          .select('id')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      if (!existingMember) {
+      if (!existingMember && existingOwnedWs) {
+        await supabaseAdmin.from('workspace_members').insert({
+          workspace_id: existingOwnedWs.id,
+          user_id: user.id,
+          role: 'owner',
+        });
+      }
+
+      if (!existingMember && !existingOwnedWs) {
         // Create a new workspace for the user
         const { data: newWorkspace } = await supabaseAdmin
           .from('workspaces')
           .insert({
             owner_id: user.id,
             name: 'Personal Workspace',
-            plan: 'free',
+            plan: 'spark',
           })
           .select('id')
           .single();

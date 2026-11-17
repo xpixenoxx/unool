@@ -79,11 +79,12 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
   }, [fetchStats]);
 
   // Supabase Realtime subscription for instant updates on new signups or conversions
+  const referrerUserId = stats?.code?.userId;
   useEffect(() => {
     let channel: ReturnType<ReturnType<typeof getSupabaseBrowserClient>['channel']> | null = null;
     try {
       const supabase = getSupabaseBrowserClient();
-      channel = supabase
+      const ch = supabase
         .channel(`referrals-sync-${workspaceId}`)
         .on(
           'postgres_changes',
@@ -96,20 +97,24 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
           () => {
             fetchStats();
           }
-        )
-        .on(
+        );
+
+      if (referrerUserId) {
+        ch.on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'referrals',
-            filter: `referrer_workspace_id=eq.${workspaceId}`,
+            filter: `referrer_user_id=eq.${referrerUserId}`,
           },
           () => {
             fetchStats();
           }
-        )
-        .subscribe();
+        );
+      }
+
+      channel = ch.subscribe();
     } catch (err) {
       console.warn('[ReferralDashboard] Realtime subscription error:', err);
     }
@@ -122,10 +127,10 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
         } catch {}
       }
     };
-  }, [workspaceId, fetchStats]);
+  }, [workspaceId, referrerUserId, fetchStats]);
 
   const referralUrl = stats?.code
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${stats.code.code}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/r/${stats.code.code}`
     : '';
 
   const handleCopy = async () => {
@@ -258,15 +263,19 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
         />
         <StatCard
           icon={<Star className="h-5 w-5" />}
-          label="AI Credits Earned"
-          value={stats?.code?.rewardsEarned ?? 0}
-          sub="from referral rewards"
+          label="Spendable AI Credits"
+          value={stats?.code?.availableCredits ?? stats?.code?.rewardsEarned ?? 0}
+          sub={
+            stats?.code?.creditsUsed
+              ? `${stats.code.rewardsEarned} earned · ${stats.code.creditsUsed} used`
+              : 'ready to use above monthly quota'
+          }
         />
         <StatCard
           icon={<Gift className="h-5 w-5" />}
           label="Free Months Earned"
           value={stats?.code?.monthsEarned ?? 0}
-          sub="from paid conversions"
+          sub="1 mo Creator free on Spark or +30d on paid"
         />
       </div>
 

@@ -1,33 +1,40 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { resolvePrimaryWorkspaceId, verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 export interface AuthContext {
   userId: string;
   workspaceId: string;
 }
 
-
-
-
 export async function getCurrentAuth(request: NextRequest): Promise<AuthContext | null> {
   const debugLines: string[] = [];
   try {
+    const activeCookieWsId = request.cookies?.get?.('unool_active_ws')?.value;
 
     // Priority 1: Check for secure headers injected by middleware.ts
     const headerUserId = request.headers.get('x-user-id');
     let headerWorkspaceId = request.headers.get('x-workspace-id');
 
     if (headerUserId) {
-      if (!headerWorkspaceId) {
-        const { data: member } = await supabaseAdmin
-          .from('workspace_members')
-          .select('workspace_id')
-          .eq('user_id', headerUserId)
-          .single();
-        headerWorkspaceId = member?.workspace_id || headerUserId;
+      if (headerWorkspaceId && activeCookieWsId && headerWorkspaceId !== activeCookieWsId) {
+        const cookieOk = await verifyWorkspaceAccess(headerUserId, activeCookieWsId);
+        if (cookieOk) {
+          headerWorkspaceId = activeCookieWsId;
+        }
+      } else if (headerWorkspaceId) {
+        const headerOk = await verifyWorkspaceAccess(headerUserId, headerWorkspaceId);
+        if (!headerOk) {
+          headerWorkspaceId = null;
+        }
       }
+
+      if (!headerWorkspaceId) {
+        headerWorkspaceId =
+          (await resolvePrimaryWorkspaceId(headerUserId, activeCookieWsId)) || headerUserId;
+      }
+
       if (headerWorkspaceId) {
         return { userId: headerUserId, workspaceId: headerWorkspaceId };
       }
@@ -77,18 +84,12 @@ export async function getCurrentAuth(request: NextRequest): Promise<AuthContext 
       throw new Error(`Auth resolution failed: ${debugLines.join(' | ')}`);
     }
 
-    // Get workspace ID from user metadata or workspace membership
-    const { data: member, error: memberErr } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', userObj.id)
-      .single();
-
-    if (memberErr && memberErr.code !== 'PGRST116') {
-      debugLines.push(`member_query_err:${memberErr.message}`);
-    }
-
-    const workspaceId = member?.workspace_id || userObj.user_metadata?.workspace_id || userObj.id;
+    // Get workspace ID deterministically (multi-workspace safe)
+    const resolvedWsId = await resolvePrimaryWorkspaceId(
+      userObj.id,
+      activeCookieWsId || (userObj.user_metadata?.workspace_id as string | undefined)
+    );
+    const workspaceId = resolvedWsId || userObj.id;
     if (!workspaceId) {
       throw new Error(`Workspace ID resolution failed: ${debugLines.join(' | ')}`);
     }

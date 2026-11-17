@@ -136,17 +136,66 @@ export const getAuthContext = cache(async function getAuthContext(): Promise<Aut
     return { userId: user.id, workspaceId: user.id };
   }
 
-  const { data: membership } = await adminClient
-    .from('workspace_members')
-    .select('workspace_id')
-    .eq('user_id', user.id)
-    .single();
+  const requestedWorkspaceId = cookieStore.get('unool_active_ws')?.value;
+
+  if (requestedWorkspaceId) {
+    const [{ data: memberMatch }, { data: ownerMatch }] = await Promise.all([
+      adminClient
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('workspace_id', requestedWorkspaceId)
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+      adminClient
+        .from('workspaces')
+        .select('id')
+        .eq('id', requestedWorkspaceId)
+        .eq('owner_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    if (memberMatch?.workspace_id || ownerMatch?.id) {
+      return { userId: user.id, workspaceId: requestedWorkspaceId };
+    }
+  }
+
+  const [{ data: membership }, { data: ownedWs }] = await Promise.all([
+    adminClient
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    adminClient
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (!membership && ownedWs) {
+    await adminClient.from('workspace_members').insert({
+      workspace_id: ownedWs.id,
+      user_id: user.id,
+      role: 'owner',
+    });
+    workspaceMemoryCache.set(user.id, {
+      workspaceId: ownedWs.id,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+    return { userId: user.id, workspaceId: ownedWs.id };
+  }
 
   if (!membership) {
     // User has no workspace - create a default one for them
     const { data: workspace } = await adminClient
       .from('workspaces')
-      .insert({ owner_id: user.id, name: 'Personal Workspace', plan: 'free' })
+      .insert({ owner_id: user.id, name: 'Personal Workspace', plan: 'spark' })
       .select('id')
       .single();
 

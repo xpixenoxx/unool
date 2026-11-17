@@ -3,7 +3,7 @@ import { getAuthContext } from '@/lib/auth/context';
 import { config } from '@/lib/config/schema';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
-import { getCurrentUsage, getLimitsForTier, Tier } from '@/lib/limits/freeTier';
+import { getOverviewUsage, getLimitsForTier, Tier } from '@/lib/entitlements';
 import { getOverviewCache, setOverviewCache } from '@/lib/cache/overviewCache';
 import { mapConnectionRows, mapConnectionAccounts } from '@/lib/platforms/connectionStatus';
 import { ConnectedAccountItem } from '@/components/dashboard/PlatformConnections';
@@ -101,7 +101,7 @@ async function getDashboardData(): Promise<{
     postRepository.findByWorkspaceId(workspaceId, { status: 'published', limit: 50 }),
 
     // 4. Usage stats (internally also runs its queries in parallel)
-    getCurrentUsage(supabaseAdmin, workspaceId, userId),
+    getOverviewUsage(supabaseAdmin, workspaceId),
 
     // 5. Platform connections (including multi-account metadata)
     (workspaceId !== userId

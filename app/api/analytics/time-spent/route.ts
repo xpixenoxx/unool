@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { config } from '@/lib/config/schema';
@@ -27,10 +27,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { section: rawSection, durationSeconds, userId: bodyUserId, workspaceId: bodyWorkspaceId } = parsed.data;
+    const { section: rawSection, durationSeconds, workspaceId: bodyWorkspaceId } = parsed.data;
     const section = normalizeSectionName(rawSection);
 
-    // Multi-tier authentication resolution
+    // Authentication resolution (verified session or Bearer token ONLY; never unverified body/header ID)
     let userId: string | null = null;
     let workspaceId: string | null = bodyWorkspaceId || null;
 
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch {
-      // Proceed to next fallback
+      // Proceed to Bearer fallback
     }
 
     // 2. Direct Bearer token fallback if auth helper didn't resolve
@@ -59,21 +59,8 @@ export async function POST(request: NextRequest) {
             userId = user.id;
           }
         } catch {
-          // Continue to next fallback
+          // Reject below
         }
-      }
-    }
-
-    // 3. Fallback: verified userId from request body or header
-    const candidateUserId = request.headers.get('x-user-id') || bodyUserId;
-    if (!userId && candidateUserId) {
-      try {
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(candidateUserId);
-        if (userData?.user?.id && (userData.user as any).user_metadata?.is_deleted !== true) {
-          userId = userData.user.id;
-        }
-      } catch {
-        // Unverified user
       }
     }
 

@@ -13,7 +13,16 @@ import {
   getCreatorAccessToken,
   markSessionVerified,
 } from '@/lib/follow-gate/service';
+import { sanitizeHttpHref } from '@/lib/follow-gate/url';
+import type { UnlockedContent } from '@/lib/follow-gate/types';
 import { logger } from '@/lib/logger';
+
+function sanitizeUnlockedContent(content: UnlockedContent | null | undefined): UnlockedContent | null {
+  if (!content) return null;
+  if (!content.url) return content;
+  const safeUrl = sanitizeHttpHref(content.url);
+  return { ...content, url: safeUrl ?? undefined };
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +51,7 @@ export async function GET(
       const gate = await getGate(gateId);
       return NextResponse.json({
         followVerified: true,
-        unlockedContent: gate?.unlockedContent ?? null,
+        unlockedContent: sanitizeUnlockedContent(gate?.unlockedContent),
         expiresAt: session.expiresAt,
       });
     }
@@ -87,7 +96,7 @@ export async function GET(
 
       return NextResponse.json({
         followVerified: true,
-        unlockedContent: gate.unlockedContent,
+        unlockedContent: sanitizeUnlockedContent(gate.unlockedContent),
         expiresAt: session.expiresAt,
       });
     }

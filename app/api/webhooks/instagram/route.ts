@@ -28,6 +28,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { resolveInstagramConnection } from '@/lib/platforms/instagram/identityResolver';
 import { queueService } from '@/lib/services/QueueService';
 import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
+import {
+  formatFollowGatePublicAsk,
+  checkFollowGateDmEligibility,
+} from '@/lib/services/automation/followGatePolicy';
 
 
 
@@ -695,7 +699,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
         // Follow-gate is active: post a PUBLIC comment reply to preserve the private-reply
         // slot (Meta allows only ONE private reply per comment). The private reply slot is
         // saved for the actual link DM after the user confirms they followed.
-        const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
+        const followAskPublic = formatFollowGatePublicAsk(automationConfig.followAskMessage, brandHandle);
         const publicReplyPosted = await automation.postPublicReply(
           accessToken,
           commentEvent.mediaId,
@@ -856,6 +860,34 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   // to check follow status — even if DM auto-reply is disabled. This ensures the
   // "please follow" prompt is always sent, independent of the AI reply setting.
   if (automationConfig.enabled && automationConfig.requireFollowForDm) {
+    const eligibility = await checkFollowGateDmEligibility(connection.workspace_id, connection.user_id);
+    if (!eligibility.allowed) {
+      logger.info('DM follow-gate skipped due to policy/quota', {
+        workspaceId: connection.workspace_id,
+        messageId: dmEvent.messageId,
+        reason: eligibility.reason,
+      });
+      await supabaseAdmin.from('instagram_dm_logs').upsert(
+        {
+          workspace_id: connection.workspace_id,
+          message_id: dmEvent.messageId,
+          sender_id: dmEvent.senderId,
+          sender_username: dmEvent.senderUsername,
+          message_text: dmEvent.text,
+          classification: 'question',
+          confidence: 1.0,
+          ai_reply: 'SKIP',
+          auto_replied: false,
+          escalated: true,
+          lead_score: 1,
+          reasoning: eligibility.reason || 'Follow-gate skipped by automation policy/quota',
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: 'message_id', ignoreDuplicates: false }
+      );
+      return;
+    }
+
     const followGateAccessToken = await getOrRefreshAccessToken(connection);
     if (!followGateAccessToken) {
       logger.warn('Could not obtain valid access token for DM follow gate', {

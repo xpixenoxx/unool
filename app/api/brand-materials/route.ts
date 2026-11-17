@@ -1,8 +1,9 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { enforcePlanLimits } from '@/lib/entitlements';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
         .from('profiles')
         .select('id, workspace_id, name, subdomain, avatar_url, role, company, bio, theme')
         .eq('subdomain', subdomainParam)
+        .is('deleted_at', null)
         .maybeSingle();
 
       if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -49,6 +51,7 @@ export async function GET(request: NextRequest) {
         .from('brand_materials_pages')
         .select('*')
         .eq('workspace_id', profile.workspace_id)
+        .eq('is_published', true)
         .order('updated_at', { ascending: false })
         .limit(1);
 
@@ -252,11 +255,35 @@ export async function PUT(request: NextRequest) {
     // Sanitize slug: lowercase alphanumeric and hyphens only
     const sanitizedSlug = (slug || 'page').toLowerCase().replace(/[^a-z0-9-_]/g, '').trim() || 'page';
 
+    // Check whether this updates an existing page or creates a new brand voice slot
+    const { data: existingPage } = await supabaseAdmin
+      .from('brand_materials_pages')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('slug', sanitizedSlug)
+      .maybeSingle();
+
+    if (!existingPage) {
+      const planCheck = await enforcePlanLimits(workspaceId, 'brand_voice');
+      if (!planCheck.allowed) {
+        const failedCheck = Object.values(planCheck.checks)[0];
+        return NextResponse.json(
+          {
+            error: failedCheck?.message || 'Brand materials limit reached for your current plan.',
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: planCheck.workspacePlan.planId,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // Fetch user profile subdomain and live template theme
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('subdomain, name, theme')
       .eq('workspace_id', workspaceId)
+      .is('deleted_at', null)
       .maybeSingle();
 
     const subdomain = profile?.subdomain || 'user';

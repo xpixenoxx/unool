@@ -11,7 +11,11 @@ import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 import { queueService, type InstagramOutboundJobParams } from '@/lib/services/QueueService';
-import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
+import { getPlanContext } from '@/lib/entitlements';
+import {
+  formatFollowGatePublicAsk,
+  checkFollowGateDmEligibility,
+} from '@/lib/services/automation/followGatePolicy';
 
 export const maxDuration = 60;
 
@@ -369,7 +373,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
           if (cfg?.require_follow_for_dm) {
             // B-07: Follow-gate active — post ONE public follow-ask reply (finalReply was skipped above).
             // This is the ONLY public reply on this comment.
-            const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
+            const followAskPublic = formatFollowGatePublicAsk(cfg?.follow_ask_message, brandHandle);
             const pubGateRes = await automation.postPublicReply(
               accessToken,
               mediaId || '',
@@ -565,6 +569,25 @@ async function handleJob(params: InstagramOutboundJobParams) {
 
       // ── Follow-to-Unlock Gate Enforcement ──────────────────────────────────
       if (cfg?.require_follow_for_dm) {
+        const eligibility = await checkFollowGateDmEligibility(workspaceId, connection.user_id);
+        if (!eligibility.allowed) {
+          const skipReason = eligibility.reason || 'Follow gate paused by automation policy/quota';
+          await markJobSent(workspaceId, jobType, targetId);
+          await flagDmForDeadLetter(workspaceId, params, skipReason);
+          await supabaseAdmin
+            .from('instagram_dm_logs')
+            .update({
+              auto_replied: false,
+              delivery_status: 'needs_review',
+              escalated: true,
+              ai_reply: 'SKIP',
+              reasoning: skipReason,
+            })
+            .eq('message_id', messageId);
+
+          return NextResponse.json({ success: true, skipped: true, reason: skipReason }, { status: 200 });
+        }
+
         const followGateResult = await automation.processDmFollowGate({
           dmEvent: dmEventObj,
           config: {

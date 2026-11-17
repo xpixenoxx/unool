@@ -3,11 +3,10 @@ import { PostAdapter, PlatformType, AdaptedPost, AdaptationContext, buildOnboard
 import { buildStudioContext } from '@/lib/ai/studioContext';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
-import { trackAiUsage } from '@/lib/limits/enforcer';
+import { trackAiUsage, planEnforcement } from '@/lib/entitlements';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { supabaseAdmin } from '@/lib/supabase/admin';

@@ -1,15 +1,20 @@
-import { Suspense } from 'react';
-import { FollowGateManagerPage } from '../follow-gates/FollowGateManagerPage';
+import { permanentRedirect } from 'next/navigation';
 
-export const metadata = {
-  title: 'Unlock Gates — Unool',
-  description: 'Lock exclusive content behind an Instagram follow. Your audience follows, content unlocks instantly.',
-};
-
-export default function UnlockGatesPage() {
-  return (
-    <Suspense>
-      <FollowGateManagerPage />
-    </Suspense>
-  );
+export default async function UnlockGatesRedirectPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolved = searchParams ? await searchParams : {};
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(resolved || {})) {
+    if (Array.isArray(val)) {
+      for (const v of val) params.append(key, v);
+    } else if (typeof val === 'string') {
+      params.append(key, val);
+    }
+  }
+  params.set('tab', 'instagram');
+  params.set('section', 'follow-gate');
+  permanentRedirect(`/dashboard/automation?${params.toString()}`);
 }

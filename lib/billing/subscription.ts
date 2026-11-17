@@ -312,6 +312,73 @@ export async function markOrderFailed(cfOrderId: string): Promise<void> {
     .eq('status', 'PENDING');
 }
 
+/**
+ * Mark a payment order as REFUNDED, revert workspace entitlement if still active for that order,
+ * and reverse any referral conversion rewards earned by the referrer.
+ */
+export async function markOrderRefunded(
+  cfOrderId: string
+): Promise<{ refunded: boolean; userId?: string }> {
+  const order = await findOrderByCfOrderId(cfOrderId);
+  if (!order) {
+    logger.warn('markOrderRefunded: order not found', { cfOrderId });
+    return { refunded: false };
+  }
+
+  if (order.status === 'REFUNDED') {
+    return { refunded: false, userId: order.user_id };
+  }
+
+  const { data: updatedRows, error: updateErr } = await supabaseAdmin
+    .from('payment_orders')
+    .update({
+      status: 'REFUNDED',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('cf_order_id', cfOrderId)
+    .eq('status', 'PAID')
+    .select('id');
+
+  if (updateErr || !updatedRows || updatedRows.length === 0) {
+    logger.info('markOrderRefunded: order not in PAID state — skipping', {
+      cfOrderId,
+      status: order.status,
+    });
+    return { refunded: false, userId: order.user_id };
+  }
+
+  // Immediately cancel/downgrade workspace subscription if active on this workspace
+  try {
+    await cancelSubscription(order.workspace_id, true);
+  } catch (cancelErr) {
+    logger.warn('Failed to cancel workspace subscription on refund', {
+      error: cancelErr,
+      workspaceId: order.workspace_id,
+      cfOrderId,
+    });
+  }
+
+  // Reverse referral rewards issued for this user's conversion
+  try {
+    const { revokeReferralConversionOnRefund } = await import('@/lib/referrals/service');
+    await revokeReferralConversionOnRefund(order.user_id, cfOrderId);
+  } catch (refErr) {
+    logger.warn('Failed to revoke referral conversion on refund', {
+      error: refErr,
+      userId: order.user_id,
+      cfOrderId,
+    });
+  }
+
+  logger.info('Payment order refunded and entitlements reversed', {
+    cfOrderId,
+    workspaceId: order.workspace_id,
+    userId: order.user_id,
+  });
+
+  return { refunded: true, userId: order.user_id };
+}
+
 // ── Subscription Management ────────────────────────────────────
 
 /**

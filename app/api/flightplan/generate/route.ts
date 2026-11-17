@@ -13,11 +13,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PostAdapter, PlatformType, PostSequence, AdaptationContext, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
 import { logger } from '@/lib/logger';
-import { trackAiUsage } from '@/lib/limits/enforcer';
+import { trackAiUsage, planEnforcement, enforcePlanLimit } from '@/lib/entitlements';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { planEnforcement, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { config } from '@/lib/config/schema';
 import { ContentGuard } from '@/lib/ai/ContentGuard';

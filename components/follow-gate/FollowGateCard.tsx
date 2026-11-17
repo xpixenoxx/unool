@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { sanitizeHttpHref } from '@/lib/follow-gate/url';
 import type { UnlockedContent } from '@/lib/follow-gate/types';
 import './FollowGateCard.css';
 
@@ -262,6 +263,7 @@ export function FollowGateCard({ gateId, gateMeta: initialMeta }: FollowGateCard
 // ── Unlocked view ──────────────────────────────────────────────────────────────
 
 function UnlockedView({ content, gate }: { content: UnlockedContent; gate: GateMeta }) {
+  const safeHref = sanitizeHttpHref(content.url);
   return (
     <div className="follow-gate-card follow-gate-card--unlocked" role="region" aria-live="polite">
       <div className="follow-gate-unlock-icon">🎉</div>
@@ -270,9 +272,9 @@ function UnlockedView({ content, gate }: { content: UnlockedContent; gate: GateM
         Thanks for following <strong>@{gate.igUsername}</strong>.
       </p>
 
-      {content.type === 'link' && content.url && (
+      {content.type === 'link' && safeHref && (
         <a
-          href={content.url}
+          href={safeHref}
           target="_blank"
           rel="noopener noreferrer"
           className="follow-gate-btn follow-gate-btn--primary"
@@ -282,9 +284,9 @@ function UnlockedView({ content, gate }: { content: UnlockedContent; gate: GateM
         </a>
       )}
 
-      {content.type === 'file' && content.url && (
+      {content.type === 'file' && safeHref && (
         <a
-          href={content.url}
+          href={safeHref}
           download
           className="follow-gate-btn follow-gate-btn--primary"
           id={`follow-gate-unlocked-download-${gate.id}`}

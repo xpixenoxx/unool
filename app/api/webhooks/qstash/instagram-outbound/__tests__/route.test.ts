@@ -566,8 +566,8 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
     }));
 
     expect(res.status).toBe(200);
-    // Called twice on postPublicReply (main reply + follow gate public ask) and NEVER on sendDmForComment
-    expect(mockPostPublicReply).toHaveBeenCalledTimes(2);
+    // B-07: Single follow-gate public ask reply preserves private DM slot without double-replying
+    expect(mockPostPublicReply).toHaveBeenCalledTimes(1);
     expect(mockSendDmForComment).not.toHaveBeenCalled();
   });
 

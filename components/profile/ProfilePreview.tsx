@@ -191,6 +191,7 @@ export function ProfilePreview({
       {!isPreview && (
         <MadeWithUnoolCTA
           subdomain={profile?.subdomain}
+          referralCode={profile?.referralCode}
           hideBadge={Boolean(profile?.hideBadge || profile?.plan?.badge_removal || profile?.features?.badge_removal)}
         />
       )}

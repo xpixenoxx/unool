@@ -2880,14 +2880,28 @@ export class SupabaseAdminRepository implements IAdminRepository {
       refStatsByCode.set(c, current);
     }
 
-    // Fetch user emails from auth
+    // Fetch user emails cleanly from public.users (no O(N) auth.admin.listUsers scan or GET mutations)
     const userEmailMap = new Map<string, string>();
     try {
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-      if (usersData?.users && Array.isArray(usersData.users)) {
-        for (const u of usersData.users) {
-          if (u.id && u.email) {
-            userEmailMap.set(u.id, u.email);
+      const targetUserIds = Array.from(
+        new Set(
+          dbCodes
+            .map((r: any) => r.user_id)
+            .concat(Array.from(refStatsByCode.values()).map((s) => s.referrerUserId).filter(Boolean))
+            .filter(Boolean)
+        )
+      ) as string[];
+
+      if (targetUserIds.length > 0) {
+        const { data: usersData } = await supabaseAdmin
+          .from('users')
+          .select('id, email')
+          .in('id', targetUserIds);
+        if (Array.isArray(usersData)) {
+          for (const u of usersData) {
+            if (u.id && u.email) {
+              userEmailMap.set(u.id, u.email);
+            }
           }
         }
       }
@@ -2896,7 +2910,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const seenCodes = new Set<string>();
     const mergedList: ReferralCodeAdminView[] = [];
 
-    // Map existing dbCodes with live stats from referrals
+    // Map existing dbCodes with truthful counters from DB and live referrals summary
     for (const row of dbCodes) {
       const codeKey = (row.code || '').trim().toUpperCase();
       seenCodes.add(codeKey);
@@ -2916,94 +2930,37 @@ export class SupabaseAdminRepository implements IAdminRepository {
         workspaceId: row.workspace_id || ownerWsMap.get(row.user_id)?.id || '',
         workspaceName: wsName || (row.workspace_id ? `Workspace ${row.workspace_id.slice(0, 6)}` : undefined),
         code: row.code,
-        clickCount: Math.max(row.click_count || 0, signupCount * 3),
+        clickCount: Number(row.click_count || 0),
         signupCount,
         conversionCount,
-        rewardsEarned: Math.max(row.rewards_earned || 0, monthsEarned * 1000 + signupCount * 200),
+        rewardsEarned: Number(row.rewards_earned || 0),
         monthsEarned,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       });
     }
 
-    // Include codes from referrals table that were not in referral_codes table
+    // Include codes from referrals table that do not yet have a referral_codes row (read-only view, no GET mutations)
     for (const [codeStr, stats] of refStatsByCode.entries()) {
       if (!seenCodes.has(codeStr)) {
         seenCodes.add(codeStr);
         const wsInfo = stats.referrerUserId ? ownerWsMap.get(stats.referrerUserId) : undefined;
         const userEmail = stats.referrerUserId ? userEmailMap.get(stats.referrerUserId) : undefined;
-        const newCodeItem: ReferralCodeAdminView = {
-          id: crypto.randomUUID(),
+        mergedList.push({
+          id: codeStr,
           userId: stats.referrerUserId || 'system',
           userEmail,
           workspaceId: wsInfo?.id || '',
           workspaceName: wsInfo?.name || 'Default Workspace',
           code: codeStr,
-          clickCount: stats.signups * 3,
+          clickCount: 0,
           signupCount: stats.signups,
           conversionCount: stats.conversions,
-          rewardsEarned: stats.months * 1000 + stats.signups * 200,
+          rewardsEarned: 0,
           monthsEarned: stats.months,
           createdAt: stats.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        };
-        mergedList.push(newCodeItem);
-
-        try {
-          await supabaseAdmin.from('referral_codes').upsert({
-            id: newCodeItem.id,
-            user_id: newCodeItem.userId,
-            workspace_id: newCodeItem.workspaceId,
-            code: newCodeItem.code,
-            click_count: newCodeItem.clickCount,
-            signup_count: newCodeItem.signupCount,
-            conversion_count: newCodeItem.conversionCount,
-            rewards_earned: newCodeItem.rewardsEarned,
-            months_earned: newCodeItem.monthsEarned,
-          }, { onConflict: 'code' });
-        } catch {}
-      }
-    }
-
-    // Also auto-generate referral codes for existing workspaces if missing
-    for (const ws of workspacesList) {
-      if (ws.owner_id) {
-        const hasCode = mergedList.some(c => c.userId === ws.owner_id || c.workspaceId === ws.id);
-        if (!hasCode) {
-          const rawName = (ws.name || 'USER').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-          const cleanName = rawName.length >= 3 ? rawName.slice(0, 4) : 'UNO';
-          const genSuffix = ws.id.replace(/-/g, '').slice(0, 4).toUpperCase();
-          const autoCode = `${cleanName}${genSuffix}`;
-          if (!seenCodes.has(autoCode)) {
-            seenCodes.add(autoCode);
-            const userEmail = userEmailMap.get(ws.owner_id);
-            const newCodeItem: ReferralCodeAdminView = {
-              id: crypto.randomUUID(),
-              userId: ws.owner_id,
-              userEmail,
-              workspaceId: ws.id,
-              workspaceName: ws.name,
-              code: autoCode,
-              clickCount: 0,
-              signupCount: 0,
-              conversionCount: 0,
-              rewardsEarned: 0,
-              monthsEarned: 0,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            mergedList.push(newCodeItem);
-
-            try {
-              await supabaseAdmin.from('referral_codes').upsert({
-                id: newCodeItem.id,
-                user_id: newCodeItem.userId,
-                workspace_id: newCodeItem.workspaceId,
-                code: newCodeItem.code,
-              }, { onConflict: 'code' });
-            } catch {}
-          }
-        }
+        });
       }
     }
 

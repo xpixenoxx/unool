@@ -62,13 +62,11 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
   const flushTime = async (section: string, seconds: number) => {
     if (seconds <= 0) return;
 
-    const activeUid = userIdRef.current || effectiveUserId;
     const activeWid = workspaceIdRef.current || effectiveWorkspaceId;
 
     const payload = JSON.stringify({
       section,
       durationSeconds: Math.min(seconds, 300),
-      userId: activeUid,
       workspaceId: activeWid,
     });
 
@@ -79,9 +77,6 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
       };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-      }
-      if (activeUid) {
-        headers['x-user-id'] = activeUid;
       }
 
       await fetch('/api/analytics/time-spent', {

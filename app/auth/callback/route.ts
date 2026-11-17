@@ -70,6 +70,26 @@ export async function GET(request: NextRequest) {
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
+        // Check whether user already exists before upserting profile (prevents returning OAuth referral farming)
+        const [{ data: existingUserRow }, { data: existingMember }, { data: existingOwnedWs }] =
+          await Promise.all([
+            adminClient.from('users').select('id').eq('id', user.id).limit(1).maybeSingle(),
+            adminClient
+              .from('workspace_members')
+              .select('workspace_id')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+            adminClient
+              .from('workspaces')
+              .select('id')
+              .eq('owner_id', user.id)
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+
         // Upsert user profile
         await adminClient.from('users').upsert(
           {
@@ -84,25 +104,31 @@ export async function GET(request: NextRequest) {
           { onConflict: 'id' }
         );
 
-        // Ensure workspace exists
-        const { data: existingMember } = await adminClient
-          .from('workspace_members')
-          .select('workspace_id')
-          .eq('user_id', user.id)
-          .single();
+        let resolvedWorkspaceId = existingMember?.workspace_id || existingOwnedWs?.id || null;
 
-        if (!existingMember) {
+        // Repair missing workspace_members row if workspace exists
+        if (!existingMember && existingOwnedWs) {
+          await adminClient.from('workspace_members').insert({
+            workspace_id: existingOwnedWs.id,
+            user_id: user.id,
+            role: 'owner',
+          });
+        }
+
+        // Create default workspace only when user has no membership and no owned workspace
+        if (!resolvedWorkspaceId) {
           const { data: newWorkspace } = await adminClient
             .from('workspaces')
             .insert({
               owner_id: user.id,
               name: 'Personal Workspace',
-              plan: 'free',
+              plan: 'spark',
             })
             .select('id')
             .single();
 
           if (newWorkspace) {
+            resolvedWorkspaceId = newWorkspace.id;
             await adminClient.from('workspace_members').insert({
               workspace_id: newWorkspace.id,
               user_id: user.id,
@@ -111,9 +137,17 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Attribute referral if user arrived with unool_ref cookie (regardless of prior workspace trigger)
+        // Attribute referral ONLY for newly registered accounts (not returning logins)
         const refCode = cookieStore.get('unool_ref')?.value;
-        if (refCode) {
+        const createdMs = user.created_at ? new Date(user.created_at).getTime() : 0;
+        const isFreshSignup =
+          !existingUserRow &&
+          !existingMember &&
+          !existingOwnedWs &&
+          createdMs > 0 &&
+          Date.now() - createdMs < 15 * 60 * 1000;
+
+        if (refCode && isFreshSignup) {
           try {
             const { recordReferralSignup } = await import('@/lib/referrals/service');
             await recordReferralSignup(user.id, refCode);

@@ -162,11 +162,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Auto-generate unique referral code for the new user immediately
+    // Auto-generate unique referral code for the new user using real resolved workspace
     if (userData?.user?.id) {
       try {
-        const { getOrCreateReferralCode } = await import('@/lib/referrals/service');
-        await getOrCreateReferralCode(userData.user.id, userData.user.id, name);
+        const [{ getOrCreateReferralCode }, { resolvePrimaryWorkspaceId }] = await Promise.all([
+          import('@/lib/referrals/service'),
+          import('@/lib/auth/workspaceAccess'),
+        ]);
+        const realWorkspaceId = (await resolvePrimaryWorkspaceId(userData.user.id)) || userData.user.id;
+        await getOrCreateReferralCode(userData.user.id, realWorkspaceId, name);
       } catch {
         // non-fatal, will be created on dashboard visit
       }

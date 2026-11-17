@@ -34,38 +34,43 @@ function SignUpComponent() {
   const [refCode, setRefCode] = useState('');
 
   useEffect(() => {
-    const urlRef = searchParams?.get('ref');
-    if (urlRef) {
-      setRefCode(urlRef);
-      try {
-        sessionStorage.setItem('unool_ref', urlRef);
-        document.cookie = `unool_ref=${encodeURIComponent(urlRef)}; path=/; max-age=2592000; SameSite=Lax`;
-      } catch {}
-      // Track referral link click — fire and forget, non-blocking
-      fetch('/api/referrals/click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: urlRef }),
-      }).catch(() => {});
-    } else {
-      try {
-        // Check sessionStorage first, then fall back to cookie
-        const fromSession = sessionStorage.getItem('unool_ref');
-        const fromCookie = document.cookie.match(/(?:^|;\s*)unool_ref=([^;]+)/)?.[1];
-        const stored = fromSession || (fromCookie ? decodeURIComponent(fromCookie) : null);
-        if (stored) {
-          setRefCode(stored);
-          if (!sessionStorage.getItem('unool_ref_click_recorded')) {
-            sessionStorage.setItem('unool_ref_click_recorded', '1');
-            fetch('/api/referrals/click', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ code: stored }),
-            }).catch(() => {});
-          }
+    const urlRef = searchParams?.get('ref')?.trim().toUpperCase() || '';
+    try {
+      const fromSession = sessionStorage.getItem('unool_ref')?.trim().toUpperCase() || '';
+      const fromCookie =
+        document.cookie
+          .match(/(?:^|;\s*)unool_ref=([^;]+)/)?.[1]
+          ?.trim() || '';
+      const decodedCookieRef = fromCookie ? decodeURIComponent(fromCookie).trim().toUpperCase() : '';
+
+      // First-touch attribution: keep existing referrer if already attributed
+      const effectiveRef = fromSession || decodedCookieRef || urlRef;
+      if (effectiveRef) {
+        setRefCode(effectiveRef);
+        if (!fromSession) {
+          sessionStorage.setItem('unool_ref', effectiveRef);
         }
-      } catch {}
-    }
+        if (!decodedCookieRef) {
+          document.cookie = `unool_ref=${encodeURIComponent(effectiveRef)}; path=/; max-age=2592000; SameSite=Lax`;
+        }
+
+        const alreadyClickedCookie =
+          document.cookie.match(/(?:^|;\s*)unool_ref_clicked=([^;]+)/)?.[1] || '';
+        const decodedClicked = alreadyClickedCookie
+          ? decodeURIComponent(alreadyClickedCookie).trim().toUpperCase()
+          : '';
+        const sessionClicked = sessionStorage.getItem('unool_ref_click_recorded');
+
+        if (sessionClicked !== effectiveRef && decodedClicked !== effectiveRef) {
+          sessionStorage.setItem('unool_ref_click_recorded', effectiveRef);
+          fetch('/api/referrals/click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: effectiveRef }),
+          }).catch(() => {});
+        }
+      }
+    } catch {}
 
     const urlClaim = searchParams?.get('claim') || searchParams?.get('handle');
     if (urlClaim) {

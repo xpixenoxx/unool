@@ -9,6 +9,7 @@ import { ArrowRight, ExternalLink, X } from 'lucide-react';
 export interface MadeWithUnoolCTAProps {
   className?: string;
   subdomain?: string;
+  referralCode?: string | null;
   hideBadge?: boolean;
 }
 
@@ -32,7 +33,7 @@ function UnoolEmblem({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   );
 }
 
-export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUnoolCTAProps) {
+export function MadeWithUnoolCTA({ className, subdomain, referralCode, hideBadge }: MadeWithUnoolCTAProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [handle, setHandle] = useState('');
@@ -43,7 +44,8 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
     return null;
   }
 
-  const referralQuery = subdomain ? `?ref=${encodeURIComponent(subdomain)}` : '';
+  const attributionCode = referralCode || subdomain;
+  const referralQuery = attributionCode ? `?ref=${encodeURIComponent(attributionCode)}` : '';
   const unoolHomeUrl = `https://unool.co${referralQuery}`;
 
   const handleMouseEnter = () => {
@@ -79,7 +81,7 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
 
     const queryParts: string[] = [];
     if (cleanHandle) queryParts.push(`claim=${encodeURIComponent(cleanHandle)}`);
-    if (subdomain) queryParts.push(`ref=${encodeURIComponent(subdomain)}`);
+    if (attributionCode) queryParts.push(`ref=${encodeURIComponent(attributionCode)}`);
 
     const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
     router.push(`/signup${queryString}`);

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import crypto from 'crypto';
 import { createServerClient } from '@supabase/ssr';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { createAccountSwitchToken, verifyAccountSwitchToken } from '@/lib/auth/account-switch-token';
@@ -15,7 +14,12 @@ const profileRepository = new SupabaseProfileRepository();
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getCurrentAuth(request);
+    let auth: Awaited<ReturnType<typeof getCurrentAuth>> = null;
+    try {
+      auth = await getCurrentAuth(request);
+    } catch {
+      auth = null;
+    }
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -113,13 +117,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tempPassword = crypto.randomBytes(32).toString('base64');
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      password: tempPassword,
+    const normalizedEmail = user.email.toLowerCase().trim();
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: normalizedEmail,
     });
 
-    if (updateError) {
-      logger.error('Failed to prepare switch-account session', { error: updateError, userId: user.id });
+    const tokenHash = (linkData?.properties as Record<string, unknown> | undefined)?.hashed_token as
+      | string
+      | undefined;
+
+    if (linkError || !tokenHash) {
+      logger.error('Failed to prepare switch-account session link', {
+        error: linkError,
+        userId: user.id,
+      });
       return NextResponse.json({ success: false, message: 'Session switch failed.' }, { status: 500 });
     }
 
@@ -140,9 +152,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const { data: signInData, error: signInError } = await supabaseSSR.auth.signInWithPassword({
-      email: user.email.toLowerCase().trim(),
-      password: tempPassword,
+    const { data: signInData, error: signInError } = await supabaseSSR.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'magiclink',
     });
 
     if (signInError || !signInData?.session) {

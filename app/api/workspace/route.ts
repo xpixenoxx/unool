@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { config } from '@/lib/config/schema';
-import { withPlanEnforcement } from '@/lib/middleware/plan-enforcement';
+import { withWorkspacePlan } from '@/lib/entitlements';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest) {
 }
 
 // Invite member - requires invite_member plan action
-export const POST = withPlanEnforcement(async (request: NextRequest, context: { userId: string; workspaceId: string }) => {
+export const POST = withWorkspacePlan(async (request: NextRequest, context: { userId: string; workspaceId: string }) => {
   try {
     const { userId, workspaceId } = context;
     const body = await request.json();

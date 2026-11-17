@@ -6,7 +6,8 @@ import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePost
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
+import { getPlanContext } from '@/lib/entitlements';
+import { getOrCreateReferralCode } from '@/lib/referrals/service';
 import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
 
 const profileRepository = new SupabaseProfileRepository();
@@ -194,9 +195,10 @@ export async function GET(
       // Non-critical — fail silently so the profile always loads
     }
 
-    // Resolve workspace plan entitlements (badge removal / white-label) for public profile rendering
+    // Resolve workspace plan entitlements & owner referral code for public profile badge attribution
     let hideBadge = false;
     let whiteLabel = false;
+    let referralCode: string | null = null;
     if (profile.workspaceId) {
       try {
         const planCtx = await getPlanContext(profile.userId, profile.workspaceId);
@@ -204,6 +206,18 @@ export async function GET(
         whiteLabel = Boolean(planCtx?.features?.white_label);
       } catch {
         // Default to showing badge if plan lookup fails
+      }
+    }
+    if (!hideBadge && profile.userId) {
+      try {
+        const refCodeRecord = await getOrCreateReferralCode(
+          profile.userId,
+          profile.workspaceId || profile.userId,
+          profile.name || profile.subdomain || 'CREATOR'
+        );
+        referralCode = refCodeRecord.code;
+      } catch {
+        // Non-critical fallback
       }
     }
 
@@ -238,6 +252,7 @@ export async function GET(
       },
       hideBadge,
       whiteLabel,
+      referralCode,
       features: {
         badge_removal: hideBadge,
         white_label: whiteLabel,

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ContentHumanizer } from '@/lib/ai/engines';
 import { PlatformType } from '@/lib/ai/PostAdapter';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { getPlanContext, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
-import { trackAiUsage } from '@/lib/limits/enforcer';
+import { getPlanContext, enforcePlanLimit, trackAiUsage } from '@/lib/entitlements';
 import { config } from '@/lib/config/schema';
 import { z } from 'zod';
 

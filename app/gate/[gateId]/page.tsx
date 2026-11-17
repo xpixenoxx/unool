@@ -2,9 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getGate } from '@/lib/follow-gate/service';
-import { FollowGateCard } from '@/components/follow-gate/FollowGateCard';
-import { Instagram, Lock, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
-import '@/components/follow-gate/FollowGateCard.css';
+import { Instagram, ArrowRight, ShieldCheck } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ gateId: string }>;
@@ -39,17 +37,7 @@ export default async function GatePublicPage({ params }: PageProps) {
     notFound();
   }
 
-  const isInactive = !gate.isActive;
-
-  const publicGateMeta = {
-    id: gate.id,
-    title: gate.title,
-    description: gate.description,
-    igUsername: gate.igUsername,
-    ctaText: gate.ctaText || 'Follow to unlock',
-    thumbnailUrl: gate.thumbnailUrl,
-    unlockCount: gate.unlockCount,
-  };
+  const sanitizedHandle = gate.igUsername.replace(/[^a-zA-Z0-9._]/g, '');
 
   return (
     <div style={{
@@ -142,7 +130,7 @@ export default async function GatePublicPage({ params }: PageProps) {
         flexDirection: 'column',
         alignItems: 'center',
       }}>
-        {isInactive ? (
+        {true ? (
           <div style={{
             background: '#FFFDF9',
             border: '1.5px solid #E8E0D4',
@@ -157,22 +145,29 @@ export default async function GatePublicPage({ params }: PageProps) {
               height: 56,
               borderRadius: 18,
               background: '#F4EFE6',
-              color: '#8B7355',
+              color: '#DF5B4C',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
             }}>
-              <Lock size={26} />
+              <Instagram size={26} />
             </div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#3D2B1F', margin: '0 0 8px' }}>
-              Drop Currently Paused
-            </h2>
-            <p style={{ fontSize: 14, color: '#8B7355', margin: '0 0 24px', lineHeight: 1.5 }}>
-              The creator @{gate.igUsername} has temporarily paused this unlock gate. Please check back later or visit their Instagram profile.
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#3D2B1F', margin: '0 0 8px' }}>
+              {gate.title}
+            </h1>
+            {gate.description && (
+              <p style={{ fontSize: 14, color: '#6E5A4F', margin: '0 0 14px', lineHeight: 1.5 }}>
+                {gate.description}
+              </p>
+            )}
+            <p style={{ fontSize: 14, color: '#8B7355', margin: '0 0 24px', lineHeight: 1.55 }}>
+              Follow gates now run directly inside Instagram DMs. Follow{' '}
+              <strong>@{sanitizedHandle}</strong> on Instagram and DM{' '}
+              <strong>&ldquo;link&rdquo;</strong> to receive your exclusive drop automatically.
             </p>
             <a
-              href={`https://instagram.com/${gate.igUsername}`}
+              href={`https://instagram.com/${sanitizedHandle}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -181,7 +176,7 @@ export default async function GatePublicPage({ params }: PageProps) {
                 gap: 8,
                 background: '#3D2B1F',
                 color: '#FAF7F2',
-                padding: '12px 20px',
+                padding: '12px 22px',
                 borderRadius: 12,
                 fontSize: 14,
                 fontWeight: 700,
@@ -189,52 +184,11 @@ export default async function GatePublicPage({ params }: PageProps) {
               }}
             >
               <Instagram size={16} />
-              <span>Visit @{gate.igUsername}</span>
+              <span>Follow &amp; DM @{sanitizedHandle}</span>
+              <ArrowRight size={15} />
             </a>
           </div>
-        ) : (
-          <div style={{ width: '100%' }}>
-            <FollowGateCard gateId={gate.id} gateMeta={publicGateMeta} />
-
-            {/* Quick 3-Step Trust Card below */}
-            <div style={{
-              marginTop: 20,
-              background: 'rgba(255, 253, 249, 0.7)',
-              border: '1px solid #E8E0D4',
-              borderRadius: 16,
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              backdropFilter: 'blur(8px)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: 'rgba(223, 91, 76, 0.1)',
-                  color: '#DF5B4C',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <Sparkles size={16} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#3D2B1F' }}>
-                    How it works
-                  </div>
-                  <div style={{ fontSize: 11.5, color: '#8B7355' }}>
-                    Follow @{gate.igUsername} on Instagram → tap verify → unlocks automatically!
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        ) : null}
       </main>
 
       {/* Footer */}

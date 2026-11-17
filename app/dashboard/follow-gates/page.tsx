@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 
 export default async function FollowGatesRedirectPage({
   searchParams,
@@ -14,6 +14,7 @@ export default async function FollowGatesRedirectPage({
       params.append(key, val);
     }
   }
-  const query = params.toString();
-  redirect(`/dashboard/unlock-gates${query ? `?${query}` : ''}`);
+  params.set('tab', 'instagram');
+  params.set('section', 'follow-gate');
+  permanentRedirect(`/dashboard/automation?${params.toString()}`);
 }

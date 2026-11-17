@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { getGate, updateGate, deleteGate, toggleGate } from '@/lib/follow-gate/service';
+import { isSafeHttpUrl } from '@/lib/follow-gate/url';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,6 @@ export async function GET(
   { params }: { params: Promise<{ gateId: string }> }
 ) {
   try {
-    // B-22: Require authentication — gate details include unlocked_content
     const userClient = await createSupabaseServerClient();
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,6 +28,10 @@ export async function GET(
 
     const gate = await getGate(gateId);
     if (!gate) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (gate.workspaceId !== workspaceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     return NextResponse.json({ gate });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -55,12 +59,23 @@ export async function PATCH(
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    // Handle toggle separately
+    const existingGate = await getGate(gateId);
+    if (!existingGate) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (existingGate.workspaceId !== workspaceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (updates.unlockedContent?.url && !isSafeHttpUrl(updates.unlockedContent.url)) {
+      return NextResponse.json({ error: 'unlockedContent.url must use http or https scheme' }, { status: 400 });
+    }
+    if (updates.thumbnailUrl && !isSafeHttpUrl(updates.thumbnailUrl)) {
+      return NextResponse.json({ error: 'thumbnailUrl must use http or https scheme' }, { status: 400 });
+    }
+
     if (typeof isActive === 'boolean') {
       await toggleGate(gateId, workspaceId, isActive);
     }
 
-    // Handle other field updates
     const hasOtherUpdates = Object.keys(updates).length > 0;
     if (hasOtherUpdates) {
       const gate = await updateGate(gateId, workspaceId, updates);
@@ -93,6 +108,12 @@ export async function DELETE(
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const existingGate = await getGate(gateId);
+    if (!existingGate) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (existingGate.workspaceId !== workspaceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     await deleteGate(gateId, workspaceId);
     logger.info('Follow gate deleted', { gateId, workspaceId });

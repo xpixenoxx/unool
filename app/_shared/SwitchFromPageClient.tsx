@@ -136,8 +136,8 @@ export function SwitchFromPageClient(props: SwitchFromProps) {
         <h2 className="sf-section-title">Switch in 3 steps</h2>
         <div className="sf-steps">
           {[
-            { num: '1', title: 'Sign up free', desc: 'Create your Unool account. No credit card. Starts with 14-day full Pro trial.' },
-            { num: '2', title: 'Claim your subdomain', desc: 'yourname.unool.co — or connect your custom domain on Pro.' },
+            { num: '1', title: 'Sign up free', desc: 'Create your free-forever Spark account with no credit card required.' },
+            { num: '2', title: 'Claim your subdomain', desc: 'Get yourname.unool.co live in seconds with clean creator templates.' },
             { num: '3', title: 'Connect Instagram', desc: 'Link your Instagram Business account. Your automations go live instantly.' },
           ].map((step) => (
             <div key={step.num} className="sf-step">
@@ -157,7 +157,7 @@ export function SwitchFromPageClient(props: SwitchFromProps) {
           Ready to switch from {fromDisplayName}?
         </h2>
         <p className="sf-bottom-sub">
-          Start free. No credit card. 14-day full Pro trial. Cancel anytime.
+          Start free forever on Spark. No credit card required. Upgrade anytime.
         </p>
         <Link href="/signup" className="sf-bottom-btn" id={`switch-bottom-cta-${props.from}`}>
           Get started free →

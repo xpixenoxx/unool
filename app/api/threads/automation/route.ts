@@ -134,6 +134,11 @@ export async function PUT(request: NextRequest) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({ error: 'Automation features are currently disabled by administrator' }, { status: 403 });
+    }
+
     let threadsUserId = rest.threadsUserId;
     if (!threadsUserId) {
       const { data: conn } = await supabaseAdmin

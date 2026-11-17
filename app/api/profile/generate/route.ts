@@ -1,9 +1,8 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { ProfileExtractor, ExtractedProfile } from '@/lib/ai/ProfileExtractor';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
-import { trackAiUsage } from '@/lib/limits/enforcer';
-import { withPlanEnforcement } from '@/lib/middleware/plan-enforcement';
+import { trackAiUsage, withWorkspacePlan } from '@/lib/entitlements';
 
 
 async function handleGenerate(request: NextRequest) {
@@ -52,4 +51,4 @@ async function handleGenerate(request: NextRequest) {
   }
 }
 
-export const POST = withPlanEnforcement(handleGenerate, { action: 'use_ai' });
+export const POST = withWorkspacePlan(handleGenerate, { action: 'use_ai' });

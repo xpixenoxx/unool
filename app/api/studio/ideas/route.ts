@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { getPlanContext, enforcePlanLimit, trackAiUsage } from '@/lib/entitlements';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { config } from '@/lib/config/schema';
 import { GroqProvider } from '@/lib/ai/providers/GroqProvider';
@@ -62,6 +63,24 @@ export async function POST(request: NextRequest) {
         },
         { status: 429 }
       );
+    }
+
+    // Enforce monthly AI credit quota (includes referral bonus credits)
+    const planCtx = await getPlanContext(userId, workspaceId);
+    if (planCtx) {
+      const enforcement = await enforcePlanLimit(request, 'use_ai', planCtx);
+      if (!enforcement.allowed) {
+        return NextResponse.json(
+          {
+            error: enforcement.error?.message || 'AI credit limit exceeded. Upgrade or refer friends to earn more credits.',
+            code: 'PLAN_LIMIT_EXCEEDED',
+            plan: enforcement.error?.plan,
+            limit: enforcement.error?.limit,
+            currentUsage: enforcement.error?.currentUsage,
+          },
+          { status: 403, headers: enforcement.headers }
+        );
+      }
     }
 
     // 3. Parse & sanitize request body
@@ -205,6 +224,17 @@ export async function POST(request: NextRequest) {
     }
 
     const finalIdeas = collectedIdeas.slice(0, 3);
+
+    if (finalIdeas.length > 0) {
+      await trackAiUsage(
+        workspaceId,
+        userId,
+        180,
+        320,
+        'studio-ideas',
+        config.AI_DEFAULT_MODEL
+      ).catch(() => {});
+    }
 
     // Server-side audit log
     logger.info('Studio ideas generated successfully', {

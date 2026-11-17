@@ -75,11 +75,11 @@ function isProfilePath(pathname: string): string | null {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for static assets
+  // Skip middleware for static assets (never skip /api/* routes containing dots)
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
-    pathname.includes('.')
+    (!pathname.startsWith('/api/') && pathname.includes('.'))
   ) {
     return NextResponse.next();
   }
@@ -151,6 +151,16 @@ export async function middleware(request: NextRequest) {
 
   // Public paths
   if (!hostSubdomain && isPublicPath(pathname)) {
+    if (pathname.startsWith('/api/')) {
+      const sanitizedHeaders = new Headers(request.headers);
+      sanitizedHeaders.delete('x-user-id');
+      sanitizedHeaders.delete('x-workspace-id');
+      const apiNext = NextResponse.next({ request: { headers: sanitizedHeaders } });
+      if (refResponse) {
+        refResponse.cookies.getAll().forEach((c) => apiNext.cookies.set(c));
+      }
+      return apiNext;
+    }
     return refResponse ?? NextResponse.next();
   }
 
@@ -202,22 +212,50 @@ export async function middleware(request: NextRequest) {
         if (user) {
           sanitizedHeaders.set('x-user-id', user.id);
 
-          // Also resolve workspace ID so getCurrentAuth needs zero DB calls
+          // Also resolve workspace ID so getCurrentAuth needs zero DB calls (multi-workspace safe)
           if (supabaseServiceKey) {
             try {
               const { createClient: createSbClient } = await import('@supabase/supabase-js');
               const admin = createSbClient(supabaseUrl, supabaseServiceKey);
+              const preferredWsId = request.cookies.get('unool_active_ws')?.value;
+
+              const resolveWs = async (): Promise<string | null> => {
+                if (preferredWsId) {
+                  const { data: preferredMember } = await admin
+                    .from('workspace_members')
+                    .select('workspace_id')
+                    .eq('workspace_id', preferredWsId)
+                    .eq('user_id', user.id)
+                    .limit(1)
+                    .maybeSingle();
+                  if (preferredMember?.workspace_id) return preferredMember.workspace_id;
+                }
+
+                const { data: firstMember } = await admin
+                  .from('workspace_members')
+                  .select('workspace_id')
+                  .eq('user_id', user.id)
+                  .order('created_at', { ascending: true })
+                  .limit(1)
+                  .maybeSingle();
+                if (firstMember?.workspace_id) return firstMember.workspace_id;
+
+                const { data: owned } = await admin
+                  .from('workspaces')
+                  .select('id')
+                  .eq('owner_id', user.id)
+                  .order('created_at', { ascending: true })
+                  .limit(1)
+                  .maybeSingle();
+                return owned?.id ?? null;
+              };
+
               // Use a short timeout (1.5s) so a slow DB never blocks the API call
-              const workspacePromise = admin
-                .from('workspace_members')
-                .select('workspace_id')
-                .eq('user_id', user.id)
-                .single();
-              const timeoutPromise = new Promise<{ data: null; error: Error }>(
-                (resolve) => setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 1500)
+              const timeoutPromise = new Promise<null>(
+                (resolve) => setTimeout(() => resolve(null), 1500)
               );
-              const result = await Promise.race([workspacePromise, timeoutPromise]);
-              const workspaceId = result.data?.workspace_id || user.id;
+              const resolvedWsId = await Promise.race([resolveWs(), timeoutPromise]);
+              const workspaceId = resolvedWsId || user.id;
               sanitizedHeaders.set('x-workspace-id', workspaceId);
             } catch {
               // workspace lookup failed — getCurrentAuth will resolve it
