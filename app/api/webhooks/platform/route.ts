@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { verifyWebhookSignature, extractWebhookSignature } from '@/lib/webhooks/verify';
 import { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
@@ -6,10 +6,11 @@ import { SupabasePlatformRepository } from '@/lib/repositories/supabase/Supabase
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { config } from '@/lib/config/schema';
 import { queueService, type FacebookOutboundJobParams, type ThreadsOutboundJobParams } from '@/lib/services/QueueService';
+import { resolveFacebookAutomationTarget } from '@/lib/services/automation/facebookPageResolver';
 
 const platformRepository = new SupabasePlatformRepository();
 
-// ── GET: Meta hub.challenge verification for Facebook and Threads webhooks ──
+// â”€â”€ GET: Meta hub.challenge verification for Facebook and Threads webhooks â”€â”€
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get('hub.mode');
   const token = request.nextUrl.searchParams.get('hub.verify_token');
@@ -292,7 +293,7 @@ async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void
           '';
         await processThreadsReplyEvent(threadsUserId, value, field, targetId);
       } else if (field === 'messages' || field === 'dm') {
-        logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API — discarding', { field });
+        logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API â€” discarding', { field });
       }
     }
     return;
@@ -315,7 +316,7 @@ async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void
           change.field as 'replies' | 'mentions'
         );
       } else if (change.field === 'messages' || change.field === 'dm') {
-        logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API — discarding', {
+        logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API â€” discarding', {
           field: change.field,
         });
       } else {
@@ -350,7 +351,7 @@ async function processThreadsReplyEvent(
     (field === 'replies' ? targetId : undefined);
 
   if (!replyId || (!threadsUserId && !rootOwnerUsername)) {
-    logger.debug('Threads reply event missing id or owner identifier — skipping', { replyId, threadsUserId });
+    logger.debug('Threads reply event missing id or owner identifier â€” skipping', { replyId, threadsUserId });
     return;
   }
 
@@ -490,7 +491,7 @@ async function handleFacebookWebhook(data: Record<string, unknown>): Promise<voi
     const pageId = entry.id as string | undefined;
     if (!pageId) continue;
 
-    // ── Feed (comment) events ──
+    // â”€â”€ Feed (comment) events â”€â”€
     const changes = entry.changes as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(changes)) {
       for (const change of changes) {
@@ -503,7 +504,7 @@ async function handleFacebookWebhook(data: Record<string, unknown>): Promise<voi
       }
     }
 
-    // ── Messenger events ──
+    // â”€â”€ Messenger events â”€â”€
     const messaging = entry.messaging as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(messaging)) {
       for (const msg of messaging) {
@@ -534,39 +535,13 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
   }
 
   try {
-    // Load facebook automation config (by page_id first, then fallback to workspace connection)
-    let { data: cfg } = await supabaseAdmin
-      .from('facebook_automation_config')
-      .select('*')
-      .eq('page_id', pageId)
-      .eq('enabled', true)
-      .maybeSingle();
-
-    if (!cfg) {
-      const { data: conn } = await supabaseAdmin
-        .from('platform_connections')
-        .select('workspace_id')
-        .eq('platform', 'facebook')
-        .eq('status', 'connected')
-        .or(`platform_user_id.eq.${pageId},scopes.cs.{fb_page_id:${pageId}}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (conn?.workspace_id) {
-        const { data: fallbackCfg } = await supabaseAdmin
-          .from('facebook_automation_config')
-          .select('*')
-          .eq('workspace_id', conn.workspace_id)
-          .eq('enabled', true)
-          .maybeSingle();
-        cfg = fallbackCfg;
-      }
-    }
-
-    if (!cfg) {
+    // Resolve workspace/config/connection for this page (multi-account safe, self-healing for legacy connections)
+    const target = await resolveFacebookAutomationTarget(pageId);
+    if (!target) {
       logger.debug('Facebook automation not configured or disabled for page', { pageId });
       return;
     }
+    const cfg = target.cfg;
 
     // Dedup check
     const { data: existing } = await supabaseAdmin
@@ -580,20 +555,7 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
       return;
     }
 
-    // Load platform connection
-    const { data: connections } = await supabaseAdmin
-      .from('platform_connections')
-      .select('id')
-      .eq('workspace_id', cfg.workspace_id)
-      .eq('platform', 'facebook')
-      .eq('status', 'connected')
-      .limit(1);
-
-    const connectionId = connections?.[0]?.id;
-    if (!connectionId) {
-      logger.warn('No active Facebook connection for workspace', { workspaceId: cfg.workspace_id });
-      return;
-    }
+    const connectionId = target.connectionId;
 
     const jobParams: FacebookOutboundJobParams = {
       jobId: `fb-comment-${commentId}-${Date.now()}`,
@@ -638,35 +600,9 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
   if (!messageId || !senderId || senderId === pageId) return;
 
   try {
-    let { data: cfg } = await supabaseAdmin
-      .from('facebook_automation_config')
-      .select('*')
-      .eq('page_id', pageId)
-      .eq('enabled', true)
-      .maybeSingle();
-
-    if (!cfg) {
-      const { data: conn } = await supabaseAdmin
-        .from('platform_connections')
-        .select('workspace_id')
-        .eq('platform', 'facebook')
-        .eq('status', 'connected')
-        .or(`platform_user_id.eq.${pageId},scopes.cs.{fb_page_id:${pageId}}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (conn?.workspace_id) {
-        const { data: fallbackCfg } = await supabaseAdmin
-          .from('facebook_automation_config')
-          .select('*')
-          .eq('workspace_id', conn.workspace_id)
-          .eq('enabled', true)
-          .maybeSingle();
-        cfg = fallbackCfg;
-      }
-    }
-
-    if (!cfg) return;
+    const target = await resolveFacebookAutomationTarget(pageId);
+    if (!target) return;
+    const cfg = target.cfg;
 
     const { data: existing } = await supabaseAdmin
       .from('facebook_dm_logs')
@@ -679,16 +615,7 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
       return;
     }
 
-    const { data: connections } = await supabaseAdmin
-      .from('platform_connections')
-      .select('id')
-      .eq('workspace_id', cfg.workspace_id)
-      .eq('platform', 'facebook')
-      .eq('status', 'connected')
-      .limit(1);
-
-    const connectionId = connections?.[0]?.id;
-    if (!connectionId) return;
+    const connectionId = target.connectionId;
 
     const jobParams: FacebookOutboundJobParams = {
       jobId: `fb-dm-${messageId}-${Date.now()}`,

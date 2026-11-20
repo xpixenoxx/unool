@@ -34,6 +34,14 @@ vi.mock('@/lib/services/QueueService', () => ({
   },
 }));
 
+const mockResolveTarget = vi.fn().mockResolvedValue({
+  cfg: { id: 'cfg_1', workspace_id: 'ws_123', page_id: '122106760341502479', enabled: true },
+  connectionId: 'conn_fb_123',
+});
+vi.mock('@/lib/services/automation/facebookPageResolver', () => ({
+  resolveFacebookAutomationTarget: (...args: unknown[]) => mockResolveTarget(...args),
+}));
+
 const mockFrom = vi.fn();
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
@@ -46,6 +54,11 @@ import { GET, POST } from '../route';
 describe('Platform Webhooks Route (/api/webhooks/platform)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResolveTarget.mockResolvedValue({
+      cfg: { id: 'cfg_1', workspace_id: 'ws_123', page_id: '122106760341502479', enabled: true },
+      connectionId: 'conn_fb_123',
+    });
+    mockEnqueue.mockResolvedValue('msg_123');
   });
 
   describe('GET (Meta Hub Challenge Verification)', () => {
