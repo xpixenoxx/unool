@@ -8,7 +8,7 @@ import {
   PublishResult,
 } from './adapter';
 import { logger } from '@/lib/logger';
-import sharp from 'sharp';
+import { loadSharp } from '@/lib/media/sharpLoader';
 
 export class DribbbleAdapter implements PlatformAdapter {
   readonly platform = 'dribbble' as const;
@@ -118,6 +118,8 @@ export class DribbbleAdapter implements PlatformAdapter {
 
     // Pre-publish normalization safety net for Dribbble: must be exact 4:3 ratio between 400x300 and 1600x1200
     try {
+      const sharp = await loadSharp();
+      if (!sharp) throw new Error('image processing unavailable in this runtime; publishing original image');
       const meta = await sharp(imageBuffer).metadata();
       const w = meta.width || 0;
       const h = meta.height || 0;
