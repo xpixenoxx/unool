@@ -10,7 +10,7 @@ const CURRENT_VERSION = 1;
  * Derives encryption keys from ENCRYPTION_KEY and SUPABASE_SERVICE_ROLE_KEY
  * Uses PBKDF2 for proper key derivation with per-version salt
  */
-async function getDerivedKeys(version: number = CURRENT_VERSION): Promise<CryptoKey[]> {
+async function getDerivedKeys(version: number = CURRENT_VERSION, firstOnly = false): Promise<CryptoKey[]> {
   const secrets: string[] = [];
   if (config.ENCRYPTION_KEY) secrets.push(config.ENCRYPTION_KEY);
   if (config.SUPABASE_SERVICE_ROLE_KEY && !secrets.includes(config.SUPABASE_SERVICE_ROLE_KEY)) {
@@ -22,32 +22,9 @@ async function getDerivedKeys(version: number = CURRENT_VERSION): Promise<Crypto
   }
 
   const keys: CryptoKey[] = [];
-  const encoder = new TextEncoder();
-  const salt = encoder.encode(`unool-encryption-v${version}`);
-
-  for (const secret of secrets) {
+  for (const secret of firstOnly ? secrets.slice(0, 1) : secrets) {
     try {
-      const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(secret),
-        'PBKDF2',
-        false,
-        ['deriveBits', 'deriveKey']
-      );
-
-      const key = await crypto.subtle.deriveKey(
-        {
-          name: 'PBKDF2',
-          salt,
-          iterations: 100000,
-          hash: 'SHA-256',
-        },
-        keyMaterial,
-        { name: ENCRYPTION_ALGORITHM, length: KEY_LENGTH },
-        false,
-        ['encrypt', 'decrypt']
-      );
-      keys.push(key);
+      keys.push(await deriveCached(secret, version));
     } catch {
       // Continue to next secret
     }
@@ -56,8 +33,35 @@ async function getDerivedKeys(version: number = CURRENT_VERSION): Promise<Crypto
   return keys;
 }
 
+// PBKDF2 (100k iterations) is CPU-heavy; derive once per secret+version per isolate.
+// Cache the promise so concurrent callers share a single derivation.
+const derivedKeyCache = new Map<string, Promise<CryptoKey>>();
+
+function deriveCached(secret: string, version: number): Promise<CryptoKey> {
+  const cacheKey = `${version}:${secret}`;
+  let pending = derivedKeyCache.get(cacheKey);
+  if (!pending) {
+    const encoder = new TextEncoder();
+    const salt = encoder.encode(`unool-encryption-v${version}`);
+    pending = crypto.subtle
+      .importKey('raw', encoder.encode(secret), 'PBKDF2', false, ['deriveBits', 'deriveKey'])
+      .then((keyMaterial) =>
+        crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+          keyMaterial,
+          { name: ENCRYPTION_ALGORITHM, length: KEY_LENGTH },
+          false,
+          ['encrypt', 'decrypt']
+        )
+      );
+    pending.catch(() => derivedKeyCache.delete(cacheKey));
+    derivedKeyCache.set(cacheKey, pending);
+  }
+  return pending;
+}
+
 async function getDerivedKey(version: number = CURRENT_VERSION): Promise<CryptoKey> {
-  const keys = await getDerivedKeys(version);
+  const keys = await getDerivedKeys(version, true);
   if (keys.length === 0) {
     throw new Error('No encryption key derived');
   }
