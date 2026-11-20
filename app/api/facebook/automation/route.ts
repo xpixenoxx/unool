@@ -142,19 +142,56 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Automation features are currently disabled by administrator' }, { status: 403 });
     }
 
-    // Find connected pageId if not passed in body
-    let pageId = rest.pageId;
-    if (!pageId) {
-      const { data: conn } = await supabaseAdmin
-        .from('platform_connections')
-        .select('platform_user_id, metadata')
-        .eq('workspace_id', workspaceId)
-        .eq('platform', 'facebook')
-        .eq('status', 'connected')
-        .limit(1)
-        .maybeSingle();
+    // Resolve real Facebook Page ID (platform_user_id is the FB User ID, not Page ID)
+    let pageId: string | undefined = rest.pageId && rest.pageId !== 'default_page' ? String(rest.pageId) : undefined;
+    const { data: fbConn } = await supabaseAdmin
+      .from('platform_connections')
+      .select('id, platform_user_id, access_token_encrypted, scopes')
+      .eq('workspace_id', workspaceId)
+      .eq('platform', 'facebook')
+      .eq('status', 'connected')
+      .limit(1)
+      .maybeSingle();
 
-      pageId = conn?.platform_user_id || (conn?.metadata as Record<string, unknown>)?.page_id || 'default_page';
+    const existingScopes = Array.isArray(fbConn?.scopes) ? (fbConn.scopes as string[]) : [];
+    const scopePageTag = existingScopes.find((s) => typeof s === 'string' && s.startsWith('fb_page_id:'));
+    const scopePageId = scopePageTag ? scopePageTag.slice('fb_page_id:'.length) : undefined;
+
+    if (!pageId || (fbConn?.platform_user_id && pageId === fbConn.platform_user_id)) {
+      if (typeof scopePageId === 'string' && scopePageId.length > 0) {
+        pageId = scopePageId;
+      } else if (fbConn?.access_token_encrypted) {
+        try {
+          const { decryptToken } = await import('@/lib/crypto/encryption');
+          const { facebookAdapter } = await import('@/lib/platforms/FacebookAdapter');
+          const userToken = await decryptToken(fbConn.access_token_encrypted);
+          const pages = await facebookAdapter.getUserPages(userToken);
+          if (pages.length > 0) {
+            pageId = pages[0].id;
+            const updatedScopes = [...existingScopes];
+            for (const p of pages) {
+              const tag = `fb_page_id:${p.id}`;
+              if (!updatedScopes.includes(tag)) updatedScopes.push(tag);
+              if (p.accessToken) {
+                try {
+                  await facebookAdapter.subscribePageWebhook(p.accessToken, p.id);
+                } catch {
+                  // non-fatal if page webhook subscription lacks permission
+                }
+              }
+            }
+            await supabaseAdmin
+              .from('platform_connections')
+              .update({ scopes: updatedScopes })
+              .eq('id', fbConn.id);
+          }
+        } catch (resolveErr) {
+          logger.warn('Failed to resolve Facebook Page ID via getUserPages', { error: resolveErr, workspaceId });
+        }
+      }
+    }
+    if (!pageId) {
+      pageId = fbConn?.platform_user_id || 'default_page';
     }
 
     const fullPayload: Record<string, any> = {

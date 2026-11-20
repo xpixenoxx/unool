@@ -31,7 +31,7 @@ export class ThreadsAdapter implements PlatformAdapter {
     clientId: config.THREADS_CLIENT_ID || '',
     clientSecret: config.THREADS_CLIENT_SECRET || '',
     redirectUri: config.THREADS_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['threads_basic', 'threads_content_publish', 'threads_manage_replies', 'threads_manage_insights'],
+    scopes: ['threads_basic', 'threads_content_publish', 'threads_manage_replies', 'threads_read_replies', 'threads_manage_insights'],
   };
 
   getAuthUrl(state: string): string {

@@ -53,3 +53,5 @@ tmp-*.json
 temp_*.txt
 tempp.txt
 .vitest-cache/
+.vinext/
+.cloudflare/

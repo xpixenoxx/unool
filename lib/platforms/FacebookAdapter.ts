@@ -643,9 +643,22 @@ export class FacebookAdapter implements PlatformAdapter {
         { method: 'POST', body: params }
       );
       if (!response.ok) {
-        const error = await response.text();
-        logger.error('Facebook page webhook subscription failed', { errorMessage: error, pageId });
-        throw new Error(`Page webhook subscription failed: ${error}`);
+        // Fallback: if 'messages' scope (pages_messaging) was not granted, still subscribe 'feed' for comment automation
+        const feedOnlyParams = new URLSearchParams({
+          subscribed_fields: 'feed',
+          access_token: pageAccessToken,
+        });
+        const feedResponse = await fetchWithRetry(
+          `${FACEBOOK_API_BASE}/${pageId}/subscribed_apps`,
+          { method: 'POST', body: feedOnlyParams }
+        );
+        if (!feedResponse.ok) {
+          const error = await feedResponse.text();
+          logger.error('Facebook page webhook subscription failed', { errorMessage: error, pageId });
+          throw new Error(`Page webhook subscription failed: ${error}`);
+        }
+        logger.info('Facebook page webhook subscribed (feed only)', { pageId });
+        return;
       }
       logger.info('Facebook page webhook subscribed', { pageId });
     });

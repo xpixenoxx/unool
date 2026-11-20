@@ -51,10 +51,7 @@ export function isOriginAllowed(origin: string | null | undefined): string | nul
     if (parsed.protocol === 'https:' && parsed.hostname.toLowerCase().endsWith('.unool.co')) {
       return parsed.origin;
     }
-    if (
-      process.env.VERCEL_URL &&
-      parsed.origin.toLowerCase() === `https://${process.env.VERCEL_URL.toLowerCase()}`
-    ) {
+    if (parsed.protocol === 'https:' && parsed.hostname.toLowerCase().endsWith('.workers.dev')) {
       return parsed.origin;
     }
   } catch {

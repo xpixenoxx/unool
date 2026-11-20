@@ -16,7 +16,16 @@ export class GroqProvider implements AIProvider {
 
   constructor(apiKey: string, defaultModel: string = 'qwen/qwen3.8-27b') {
     this.apiKey = apiKey;
-    this.defaultModel = defaultModel;
+    const isOpenAiKey = Boolean(apiKey && apiKey.startsWith('sk-') && !apiKey.startsWith('gsk_'));
+    if (isOpenAiKey) {
+      this.baseUrl = 'https://api.openai.com/v1';
+      this.defaultModel =
+        defaultModel && !defaultModel.includes('/') && !defaultModel.startsWith('llama')
+          ? defaultModel
+          : process.env.AI_OPENAI_MODEL || 'gpt-4o-mini';
+    } else {
+      this.defaultModel = defaultModel;
+    }
   }
 
   async generateText(

@@ -25,10 +25,11 @@ vi.mock('@/lib/config/schema', () => ({
 }));
 
 const mockEnqueue = vi.fn().mockResolvedValue('msg_123');
+const mockThreadsEnqueue = vi.fn().mockResolvedValue('threads_msg_123');
 vi.mock('@/lib/services/QueueService', () => ({
   queueService: {
     enqueueFacebookOutboundTask: (...args: unknown[]) => mockEnqueue(...args),
-    enqueueThreadsOutboundTask: vi.fn().mockResolvedValue('threads_msg_123'),
+    enqueueThreadsOutboundTask: (...args: unknown[]) => mockThreadsEnqueue(...args),
     isAvailable: () => true,
   },
 }));
@@ -282,6 +283,92 @@ describe('Platform Webhooks Route (/api/webhooks/platform)', () => {
       expect(res.status).toBe(401);
       const body = await res.json();
       expect(body.error).toBe('Invalid signature');
+    });
+
+    it('auto-detects and processes real Meta Threads flat values reply payload', async () => {
+      const payloadObj = {
+        app_id: '1669649600933861',
+        topic: 'moderate',
+        target_id: 'post_root_123',
+        time: 1794651608,
+        subscription_id: 'sub_123',
+        values: {
+          field: 'replies',
+          value: {
+            id: 'reply_threads_777',
+            username: 'interested_user',
+            text: 'Can you share the link?',
+            replied_to: { id: 'post_root_123' },
+            root_post: { id: 'post_root_123', owner_id: 'threads_owner_999', username: 'creator_handle' },
+          },
+        },
+      };
+
+      const payloadStr = JSON.stringify(payloadObj);
+      const digest = await hmacSha256Hex(payloadStr, mockConfig.THREADS_WEBHOOK_SECRET!);
+      const signature = `sha256=${digest}`;
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'threads_automation_config') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { workspace_id: 'ws_threads_1', threads_user_id: 'threads_owner_999', enabled: true },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'threads_reply_logs') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'platform_connections') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    limit: vi.fn().mockResolvedValue({
+                      data: [{ id: 'conn_th_1', platform_user_id: 'threads_owner_999', username: 'creator_handle' }],
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const req = new NextRequest('https://unool.co/api/webhooks/platform', {
+        method: 'POST',
+        headers: {
+          'x-hub-signature-256': signature,
+          'Content-Type': 'application/json',
+        },
+        body: payloadStr,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      expect(mockThreadsEnqueue).toHaveBeenCalledTimes(1);
+      expect(mockThreadsEnqueue).toHaveBeenCalledWith(expect.objectContaining({
+        replyId: 'reply_threads_777',
+        threadsUserId: 'threads_owner_999',
+        replyText: 'Can you share the link?',
+        eventType: 'reply',
+      }));
     });
   });
 });

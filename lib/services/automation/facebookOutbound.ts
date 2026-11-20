@@ -50,7 +50,7 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
     .from('facebook_automation_config')
     .select('*')
     .eq('workspace_id', workspaceId)
-    .eq('page_id', pageId)
+    .limit(1)
     .maybeSingle();
 
   if (cfg?.enabled === false) {
@@ -111,7 +111,11 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
     return NextResponse.json({ error: errorMsg, deadLetter: true });
   }
 
-  const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
+  const groqApiKey =
+    config.GROQ_API_KEY ||
+    process.env.GROQ_API_KEY ||
+    config.OPENAI_API_KEY ||
+    process.env.OPENAI_API_KEY;
   if (!groqApiKey) {
     const errorMsg = 'GROQ_API_KEY not configured';
     await markDeadLetter(workspaceId, jobType, targetId, errorMsg, params);
@@ -409,6 +413,7 @@ async function upsertCommentLog(
     suggested_reply: finalReply || classified.suggestedReply || null,
     reasoning: classified.reasoning || null,
     auto_replied: autoReplied,
+    dm_sent: dmSent,
     delivery_status: autoReplied ? 'sent' : 'skipped',
     flagged_for_review: classified.shouldFlagForReview ?? false,
     reply_sent_at: autoReplied ? new Date().toISOString() : null,

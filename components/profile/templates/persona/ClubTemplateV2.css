@@ -111,7 +111,7 @@
   color: var(--club-fg-muted);
 }
 
-@media (max-width: 768x) {
+@media (max-width: 768px) {
   .club-hero-tagline { font-size: var(--club-text-lg); }
 }
 

@@ -195,6 +195,7 @@ export async function middleware(request: NextRequest) {
     hostWithoutPort !== 'www.unool.co' &&
     hostWithoutPort !== 'localhost' &&
     hostWithoutPort !== '127.0.0.1' &&
+    !hostWithoutPort.endsWith('.workers.dev') &&
     !hostWithoutPort.endsWith('.vercel.app') &&
     !pathname.startsWith('/u/') &&
     !pathname.startsWith('/api/') &&

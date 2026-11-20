@@ -86,12 +86,6 @@ class QueueService {
     if (configured && configured !== 'http://localhost:3000') {
       return configured;
     }
-    const vercelProdHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-    if (vercelProdHost) {
-      return vercelProdHost.startsWith('http')
-        ? vercelProdHost.replace(/\/+$/, '')
-        : `https://${vercelProdHost.replace(/\/+$/, '')}`;
-    }
     return configured || 'http://localhost:3000';
   }
 

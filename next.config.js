@@ -16,7 +16,6 @@ const nextConfig = {
       static: 180,
     },
   },
-  serverExternalPackages: ['argon2', '@ffmpeg-installer/ffmpeg'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
@@ -25,6 +24,31 @@ const nextConfig = {
       { protocol: 'https', hostname: 'platform-lookaside.fbsbx.com' },
     ],
   },
+  async headers() {
+    return [
+      {
+        source: '/u/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=600' },
+        ],
+      },
+      {
+        source: '/:path*.html',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://unool.co https://*.unool.co" },
+        ],
+      },
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+        ],
+      },
+    ];
+  },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

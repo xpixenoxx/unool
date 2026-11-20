@@ -59,6 +59,9 @@ export async function POST(request: NextRequest) {
       if (data.object === 'page') platformParam = 'facebook';
       else if (data.object === 'threads') platformParam = 'threads';
       else if (data.object === 'instagram') platformParam = 'instagram';
+      else if (data.values && (data.topic === 'moderate' || data.topic === 'interaction' || data.subscription_id)) {
+        platformParam = 'threads';
+      }
     }
 
     if (!platformParam || !data) {
@@ -266,9 +269,36 @@ async function processXTweetUpdate(tweet: Record<string, unknown>): Promise<void
 }
 
 async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void> {
-  logger.info('Threads webhook received', { object: data.object });
+  logger.info('Threads webhook received', { object: data.object, topic: data.topic });
 
-  // Real Threads webhook shape:
+  // Format A (Real Meta Threads Webhook flat envelope):
+  // { app_id, topic: 'moderate'|'interaction', target_id, values: { field: 'replies'|'mentions', value: { id, username, text, replied_to, root_post } } | Array<...> }
+  if (data.values) {
+    const rawValues = Array.isArray(data.values) ? data.values : [data.values];
+    const targetId = typeof data.target_id === 'string' ? data.target_id : undefined;
+
+    for (const item of rawValues) {
+      const rec = item as Record<string, unknown> | undefined;
+      if (!rec) continue;
+      const field = rec.field as string | undefined;
+      const value = (rec.value as Record<string, unknown> | undefined) || rec;
+      if (field === 'replies' || field === 'mentions') {
+        const rootPost = value.root_post as Record<string, unknown> | undefined;
+        // For replies, root_post.owner_id is the Threads user ID; for mentions, target_id is the mentioned user's ID
+        const threadsUserId =
+          (rootPost?.owner_id as string | undefined) ||
+          (field === 'mentions' ? targetId : undefined) ||
+          targetId ||
+          '';
+        await processThreadsReplyEvent(threadsUserId, value, field, targetId);
+      } else if (field === 'messages' || field === 'dm') {
+        logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API — discarding', { field });
+      }
+    }
+    return;
+  }
+
+  // Format B (Legacy / test entry[].changes[] envelope):
   // { object: 'threads', entry: [{ id: '<threadsUserId>', changes: [{ field: 'replies'|'mentions', value: { id, text, from: {id}, media: {id}, timestamp } }] }] }
   const entries = data.entry as Array<Record<string, unknown>> | undefined;
   if (!entries || !Array.isArray(entries)) return;
@@ -302,35 +332,83 @@ async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void
 async function processThreadsReplyEvent(
   threadsUserId: string,
   value: Record<string, unknown>,
-  field: 'replies' | 'mentions'
+  field: 'replies' | 'mentions',
+  targetId?: string
 ): Promise<void> {
   const replyId = value?.id as string | undefined;
   const replyText = value?.text as string | undefined;
-  const replierId = (value?.from as Record<string, unknown> | undefined)?.id as string | undefined;
-  const postId = (value?.media as Record<string, unknown> | undefined)?.id as string | undefined;
+  const fromObj = value?.from as Record<string, unknown> | undefined;
+  const rootPost = value?.root_post as Record<string, unknown> | undefined;
+  const repliedTo = value?.replied_to as Record<string, unknown> | undefined;
+  const replierId = (fromObj?.id as string | undefined) || (value?.username as string | undefined);
+  const replierUsername = (value?.username as string | undefined) || (fromObj?.username as string | undefined);
+  const rootOwnerUsername = rootPost?.username as string | undefined;
+  const postId =
+    (value?.media as Record<string, unknown> | undefined)?.id as string | undefined ||
+    (rootPost?.id as string | undefined) ||
+    (repliedTo?.id as string | undefined) ||
+    (field === 'replies' ? targetId : undefined);
 
-  if (!replyId || !threadsUserId) {
-    logger.debug('Threads reply event missing id or threadsUserId — skipping', { replyId, threadsUserId });
+  if (!replyId || (!threadsUserId && !rootOwnerUsername)) {
+    logger.debug('Threads reply event missing id or owner identifier — skipping', { replyId, threadsUserId });
     return;
   }
 
-  // Skip self-authored replies / mentions (account replying to its own posts or its own comments)
-  if (replierId && replierId === threadsUserId) {
-    logger.debug('Threads webhook: skipping self-authored reply', { replyId, threadsUserId });
+  // Skip self-authored replies / mentions
+  if (replierId && threadsUserId && replierId === threadsUserId) {
+    logger.debug('Threads webhook: skipping self-authored reply (by id)', { replyId, threadsUserId });
+    return;
+  }
+  if (replierUsername && rootOwnerUsername && replierUsername.toLowerCase() === rootOwnerUsername.toLowerCase()) {
+    logger.debug('Threads webhook: skipping self-authored reply (by username)', { replyId, replierUsername });
     return;
   }
 
   try {
-    // Load threads automation config by threadsUserId
-    const { data: cfg } = await supabaseAdmin
-      .from('threads_automation_config')
-      .select('*')
-      .eq('threads_user_id', threadsUserId)
-      .eq('enabled', true)
-      .maybeSingle();
+    // Load threads automation config by threadsUserId first, with fallback via platform_connections
+    let cfg: Record<string, any> | null = null;
+    if (threadsUserId) {
+      const { data } = await supabaseAdmin
+        .from('threads_automation_config')
+        .select('*')
+        .eq('threads_user_id', threadsUserId)
+        .eq('enabled', true)
+        .maybeSingle();
+      cfg = data;
+    }
+
+    if (!cfg && (threadsUserId || rootOwnerUsername)) {
+      let connQuery = supabaseAdmin
+        .from('platform_connections')
+        .select('workspace_id, platform_user_id, username')
+        .eq('platform', 'threads')
+        .eq('status', 'connected');
+
+      if (threadsUserId && rootOwnerUsername) {
+        connQuery = connQuery.or(`platform_user_id.eq.${threadsUserId},username.eq.${rootOwnerUsername}`);
+      } else if (threadsUserId) {
+        connQuery = connQuery.eq('platform_user_id', threadsUserId);
+      } else if (rootOwnerUsername) {
+        connQuery = connQuery.eq('username', rootOwnerUsername);
+      }
+
+      const { data: conn } = await connQuery.limit(1).maybeSingle();
+      if (conn?.workspace_id) {
+        const { data: fallbackCfg } = await supabaseAdmin
+          .from('threads_automation_config')
+          .select('*')
+          .eq('workspace_id', conn.workspace_id)
+          .eq('enabled', true)
+          .maybeSingle();
+        cfg = fallbackCfg;
+        if (!threadsUserId && conn.platform_user_id) {
+          threadsUserId = conn.platform_user_id;
+        }
+      }
+    }
 
     if (!cfg) {
-      logger.debug('Threads automation not configured or disabled for user', { threadsUserId });
+      logger.debug('Threads automation not configured or disabled for user', { threadsUserId, rootOwnerUsername });
       return;
     }
 
@@ -349,24 +427,33 @@ async function processThreadsReplyEvent(
     // Load platform connection
     const { data: connections } = await supabaseAdmin
       .from('platform_connections')
-      .select('id')
+      .select('id, platform_user_id, username')
       .eq('workspace_id', cfg.workspace_id)
       .eq('platform', 'threads')
       .eq('status', 'connected')
       .limit(1);
 
-    const connectionId = connections?.[0]?.id;
+    const connection = connections?.[0];
+    const connectionId = connection?.id;
     if (!connectionId) {
       logger.warn('No active Threads connection for workspace', { workspaceId: cfg.workspace_id });
       return;
     }
+
+    // Also guard self-reply against the connected account's own username
+    if (replierUsername && connection.username && replierUsername.toLowerCase() === connection.username.toLowerCase()) {
+      logger.debug('Threads webhook: skipping self-authored reply (matches connected username)', { replyId, replierUsername });
+      return;
+    }
+
+    const effectiveThreadsUserId = threadsUserId || connection.platform_user_id || cfg.threads_user_id;
 
     const jobParams: ThreadsOutboundJobParams = {
       jobId: `threads-${replyId}-${Date.now()}`,
       jobType: 'reply',
       workspaceId: cfg.workspace_id,
       connectionId,
-      threadsUserId,
+      threadsUserId: effectiveThreadsUserId,
       replyId,
       postId: postId || undefined,
       replyText: replyText || undefined,
@@ -374,8 +461,19 @@ async function processThreadsReplyEvent(
       eventType: field === 'mentions' ? 'mention' : 'reply',
     };
 
-    await queueService.enqueueThreadsOutboundTask(jobParams);
-    logger.info('Threads reply event enqueued', { replyId, threadsUserId, field });
+    const enqueued = await queueService.enqueueThreadsOutboundTask(jobParams);
+    if (!enqueued) {
+      logger.warn('Threads outbound task could not be enqueued to QStash, executing direct fallback', { replyId, threadsUserId: effectiveThreadsUserId });
+      try {
+        const { processThreadsOutboundJob } = await import('@/lib/services/automation/threadsOutbound');
+        await processThreadsOutboundJob(jobParams);
+        logger.info('Threads reply handled via direct fallback execution', { replyId, threadsUserId: effectiveThreadsUserId });
+      } catch (directErr) {
+        logger.error('Direct fallback execution failed for Threads reply', { replyId, error: directErr });
+      }
+    } else {
+      logger.info('Threads reply event enqueued', { replyId, threadsUserId: effectiveThreadsUserId, field });
+    }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Error processing Threads reply event', { replyId, threadsUserId, error: err });
@@ -449,8 +547,9 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
         .from('platform_connections')
         .select('workspace_id')
         .eq('platform', 'facebook')
-        .eq('platform_user_id', pageId)
         .eq('status', 'connected')
+        .or(`platform_user_id.eq.${pageId},scopes.cs.{fb_page_id:${pageId}}`)
+        .limit(1)
         .maybeSingle();
 
       if (conn?.workspace_id) {
@@ -551,8 +650,9 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
         .from('platform_connections')
         .select('workspace_id')
         .eq('platform', 'facebook')
-        .eq('platform_user_id', pageId)
         .eq('status', 'connected')
+        .or(`platform_user_id.eq.${pageId},scopes.cs.{fb_page_id:${pageId}}`)
+        .limit(1)
         .maybeSingle();
 
       if (conn?.workspace_id) {

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import * as Sentry from "@sentry/nextjs";
 import './globals.css';
 import { Toaster } from 'sonner';
+import { ClientErrorBoundary } from '@/components/ClientErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'Unool — One Link + One Click',
@@ -11,19 +11,6 @@ export const metadata: Metadata = {
     apple: '/icon.png',
   },
 };
-
-function ErrorFallback({ error, resetError }: { error: unknown; componentStack: string; eventId: string; resetError: () => void }) {
-  const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-  return (
-    <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-      <h2>Something went wrong</h2>
-      <p>{errorMessage}</p>
-      <button onClick={resetError} style={{ marginTop: '10px', padding: '8px 16px' }}>
-        Try again
-      </button>
-    </div>
-  );
-}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -37,9 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-sans antialiased">
-        <Sentry.ErrorBoundary fallback={ErrorFallback}>
+        <ClientErrorBoundary>
           {children}
-        </Sentry.ErrorBoundary>
+        </ClientErrorBoundary>
         <Toaster
           position="top-center"
           style={{

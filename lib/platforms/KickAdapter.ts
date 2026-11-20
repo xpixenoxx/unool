@@ -205,16 +205,21 @@ export class KickAdapter implements PlatformAdapter {
       logger.info('Starting Kick cloud RTMP stream for video', { videoUrl, streamDestination: cleanStreamUrl });
 
       let ffmpegPath = 'ffmpeg';
+      let spawnFn: typeof import('child_process').spawn;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-        ffmpegPath = ffmpegInstaller.path || 'ffmpeg';
-      } catch (err) {
-        logger.warn('Could not load @ffmpeg-installer/ffmpeg, falling back to system ffmpeg', { err });
+        // Guard dynamic Node-only modules so Cloudflare Workers bundles cleanly
+        const dynamicRequire = Function('return require')() as NodeRequire;
+        try {
+          const ffmpegInstaller = dynamicRequire('@ffmpeg-installer/ffmpeg');
+          ffmpegPath = ffmpegInstaller.path || 'ffmpeg';
+        } catch (err) {
+          logger.warn('Could not load @ffmpeg-installer/ffmpeg, falling back to system ffmpeg', { err });
+        }
+        spawnFn = dynamicRequire('child_process').spawn;
+      } catch {
+        throw new Error('Kick RTMP video streaming requires a Node.js runtime with ffmpeg and is not supported on Cloudflare Workers.');
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { spawn } = require('child_process');
+      const spawn = spawnFn;
       const ffmpegArgs = [
         '-re',
         '-reconnect', '1',

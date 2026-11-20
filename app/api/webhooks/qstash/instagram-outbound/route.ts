@@ -157,7 +157,11 @@ async function handleJob(params: InstagramOutboundJobParams) {
     return NextResponse.json({ error: errorMsg, deadLetter: true }, { status: 200 });
   }
 
-  const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
+  const groqApiKey =
+    config.GROQ_API_KEY ||
+    process.env.GROQ_API_KEY ||
+    config.OPENAI_API_KEY ||
+    process.env.OPENAI_API_KEY;
   if (!groqApiKey) {
     const errorMsg = 'GROQ_API_KEY not configured';
     logger.error(errorMsg);

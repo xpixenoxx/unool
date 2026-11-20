@@ -1,11 +1,18 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "gravitas": {
       "source": "udaysharmadev/Gravitas",
       "sourceType": "github",
       "skillPath": "skills/gravitas/SKILL.md",
-      "computedHash": "156970e4440a5d56eff729a1131dfed0e1bba8b2695f16066c304f2cafcbde45"
+      "computedHash": "e74605e3c63a36a36a0198499dfe5218470ec35c0cab90312da1106c8864c7a2"
+    },
+    "migrate-to-vinext": {
+      "source": "cloudflare/vinext",
+      "commit": "84433b0e684ba292c46e8366ac65e80a4a584bc1",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/migrate-to-vinext/SKILL.md",
+      "computedHash": "a989206e5d67f43fc45d4b0c845c802a331d70417bacb3b8c1eed0c14e61a09f"
     }
   }
 }

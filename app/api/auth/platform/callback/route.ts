@@ -271,6 +271,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    let facebookPages: Array<{ id: string; name: string; accessToken: string }> = [];
+    if (platform === 'facebook') {
+      try {
+        const { facebookAdapter } = await import('@/lib/platforms/FacebookAdapter');
+        facebookPages = await facebookAdapter.getUserPages(tokenResponse.accessToken);
+        if (facebookPages.length > 0) {
+          connectionMetadata.page_id = facebookPages[0].id;
+          connectionMetadata.page_name = facebookPages[0].name;
+          connectionMetadata.page_ids = facebookPages.map((p) => p.id);
+          for (const page of facebookPages) {
+            const pageTag = `fb_page_id:${page.id}`;
+            if (!finalScopes.includes(pageTag)) {
+              finalScopes.push(pageTag);
+            }
+          }
+        }
+      } catch (pageErr) {
+        logger.warn('Failed to fetch Facebook pages during OAuth callback', {
+          error: pageErr instanceof Error ? pageErr.message : String(pageErr),
+          platformUserId: profile.platformUserId,
+        });
+      }
+    }
+
     // Enforce plan channel limit before creating a new account connection (allow reconnecting the same account)
     const planCtx = await getPlanContext(userId, finalWorkspaceId);
     const channelLimit = planCtx?.limits?.channels;
@@ -347,14 +371,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // For Facebook: subscribe the connected page to our webhook fields (feed + messages)
+    // For Facebook: subscribe the connected page(s) to our webhook fields (feed + messages)
     // This is CRITICAL — without it Meta will not send any webhook events to the app
-    if (platform === 'facebook') {
+    if (platform === 'facebook' && facebookPages.length > 0) {
       try {
         const { facebookAdapter } = await import('@/lib/platforms/FacebookAdapter');
-        // getUserPages returns pages with their own accessTokens (page-scoped tokens)
-        const pages = await facebookAdapter.getUserPages(tokenResponse.accessToken);
-        for (const page of pages) {
+        for (const page of facebookPages) {
           try {
             // page.accessToken is already the page-scoped access token
             await facebookAdapter.subscribePageWebhook(page.accessToken, page.id);
@@ -366,13 +388,17 @@ export async function GET(request: NextRequest) {
             });
           }
         }
+        // Also backfill facebook_automation_config.page_id if it was set to 'default_page'
+        await supabaseAdmin
+          .from('facebook_automation_config')
+          .update({ page_id: facebookPages[0].id })
+          .eq('workspace_id', finalWorkspaceId)
+          .eq('page_id', 'default_page');
       } catch (webhookError) {
-        // Non-fatal: page is connected, but webhook events won't arrive until page is subscribed
         logger.error('Failed to subscribe Facebook pages to webhook — user should reconnect to enable automation', {
           error: webhookError instanceof Error ? webhookError : new Error(String(webhookError)),
           platformUserId: profile.platformUserId,
         });
-        // Continue — don't block the OAuth callback
       }
     }
 
