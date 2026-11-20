@@ -83,8 +83,8 @@ export type R2Bucket = 'post-media' | 'avatars';
 
 export function getBucketName(bucket: R2Bucket): string {
   const envMap: Record<R2Bucket, string | undefined> = {
-    'post-media': process.env.CF_R2_MEDIA_BUCKET_NAME,
-    avatars: process.env.CF_R2_AVATARS_BUCKET_NAME,
+    'post-media': process.env.CF_R2_MEDIA_BUCKET_NAME || 'post-media',
+    avatars: process.env.CF_R2_AVATARS_BUCKET_NAME || 'avatars',
   };
   const resolved = envMap[bucket] || process.env.CF_R2_BUCKET_NAME;
   if (!resolved) {
