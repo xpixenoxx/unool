@@ -9,6 +9,7 @@ import type {
 } from '../interfaces/IPlatformRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
+import { invalidateConnectionsCache } from '@/lib/cache/connectionsCache';
 import { normalizeFacebookUrl } from '@/lib/platforms/facebookUrl';
 
 export class SupabasePlatformRepository implements IPlatformRepository {
@@ -71,10 +72,14 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .eq('workspace_id', workspaceId)
       .eq('platform', platform)
       .order('updated_at', { ascending: false })
-      .limit(1);
+      .limit(20);
     if (error) throw this.toDbError(error, 'Error finding connection by platform');
     if (!data || data.length === 0) return null;
-    return this.mapConnectionRow(data[0]);
+    const preferred =
+      data.find((r) => r.status === 'connected') ||
+      data.find((r) => r.status !== 'revoked') ||
+      data[0];
+    return this.mapConnectionRow(preferred);
   }
 
   async findAllByWorkspaceAndPlatform(workspaceId: string, platform: Platform): Promise<PlatformConnection[]> {
@@ -243,15 +248,28 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         }
       }
 
-      // If insert hit unique constraint (23505), update the existing connection instead
+      // If insert hit unique constraint (23505), update the matching account row (only fallback to platform-only if needed)
       if (result.error && result.error.code === '23505') {
-        const { data: conflictRow } = await this.supabase
+        const { data: exactConflict } = await this.supabase
           .from('platform_connections')
           .select('id')
           .eq('workspace_id', input.workspaceId)
           .eq('platform', input.platform)
+          .eq('platform_user_id', input.platformUserId)
           .limit(1)
-          .single();
+          .maybeSingle();
+
+        const conflictRow =
+          exactConflict ||
+          (
+            await this.supabase
+              .from('platform_connections')
+              .select('id')
+              .eq('workspace_id', input.workspaceId)
+              .eq('platform', input.platform)
+              .limit(1)
+              .maybeSingle()
+          ).data;
 
         if (conflictRow?.id) {
           const fallbackUpdate: Record<string, unknown> = {
@@ -263,6 +281,9 @@ export class SupabasePlatformRepository implements IPlatformRepository {
             status: 'connected',
             updated_at: new Date().toISOString(),
           };
+          if (input.displayName !== undefined) fallbackUpdate.display_name = input.displayName;
+          if (input.avatarUrl !== undefined) fallbackUpdate.avatar_url = input.avatarUrl;
+          if (input.metadata && Object.keys(input.metadata).length > 0) fallbackUpdate.metadata = input.metadata;
           if (input.refreshToken) fallbackUpdate.refresh_token_encrypted = input.refreshToken;
           result = await this.supabase
             .from('platform_connections')
@@ -282,26 +303,50 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     }
     const mapped = this.mapConnectionRow(data);
 
-    // Reconcile and preserve past posts: ensure existing platform_posts for this workspace & platform
-    // are re-linked to this connection ID so historical analytics remain seamlessly connected.
+    // Reconcile orphaned/revoked historical posts ONLY if no other active account exists on this platform
+    // (prevents connecting Account B from stealing Account A's post analytics/references).
     try {
-      const { data: wsPosts } = await this.supabase
-        .from('posts')
-        .select('id')
-        .eq('workspace_id', input.workspaceId);
-      const postIds = (wsPosts || []).map((p: any) => p.id);
-      if (postIds.length > 0) {
-        const { data: wsVariants } = await this.supabase
-          .from('post_variants')
+      const { data: platformConns } = await this.supabase
+        .from('platform_connections')
+        .select('id, status')
+        .eq('workspace_id', input.workspaceId)
+        .eq('platform', input.platform);
+
+      const otherActiveCount = (platformConns || []).filter(
+        (c: any) => c.id !== mapped.id && c.status === 'connected'
+      ).length;
+
+      if (otherActiveCount === 0) {
+        const revokedIds = (platformConns || [])
+          .filter((c: any) => c.id !== mapped.id && c.status === 'revoked')
+          .map((c: any) => c.id as string);
+
+        const { data: wsPosts } = await this.supabase
+          .from('posts')
           .select('id')
-          .eq('platform', input.platform)
-          .in('post_id', postIds);
-        const variantIds = (wsVariants || []).map((v: any) => v.id);
-        if (variantIds.length > 0) {
-          await this.supabase
-            .from('platform_posts')
-            .update({ platform_connection_id: mapped.id })
-            .in('post_variant_id', variantIds);
+          .eq('workspace_id', input.workspaceId);
+        const postIds = (wsPosts || []).map((p: any) => p.id);
+        if (postIds.length > 0) {
+          const { data: wsVariants } = await this.supabase
+            .from('post_variants')
+            .select('id')
+            .eq('platform', input.platform)
+            .in('post_id', postIds);
+          const variantIds = (wsVariants || []).map((v: any) => v.id);
+          if (variantIds.length > 0) {
+            await this.supabase
+              .from('platform_posts')
+              .update({ platform_connection_id: mapped.id })
+              .in('post_variant_id', variantIds)
+              .is('platform_connection_id', null);
+            if (revokedIds.length > 0) {
+              await this.supabase
+                .from('platform_posts')
+                .update({ platform_connection_id: mapped.id })
+                .in('post_variant_id', variantIds)
+                .in('platform_connection_id', revokedIds);
+            }
+          }
         }
       }
     } catch {
@@ -310,6 +355,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
 
     if (input.workspaceId) {
       invalidateOverviewCache(input.workspaceId);
+      await invalidateConnectionsCache(input.workspaceId);
     }
 
     return mapped;
@@ -326,7 +372,12 @@ export class SupabasePlatformRepository implements IPlatformRepository {
 
     const { data: row, error } = await this.supabase.from('platform_connections').update(updateData).eq('id', id).select().single();
     if (error) throw this.toDbError(error, 'Error updating platform connection');
-    return this.mapConnectionRow(row);
+    const mapped = this.mapConnectionRow(row);
+    if (mapped.workspaceId) {
+      invalidateOverviewCache(mapped.workspaceId);
+      await invalidateConnectionsCache(mapped.workspaceId);
+    }
+    return mapped;
   }
 
   async updateStatus(id: string, status: 'connected' | 'expired' | 'revoked' | 'error'): Promise<PlatformConnection> {
@@ -349,6 +400,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     if (error) throw this.toDbError(error, 'Error disconnecting platform connection');
     if (row?.workspace_id) {
       invalidateOverviewCache(row.workspace_id);
+      await invalidateConnectionsCache(row.workspace_id);
     }
   }
 
@@ -362,6 +414,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     if (error) throw this.toDbError(error, 'Error deleting platform connection');
     if (row?.workspace_id) {
       invalidateOverviewCache(row.workspace_id);
+      await invalidateConnectionsCache(row.workspace_id);
     }
   }
 

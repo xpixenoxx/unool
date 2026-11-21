@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { slackAdapter } from '@/lib/platforms/SlackAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext } from '@/lib/auth/platform-connect';
+import { resolvePlatformConnectContext, enforceCustomChannelQuota } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ('error' in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -45,6 +45,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: userFacingError }, { status: 400 });
     }
 
+    const scopedPlatformUserId = `${profile.platformUserId}:${formattedChannel}`;
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, 'slack', scopedPlatformUserId);
+    if (quotaErr) return quotaErr;
+
     // Encrypt the token payload for storage
     const encryptedToken = await encryptToken(tokenPayload);
 
@@ -53,9 +57,10 @@ export async function POST(request: NextRequest) {
       workspaceId,
       userId: userId || workspaceId,
       platform: 'slack',
-      platformUserId: `${profile.platformUserId}:${formattedChannel}`,
+      platformUserId: scopedPlatformUserId,
       username: profile.username ? `${profile.username} (${formattedChannel})` : formattedChannel,
       displayName: profile.displayName || formattedChannel,
+      avatarUrl: profile.avatarUrl,
       accessToken: encryptedToken,
       refreshToken: '', // not used
       expiresAt: undefined, // no expiration

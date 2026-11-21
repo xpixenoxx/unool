@@ -1,78 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { whopAdapter } from '@/lib/platforms/WhopAdapter';
-import { encryptToken } from '@/lib/crypto/encryption';
-import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext, validateHttpsWebhookUrl } from '@/lib/auth/platform-connect';
-import { logger } from '@/lib/logger';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const platformRepo = new SupabasePlatformRepository();
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { webhookUrl, communityName, workspaceId: bodyWorkspaceId } = body;
-
-    if (!webhookUrl || !communityName) {
-      return NextResponse.json(
-        { error: 'webhookUrl and communityName are required' },
-        { status: 400 }
-      );
-    }
-
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
-    if ('error' in resolved) return resolved.error;
-    const { userId, workspaceId } = resolved.context;
-
-    const webhookCheck = await validateHttpsWebhookUrl(webhookUrl);
-    if (!webhookCheck.ok) {
-      return NextResponse.json({ error: webhookCheck.error }, { status: 400 });
-    }
-
-    const tokenPayload = JSON.stringify({ webhookUrl: webhookCheck.url, communityName });
-
-    // Validate credentials & fetch profile
-    let profile;
-    try {
-      profile = await whopAdapter.getUserProfile(tokenPayload);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      logger.warn('Whop connect: login failed', { errMsg });
-
-      return NextResponse.json({ error: 'Invalid Webhook URL or Community Name.' }, { status: 400 });
-    }
-
-    // Encrypt the token payload for storage
-    const encryptedToken = await encryptToken(tokenPayload);
-
-    // Upsert platform connection
-    await platformRepo.create({
-      workspaceId,
-      userId: userId || workspaceId,
-      platform: 'whop',
-      platformUserId: profile.platformUserId,
-      username: profile.username || communityName,
-      accessToken: encryptedToken,
-      refreshToken: '', // not used
-      expiresAt: undefined, // no expiration
-      scopes: [],
-    });
-
-    logger.info('Whop connected successfully', { workspaceId });
-
-    return NextResponse.json({
-      success: true,
-      platform: 'whop',
-      username: profile.username || profile.displayName || communityName,
-      displayName: profile.displayName,
-    });
-  } catch (error) {
-    const errorDetails = error instanceof Error ? error.message : JSON.stringify(error);
-    logger.error('Whop connect: unexpected error', { errorDetails });
-    return NextResponse.json(
-      { error: `An unexpected error occurred: ${errorDetails}. Please try again.` },
-      { status: 500 }
-    );
-  }
+/**
+ * Whop uses OIDC OAuth (`/api/auth/platform/connect?platform=whop`) rather than webhook credentials.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: 'Whop uses OAuth authentication. Please connect via /api/auth/platform/connect?platform=whop.',
+      oauthUrl: '/api/auth/platform/connect?platform=whop',
+    },
+    { status: 400 }
+  );
 }
+

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BlueskyAdapter } from '@/lib/platforms/BlueskyAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext } from '@/lib/auth/platform-connect';
+import { resolvePlatformConnectContext, enforceCustomChannelQuota } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve authenticated user, active workspace, RBAC, and plan channel quota
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    // Resolve authenticated user, active workspace, RBAC (defer quota check until credential validation)
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ('error' in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ error: userFacingError }, { status: 400 });
     }
+
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, 'bluesky', profile.platformUserId);
+    if (quotaErr) return quotaErr;
 
     // Encrypt the token payload for storage
     const encryptedToken = await encryptToken(tokenPayload);

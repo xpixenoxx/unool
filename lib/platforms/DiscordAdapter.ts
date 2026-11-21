@@ -20,31 +20,38 @@ interface DiscordTokenPayload {
 export class DiscordAdapter implements PlatformAdapter {
   readonly platform = 'discord' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.DISCORD_CLIENT_ID || '',
-    clientSecret: config.DISCORD_CLIENT_SECRET || '',
-    redirectUri: config.DISCORD_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['identify', 'webhook.incoming'],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.DISCORD_CLIENT_ID || process.env.DISCORD_CLIENT_ID || '',
+      clientSecret: config.DISCORD_CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || '',
+      redirectUri:
+        config.DISCORD_REDIRECT_URI ||
+        process.env.DISCORD_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: ['identify', 'webhook.incoming'],
+    };
+  }
 
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       state,
       scope: this.authConfig.scopes.join(' '),
     });
     return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
       grant_type: 'authorization_code',
       code: code,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
     });
 
     return platformFetch('discord', async () => {

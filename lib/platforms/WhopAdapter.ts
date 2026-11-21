@@ -16,19 +16,25 @@ const WHOP_API_BASE = 'https://api.whop.com/v5';
 export class WhopAdapter implements PlatformAdapter {
   readonly platform = 'whop' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.WHOP_CLIENT_ID || '',
-    clientSecret: config.WHOP_CLIENT_SECRET || '',
-    redirectUri: config.WHOP_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['openid', 'profile', 'email'],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.WHOP_CLIENT_ID || process.env.WHOP_CLIENT_ID || '',
+      clientSecret: config.WHOP_CLIENT_SECRET || process.env.WHOP_CLIENT_SECRET || '',
+      redirectUri:
+        config.WHOP_REDIRECT_URI ||
+        process.env.WHOP_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: ['openid', 'profile', 'email'],
+    };
+  }
 
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     // Whop strictly enforces OIDC specification: nonce is required whenever openid scope is requested
     const nonce = crypto.randomUUID().replace(/-/g, '');
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       response_type: 'code',
       scope: this.authConfig.scopes.join(' '),
       state,
@@ -37,13 +43,14 @@ export class WhopAdapter implements PlatformAdapter {
     return `${WHOP_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
     });
 
     const response = await fetch(WHOP_TOKEN_URL, {

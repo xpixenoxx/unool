@@ -42,8 +42,8 @@ export interface PlatformAdapter {
   readonly platform: 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
   readonly authConfig: PlatformAuthConfig;
 
-  getAuthUrl(state: string): string | Promise<{ url: string; pkceCookie?: string }>;
-  exchangeCodeForToken(code: string, codeVerifier?: string): Promise<TokenResponse>;
+  getAuthUrl(state: string, redirectUri?: string): string | Promise<{ url: string; pkceCookie?: string; codeVerifier?: string }>;
+  exchangeCodeForToken(code: string, codeVerifier?: string, redirectUri?: string): Promise<TokenResponse>;
   refreshAccessToken(refreshToken: string): Promise<TokenResponse>;
   getUserProfile(accessToken: string): Promise<UserProfile>;
   publish(accessToken: string, input: PublishInput): Promise<PublishResult>;

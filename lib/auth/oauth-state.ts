@@ -37,6 +37,12 @@ function getRedis(): Redis | null {
 const STATE_TTL_SECONDS = 600; // 10 minutes
 const STATE_PREFIX = 'oauth:state:';
 
+export interface OAuthStateExtras {
+  codeVerifier?: string;
+  reconnectConnectionId?: string;
+  addAccount?: boolean;
+}
+
 export interface OAuthStateData {
   workspaceId: string;
   userId: string;
@@ -44,6 +50,9 @@ export interface OAuthStateData {
   createdAt: number;
   returnUrl?: string;
   redirectUri?: string;
+  codeVerifier?: string;
+  reconnectConnectionId?: string;
+  addAccount?: boolean;
 }
 
 /**
@@ -88,7 +97,8 @@ export async function storeOAuthState(
   userId: string,
   platform: string,
   returnUrl?: string,
-  redirectUri?: string
+  redirectUri?: string,
+  extras?: OAuthStateExtras
 ): Promise<void> {
   const key = `${STATE_PREFIX}${state}`;
   const data: OAuthStateData = {
@@ -98,6 +108,9 @@ export async function storeOAuthState(
     createdAt: Date.now(),
     returnUrl,
     redirectUri,
+    ...(extras?.codeVerifier ? { codeVerifier: extras.codeVerifier } : {}),
+    ...(extras?.reconnectConnectionId ? { reconnectConnectionId: extras.reconnectConnectionId } : {}),
+    ...(extras?.addAccount ? { addAccount: true } : {}),
   };
 
   try {
@@ -120,7 +133,16 @@ export async function storeOAuthState(
 export async function verifyAndConsumeOAuthState(
   state: string,
   cookieHeader?: string | null
-): Promise<{ workspaceId: string; userId: string; platform: string; returnUrl?: string; redirectUri?: string } | null> {
+): Promise<{
+  workspaceId: string;
+  userId: string;
+  platform: string;
+  returnUrl?: string;
+  redirectUri?: string;
+  codeVerifier?: string;
+  reconnectConnectionId?: string;
+  addAccount?: boolean;
+} | null> {
   const key = `${STATE_PREFIX}${state}`;
 
   let data: OAuthStateData | null = null;
@@ -130,8 +152,8 @@ export async function verifyAndConsumeOAuthState(
     if (r) {
       const stored = await withTimeout(r.get(key), 350);
       if (stored) {
-        // Fire-and-forget deletion so it doesn't block verification response
-        void r.del(key).catch(() => {});
+        // Await deletion (bounded) so Cloudflare Workers completes cleanup before isolate exit
+        await withTimeout(r.del(key), 250).catch(() => {});
         data = typeof stored === 'string' 
           ? JSON.parse(stored) as OAuthStateData 
           : stored as unknown as OAuthStateData;
@@ -168,6 +190,9 @@ export async function verifyAndConsumeOAuthState(
     platform: data.platform,
     returnUrl: data.returnUrl,
     redirectUri: data.redirectUri,
+    codeVerifier: data.codeVerifier,
+    reconnectConnectionId: data.reconnectConnectionId,
+    addAccount: data.addAccount,
   };
 }
 
@@ -181,9 +206,20 @@ export function createOAuthCookie(
   platform: string,
   returnUrl?: string,
   redirectUri?: string,
-  maxAgeSeconds: number = STATE_TTL_SECONDS
+  maxAgeSeconds: number = STATE_TTL_SECONDS,
+  extras?: OAuthStateExtras
 ): string {
-  const data: OAuthStateData = { workspaceId, userId, platform, returnUrl, redirectUri, createdAt: Date.now() };
+  const data: OAuthStateData = {
+    workspaceId,
+    userId,
+    platform,
+    returnUrl,
+    redirectUri,
+    createdAt: Date.now(),
+    ...(extras?.codeVerifier ? { codeVerifier: extras.codeVerifier } : {}),
+    ...(extras?.reconnectConnectionId ? { reconnectConnectionId: extras.reconnectConnectionId } : {}),
+    ...(extras?.addAccount ? { addAccount: true } : {}),
+  };
   const payload = Buffer.from(JSON.stringify({ s: state, d: data }), 'utf8').toString('base64url');
   const signature = signOAuthPayload(payload);
   const value = `${payload}.${signature}`;
@@ -255,7 +291,7 @@ export function parseAndConsumePKCECookie(cookieHeader: string | null, state: st
 
   // Note: Cookie deletion happens on client side after callback
   // or we could set a zero-max-age cookie in the response
-  return pkceCookie.split('=')[1] || null;
+  return pkceCookie.slice(`${cookieName}=`.length) || null;
 }
 
 function base64urlEncode(bytes: Uint8Array): string {

@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { validateHttpsWebhookUrl } from '@/lib/auth/platform-connect';
 import {
   PlatformAdapter,
   PlatformAuthConfig,
@@ -53,6 +54,11 @@ export class SkoolAdapter implements PlatformAdapter {
       throw new Error('Skool Webhook URL is required to publish.');
     }
 
+    const check = await validateHttpsWebhookUrl(webhookUrl);
+    if (!check.ok) {
+      throw new Error(`Invalid or disallowed webhook URL: ${check.error}`);
+    }
+
     const payload: Record<string, unknown> = {
       content: input.content,
       communityName,
@@ -63,10 +69,11 @@ export class SkoolAdapter implements PlatformAdapter {
     }
 
     try {
-      const res = await fetch(webhookUrl, {
+      const res = await fetch(check.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        redirect: 'manual',
       });
 
       if (!res.ok) {

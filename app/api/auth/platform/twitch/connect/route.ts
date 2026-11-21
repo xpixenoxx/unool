@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { twitchAdapter } from '@/lib/platforms/TwitchAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext } from '@/lib/auth/platform-connect';
+import { resolvePlatformConnectContext, enforceCustomChannelQuota } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ('error' in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: userFacingError }, { status: 400 });
     }
 
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, 'twitch', profile.platformUserId);
+    if (quotaErr) return quotaErr;
+
     // Encrypt the token payload for storage
     const encryptedToken = await encryptToken(tokenPayload);
 
@@ -53,6 +56,8 @@ export async function POST(request: NextRequest) {
       platform: 'twitch',
       platformUserId: profile.platformUserId,
       username: profile.username,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
       accessToken: encryptedToken,
       refreshToken: '', // not used
       expiresAt: undefined, // no expiration

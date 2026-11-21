@@ -18,24 +18,30 @@ const YOUTUBE_UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos'
 export class YoutubeAdapter implements PlatformAdapter {
   readonly platform = 'youtube' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.YOUTUBE_CLIENT_ID || '',
-    clientSecret: config.YOUTUBE_CLIENT_SECRET || '',
-    redirectUri: config.YOUTUBE_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: [
-      'https://www.googleapis.com/auth/youtube.upload',
-      'https://www.googleapis.com/auth/youtube.readonly',
-      'openid',
-      'email',
-      'profile'
-    ],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.YOUTUBE_CLIENT_ID || process.env.YOUTUBE_CLIENT_ID || '',
+      clientSecret: config.YOUTUBE_CLIENT_SECRET || process.env.YOUTUBE_CLIENT_SECRET || '',
+      redirectUri:
+        config.YOUTUBE_REDIRECT_URI ||
+        process.env.YOUTUBE_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: [
+        'https://www.googleapis.com/auth/youtube.upload',
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'openid',
+        'email',
+        'profile',
+      ],
+    };
+  }
 
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       state,
       scope: this.authConfig.scopes.join(' '),
       access_type: 'offline', // Need offline access to get a refresh token
@@ -44,11 +50,12 @@ export class YoutubeAdapter implements PlatformAdapter {
     return `${GOOGLE_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
     });
@@ -116,6 +123,9 @@ export class YoutubeAdapter implements PlatformAdapter {
       if (!profileResponse.ok) {
         const error = await profileResponse.text();
         logger.error('YouTube channel fetch failed', { errorMessage: error, status: profileResponse.status });
+        if (profileResponse.status === 401) {
+          throw new TokenExpiredError('YouTube access token expired or invalid', 'youtube');
+        }
         throw new Error(`YouTube channel fetch failed: ${error}`);
       }
 
@@ -155,14 +165,41 @@ export class YoutubeAdapter implements PlatformAdapter {
       }
 
       try {
-        // 1. Fetch video binary
+        // 1. Fetch video stream (stream directly to YouTube when Content-Length is known so we stay inside Workers 128MB RAM)
         const videoRes = await fetch(videoUrl);
         if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.statusText}`);
-        const videoBuffer = await videoRes.arrayBuffer();
         const contentType = videoRes.headers.get('content-type') || 'video/mp4';
 
         if (!contentType.startsWith('video/')) {
           throw new Error('Given URL is not a recognized video format.');
+        }
+
+        const rawContentLength = videoRes.headers.get('content-length');
+        const parsedContentLength = rawContentLength ? Number(rawContentLength) : NaN;
+        let uploadLength: number;
+        let uploadBody: BodyInit;
+        let isStream = false;
+
+        if (Number.isFinite(parsedContentLength) && parsedContentLength > 0 && videoRes.body) {
+          const MAX_STREAM_BYTES = 500 * 1024 * 1024;
+          if (parsedContentLength > MAX_STREAM_BYTES) {
+            throw new Error(
+              `Video file too large (${Math.round(parsedContentLength / 1024 / 1024)}MB). Maximum supported upload size is 500MB.`
+            );
+          }
+          uploadLength = parsedContentLength;
+          uploadBody = videoRes.body;
+          isStream = true;
+        } else {
+          const videoBuffer = await videoRes.arrayBuffer();
+          const MAX_BUFFERED_BYTES = 80 * 1024 * 1024;
+          if (videoBuffer.byteLength > MAX_BUFFERED_BYTES) {
+            throw new Error(
+              `Video file too large for un-sized upload (${Math.round(videoBuffer.byteLength / 1024 / 1024)}MB). Please compress the video below 80MB.`
+            );
+          }
+          uploadLength = videoBuffer.byteLength;
+          uploadBody = videoBuffer;
         }
 
         // 2. Metadata (snippet, status)
@@ -176,16 +213,13 @@ export class YoutubeAdapter implements PlatformAdapter {
           }
         };
 
-        // 3. Initiate multipart upload
-        // To do a multipart upload nicely with Node fetch, we'll manually construct the body or just use resumable if larger.
-        // For simplicity and to fit within platform constraints, we use resumable upload session.
-        
+        // 3. Initiate resumable upload session
         const initRes = await fetchWithRetry(`${YOUTUBE_UPLOAD_URL}?uploadType=resumable&part=snippet,status`, {
            method: 'POST',
            headers: {
              Authorization: `Bearer ${accessToken}`,
              'Content-Type': 'application/json',
-             'X-Upload-Content-Length': videoBuffer.byteLength.toString(),
+             'X-Upload-Content-Length': uploadLength.toString(),
              'X-Upload-Content-Type': contentType
            },
            body: JSON.stringify(metadata)
@@ -193,6 +227,9 @@ export class YoutubeAdapter implements PlatformAdapter {
 
         if (!initRes.ok) {
            const initErr = await initRes.text();
+           if (initRes.status === 401) {
+             throw new TokenExpiredError('YouTube access token expired or invalid', 'youtube');
+           }
            throw new Error(`Failed to initialize upload: ${initErr}`);
         }
 
@@ -201,18 +238,23 @@ export class YoutubeAdapter implements PlatformAdapter {
            throw new Error('Did not receive upload URL location from YouTube.');
         }
 
-        const uploadRes = await fetchWithRetry(uploadLocation, {
+        const uploadInit: RequestInit & { duplex?: 'half' } = {
            method: 'PUT',
            headers: {
              Authorization: `Bearer ${accessToken}`,
              'Content-Type': contentType,
-             'Content-Length': videoBuffer.byteLength.toString(),
+             'Content-Length': uploadLength.toString(),
            },
-           body: videoBuffer
-        });
+           body: uploadBody,
+           ...(isStream ? { duplex: 'half' as const } : {}),
+        };
+        const uploadRes = await fetchWithRetry(uploadLocation, uploadInit, isStream ? { maxRetries: 0 } : undefined);
 
         if (!uploadRes.ok) {
           const errText = await uploadRes.text();
+          if (uploadRes.status === 401) {
+            throw new TokenExpiredError('YouTube access token expired or invalid', 'youtube');
+          }
           throw new Error(`Failed to upload chunk: ${errText}`);
         }
 

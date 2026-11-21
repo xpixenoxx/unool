@@ -27,17 +27,23 @@ export function clampThreadsText(text?: string): string {
 export class ThreadsAdapter implements PlatformAdapter {
   readonly platform = 'threads' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.THREADS_CLIENT_ID || '',
-    clientSecret: config.THREADS_CLIENT_SECRET || '',
-    redirectUri: config.THREADS_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['threads_basic', 'threads_content_publish', 'threads_manage_replies', 'threads_read_replies', 'threads_manage_insights'],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.THREADS_CLIENT_ID || process.env.THREADS_CLIENT_ID || '',
+      clientSecret: config.THREADS_CLIENT_SECRET || process.env.THREADS_CLIENT_SECRET || '',
+      redirectUri:
+        config.THREADS_REDIRECT_URI ||
+        process.env.THREADS_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: ['threads_basic', 'threads_content_publish', 'threads_manage_replies', 'threads_read_replies', 'threads_manage_insights'],
+    };
+  }
 
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       scope: this.authConfig.scopes.join(','),
       response_type: 'code',
       state,
@@ -45,11 +51,12 @@ export class ThreadsAdapter implements PlatformAdapter {
     return `${META_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       grant_type: 'authorization_code',
       code,
     });
@@ -88,7 +95,8 @@ export class ThreadsAdapter implements PlatformAdapter {
           logger.info('Threads long-lived token obtained', { expiresIn: longLivedData.expires_in });
           return {
             accessToken: longLivedData.access_token,
-            expiresIn: longLivedData.expires_in,
+            refreshToken: longLivedData.access_token,
+            expiresIn: longLivedData.expires_in || 5184000,
             scope: shortLivedData.scope,
           };
         } else {
@@ -104,8 +112,8 @@ export class ThreadsAdapter implements PlatformAdapter {
       // Fallback: return the short-lived token
       return {
         accessToken: shortLivedData.access_token,
-        refreshToken: shortLivedData.refresh_token,
-        expiresIn: shortLivedData.expires_in,
+        refreshToken: shortLivedData.refresh_token || shortLivedData.access_token,
+        expiresIn: shortLivedData.expires_in || 3600,
         scope: shortLivedData.scope,
       };
     });
@@ -132,7 +140,8 @@ export class ThreadsAdapter implements PlatformAdapter {
       const data = await response.json();
       return {
         accessToken: data.access_token,
-        expiresIn: data.expires_in,
+        refreshToken: data.access_token,
+        expiresIn: data.expires_in || 5184000,
       };
     });
   }
@@ -315,12 +324,14 @@ export class ThreadsAdapter implements PlatformAdapter {
       const publishData = await publishResponse.json();
       const platformPostId = publishData.id;
 
-      // If first comment was provided, post it as a reply (fire-and-forget)
+      // Must be awaited so Cloudflare Workers does not cancel the reply when returning the response
       if (input.firstComment) {
-        this.postReply(accessToken, platformPostId, input.firstComment).catch((replyError) => {
+        try {
+          await this.postReply(accessToken, platformPostId, input.firstComment);
+        } catch (replyError) {
           const err = replyError instanceof Error ? replyError : new Error(String(replyError));
           logger.warn('Threads first comment reply failed', { error: err });
-        });
+        }
       }
 
       // The numeric ID doesn't work directly in URLs. We must fetch the actual permalink (which uses a shortcode)
@@ -351,10 +362,11 @@ export class ThreadsAdapter implements PlatformAdapter {
     });
   }
 
-  private async waitForContainerReady(accessToken: string, creationId: string, maxAttempts = 30): Promise<void> {
-    for (let i = 0; i < maxAttempts; i++) {
-      // Wait 3 seconds between polls (total timeout up to 90 seconds for videos)
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+  private async waitForContainerReady(accessToken: string, creationId: string, maxAttempts = 8): Promise<void> {
+    const backoffMs = [2000, 3000, 4000, 5000, 6000, 8000, 10000, 10000];
+    const limit = Math.min(maxAttempts, backoffMs.length);
+    for (let i = 0; i < limit; i++) {
+      await new Promise((resolve) => setTimeout(resolve, backoffMs[i]));
 
       const response = await fetchWithRetry(
         `${THREADS_API_BASE}/${creationId}?fields=status&access_token=${accessToken}`,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { lemmyAdapter } from '@/lib/platforms/LemmyAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext, validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
+import { resolvePlatformConnectContext, enforceCustomChannelQuota, validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ('error' in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -162,6 +162,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, 'lemmy', profile.platformUserId);
+    if (quotaErr) return quotaErr;
+
     // Encrypt token payload for persistent storage
     const tokenPayload = JSON.stringify({
       instanceUrl: normalizedInstance,
@@ -179,6 +182,8 @@ export async function POST(request: NextRequest) {
       platform: 'lemmy',
       platformUserId: profile.platformUserId,
       username: profile.username || profile.displayName || 'Lemmy User',
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
       accessToken: encryptedToken,
       refreshToken: '', // not used
       expiresAt: undefined, // Lemmy JWTs do not periodically expire via standard OAuth

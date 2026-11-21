@@ -1,5 +1,6 @@
 import { config } from "@/lib/config/schema";
 import { logger } from "@/lib/logger";
+import { validateHttpsWebhookUrl } from "@/lib/auth/platform-connect";
 import {
   PlatformAdapter,
   PlatformAuthConfig,
@@ -31,31 +32,35 @@ const MEWE_API_BASE = "https://mewe.com";
 export class MeweAdapter implements PlatformAdapter {
   readonly platform = "mewe" as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.MEWE_CLIENT_ID || process.env.MEWE_CLIENT_ID || "",
-    clientSecret:
-      config.MEWE_API_KEY ||
-      config.MEWE_CLIENT_SECRET ||
-      process.env.MEWE_API_KEY ||
-      process.env.MEWE_CLIENT_SECRET ||
-      "",
-    redirectUri:
-      config.MEWE_REDIRECT_URI ||
-      `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ["post_content", "user_profile"],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.MEWE_CLIENT_ID || process.env.MEWE_CLIENT_ID || "",
+      clientSecret:
+        config.MEWE_API_KEY ||
+        config.MEWE_CLIENT_SECRET ||
+        process.env.MEWE_API_KEY ||
+        process.env.MEWE_CLIENT_SECRET ||
+        "",
+      redirectUri:
+        config.MEWE_REDIRECT_URI ||
+        process.env.MEWE_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "")}/api/auth/platform/callback`,
+      scopes: ["post_content", "user_profile"],
+    };
+  }
 
   /**
    * Generates OAuth authorize URL if OAuth client credentials are configured.
    * If not configured, returns empty string so that Unool redirects to the custom connect modal.
    */
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
     if (!this.authConfig.clientId) {
       return "";
     }
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       response_type: "code",
       scope: this.authConfig.scopes.join(" "),
       state,
@@ -66,13 +71,14 @@ export class MeweAdapter implements PlatformAdapter {
   /**
    * Exchanges an OAuth authorization code for tokens if using MeWe OAuth.
    */
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
     if (!this.authConfig.clientId || !this.authConfig.clientSecret) {
       throw new Error(
         "MeWe OAuth requires MEWE_CLIENT_ID and MEWE_API_KEY/SECRET environment variables",
       );
     }
 
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const res = await fetch(`${MEWE_API_BASE}/oauth/token`, {
       method: "POST",
       headers: {
@@ -86,7 +92,7 @@ export class MeweAdapter implements PlatformAdapter {
         grant_type: "authorization_code",
         client_id: this.authConfig.clientId,
         client_secret: this.authConfig.clientSecret,
-        redirect_uri: this.authConfig.redirectUri,
+        redirect_uri: effectiveRedirectUri,
         code,
       }),
     });
@@ -450,6 +456,11 @@ export class MeweAdapter implements PlatformAdapter {
     username: string,
     input: PublishInput,
   ): Promise<PublishResult> {
+    const check = await validateHttpsWebhookUrl(webhookUrl);
+    if (!check.ok) {
+      throw new Error(`Invalid or disallowed webhook URL: ${check.error}`);
+    }
+
     const payload: Record<string, unknown> = {
       content: input.content,
       username,
@@ -459,10 +470,11 @@ export class MeweAdapter implements PlatformAdapter {
       payload.mediaUrls = input.mediaUrls;
     }
 
-    const res = await fetch(webhookUrl, {
+    const res = await fetch(check.url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      redirect: "manual",
     });
 
     if (!res.ok) {

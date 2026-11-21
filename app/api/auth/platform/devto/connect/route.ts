@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { devtoAdapter } from '@/lib/platforms/DevtoAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext } from '@/lib/auth/platform-connect';
+import { resolvePlatformConnectContext, enforceCustomChannelQuota } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ('error' in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, 'devto', profile.platformUserId);
+    if (quotaErr) return quotaErr;
+
     // 2. Encrypt token for storage
     const encryptedToken = await encryptToken(rawToken);
 
@@ -54,6 +57,8 @@ export async function POST(request: NextRequest) {
       platform: 'devto',
       platformUserId: profile.platformUserId,
       username: profile.username || profile.displayName || 'DEV Creator',
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
       accessToken: encryptedToken,
       refreshToken: '',
       expiresAt: undefined, // Dev.to API keys do not expire on OAuth intervals

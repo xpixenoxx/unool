@@ -18,23 +18,29 @@ const FACEBOOK_API_BASE = `https://graph.facebook.com/${API_VERSIONS.facebook}`;
 export class InstagramAdapter implements PlatformAdapter {
   readonly platform = 'instagram' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.INSTAGRAM_CLIENT_ID || '',
-    clientSecret: config.INSTAGRAM_CLIENT_SECRET || '',
-    redirectUri: config.INSTAGRAM_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: [
-      'instagram_business_basic',
-      'instagram_business_manage_messages',
-      'instagram_business_manage_comments',
-      'instagram_business_content_publish',
-      'instagram_business_manage_insights'
-    ],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.INSTAGRAM_CLIENT_ID || process.env.INSTAGRAM_CLIENT_ID || '',
+      clientSecret: config.INSTAGRAM_CLIENT_SECRET || process.env.INSTAGRAM_CLIENT_SECRET || '',
+      redirectUri:
+        config.INSTAGRAM_REDIRECT_URI ||
+        process.env.INSTAGRAM_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: [
+        'instagram_business_basic',
+        'instagram_business_manage_messages',
+        'instagram_business_manage_comments',
+        'instagram_business_content_publish',
+        'instagram_business_manage_insights',
+      ],
+    };
+  }
 
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       scope: this.authConfig.scopes.join(','),
       response_type: 'code',
       auth_type: 'rerequest',
@@ -44,11 +50,12 @@ export class InstagramAdapter implements PlatformAdapter {
     return `${META_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       grant_type: 'authorization_code',
       code,
     });
@@ -277,8 +284,9 @@ export class InstagramAdapter implements PlatformAdapter {
           throw new Error('Failed to create any carousel items for Instagram');
         }
 
-        // Wait for all individual carousel items to be ready concurrently before bundling them
-        await Promise.all(itemIds.map(itemId => this.waitForMediaReady(accessToken, itemId)));
+        // Brief wait once, then poll carousel items with capped attempts to stay within Workers 50-subrequest limit
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        await Promise.all(itemIds.map(itemId => this.waitForMediaReady(accessToken, itemId, 4, true)));
 
         // Create carousel container
         const carouselParams = new URLSearchParams({
@@ -375,9 +383,18 @@ export class InstagramAdapter implements PlatformAdapter {
     });
   }
 
-  private async waitForMediaReady(accessToken: string, containerId: string, maxAttempts = 30): Promise<void> {
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+  private async waitForMediaReady(
+    accessToken: string,
+    containerId: string,
+    maxAttempts = 8,
+    skipInitialDelay = false
+  ): Promise<void> {
+    const backoffMs = [2000, 3000, 4000, 5000, 6000, 8000, 10000, 10000];
+    const limit = Math.min(maxAttempts, backoffMs.length);
+    for (let i = 0; i < limit; i++) {
+      if (!(skipInitialDelay && i === 0)) {
+        await new Promise(resolve => setTimeout(resolve, backoffMs[i]));
+      }
       let statusRes;
 
       try {
@@ -385,7 +402,7 @@ export class InstagramAdapter implements PlatformAdapter {
           `https://graph.instagram.com/${API_VERSIONS.instagram}/${containerId}?fields=status_code`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
-      } catch (err) {
+      } catch {
         // fetch network error, skip attempt
         continue;
       }

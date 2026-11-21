@@ -1,5 +1,6 @@
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { createPKCECookie } from '@/lib/auth/oauth-state';
 import {
   PlatformAdapter,
   PlatformAuthConfig,
@@ -41,47 +42,57 @@ function base64urlEncode(bytes: Uint8Array): string {
 export class XAdapter implements PlatformAdapter {
   readonly platform = 'x' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.X_CLIENT_ID || '',
-    clientSecret: config.X_CLIENT_SECRET || '',
-    redirectUri: config.X_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.X_CLIENT_ID || process.env.X_CLIENT_ID || '',
+      clientSecret: config.X_CLIENT_SECRET || process.env.X_CLIENT_SECRET || '',
+      redirectUri:
+        config.X_REDIRECT_URI ||
+        process.env.X_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+    };
+  }
 
   /**
    * Generates auth URL with PKCE S256 challenge
-   * Stores code_verifier in HttpOnly cookie for callback retrieval
+   * Stores code_verifier in HttpOnly cookie AND returns it for Redis OAuth state storage
    */
-  async getAuthUrl(state: string): Promise<{ url: string; pkceCookie: string }> {
+  async getAuthUrl(state: string, redirectUri?: string): Promise<{ url: string; pkceCookie: string; codeVerifier: string }> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const { codeVerifier, codeChallenge } = await generatePKCEAsync();
 
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       scope: this.authConfig.scopes.join(' '),
       state,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
     });
 
-    // Cookie value: state|codeVerifier (we'll split on callback)
-    const pkceCookie = `pkce_${state}=${codeVerifier}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`;
+    const pkceCookie = createPKCECookie(state, codeVerifier);
 
     return {
       url: `${X_AUTH_URL}?${params.toString()}`,
       pkceCookie,
+      codeVerifier,
     };
   }
 
   /**
    * Exchanges authorization code for tokens using stored PKCE verifier
    */
-  async exchangeCodeForToken(code: string, codeVerifier: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    if (!codeVerifier) {
+      throw new Error('X OAuth PKCE code_verifier missing or expired. Please try connecting again.');
+    }
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       client_id: this.authConfig.clientId,
       code_verifier: codeVerifier,
     });

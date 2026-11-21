@@ -12,25 +12,33 @@ import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/re
 
 const PINTEREST_AUTH_URL = 'https://www.pinterest.com/oauth/';
 const PINTEREST_TOKEN_URL = 'https://api.pinterest.com/v5/oauth/token';
-const PINTEREST_API_BASE = config.PINTEREST_USE_SANDBOX
-  ? 'https://api-sandbox.pinterest.com/v5'
-  : 'https://api.pinterest.com/v5';
 
 export class PinterestAdapter implements PlatformAdapter {
   readonly platform = 'pinterest' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.PINTEREST_CLIENT_ID || '',
-    clientSecret: config.PINTEREST_CLIENT_SECRET || '',
-    redirectUri: config.PINTEREST_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['user_accounts:read', 'pins:read', 'pins:write', 'boards:read', 'boards:write'],
-  };
+  private get apiBase(): string {
+    const useSandbox = config.PINTEREST_USE_SANDBOX || process.env.PINTEREST_USE_SANDBOX === 'true';
+    return useSandbox ? 'https://api-sandbox.pinterest.com/v5' : 'https://api.pinterest.com/v5';
+  }
 
-  getAuthUrl(state: string): string {
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.PINTEREST_CLIENT_ID || process.env.PINTEREST_CLIENT_ID || '',
+      clientSecret: config.PINTEREST_CLIENT_SECRET || process.env.PINTEREST_CLIENT_SECRET || '',
+      redirectUri:
+        config.PINTEREST_REDIRECT_URI ||
+        process.env.PINTEREST_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: ['user_accounts:read', 'pins:read', 'pins:write', 'boards:read', 'boards:write'],
+    };
+  }
+
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       state,
       scope: this.authConfig.scopes.join(','),
     });
@@ -41,11 +49,12 @@ export class PinterestAdapter implements PlatformAdapter {
     return 'Basic ' + Buffer.from(`${this.authConfig.clientId}:${this.authConfig.clientSecret}`).toString('base64');
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
     });
 
     return platformFetch('pinterest', async () => {
@@ -108,13 +117,16 @@ export class PinterestAdapter implements PlatformAdapter {
 
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('pinterest', async () => {
-      const profileResponse = await fetchWithRetry(`${PINTEREST_API_BASE}/user_account`, {
+      const profileResponse = await fetchWithRetry(`${this.apiBase}/user_account`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!profileResponse.ok) {
         const error = await profileResponse.text();
         logger.error('Pinterest userinfo fetch failed', { errorMessage: error, status: profileResponse.status });
+        if (profileResponse.status === 401) {
+          throw new TokenExpiredError('Pinterest access token expired or invalid', 'pinterest');
+        }
         throw new Error(`Pinterest userinfo fetch failed: ${error}`);
       }
 
@@ -137,7 +149,7 @@ export class PinterestAdapter implements PlatformAdapter {
       }
 
       // We need a board to pin to. Fetch user boards first.
-      const boardsRes = await fetchWithRetry(`${PINTEREST_API_BASE}/boards`, {
+      const boardsRes = await fetchWithRetry(`${this.apiBase}/boards`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
@@ -165,7 +177,7 @@ export class PinterestAdapter implements PlatformAdapter {
       if (!boardId) {
         logger.info('No Pinterest boards found, attempting to auto-create default board "Unool"');
         try {
-          const createBoardRes = await fetchWithRetry(`${PINTEREST_API_BASE}/boards`, {
+          const createBoardRes = await fetchWithRetry(`${this.apiBase}/boards`, {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -211,7 +223,7 @@ export class PinterestAdapter implements PlatformAdapter {
         media_source: mediaSource,
       };
 
-      const response = await fetchWithRetry(`${PINTEREST_API_BASE}/pins`, {
+      const response = await fetchWithRetry(`${this.apiBase}/pins`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -253,7 +265,7 @@ export class PinterestAdapter implements PlatformAdapter {
 
   async deletePost(accessToken: string, platformPostId: string): Promise<void> {
     return platformFetch('pinterest', async () => {
-      const response = await fetchWithRetry(`${PINTEREST_API_BASE}/pins/${platformPostId}`, {
+      const response = await fetchWithRetry(`${this.apiBase}/pins/${platformPostId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -276,7 +288,7 @@ export class PinterestAdapter implements PlatformAdapter {
       const endDate = end.toISOString().split('T')[0];
 
       let response = await fetchWithRetry(
-        `${PINTEREST_API_BASE}/pins/${encodeURIComponent(platformPostId)}/analytics?start_date=${startDate}&end_date=${endDate}&metric_types=IMPRESSION,SAVE,PIN_CLICK,OUTBOUND_CLICK`,
+        `${this.apiBase}/pins/${encodeURIComponent(platformPostId)}/analytics?start_date=${startDate}&end_date=${endDate}&metric_types=IMPRESSION,SAVE,PIN_CLICK,OUTBOUND_CLICK`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -287,7 +299,7 @@ export class PinterestAdapter implements PlatformAdapter {
       // Compatibility fallback if older proxy/sandbox expects legacy parameter names
       if (!response.ok && response.status === 400) {
         response = await fetchWithRetry(
-          `${PINTEREST_API_BASE}/pins/${encodeURIComponent(platformPostId)}/analytics?start_date=${startDate}&end_date=${endDate}&metric_types=IMPRESSIONS,SAVES,PIN_CLICKS`,
+          `${this.apiBase}/pins/${encodeURIComponent(platformPostId)}/analytics?start_date=${startDate}&end_date=${endDate}&metric_types=IMPRESSIONS,SAVES,PIN_CLICKS`,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,

@@ -8,7 +8,8 @@ import { PlatformConnections, ConnectedAccountItem } from '@/components/dashboar
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
 import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegrationDialog';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
-import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
 import { getHourlyGreetingForDate } from '@/lib/utils/hourlyGreetings';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
@@ -181,42 +182,83 @@ export const ALL_EXISTING_PLATFORMS: NetworkPlatformDef[] = [
   ALL_PLATFORM_DEFS.manual,
 ].filter(Boolean);
 
+const OVERVIEW_CUSTOM_CONNECT_PLATFORMS = new Set([
+  'manual',
+  'bluesky',
+  'mastodon',
+  'slack',
+  'twitch',
+  'telegram',
+  'skool',
+  'warpcast',
+  'mewe',
+  'nostr',
+  'medium',
+  'lemmy',
+  'listmonk',
+  'hashnode',
+  'devto',
+]);
+
+const OVERVIEW_PLATFORM_LABELS: Record<string, string> = {
+  x: 'X (Twitter)',
+  youtube: 'YouTube',
+  linkedin: 'LinkedIn',
+  devto: 'Dev.to',
+  mewe: 'MeWe',
+};
+
+function formatOverviewPlatformName(raw: string | null | undefined): string {
+  if (!raw) return 'Platform';
+  const key = raw.trim().toLowerCase();
+  if (!key) return 'Platform';
+  return OVERVIEW_PLATFORM_LABELS[key] || `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+
 export function getSortedBroadcastPlatforms(
   connections: Record<string, DashboardConnectionEntry>
 ) {
   const isConn = (id: string) => connections[id]?.status?.toLowerCase() === 'connected';
+  const hasIssueFn = (id: string) => {
+    const st = connections[id]?.status?.toLowerCase();
+    return st === 'expired' || st === 'error';
+  };
 
-  // 1. Separate all 27 platforms into connected and not-connected lists
+  // 1. Separate all 27 platforms into connected, needs-attention, and not-connected lists
   const connectedList: NetworkPlatformDef[] = [];
+  const issueList: NetworkPlatformDef[] = [];
   const notConnectedList: NetworkPlatformDef[] = [];
 
   for (const p of ALL_EXISTING_PLATFORMS) {
     if (isConn(p.id)) {
       connectedList.push(p);
+    } else if (hasIssueFn(p.id)) {
+      issueList.push(p);
     } else {
       notConnectedList.push(p);
     }
   }
 
-  // 2. Sort: connected platforms first, then not connected, taking exactly 8 platforms for overview grid
-  const displayList = [...connectedList, ...notConnectedList].slice(0, 8);
+  // 2. Sort: connected platforms first, then needs-attention, then not connected (taking 8 platforms for overview grid)
+  const displayList = [...connectedList, ...issueList, ...notConnectedList].slice(0, 8);
 
   return displayList.map((p) => {
     const isConnected = isConn(p.id);
+    const hasIssue = hasIssueFn(p.id);
     const connEntry = connections[p.id];
     const rawAccounts = Array.isArray(connEntry?.accounts) ? connEntry.accounts : [];
     const hasRealAccountIds = rawAccounts.length > 0;
     const accounts: ConnectedAccountItem[] =
       rawAccounts.length > 0
         ? rawAccounts
-        : isConnected
+        : isConnected || hasIssue
         ? [
             {
               id: `${p.id}:default`,
               platform: p.id as any,
               username: connEntry?.username,
               displayName: connEntry?.displayName,
-              status: 'connected',
+              status: hasIssue ? 'expired' : 'connected',
             },
           ]
         : [];
@@ -227,6 +269,8 @@ export function getSortedBroadcastPlatforms(
     return {
       ...p,
       connected: isConnected,
+      hasIssue,
+      status: connEntry?.status || 'not_connected',
       accounts,
       hasRealAccountIds,
       color: theme.color,
@@ -563,6 +607,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(searchParams.get('connect') === 'bluesky');
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
+  const [allPlatformsOpen, setAllPlatformsOpen] = useState(false);
+  const [pendingConnectPlatform, setPendingConnectPlatform] = useState<string | null>(null);
+  const [addAccountOverviewTarget, setAddAccountOverviewTarget] = useState<{
+    id: string;
+    name: string;
+    accounts: ConnectedAccountItem[];
+  } | null>(null);
+  const [manageOverviewTarget, setManageOverviewTarget] = useState<string | null>(null);
+  const [disconnectConfirmTarget, setDisconnectConfirmTarget] = useState<{
+    platformId: string;
+    platformName: string;
+    connectionId?: string;
+    accountLabel?: string;
+  } | null>(null);
+  const [disconnectingOverview, setDisconnectingOverview] = useState(false);
   const [questOpen, setQuestOpen] = useState(false);
 
   const { insights, loadingInsights } = useAnalyticsInsights();
@@ -587,7 +646,31 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     toastTimeoutRef.current = setTimeout(() => setToastMsg(null), duration);
   }, []);
 
-  // Handle OAuth callback redirect parameters and Meta hash
+  // Dynamic connections state auto-updated when connections change
+  const [connections, setConnections] = useState<Record<string, DashboardConnectionEntry>>(
+    data.connections || {}
+  );
+
+  const refetchConnections = useCallback(async (opts?: { fresh?: boolean }) => {
+    try {
+      const res = await fetch(
+        `/api/platform/connections?workspaceId=${data.workspaceId}${opts?.fresh ? '&fresh=1' : ''}&_t=${Date.now()}`,
+        { credentials: 'include' }
+      );
+      if (res.ok) {
+        const resData = await res.json();
+        if (resData?.connections) {
+          setConnections((prev) => ({ ...prev, ...resData.connections }));
+        }
+      }
+    } catch {
+      /* silent */
+    }
+  }, [data.workspaceId]);
+
+  const handledOAuthRef = useRef<string | null>(null);
+
+  // Handle OAuth callback redirect parameters, `?connect=`, and Meta hash
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -601,29 +684,62 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     const platformParam = searchParams.get('platform');
     const detailParam = searchParams.get('detail');
     const descriptionParam = searchParams.get('description');
+    const limitParam = searchParams.get('limit');
+    const planParam = searchParams.get('plan');
+    const connectParam = searchParams.get('connect');
+
+    const queryKey = searchParams.toString();
+    if (!connectedParam && !errorParam && !connectParam) return;
+    if (handledOAuthRef.current === queryKey) return;
+    handledOAuthRef.current = queryKey;
+
+    if (connectParam) {
+      const normalized = connectParam.trim().toLowerCase();
+      if (normalized === 'bluesky') {
+        setBlueskyDialogOpen(true);
+      } else if (normalized === 'manual') {
+        setManualDialogOpen(true);
+      } else if (OVERVIEW_CUSTOM_CONNECT_PLATFORMS.has(normalized)) {
+        setPendingConnectPlatform(normalized);
+        setAllPlatformsOpen(true);
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('connect');
+      window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
+    }
 
     if (connectedParam) {
-      const pName = connectedParam.charAt(0).toUpperCase() + connectedParam.slice(1);
+      const pName = formatOverviewPlatformName(connectedParam);
       const msg = `${pName} connected successfully!`;
       showToast(msg, 3500);
       toast.success(msg);
+      void refetchConnections({ fresh: true });
       router.refresh();
       const url = new URL(window.location.href);
       url.searchParams.delete('connected');
       window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
     } else if (errorParam) {
+      const pName = formatOverviewPlatformName(platformParam);
       let msg = 'Connection failed';
-      if (errorParam === 'missing_credentials') {
-        const plat = platformParam ? platformParam.charAt(0).toUpperCase() + platformParam.slice(1) : 'Platform';
-        msg = `${plat} credentials missing. Please set FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET in your .env.local file.`;
+      if (errorParam === 'missing_credentials' || errorParam === 'oauth_config_missing') {
+        msg = `${pName} OAuth credentials are not configured on this environment yet.`;
+      } else if (errorParam === 'oauth_denied') {
+        msg = `${pName} connection was cancelled.`;
       } else if (errorParam === 'unauthorized') {
         msg = 'Session expired. Please sign in again to connect platforms.';
-      } else if (errorParam === 'channel_limit_exceeded') {
-        msg = 'Connected channel limit reached for your plan. Please upgrade or disconnect another channel.';
+      } else if (
+        errorParam === 'channel_limit_exceeded' ||
+        errorParam === 'quota_exceeded' ||
+        errorParam === 'platform_limit' ||
+        errorParam === 'channel_limit'
+      ) {
+        msg = `Connected channel limit reached${limitParam ? ` (${limitParam})` : ''}${planParam ? ` on the ${planParam} plan` : ''}. Disconnect another channel or upgrade to add ${pName}.`;
       } else if (errorParam === 'invalid_state') {
-        msg = 'OAuth session expired or state mismatch. Please try connecting again.';
+        msg = `OAuth session expired or state mismatch. Please try connecting ${pName} again.`;
+      } else if (errorParam === 'access_denied' || errorParam === 'permission_denied') {
+        msg = `Missing required permissions for ${pName}. Please approve all requested scopes.`;
       } else if (descriptionParam || detailParam) {
-        msg = `Connection failed: ${decodeURIComponent(descriptionParam || detailParam || errorParam)}`;
+        msg = `Connection failed: ${descriptionParam || detailParam || errorParam}`;
       } else {
         msg = `Connection failed: ${errorParam}`;
       }
@@ -638,7 +754,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       url.searchParams.delete('plan');
       window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
     }
-  }, [searchParams, router, showToast]);
+  }, [searchParams, router, showToast, refetchConnections]);
 
   // Copy URL action
   const handleCopyUrl = () => {
@@ -648,11 +764,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       () => showToast('Press Ctrl+C to copy')
     );
   };
-
-  // Dynamic connections state auto-updated when connections change
-  const [connections, setConnections] = useState<Record<string, DashboardConnectionEntry>>(
-    data.connections || {}
-  );
 
   useEffect(() => {
     if (data.connections) {
@@ -720,6 +831,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   }, [connections]);
   const systemNotConnectedCount = Math.max(0, totalSystemPlatforms - systemConnectedCount);
 
+  const startConnectFlow = useCallback(
+    (platformId: string, options?: { addAccount?: boolean; reconnectConnectionId?: string }) => {
+      if (platformId === 'bluesky') {
+        setBlueskyDialogOpen(true);
+        return;
+      }
+      if (platformId === 'manual') {
+        setManualDialogOpen(true);
+        return;
+      }
+      if (OVERVIEW_CUSTOM_CONNECT_PLATFORMS.has(platformId)) {
+        setPendingConnectPlatform(platformId);
+        setAllPlatformsOpen(true);
+        return;
+      }
+      setConnectingPlatform(platformId);
+      const params = new URLSearchParams({
+        platform: platformId,
+        workspaceId: data.workspaceId,
+        userId: data.userId,
+        returnUrl: '/dashboard',
+      });
+      if (options?.addAccount) params.set('addAccount', 'true');
+      if (options?.reconnectConnectionId) {
+        params.set('reconnectConnectionId', options.reconnectConnectionId);
+      }
+      window.location.href = `/api/auth/platform/connect?${params.toString()}`;
+    },
+    [data.workspaceId, data.userId]
+  );
+
   // Platform connect / disconnect handlers
   const handlePlatformClick = (platformId: string, isConnected: boolean, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -732,63 +874,27 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     }
 
     if (isConnected) {
-      const pDef = platforms.find((p) => p.id === platformId);
-      if (!confirm(`Disconnect ${pDef?.name || platformId}? You can reconnect anytime.`)) return;
-
-      // Optimistic update: flip state immediately for smooth animation & auto-updated parameters
-      setConnections((prev) => ({
-        ...prev,
-        [platformId]: { status: 'not_connected' },
-      }));
-
-      fetch(`/api/platform/connections/${platformId}`, { method: 'DELETE' })
-        .then((res) => {
-          if (res.ok) {
-            showToast(`${pDef?.name || platformId} disconnected`);
-            if (data?.connections) {
-              data.connections[platformId] = { status: 'not_connected' };
-            }
-            router.refresh();
-          } else {
-            // Revert on failure
-            setConnections((prev) => ({
-              ...prev,
-              [platformId]: { status: 'connected' },
-            }));
-            showToast('Failed to disconnect');
-          }
-        })
-        .catch(() => {
-          setConnections((prev) => ({
-            ...prev,
-            [platformId]: { status: 'connected' },
-          }));
-          showToast('Failed to disconnect');
-        });
-    } else {
-      if (platformId === 'bluesky') {
-        setBlueskyDialogOpen(true);
-      } else if (platformId === 'manual') {
-        setManualDialogOpen(true);
-      } else {
-        setConnectingPlatform(platformId);
-        window.location.href = `/api/auth/platform/connect?platform=${platformId}&workspaceId=${data.workspaceId}&userId=${data.userId}&returnUrl=${encodeURIComponent('/dashboard')}`;
-      }
+      const pDef = ALL_EXISTING_PLATFORMS.find((p) => p.id === platformId);
+      setDisconnectConfirmTarget({
+        platformId,
+        platformName: pDef?.name || formatOverviewPlatformName(platformId),
+      });
+      return;
     }
+
+    startConnectFlow(platformId);
   };
 
   const handleAddPlatformAccount = (platformId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (platformId === 'bluesky') {
-      setBlueskyDialogOpen(true);
-      return;
-    }
-    if (platformId === 'manual') {
-      setManualDialogOpen(true);
-      return;
-    }
-    setConnectingPlatform(platformId);
-    window.location.href = `/api/auth/platform/connect?platform=${platformId}&workspaceId=${data.workspaceId}&userId=${data.userId}&addAccount=true&returnUrl=${encodeURIComponent('/dashboard')}`;
+    const pDef = ALL_EXISTING_PLATFORMS.find((p) => p.id === platformId);
+    const tileDef = platforms.find((p) => p.id === platformId);
+    const accts = tileDef?.accounts || connections[platformId]?.accounts || [];
+    setAddAccountOverviewTarget({
+      id: platformId,
+      name: pDef?.name || formatOverviewPlatformName(platformId),
+      accounts: accts,
+    });
   };
 
   const handleDisconnectPlatformAccount = (
@@ -798,35 +904,47 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     e: React.MouseEvent
   ) => {
     e.stopPropagation();
-    const pDef = platforms.find((p) => p.id === platformId);
-    const label = accountLabel ? `@${accountLabel}` : pDef?.name || platformId;
-    if (!confirm(`Disconnect ${label}? You can reconnect anytime.`)) return;
+    const pDef = ALL_EXISTING_PLATFORMS.find((p) => p.id === platformId);
+    setDisconnectConfirmTarget({
+      platformId,
+      platformName: pDef?.name || formatOverviewPlatformName(platformId),
+      connectionId,
+      accountLabel,
+    });
+  };
 
+  const confirmOverviewDisconnect = async () => {
+    if (!disconnectConfirmTarget) return;
+    const { platformId, platformName, connectionId, accountLabel } = disconnectConfirmTarget;
+    const label = accountLabel ? `@${accountLabel.replace(/^@/, '')} on ${platformName}` : platformName;
     const url = connectionId
       ? `/api/platform/connections/${encodeURIComponent(platformId)}?connectionId=${encodeURIComponent(connectionId)}`
       : `/api/platform/connections/${encodeURIComponent(platformId)}`;
 
-    fetch(url, { method: 'DELETE', credentials: 'include' })
-      .then(async (res) => {
-        if (res.ok) {
-          showToast(`${label} disconnected`);
-          const refreshRes = await fetch(`/api/platform/connections?workspaceId=${data.workspaceId}&_t=${Date.now()}`, {
-            credentials: 'include',
-          });
-          if (refreshRes.ok) {
-            const resData = await refreshRes.json();
-            if (resData?.connections) {
-              setConnections((prev) => ({ ...prev, ...resData.connections }));
-            }
-          }
-          router.refresh();
-        } else {
-          showToast('Failed to disconnect');
+    setDisconnectingOverview(true);
+    try {
+      const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        setDisconnectConfirmTarget(null);
+        await refetchConnections({ fresh: true });
+        if (manageOverviewTarget === platformId) {
+          setManageOverviewTarget(null);
         }
-      })
-      .catch(() => {
-        showToast('Failed to disconnect');
-      });
+        showToast(`${label} disconnected`);
+        toast.success(`${label} disconnected`);
+        router.refresh();
+      } else {
+        const errBody = await res.json().catch(() => null);
+        const msg = errBody?.error || 'Failed to disconnect';
+        showToast(msg);
+        toast.error(msg);
+      }
+    } catch {
+      showToast('Failed to disconnect');
+      toast.error('Failed to disconnect');
+    } finally {
+      setDisconnectingOverview(false);
+    }
   };
 
   // Weekly Flight Plan days
@@ -1164,20 +1282,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               const isHi = hoveredPlatformId === p.id;
               const origin = tileOrigins[p.id];
               const isPending = connectingPlatform === p.id;
-              const isLinkedinAnalytics = p.id === 'linkedin' && p.connected;
 
               return (
                 <div
                   key={p.id}
                   data-platform={p.id}
-                  className={`tile ${p.connected ? 'on' : ''} ${isHi ? 'hi' : ''}`}
+                  className={`tile ${p.connected ? 'on' : p.hasIssue ? 'warn' : ''} ${isHi ? 'hi' : ''}`}
                   onMouseEnter={() => setHoveredPlatformId(p.id)}
                   onMouseLeave={() => setHoveredPlatformId(null)}
-                  onClick={() => {
-                    if (isLinkedinAnalytics) {
-                      window.location.href = '/analytics/linkedin';
-                    }
-                  }}
                   style={
                     {
                       '--i': i,
@@ -1200,20 +1312,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         ? p.accounts.length > 1
                           ? `${p.accounts.length} Accounts`
                           : 'Connected'
-                        : 'Not connected'}
+                        : p.hasIssue
+                          ? 'Needs reconnect'
+                          : 'Not connected'}
                     </span>
                   </div>
 
-                  {p.connected && p.accounts.length > 0 && (
+                  {(p.connected || p.hasIssue) && p.accounts.length > 0 && (
                     <div className="tile-accts" onClick={(e) => e.stopPropagation()}>
                       {p.accounts.map((acct) => {
+                        const acctExpired = acct.status === 'expired' || acct.status === 'error';
                         const acctLabel = acct.username
                           ? `@${acct.username.replace(/^@/, '')}`
-                          : acct.displayName || 'Connected';
+                          : acct.displayName || (acctExpired ? 'Reconnect required' : 'Connected');
                         return (
                           <span key={acct.id} className="tile-acct-pill" title={acctLabel}>
-                            <span className="tile-acct-dot" />
-                            <span className="tile-acct-txt">{acctLabel}</span>
+                            <span className={`tile-acct-dot ${acctExpired ? 'warn' : ''}`} />
+                            <span className="tile-acct-txt">
+                              {acctLabel}
+                              {acctExpired ? ' (expired)' : ''}
+                            </span>
                             <button
                               type="button"
                               className="tile-acct-rm"
@@ -1238,29 +1356,91 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                   <div className="tb">
                     <b>{p.name}</b>
-                    {p.connected ? (
+                    {p.connected || p.hasIssue ? (
                       <div className="tb-actions">
-                        {p.id !== 'manual' && (
+                        {p.hasIssue && !p.connected && p.accounts.length <= 1 ? (
+                          <>
+                            <button
+                              type="button"
+                              className="tbtn k add-acct"
+                              disabled={isPending}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startConnectFlow(p.id, {
+                                  reconnectConnectionId: p.hasRealAccountIds ? p.accounts[0]?.id : undefined,
+                                });
+                              }}
+                              aria-label={`Reconnect ${p.name}`}
+                            >
+                              {isPending ? <span className="sp2" /> : <span>Reconnect</span>}
+                            </button>
+                            <button
+                              type="button"
+                              className="tbtn warn add-acct"
+                              onClick={(e) =>
+                                handleDisconnectPlatformAccount(
+                                  p.id,
+                                  p.hasRealAccountIds ? p.accounts[0]?.id : undefined,
+                                  p.accounts[0]?.username || p.accounts[0]?.displayName,
+                                  e
+                                )
+                              }
+                              aria-label={`Disconnect ${p.name}`}
+                            >
+                              Disconnect
+                            </button>
+                          </>
+                        ) : p.id === 'manual' ? (
                           <button
                             type="button"
                             className="tbtn g add-acct"
-                            disabled={isPending}
-                            onClick={(e) => handleAddPlatformAccount(p.id, e)}
-                            title={`Connect another ${p.name} account`}
-                            aria-label={`Add ${p.name} account`}
-                          >
-                            {isPending ? <span className="sp2" /> : <span>+ Add account</span>}
-                          </button>
-                        )}
-                        {p.id === 'manual' && (
-                          <button
-                            type="button"
-                            className="tbtn g"
                             onClick={(e) => handlePlatformClick(p.id, true, e)}
                             aria-label={`Disconnect ${p.name}`}
                           >
                             Disconnect
                           </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="tbtn g add-acct"
+                              disabled={isPending}
+                              onClick={(e) => handleAddPlatformAccount(p.id, e)}
+                              title={`Connect another ${p.name} account`}
+                              aria-label={`Add ${p.name} account`}
+                            >
+                              {isPending ? <span className="sp2" /> : <span>+ Add</span>}
+                            </button>
+                            {p.accounts.length > 1 ? (
+                              <button
+                                type="button"
+                                className="tbtn g add-acct"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setManageOverviewTarget(p.id);
+                                }}
+                                aria-label={`Manage ${p.name} accounts`}
+                              >
+                                Manage
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="tbtn g add-acct"
+                                onClick={(e) =>
+                                  handleDisconnectPlatformAccount(
+                                    p.id,
+                                    p.hasRealAccountIds ? p.accounts[0]?.id : undefined,
+                                    p.accounts[0]?.username || p.accounts[0]?.displayName,
+                                    e
+                                  )
+                                }
+                                aria-label={`Disconnect ${p.name}`}
+                              >
+                                Disconnect
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     ) : (
@@ -1289,17 +1469,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
           {/* All Platforms Modal Trigger */}
           <Dialog
+            open={allPlatformsOpen}
             onOpenChange={(open) => {
+              setAllPlatformsOpen(open);
               if (!open) {
-                // Refresh connections from API when modal closes to catch external changes
-                fetch(`/api/platform/connections?workspaceId=${data.workspaceId}&_t=${Date.now()}`)
-                  .then((res) => res.json())
-                  .then((resData) => {
-                    if (resData?.connections) {
-                      setConnections((prev) => ({ ...prev, ...resData.connections }));
-                    }
-                  })
-                  .catch(() => {});
+                setPendingConnectPlatform(null);
+                void refetchConnections({ fresh: true });
               }
             }}
           >
@@ -1318,6 +1493,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 userId={data.userId}
                 initialConnectionsProp={connections}
                 onConnectionChange={handleConnectionChange}
+                initialConnectPlatform={pendingConnectPlatform}
+                onInitialConnectHandled={() => setPendingConnectPlatform(null)}
               />
             </DialogContent>
           </Dialog>
@@ -1518,6 +1695,218 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       />
 
       {/* ─── Background Dialogs ─── */}
+      <Dialog
+        open={Boolean(addAccountOverviewTarget)}
+        onOpenChange={(o) => !o && setAddAccountOverviewTarget(null)}
+      >
+        <DialogContent className="sm:max-w-md bg-white dark:bg-[#1F1A16] border-[#E4D9C8] dark:border-[#382F27]">
+          <DialogHeader>
+            <DialogTitle className="text-[#3D2B1F] dark:text-[#F5EFE6]">
+              Add another {addAccountOverviewTarget?.name || ''} account
+            </DialogTitle>
+            <DialogDescription className="text-[#6E5A48] dark:text-[#B8A896]">
+              You can connect multiple accounts per channel and publish to any of them.
+            </DialogDescription>
+          </DialogHeader>
+          {addAccountOverviewTarget && (
+            <div className="space-y-3 text-sm text-[#5C4A3A] dark:text-[#CBBBA7]">
+              {addAccountOverviewTarget.accounts.length > 0 && (
+                <div className="rounded-xl border border-[#E4D9C8] dark:border-[#382F27] px-3 py-2">
+                  <p className="text-xs font-medium mb-1">Already connected</p>
+                  <ul className="text-xs space-y-0.5">
+                    {addAccountOverviewTarget.accounts.map((a) => (
+                      <li key={a.id} className="truncate">
+                        {a.username ? `@${a.username.replace(/^@/, '')}` : a.displayName || 'Account'}
+                        {a.status !== 'connected' ? ' — needs reconnect' : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="text-xs leading-relaxed">
+                {OVERVIEW_CUSTOM_CONNECT_PLATFORMS.has(addAccountOverviewTarget.id)
+                  ? `Enter the handle, API credentials, or webhook details for the additional ${addAccountOverviewTarget.name} account.`
+                  : `${addAccountOverviewTarget.name} signs you in with whichever account is currently active in this browser. To add a different account, switch accounts on ${addAccountOverviewTarget.name} first (or use a private window), then continue. Connecting the same account again refreshes its tokens.`}
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setAddAccountOverviewTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const target = addAccountOverviewTarget;
+                setAddAccountOverviewTarget(null);
+                if (target) {
+                  startConnectFlow(target.id, { addAccount: true });
+                }
+              }}
+            >
+              Continue to {addAccountOverviewTarget?.name || ''}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(manageOverviewTarget)}
+        onOpenChange={(o) => !o && setManageOverviewTarget(null)}
+      >
+        <DialogContent className="sm:max-w-lg bg-white dark:bg-[#1F1A16] border-[#E4D9C8] dark:border-[#382F27]">
+          {manageOverviewTarget && (() => {
+            const pDef = ALL_EXISTING_PLATFORMS.find((p) => p.id === manageOverviewTarget);
+            const pName = pDef?.name || formatOverviewPlatformName(manageOverviewTarget);
+            const connEntry = connections[manageOverviewTarget];
+            const accts = Array.isArray(connEntry?.accounts) ? connEntry.accounts : [];
+            const hasRealIds = accts.length > 0;
+            const list: ConnectedAccountItem[] = hasRealIds
+              ? accts
+              : connEntry?.status === 'connected' || connEntry?.status === 'expired' || connEntry?.status === 'error'
+                ? [
+                    {
+                      id: `${manageOverviewTarget}:default`,
+                      platform: manageOverviewTarget as any,
+                      username: connEntry?.username,
+                      displayName: connEntry?.displayName,
+                      status: (connEntry?.status as any) || 'connected',
+                    },
+                  ]
+                : [];
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-[#3D2B1F] dark:text-[#F5EFE6]">
+                    <PlatformBrandLogo platform={manageOverviewTarget} size={22} />
+                    <span>Manage {pName} accounts</span>
+                  </DialogTitle>
+                  <DialogDescription className="text-[#6E5A48] dark:text-[#B8A896]">
+                    Add another account, reconnect expired credentials, or disconnect individual accounts.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {list.map((acct) => {
+                    const expired = acct.status === 'expired' || acct.status === 'error' || acct.needsReconnect;
+                    const label = acct.username
+                      ? `@${acct.username.replace(/^@/, '')}`
+                      : acct.displayName || pName;
+                    return (
+                      <div
+                        key={acct.id}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-[#E4D9C8] dark:border-[#382F27] px-3 py-2.5 bg-[#FAF7F2] dark:bg-[#28211C]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`h-2 w-2 rounded-full flex-shrink-0 ${expired ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            />
+                            <span className="text-sm font-medium truncate text-[#3D2B1F] dark:text-[#F5EFE6]">
+                              {label}
+                            </span>
+                            <span className="text-[11px] text-[#6E5A48] dark:text-[#B8A896]">
+                              {expired ? 'Needs reconnect' : 'Active'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={expired ? 'default' : 'outline'}
+                            onClick={() => {
+                              setManageOverviewTarget(null);
+                              startConnectFlow(manageOverviewTarget, {
+                                reconnectConnectionId: hasRealIds ? acct.id : undefined,
+                              });
+                            }}
+                            className="h-8 text-xs"
+                          >
+                            Reconnect
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setDisconnectConfirmTarget({
+                                platformId: manageOverviewTarget,
+                                platformName: pName,
+                                connectionId: hasRealIds ? acct.id : undefined,
+                                accountLabel: acct.username || acct.displayName,
+                              })
+                            }
+                            className="h-8 text-xs text-[#9E2A2B] border-[#9E2A2B]/30 hover:bg-[#9E2A2B] hover:text-white"
+                          >
+                            Disconnect
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-[#E4D9C8] dark:border-[#382F27]">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setManageOverviewTarget(null);
+                      setAddAccountOverviewTarget({ id: manageOverviewTarget, name: pName, accounts: list });
+                    }}
+                  >
+                    + Add another account
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setManageOverviewTarget(null)}>
+                    Done
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(disconnectConfirmTarget)}
+        onOpenChange={(o) => !o && !disconnectingOverview && setDisconnectConfirmTarget(null)}
+      >
+        <DialogContent className="sm:max-w-md bg-white dark:bg-[#1F1A16] border-[#E4D9C8] dark:border-[#382F27]">
+          <DialogHeader>
+            <DialogTitle className="text-[#3D2B1F] dark:text-[#F5EFE6]">
+              Disconnect{' '}
+              {disconnectConfirmTarget
+                ? disconnectConfirmTarget.accountLabel
+                  ? `@${disconnectConfirmTarget.accountLabel.replace(/^@/, '')}`
+                  : disconnectConfirmTarget.platformName
+                : 'channel'}
+              ?
+            </DialogTitle>
+            <DialogDescription className="text-[#6E5A48] dark:text-[#B8A896]">
+              Publishing to this account will stop immediately. You can reconnect anytime.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disconnectingOverview}
+              onClick={() => setDisconnectConfirmTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={disconnectingOverview}
+              onClick={confirmOverviewDisconnect}
+              className="bg-[#9E2A2B] hover:bg-[#7F1D1E] text-white"
+            >
+              {disconnectingOverview ? 'Disconnecting...' : 'Disconnect'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <BlueskyConnectDialog
         open={blueskyDialogOpen}
         onClose={() => setBlueskyDialogOpen(false)}
@@ -1527,7 +1916,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             ...prev,
             bluesky: { status: 'connected' },
           }));
+          void refetchConnections({ fresh: true });
+          router.refresh();
           showToast('Bluesky connected');
+          toast.success('Bluesky connected');
         }}
       />
       <ManualIntegrationDialog

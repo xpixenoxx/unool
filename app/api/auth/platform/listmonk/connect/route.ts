@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listmonkAdapter } from '@/lib/platforms/ListmonkAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext, validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
+import { resolvePlatformConnectContext, enforceCustomChannelQuota, validateExternalInstanceUrl } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ('error' in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -81,6 +81,9 @@ export async function POST(request: NextRequest) {
       selectedListName = availableLists[0].name;
     }
 
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, 'listmonk', trimmedUsername);
+    if (quotaErr) return quotaErr;
+
     // Encrypt token payload for persistent storage
     const tokenPayload = JSON.stringify({
       instanceUrl: normalizedInstance,
@@ -107,6 +110,7 @@ export async function POST(request: NextRequest) {
       platform: 'listmonk',
       platformUserId: trimmedUsername,
       username: `${trimmedUsername}@${host}`,
+      displayName: `Listmonk (${host})`,
       accessToken: encryptedToken,
       refreshToken: '',
       expiresAt: undefined,

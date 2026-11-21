@@ -8,41 +8,49 @@ import {
   PublishInput,
   PublishResult,
 } from './adapter';
-import { platformFetch, fetchWithRetry } from '@/lib/utils/retry';
+import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
 
 const REDDIT_AUTH_URL = 'https://www.reddit.com/api/v1/authorize';
 const REDDIT_TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const REDDIT_OAUTH_API = 'https://oauth.reddit.com';
+const REDDIT_USER_AGENT = 'web:unool:1.0.0 (by /u/unool_app)';
 
 export class RedditAdapter implements PlatformAdapter {
   readonly platform = 'reddit' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.REDDIT_CLIENT_ID || '',
-    clientSecret: config.REDDIT_CLIENT_SECRET || '',
-    redirectUri: config.REDDIT_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['identity', 'submit', 'read'],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.REDDIT_CLIENT_ID || process.env.REDDIT_CLIENT_ID || '',
+      clientSecret: config.REDDIT_CLIENT_SECRET || process.env.REDDIT_CLIENT_SECRET || '',
+      redirectUri:
+        config.REDDIT_REDIRECT_URI ||
+        process.env.REDDIT_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      scopes: ['identity', 'submit', 'read'],
+    };
+  }
 
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       response_type: 'code',
       state: state,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       duration: 'permanent',
       scope: this.authConfig.scopes.join(' '),
     });
     return `${REDDIT_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     return platformFetch('reddit', async () => {
       const basicAuth = Buffer.from(`${this.authConfig.clientId}:${this.authConfig.clientSecret}`).toString('base64');
       const params = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: this.authConfig.redirectUri,
+        redirect_uri: effectiveRedirectUri,
       });
 
       const response = await fetchWithRetry(REDDIT_TOKEN_URL, {
@@ -50,6 +58,7 @@ export class RedditAdapter implements PlatformAdapter {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Basic ${basicAuth}`,
+          'User-Agent': REDDIT_USER_AGENT,
         },
         body: params.toString(),
       });
@@ -82,6 +91,7 @@ export class RedditAdapter implements PlatformAdapter {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Basic ${basicAuth}`,
+          'User-Agent': REDDIT_USER_AGENT,
         },
         body: params.toString(),
       });
@@ -105,11 +115,14 @@ export class RedditAdapter implements PlatformAdapter {
       const response = await fetchWithRetry(`${REDDIT_OAUTH_API}/api/v1/me`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'User-Agent': 'Unool/1.0.0',
+          'User-Agent': REDDIT_USER_AGENT,
         },
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new TokenExpiredError('Reddit access token expired or invalid', 'reddit');
+        }
         const error = await response.text();
         throw new Error(`Failed to fetch Reddit profile: ${error}`);
       }
@@ -134,6 +147,7 @@ export class RedditAdapter implements PlatformAdapter {
       
       const sr = `u_${input.username}`;
       const params = new URLSearchParams({
+        api_type: 'json',
         sr,
         kind: 'self',
         title: input.content.substring(0, 300) || 'Post', // Reddit requires a title
@@ -144,24 +158,41 @@ export class RedditAdapter implements PlatformAdapter {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'User-Agent': 'Unool/1.0.0',
+          'User-Agent': REDDIT_USER_AGENT,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: params.toString(),
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new TokenExpiredError('Reddit access token expired or invalid', 'reddit');
+        }
         const error = await response.text();
         throw new Error(`Reddit publish failed: ${error}`);
       }
 
       const data = await response.json();
+      if (data?.json) {
+        if (Array.isArray(data.json.errors) && data.json.errors.length > 0) {
+          throw new Error(`Reddit publish failed: ${JSON.stringify(data.json.errors)}`);
+        }
+        const postInfo = data.json.data || {};
+        const platformPostId = String(postInfo.id || '');
+        const permalink = postInfo.url || `https://reddit.com/user/${input.username}/comments/${platformPostId}/`;
+        return {
+          platformPostId,
+          platformUrl: permalink,
+          publishedAt: new Date(),
+        };
+      }
+
       if (!data.success) {
         throw new Error(`Reddit publish failed: ${JSON.stringify(data.errors)}`);
       }
 
-      const platformPostId = data.jquery[data.jquery.length - 1][3][0].data.id;
-      const permalink = data.jquery[data.jquery.length - 1][3][0].data.url;
+      const platformPostId = data.jquery?.[data.jquery.length - 1]?.[3]?.[0]?.data?.id || '';
+      const permalink = data.jquery?.[data.jquery.length - 1]?.[3]?.[0]?.data?.url;
 
       return {
         platformPostId,

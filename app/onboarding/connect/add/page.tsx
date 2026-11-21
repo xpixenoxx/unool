@@ -42,23 +42,7 @@ export default function AddAccountsPage() {
     setIsConnecting(acc.id);
     
     try {
-      // Fast path: Read session from sessionStorage (set during OTP verification)
-      let storedUserId: string | null = null;
-      try {
-        const stored = sessionStorage.getItem('unool_session');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          storedUserId = parsed.userId || null;
-        }
-      } catch { /* ignore */ }
-
-      if (storedUserId) {
-        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${storedUserId}&userId=${storedUserId}`;
-        window.location.href = url;
-        return;
-      }
-
-      // Fallback: server will resolve workspace and user via cookies directly in middleware
+      // Server resolves workspace and user via session cookies cleanly without ID confusion
       window.location.href = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect`;
     } catch (e) {
       console.error('Failed to initiate platform connection', e);

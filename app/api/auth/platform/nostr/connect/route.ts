@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { nostrAdapter } from "@/lib/platforms/NostrAdapter";
 import { encryptToken } from "@/lib/crypto/encryption";
 import { SupabasePlatformRepository } from "@/lib/repositories/supabase/SupabasePlatformRepository";
-import { resolvePlatformConnectContext, validateHttpsWebhookUrl } from "@/lib/auth/platform-connect";
+import { resolvePlatformConnectContext, enforceCustomChannelQuota, validateHttpsWebhookUrl } from "@/lib/auth/platform-connect";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ("error" in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, "nostr", profile.platformUserId);
+    if (quotaErr) return quotaErr;
+
     // Encrypt the token payload for storage
     const encryptedToken = await encryptToken(tokenPayload);
 
@@ -59,6 +62,8 @@ export async function POST(request: NextRequest) {
       platform: "nostr",
       platformUserId: profile.platformUserId,
       username: profile.username,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
       accessToken: encryptedToken,
       refreshToken: "", // not used
       expiresAt: undefined, // no expiration

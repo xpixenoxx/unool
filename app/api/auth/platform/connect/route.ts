@@ -119,6 +119,20 @@ export async function GET(request: NextRequest) {
     logger.warn('Platform connect: failed to check channel limit', { error: limitErr, workspaceId });
   }
 
+  // Platforms with custom connect flows are handled via frontend modals (no clientId/OAuth redirect).
+  // Must run BEFORE adapter.authConfig.clientId check!
+  if (CUSTOM_FLOW_PLATFORMS.has(platform)) {
+    logger.info('Platform connect: custom flow platform, redirecting with connect param', { platform });
+    return NextResponse.redirect(
+      buildSafeRedirectUrl(
+        request.url,
+        returnUrl || '/dashboard/settings?tab=channels',
+        { connect: platform },
+        '/dashboard/settings?tab=channels'
+      )
+    );
+  }
+
   // Ensure adapter has credentials configured before redirecting to provider
   if (!adapter.authConfig.clientId) {
     logger.error('Platform connect: missing client ID credentials', { platform });
@@ -131,54 +145,51 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Platforms with custom connect flows are handled entirely on the frontend.
-  // Using a static set avoids a wasteful double adapter.getAuthUrl() probe call.
-  if (CUSTOM_FLOW_PLATFORMS.has(platform)) {
-    logger.info('Platform connect: custom flow platform, redirecting to dashboard', { platform });
-    const dashboardUrl = new URL('/dashboard', request.url);
-    dashboardUrl.searchParams.set('connect', platform);
-    return NextResponse.redirect(dashboardUrl);
-  }
-
-  // Derive the effective redirect URI.
-  // If explicitly configured for this platform in env, respect it.
-  // Otherwise, default to the caller's origin (so localhost, preview, and prod all redirect back to themselves).
-  const explicitPlatformRedirect = platform === 'facebook'
-    ? (config.FACEBOOK_REDIRECT_URI || process.env.FACEBOOK_REDIRECT_URI)
-    : undefined;
-  const effectiveRedirectUri = explicitPlatformRedirect || `${request.nextUrl.origin}/api/auth/platform/callback`;
+  // Derive the canonical redirect URI.
+  // If explicitly configured for this platform in env, respect it; otherwise canonicalize www.unool.co -> NEXT_PUBLIC_APP_URL.
+  const redirectEnvKey = `${platform.toUpperCase()}_REDIRECT_URI`;
+  const explicitPlatformRedirect =
+    (config as Record<string, unknown>)[redirectEnvKey] as string | undefined ||
+    process.env[redirectEnvKey];
+  const originBase =
+    request.nextUrl.hostname === 'www.unool.co' && config.NEXT_PUBLIC_APP_URL
+      ? config.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '')
+      : request.nextUrl.origin;
+  const effectiveRedirectUri = explicitPlatformRedirect || `${originBase}/api/auth/platform/callback`;
 
   // Generate cryptographically secure state
   const state = generateOAuthState(workspaceId, platform);
 
-  // Store OAuth state in Redis + generate auth URL in parallel (zero wasted round-trips)
-  const [, authUrlResult] = await Promise.all([
-    storeOAuthState(state, workspaceId, userId, platform, returnUrl, effectiveRedirectUri),
-    Promise.resolve(
-      typeof (adapter as any).getAuthUrl === 'function' && platform === 'facebook'
-        ? (adapter as any).getAuthUrl(state, effectiveRedirectUri)
-        : adapter.getAuthUrl(state)
-    ),
-  ]);
+  // Generate auth URL first so any PKCE codeVerifier can be stored directly inside OAuth state (Redis + cookie)
+  const rawAuthResult = adapter.getAuthUrl(state, effectiveRedirectUri);
+  const resolvedAuthResult = typeof rawAuthResult === 'string' ? { url: rawAuthResult } : await rawAuthResult;
 
-  let authUrl: string;
-  const resCookies: string[] = [createOAuthCookie(state, workspaceId, userId, platform, returnUrl, effectiveRedirectUri)];
+  const extras = {
+    codeVerifier: resolvedAuthResult.codeVerifier,
+    reconnectConnectionId: reconnectConnectionId || undefined,
+    addAccount: addAccount || undefined,
+  };
 
-  if (typeof authUrlResult === 'string') {
-    authUrl = authUrlResult;
-  } else {
-    const result = await authUrlResult;
-    authUrl = result.url;
-    if (result.pkceCookie) {
-      resCookies.push(result.pkceCookie);
-    }
+  await storeOAuthState(state, workspaceId, userId, platform, returnUrl, effectiveRedirectUri, extras);
+
+  let authUrl = resolvedAuthResult.url;
+  const resCookies: string[] = [
+    createOAuthCookie(state, workspaceId, userId, platform, returnUrl, effectiveRedirectUri, undefined, extras),
+  ];
+  if (resolvedAuthResult.pkceCookie) {
+    resCookies.push(resolvedAuthResult.pkceCookie);
   }
 
-  if (addAccount && platform === 'youtube') {
+  if (addAccount) {
     try {
       const parsed = new URL(authUrl);
-      parsed.searchParams.set('prompt', 'select_account consent');
-      authUrl = parsed.toString();
+      if (platform === 'youtube') {
+        parsed.searchParams.set('prompt', 'select_account consent');
+        authUrl = parsed.toString();
+      } else if (platform === 'discord') {
+        parsed.searchParams.set('prompt', 'consent');
+        authUrl = parsed.toString();
+      }
     } catch {
       // keep generated authUrl as-is
     }

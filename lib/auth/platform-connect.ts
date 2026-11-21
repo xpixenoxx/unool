@@ -3,6 +3,7 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { getPlanContext, enforcePlanLimit } from '@/lib/middleware/plan-enforcement-middleware';
 import { validateUrlForFetch } from '@/lib/utils/url-validation';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export interface PlatformConnectContext {
   userId: string;
@@ -15,7 +16,8 @@ export interface PlatformConnectContext {
  */
 export async function resolvePlatformConnectContext(
   request: NextRequest,
-  bodyWorkspaceId?: unknown
+  bodyWorkspaceId?: unknown,
+  options?: { skipQuotaCheck?: boolean }
 ): Promise<{ context: PlatformConnectContext } | { error: NextResponse }> {
   const auth = await getCurrentAuth(request);
   if (!auth) {
@@ -52,12 +54,67 @@ export async function resolvePlatformConnectContext(
     };
   }
 
-  const planContext = await getPlanContext(auth.userId, requestedWorkspaceId);
-  if (planContext) {
-    const limitCheck = await enforcePlanLimit(request, 'connect_channel', planContext);
-    if (!limitCheck.allowed) {
-      return {
-        error: NextResponse.json(
+  if (!options?.skipQuotaCheck) {
+    const planContext = await getPlanContext(auth.userId, requestedWorkspaceId);
+    if (planContext) {
+      const limitCheck = await enforcePlanLimit(request, 'connect_channel', planContext);
+      if (!limitCheck.allowed) {
+        return {
+          error: NextResponse.json(
+            {
+              error:
+                limitCheck.error?.reason ||
+                limitCheck.error?.message ||
+                'Connected channel limit reached for your current plan. Upgrade to connect more accounts.',
+              code: limitCheck.error?.code || 'PLAN_LIMIT_REACHED',
+              limit: limitCheck.error?.limit,
+              current: limitCheck.error?.currentUsage,
+              upgradeUrl: '/dashboard/billing',
+            },
+            { status: 403, headers: limitCheck.headers }
+          ),
+        };
+      }
+    }
+  }
+
+  return {
+    context: {
+      userId: auth.userId,
+      workspaceId: requestedWorkspaceId,
+    },
+  };
+}
+
+/**
+ * Checks plan channel quota after validating credentials, allowing reconnecting/updating
+ * an already-connected account without tripping the plan channel limit.
+ */
+export async function enforceCustomChannelQuota(
+  request: NextRequest,
+  context: PlatformConnectContext,
+  platform: string,
+  platformUserId: string
+): Promise<NextResponse | null> {
+  try {
+    const { data: existingRows } = await supabaseAdmin
+      .from('platform_connections')
+      .select('id')
+      .eq('workspace_id', context.workspaceId)
+      .eq('platform', platform)
+      .eq('platform_user_id', platformUserId)
+      .eq('status', 'connected')
+      .limit(1);
+
+    if (existingRows && existingRows.length > 0) {
+      return null;
+    }
+
+    const planContext = await getPlanContext(context.userId, context.workspaceId);
+    if (planContext) {
+      const limitCheck = await enforcePlanLimit(request, 'connect_channel', planContext);
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
           {
             error:
               limitCheck.error?.reason ||
@@ -69,17 +126,14 @@ export async function resolvePlatformConnectContext(
             upgradeUrl: '/dashboard/billing',
           },
           { status: 403, headers: limitCheck.headers }
-        ),
-      };
+        );
+      }
     }
+  } catch {
+    // Non-fatal fallback
   }
 
-  return {
-    context: {
-      userId: auth.userId,
-      workspaceId: requestedWorkspaceId,
-    },
-  };
+  return null;
 }
 
 /**

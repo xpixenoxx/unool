@@ -15,6 +15,9 @@ export interface ChannelsTabProps {
   connectionsSummary: Record<string, InitialConnectionSummary>;
   publicApiEnabled: boolean;
   onConnectionsUpdated: (summary: Record<string, InitialConnectionSummary>) => void;
+  refreshNonce?: number;
+  initialConnectPlatform?: string | null;
+  onInitialConnectHandled?: () => void;
 }
 
 export function ChannelsTab({
@@ -25,6 +28,9 @@ export function ChannelsTab({
   connectionsSummary,
   publicApiEnabled,
   onConnectionsUpdated,
+  refreshNonce,
+  initialConnectPlatform,
+  onInitialConnectHandled,
 }: ChannelsTabProps) {
   const isViewer = callerRole === 'viewer';
 
@@ -138,6 +144,10 @@ export function ChannelsTab({
             userId={userId}
             initialConnectionsProp={initialConnectionsProp}
             onConnectionChange={handleConnectionChange}
+            readOnly={isViewer}
+            refreshNonce={refreshNonce}
+            initialConnectPlatform={initialConnectPlatform}
+            onInitialConnectHandled={onInitialConnectHandled}
           />
         </PCardBody>
       </PCard>

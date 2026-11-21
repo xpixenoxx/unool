@@ -10,6 +10,7 @@ import {
   Sparkles,
   Building2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { clearAllClientCaches } from '@/lib/utils/clientCache';
 import {
@@ -45,6 +46,22 @@ const SECTION_ICONS: Record<SettingsSectionId, React.ElementType> = {
   'ai-voice': Sparkles,
   workspace: Building2,
 };
+
+const PLATFORM_LABELS: Record<string, string> = {
+  x: 'X (Twitter)',
+  youtube: 'YouTube',
+  linkedin: 'LinkedIn',
+  tiktok: 'TikTok',
+  devto: 'Dev.to',
+  mewe: 'MeWe',
+};
+
+function formatPlatformLabel(raw: string | null): string {
+  if (!raw) return 'channel';
+  const key = raw.trim().toLowerCase();
+  if (!key) return 'channel';
+  return PLATFORM_LABELS[key] || `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
 
 export interface SettingsClientProps {
   initialData: SettingsInitialData;
@@ -83,7 +100,12 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
   const [tabDirty, setTabDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<SettingsSectionId | null>(null);
 
+  // Channel OAuth feedback & deep-link connect state
+  const [connectionsRefreshNonce, setConnectionsRefreshNonce] = useState(0);
+  const [initialConnectPlatform, setInitialConnectPlatform] = useState<string | null>(null);
+
   const lastRedirectedFromRef = useRef<string | null>(null);
+  const handledOAuthQueryRef = useRef<string | null>(null);
 
   useEffect(() => {
     setActiveTab(resolved.section);
@@ -95,11 +117,105 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
       lastRedirectedFromRef.current !== resolved.redirectedFrom
     ) {
       lastRedirectedFromRef.current = resolved.redirectedFrom;
-      router.replace(`${pathname}?tab=${resolved.section}`, { scroll: false });
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.set('tab', resolved.section);
+      router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
     } else if (!resolved.redirectedFrom) {
       lastRedirectedFromRef.current = null;
     }
-  }, [resolved, pathname, router]);
+  }, [resolved, pathname, router, searchParams]);
+
+  // Handle OAuth callback query params (`connected`, `error`, `connect`) and Meta `#_=_` hash
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (window.location.hash === '#_=_' || window.location.hash === '#_') {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    const platform = searchParams.get('platform');
+    const detail = searchParams.get('detail');
+    const description = searchParams.get('description');
+    const limit = searchParams.get('limit');
+    const plan = searchParams.get('plan');
+    const connect = searchParams.get('connect');
+
+    if (connect) {
+      setActiveTab('channels');
+      setInitialConnectPlatform(connect);
+    }
+
+    if (!connected && !error) return;
+
+    const queryKey = searchParams.toString();
+    if (handledOAuthQueryRef.current === queryKey) return;
+    handledOAuthQueryRef.current = queryKey;
+
+    setActiveTab('channels');
+
+    const pName = formatPlatformLabel(connected || platform);
+    if (connected) {
+      toast.success(`${pName} connected successfully!`);
+      setConnectionsRefreshNonce((n) => n + 1);
+    } else if (error) {
+      let message: string;
+      switch (error) {
+        case 'oauth_denied':
+          message = `${pName} connection was cancelled.`;
+          break;
+        case 'invalid_state':
+          message = `Connection session expired. Please try connecting ${pName} again.`;
+          break;
+        case 'oauth_config_missing':
+          message = `${pName} OAuth is not configured on this environment yet.`;
+          break;
+        case 'quota_exceeded':
+        case 'platform_limit':
+        case 'channel_limit':
+          message = `Channel limit reached${limit ? ` (${limit})` : ''}${plan ? ` on the ${plan} plan` : ''}. Disconnect another channel or upgrade to add ${pName}.`;
+          break;
+        case 'access_denied':
+        case 'permission_denied':
+          message = `Missing permissions for ${pName}. Please approve all requested permissions.`;
+          break;
+        case 'unsupported_platform':
+          message = `Unsupported platform${platform ? `: ${platform}` : ''}.`;
+          break;
+        default:
+          message =
+            description ||
+            detail ||
+            `Could not finish connecting ${pName} (${error.replace(/_/g, ' ')}).`;
+          break;
+      }
+      toast.error(message, { duration: 6000 });
+    }
+
+    const cleaned = new URLSearchParams(searchParams.toString());
+    cleaned.delete('connected');
+    cleaned.delete('error');
+    cleaned.delete('platform');
+    cleaned.delete('detail');
+    cleaned.delete('description');
+    cleaned.delete('limit');
+    cleaned.delete('plan');
+    if (!cleaned.get('tab')) {
+      cleaned.set('tab', 'channels');
+    }
+    const qs = cleaned.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
+  }, [searchParams, pathname, router]);
+
+  const handleInitialConnectHandled = useCallback(() => {
+    setInitialConnectPlatform(null);
+    if (!searchParams.get('connect')) return;
+    const cleaned = new URLSearchParams(searchParams.toString());
+    cleaned.delete('connect');
+    const qs = cleaned.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
+  }, [searchParams, pathname, router]);
 
   useEffect(() => {
     try {
@@ -384,6 +500,9 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
                 connectionsSummary={connectionsSummary}
                 publicApiEnabled={initialData.publicApiEnabled}
                 onConnectionsUpdated={setConnectionsSummary}
+                refreshNonce={connectionsRefreshNonce}
+                initialConnectPlatform={initialConnectPlatform}
+                onInitialConnectHandled={handleInitialConnectHandled}
               />
             )}
 

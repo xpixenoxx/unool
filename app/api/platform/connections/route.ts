@@ -2,154 +2,41 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { logger } from '@/lib/logger';
-import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
+import { getPlatformAdapter, SUPPORTED_PLATFORMS } from '@/lib/platforms';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { refreshPlatformConnectionToken } from '@/lib/services/automation/tokenRefresh';
+import {
+  getCachedConnectionsPayload,
+  setCachedConnectionsPayload,
+  invalidateConnectionsCache,
+} from '@/lib/cache/connectionsCache';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Proactively refresh an expired access token using the stored refresh token.
- * Returns true if refresh succeeded (row updated in DB), false otherwise.
- */
-async function tryRefreshToken(row: Record<string, any>, supabaseAdmin: any): Promise<boolean> {
-  try {
-    const { getPlatformAdapter } = await import('@/lib/platforms');
-    const { decryptToken, encryptToken } = await import('@/lib/crypto/encryption');
+const CUSTOM_FLOW_SET = new Set([
+  'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'skool',
+  'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk',
+  'hashnode', 'devto', 'manual',
+]);
 
-    const adapter = getPlatformAdapter(row.platform);
-    if (!adapter) return false;
-
-    const refreshTokenEncrypted = row.refresh_token_encrypted || row.refresh_token;
-    if (!refreshTokenEncrypted) return false;
-
-    const refreshToken = await decryptToken(refreshTokenEncrypted);
-    const tokenResponse = await adapter.refreshAccessToken(refreshToken);
-
-    // Encrypt the new tokens (preserving Kick stream settings if present)
-    let finalAccessTokenToEncrypt = tokenResponse.accessToken;
-    if (row.platform === 'kick') {
-      try {
-        const oldEncrypted = row.access_token_encrypted || row.access_token;
-        if (oldEncrypted) {
-          const oldDecrypted = await decryptToken(oldEncrypted);
-          const parsed = JSON.parse(oldDecrypted);
-          if (parsed && typeof parsed === 'object' && (parsed.streamUrl || parsed.streamKey)) {
-            finalAccessTokenToEncrypt = JSON.stringify({
-              accessToken: tokenResponse.accessToken,
-              streamUrl: parsed.streamUrl,
-              streamKey: parsed.streamKey,
-            });
-          }
-        }
-      } catch {}
-    }
-
-    const newAccessTokenEncrypted = await encryptToken(finalAccessTokenToEncrypt);
-    const newRefreshTokenEncrypted = tokenResponse.refreshToken
-      ? await encryptToken(tokenResponse.refreshToken)
-      : refreshTokenEncrypted; // Keep original if no new refresh token returned
-    const newExpiresAt = tokenResponse.expiresIn
-      ? new Date(Date.now() + tokenResponse.expiresIn * 1000)
-      : null;
-
-    // Update the DB row with fresh tokens
-    await supabaseAdmin
-      .from('platform_connections')
-      .update({
-        access_token_encrypted: newAccessTokenEncrypted,
-        refresh_token_encrypted: newRefreshTokenEncrypted,
-        expires_at: newExpiresAt?.toISOString(),
-        status: 'connected',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', row.id);
-
-    logger.info('Proactive token refresh succeeded', {
-      platform: row.platform,
-      connectionId: row.id,
-      newExpiresIn: tokenResponse.expiresIn,
-    });
-
-    return true;
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.warn('Proactive token refresh failed', {
-      platform: row.platform,
-      connectionId: row.id,
-      error: err.message,
-    });
-
-    // For Kick: do not mark connection as expired if it has live stream credentials configured
-    let hasKickStream = false;
-    if (row.platform === 'kick' && row.access_token_encrypted) {
-      try {
-        const { decryptToken } = await import('@/lib/crypto/encryption');
-        const decrypted = await decryptToken(row.access_token_encrypted);
-        const parsed = JSON.parse(decrypted);
-        if (parsed?.streamUrl && parsed?.streamKey) {
-          hasKickStream = true;
-        }
-      } catch {}
-    }
-
-    if (!hasKickStream) {
-      await supabaseAdmin
-        .from('platform_connections')
-        .update({ status: 'expired', updated_at: new Date().toISOString() })
-        .eq('id', row.id);
-
-      // Best-effort email notification when a previously connected platform transitions to expired,
-      // respecting the user's notify_token_expiry preference.
-      if (row.status === 'connected' && row.user_id) {
-        try {
-          let shouldNotify = true;
-          const { data: prefRow, error: prefErr } = await supabaseAdmin
-            .from('user_preferences')
-            .select('notify_token_expiry')
-            .eq('user_id', row.user_id)
-            .limit(1)
-            .maybeSingle();
-
-          if (!prefErr && prefRow && prefRow.notify_token_expiry === false) {
-            shouldNotify = false;
-          } else {
-            const { data: wsRow } = await supabaseAdmin
-              .from('workspaces')
-              .select('settings')
-              .eq('id', row.workspace_id)
-              .limit(1)
-              .maybeSingle();
-            const wsPrefs = (wsRow?.settings as Record<string, any> | undefined)?.preferences;
-            if (wsPrefs?.notifyTokenExpiry === false || wsPrefs?.notify_token_expiry === false) {
-              shouldNotify = false;
-            }
-          }
-
-          if (shouldNotify) {
-            const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
-            const email = authUser?.user?.email;
-            if (email) {
-              const { sendTokenExpiredAlertEmail } = await import('@/lib/auth/email');
-              await sendTokenExpiredAlertEmail({
-                to: email,
-                platform: row.platform,
-                username: row.username || undefined,
-              });
-            }
-          }
-        } catch {
-          // Non-fatal alert dispatch
-        }
-      }
+function getConfiguredPlatforms(): Record<string, boolean> {
+  const configured: Record<string, boolean> = {};
+  for (const p of SUPPORTED_PLATFORMS) {
+    if (CUSTOM_FLOW_SET.has(p)) {
+      configured[p] = true;
     } else {
-      await supabaseAdmin
-        .from('platform_connections')
-        .update({ status: 'connected', updated_at: new Date().toISOString() })
-        .eq('id', row.id);
+      configured[p] = Boolean(getPlatformAdapter(p)?.authConfig?.clientId);
     }
-
-    return hasKickStream;
   }
+  return configured;
+}
+
+async function tryRefreshToken(row: Record<string, any>): Promise<boolean> {
+  const outcome = await refreshPlatformConnectionToken(row, {
+    failureStatus: 'expired',
+    sendExpiryAlert: true,
+  });
+  return outcome.ok;
 }
 
 export async function GET(request: NextRequest) {
@@ -164,6 +51,18 @@ export async function GET(request: NextRequest) {
     }
 
     debug.push(`auth:uid=${auth.userId.slice(0, 8)}:wid=${auth.workspaceId.slice(0, 8)}`);
+
+    const bypassCache = request.nextUrl.searchParams.get('fresh') === '1';
+    if (!bypassCache) {
+      const cachedPayload = await getCachedConnectionsPayload<Record<string, unknown>>(auth.workspaceId);
+      if (cachedPayload) {
+        return NextResponse.json({
+          ...cachedPayload,
+          userId: auth.userId,
+          cached: true,
+        });
+      }
+    }
 
     // Strictly scope platform connections to the active authorized workspace (no cross-workspace bleed)
     const { data: rows, error: rowsErr } = await supabaseAdmin
@@ -308,7 +207,7 @@ export async function GET(request: NextRequest) {
 
         if (needsRefresh) {
           refreshPromises.push(
-            tryRefreshToken(row, supabaseAdmin).then((refreshed) => ({
+            tryRefreshToken(row).then((refreshed) => ({
               platform: row.platform,
               refreshed,
               entry: accountEntry,
@@ -346,13 +245,16 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      let refreshTimedOut = false;
       // Await refreshes (bounded) — Workers drop un-awaited work after the response is sent.
       if (refreshPromises.length > 0) {
         const settled = await Promise.race([
           Promise.allSettled(refreshPromises),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
         ]);
-        if (settled) {
+        if (!settled) {
+          refreshTimedOut = true;
+        } else {
           for (const r of settled) {
             if (r.status === 'fulfilled' && !r.value.refreshed) {
               logger.warn('Token refresh failed for platform', { platform: r.value.platform, traceId });
@@ -366,15 +268,39 @@ export async function GET(request: NextRequest) {
         }
         debug.push(`refresh_awaited:${refreshPromises.length}${settled ? '' : ':timeout'}`);
       }
+
+      const configuredPlatforms = getConfiguredPlatforms();
+      const totalFound = allAccounts.length;
+      const responseData = {
+        connections: result,
+        accounts: allAccounts,
+        totalFound,
+        dependencyCounts,
+        configuredPlatforms,
+      };
+      if (!refreshTimedOut) {
+        await setCachedConnectionsPayload(auth.workspaceId, responseData, 30);
+      }
+      logger.info('Platform connections fetched', { traceId, workspaceId: auth.workspaceId, totalFound, debug });
+      return NextResponse.json({
+        ...responseData,
+        userId: auth.userId,
+      });
     }
 
+    const configuredPlatforms = getConfiguredPlatforms();
     const totalFound = allAccounts.length;
-    logger.info('Platform connections fetched', { traceId, workspaceId: auth.workspaceId, totalFound, debug });
-    return NextResponse.json({
+    const emptyResponseData = {
       connections: result,
       accounts: allAccounts,
       totalFound,
       dependencyCounts,
+      configuredPlatforms,
+    };
+    await setCachedConnectionsPayload(auth.workspaceId, emptyResponseData, 30);
+    logger.info('Platform connections fetched', { traceId, workspaceId: auth.workspaceId, totalFound, debug });
+    return NextResponse.json({
+      ...emptyResponseData,
       userId: auth.userId,
     });
   } catch (error) {
@@ -422,6 +348,7 @@ export async function DELETE(request: NextRequest) {
 
     await platformRepository.disconnect(conn.id);
     invalidateOverviewCache(auth.workspaceId);
+    await invalidateConnectionsCache(auth.workspaceId);
 
     logger.info('Platform account disconnected', {
       traceId,

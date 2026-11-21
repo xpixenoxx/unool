@@ -73,7 +73,11 @@ export class SlackAdapter implements PlatformAdapter {
       username: displayName,
       displayName: displayName,
       avatarUrl: avatarUrl,
-      profileUrl: `https://${data.url}`,
+      profileUrl: data.url
+        ? String(data.url).startsWith('http')
+          ? data.url
+          : `https://${data.url}`
+        : 'https://slack.com',
     };
   }
 

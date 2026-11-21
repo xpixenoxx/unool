@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { hashnodeAdapter, type HashnodePublication } from '@/lib/platforms/HashnodeAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
-import { resolvePlatformConnectContext } from '@/lib/auth/platform-connect';
+import { resolvePlatformConnectContext, enforceCustomChannelQuota } from '@/lib/auth/platform-connect';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId);
+    const resolved = await resolvePlatformConnectContext(request, bodyWorkspaceId, { skipQuotaCheck: true });
     if ('error' in resolved) return resolved.error;
     const { userId, workspaceId } = resolved.context;
 
@@ -48,6 +48,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const quotaErr = await enforceCustomChannelQuota(request, resolved.context, 'hashnode', profile.platformUserId);
+    if (quotaErr) return quotaErr;
 
     // 2. Fetch publications associated with user
     let publications: HashnodePublication[] = [];
@@ -103,6 +106,8 @@ export async function POST(request: NextRequest) {
       platform: 'hashnode',
       platformUserId: profile.platformUserId,
       username: profile.username,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
       accessToken: encryptedToken,
       refreshToken: '',
       expiresAt: undefined, // PAT does not expire on fixed OAuth interval

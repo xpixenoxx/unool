@@ -179,9 +179,21 @@ export async function middleware(request: NextRequest) {
     return refResponse ?? NextResponse.next();
   }
 
-  // Host-based subdomain and verified custom-domain routing
+  // Host-based canonical redirect (www.unool.co -> unool.co), subdomain, and verified custom-domain routing
   const rawHost = (request.headers.get('host') || '').toLowerCase();
   const hostWithoutPort = rawHost.split(':')[0];
+
+  if (
+    hostWithoutPort === 'www.unool.co' &&
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    !pathname.startsWith('/api/webhooks')
+  ) {
+    return NextResponse.redirect(
+      new URL(`https://unool.co${pathname}${request.nextUrl.search}`),
+      308
+    );
+  }
+
   let hostSubdomain: string | null = null;
 
   if (hostWithoutPort.endsWith('.unool.co') && hostWithoutPort !== 'unool.co' && hostWithoutPort !== 'www.unool.co') {

@@ -1,4 +1,5 @@
 import { config } from '@/lib/config/schema';
+import { API_VERSIONS } from '@/lib/platforms/apiVersions';
 import { logger } from '@/lib/logger';
 import {
   PlatformAdapter,
@@ -15,36 +16,74 @@ const LINKEDIN_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 const LINKEDIN_API_BASE = 'https://api.linkedin.com/v2';
 const LINKEDIN_V1_API_BASE = 'https://api.linkedin.com/rest';
 
+function parseLinkedInPublishError(status: number, statusText: string, rawBody: string): string {
+  try {
+    const parsed = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
+    const inputErrors = parsed.errorDetails?.inputErrors;
+    const isDuplicate =
+      inputErrors?.some((e: any) => e.code === 'DUPLICATE_POST' || e.description?.toLowerCase().includes('duplicate')) ||
+      parsed.message?.toLowerCase().includes('duplicate') ||
+      parsed.code === 'DUPLICATE_POST';
+
+    if (isDuplicate) {
+      return 'LinkedIn duplicate post detected. LinkedIn does not allow publishing identical content within a short period. Please edit your post slightly before retrying.';
+    }
+
+    if (Array.isArray(inputErrors) && inputErrors.length > 0 && inputErrors[0]?.description) {
+      return `LinkedIn rejected post: ${inputErrors[0].description}`;
+    }
+
+    if (parsed.message) {
+      const cleanMsg = parsed.message.replace(/^[a-zA-Z0-9_.]+(?:Exception|Error):\s*/, '');
+      return `LinkedIn rejected post: ${cleanMsg}`;
+    }
+  } catch {
+    // not valid JSON
+  }
+
+  if (rawBody && rawBody.length < 200 && !rawBody.startsWith('{') && !rawBody.startsWith('<')) {
+    return `LinkedIn publish failed: ${status} ${statusText} - ${rawBody}`;
+  }
+
+  return `LinkedIn publish failed: ${status} ${statusText}`;
+}
+
 export class LinkedInAdapter implements PlatformAdapter {
   readonly platform = 'linkedin' as const;
 
-  readonly authConfig: PlatformAuthConfig = {
-    clientId: config.LINKEDIN_CLIENT_ID || '',
-    clientSecret: config.LINKEDIN_CLIENT_SECRET || '',
-    redirectUri: config.LINKEDIN_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    // r_liteprofile was deprecated in 2023. Use OpenID Connect scopes.
-    // Can be overridden via LINKEDIN_SCOPES env variable to include r_member_social or r_organization_social
-    scopes: process.env.LINKEDIN_SCOPES
-      ? process.env.LINKEDIN_SCOPES.split(',').map(s => s.trim())
-      : ['openid', 'profile', 'email', 'w_member_social'],
-  };
+  get authConfig(): PlatformAuthConfig {
+    return {
+      clientId: config.LINKEDIN_CLIENT_ID || process.env.LINKEDIN_CLIENT_ID || '',
+      clientSecret: config.LINKEDIN_CLIENT_SECRET || process.env.LINKEDIN_CLIENT_SECRET || '',
+      redirectUri:
+        config.LINKEDIN_REDIRECT_URI ||
+        process.env.LINKEDIN_REDIRECT_URI ||
+        `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
+      // r_liteprofile was deprecated in 2023. Use OpenID Connect scopes.
+      scopes: process.env.LINKEDIN_SCOPES
+        ? process.env.LINKEDIN_SCOPES.split(',').map(s => s.trim())
+        : ['openid', 'profile', 'email', 'w_member_social'],
+    };
+  }
 
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUri?: string): string {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       state,
       scope: this.authConfig.scopes.join(' '),
     });
     return `${LINKEDIN_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, _codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
     });
@@ -113,6 +152,9 @@ export class LinkedInAdapter implements PlatformAdapter {
       if (!profileResponse.ok) {
         const error = await profileResponse.text();
         logger.error('LinkedIn userinfo fetch failed', { errorMessage: error, status: profileResponse.status });
+        if (profileResponse.status === 401 || profileResponse.status === 403) {
+          throw new TokenExpiredError('Token expired or invalid', 'linkedin');
+        }
         throw new Error(`LinkedIn userinfo fetch failed: ${error}`);
       }
 
@@ -152,14 +194,14 @@ export class LinkedInAdapter implements PlatformAdapter {
             const imageRes = await fetchWithRetry(imageUrl, {}, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 10000, retryableStatuses: [408, 429, 500, 502, 503, 504], isRetryableError: (e) => e instanceof TypeError });
             if (!imageRes.ok) throw new Error(`Failed to fetch media: ${imageRes.status} ${imageRes.statusText}`);
 
-            // Guard: refuse to load files >200MB into memory (prevents OOM on large video uploads)
+            // Guard: refuse to load files >80MB into memory (Workers Free 128MB limit)
             const contentLength = imageRes.headers.get('content-length');
             const fileSizeBytes = contentLength ? parseInt(contentLength, 10) : 0;
-            const MAX_IN_MEMORY_BYTES = 200 * 1024 * 1024; // 200MB
+            const MAX_IN_MEMORY_BYTES = 80 * 1024 * 1024; // 80MB
             if (fileSizeBytes > MAX_IN_MEMORY_BYTES) {
               throw new Error(
                 `Media file too large for serverless upload (${Math.round(fileSizeBytes / 1024 / 1024)}MB). ` +
-                `Maximum supported size is 200MB. Please compress the video before uploading.`
+                `Maximum supported size is 80MB. Please compress the video before uploading.`
               );
             }
 
@@ -175,7 +217,7 @@ export class LinkedInAdapter implements PlatformAdapter {
             if (isVideo) {
               const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=initializeUpload`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': API_VERSIONS.linkedin },
                 body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn, fileSizeBytes: imageBuffer.byteLength, uploadCaptions: false, uploadThumbnail: false } }),
               });
               if (!initRes.ok) throw new Error(`Failed to initialize video upload: ${await initRes.text()}`);
@@ -184,7 +226,7 @@ export class LinkedInAdapter implements PlatformAdapter {
             } else if (isPdf) {
               const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/documents?action=initializeUpload`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': API_VERSIONS.linkedin },
                 body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
               });
               if (!initRes.ok) throw new Error(`Failed to initialize document upload: ${await initRes.text()}`);
@@ -194,7 +236,7 @@ export class LinkedInAdapter implements PlatformAdapter {
             } else {
               const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': API_VERSIONS.linkedin },
                 body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
               });
               if (!initRes.ok) throw new Error(`Failed to initialize image upload: ${await initRes.text()}`);
@@ -228,7 +270,7 @@ export class LinkedInAdapter implements PlatformAdapter {
               }
               const finalizeRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=finalizeUpload`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': API_VERSIONS.linkedin },
                 body: JSON.stringify({ finalizeUploadRequest: { video: mediaUrn, uploadToken: initData.value.uploadToken || '', uploadedPartIds } }),
               });
               if (!finalizeRes.ok) throw new Error(`Failed to finalize video upload: ${await finalizeRes.text()}`);
@@ -265,7 +307,7 @@ export class LinkedInAdapter implements PlatformAdapter {
                   
                   const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
                     method: 'POST',
-                    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': API_VERSIONS.linkedin },
                     body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
                   });
                   
@@ -333,7 +375,7 @@ export class LinkedInAdapter implements PlatformAdapter {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
         'X-Restli-Protocol-Version': '2.0.0',
-        'LinkedIn-Version': '202606',
+        'LinkedIn-Version': API_VERSIONS.linkedin,
       };
 
       const sendPost = async (urn: string) => {
@@ -344,38 +386,6 @@ export class LinkedInAdapter implements PlatformAdapter {
           body: JSON.stringify(postBody),
         });
       };
-
-function parseLinkedInPublishError(status: number, statusText: string, rawBody: string): string {
-  try {
-    const parsed = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
-    const inputErrors = parsed.errorDetails?.inputErrors;
-    const isDuplicate =
-      inputErrors?.some((e: any) => e.code === 'DUPLICATE_POST' || e.description?.toLowerCase().includes('duplicate')) ||
-      parsed.message?.toLowerCase().includes('duplicate') ||
-      parsed.code === 'DUPLICATE_POST';
-
-    if (isDuplicate) {
-      return 'LinkedIn duplicate post detected. LinkedIn does not allow publishing identical content within a short period. Please edit your post slightly before retrying.';
-    }
-
-    if (Array.isArray(inputErrors) && inputErrors.length > 0 && inputErrors[0]?.description) {
-      return `LinkedIn rejected post: ${inputErrors[0].description}`;
-    }
-
-    if (parsed.message) {
-      const cleanMsg = parsed.message.replace(/^[a-zA-Z0-9_.]+(?:Exception|Error):\s*/, '');
-      return `LinkedIn rejected post: ${cleanMsg}`;
-    }
-  } catch {
-    // not valid JSON
-  }
-
-  if (rawBody && rawBody.length < 200 && !rawBody.startsWith('{') && !rawBody.startsWith('<')) {
-    return `LinkedIn publish failed: ${status} ${statusText} - ${rawBody}`;
-  }
-
-  return `LinkedIn publish failed: ${status} ${statusText}`;
-}
 
       let response = await sendPost(authorUrn);
 
@@ -457,7 +467,7 @@ function parseLinkedInPublishError(status: number, statusText: string, rawBody: 
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'X-Restli-Protocol-Version': '2.0.0',
-          'LinkedIn-Version': '202606',
+          'LinkedIn-Version': API_VERSIONS.linkedin,
         },
       });
 
@@ -490,7 +500,7 @@ function parseLinkedInPublishError(status: number, statusText: string, rawBody: 
               headers: {
                 Authorization: `Bearer ${accessToken}`,
                 'X-Restli-Protocol-Version': '2.0.0',
-                'LinkedIn-Version': '202606',
+                'LinkedIn-Version': API_VERSIONS.linkedin,
               },
             },
             { maxRetries: 1 }

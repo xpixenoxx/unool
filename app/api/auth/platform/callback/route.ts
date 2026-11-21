@@ -8,6 +8,7 @@ import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
+import { invalidateConnectionsCache } from '@/lib/cache/connectionsCache';
 import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 import { buildSafeRedirectUrl } from '@/lib/auth/redirect';
 import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
@@ -22,6 +23,17 @@ export const dynamic = 'force-dynamic';
  */
 function buildRedirectUrl(request: NextRequest, returnUrl: string | undefined, params: Record<string, string>): string {
   return buildSafeRedirectUrl(request.url, returnUrl, params, '/dashboard');
+}
+
+function clearOAuthCookies(response: NextResponse, effectiveState?: string | null, platform?: string): NextResponse {
+  response.headers.append('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
+  if (effectiveState && (platform === 'x' || platform === 'kick' || !platform)) {
+    response.headers.append(
+      'Set-Cookie',
+      `pkce_${effectiveState}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`
+    );
+  }
+  return response;
 }
 
 export async function GET(request: NextRequest) {
@@ -52,8 +64,9 @@ export async function GET(request: NextRequest) {
     const cookieHeader = request.headers.get('cookie');
     const cookieState = parseOAuthCookie(cookieHeader);
     const returnUrl = cookieState?.data?.returnUrl;
-    return NextResponse.redirect(
-      buildRedirectUrl(request, returnUrl, { error: 'missing_code' })
+    return clearOAuthCookies(
+      NextResponse.redirect(buildRedirectUrl(request, returnUrl, { error: 'missing_code' })),
+      cookieState?.state
     );
   }
 
@@ -65,16 +78,21 @@ export async function GET(request: NextRequest) {
       urlState: state.slice(0, 8) + '...',
       cookieState: cookieState.state.slice(0, 8) + '...',
     });
-    return NextResponse.redirect(
-      buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'invalid_state' })
+    return clearOAuthCookies(
+      NextResponse.redirect(
+        buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'invalid_state' })
+      ),
+      state
     );
   }
   const effectiveState = state || cookieState?.state;
 
   if (!effectiveState) {
     logger.warn('OAuth callback missing state', { hasCode: !!code, hasCookieState: !!cookieState });
-    return NextResponse.redirect(
-      buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'missing_state' })
+    return clearOAuthCookies(
+      NextResponse.redirect(
+        buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'missing_state' })
+      )
     );
   }
 
@@ -82,18 +100,32 @@ export async function GET(request: NextRequest) {
   const verified = await verifyAndConsumeOAuthState(effectiveState, cookieHeader);
   if (!verified) {
     logger.warn('OAuth state verification failed', { state: effectiveState.slice(0, 8) + '...' });
-    return NextResponse.redirect(
-      buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'invalid_state' })
+    return clearOAuthCookies(
+      NextResponse.redirect(
+        buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'invalid_state' })
+      ),
+      effectiveState
     );
   }
 
-  const { workspaceId, userId, platform: platformFromState, returnUrl, redirectUri: storedRedirectUri } = verified;
+  const {
+    workspaceId,
+    userId,
+    platform: platformFromState,
+    returnUrl,
+    redirectUri: storedRedirectUri,
+    codeVerifier: stateCodeVerifier,
+    reconnectConnectionId,
+  } = verified;
 
   // Validate platform is supported
   if (!SUPPORTED_PLATFORMS.includes(platformFromState as (typeof SUPPORTED_PLATFORMS)[number])) {
     logger.warn('Unsupported platform in OAuth callback', { platform: platformFromState });
-    return NextResponse.redirect(
-      buildRedirectUrl(request, returnUrl, { error: 'unsupported_platform', platform: platformFromState })
+    return clearOAuthCookies(
+      NextResponse.redirect(
+        buildRedirectUrl(request, returnUrl, { error: 'unsupported_platform', platform: platformFromState })
+      ),
+      effectiveState
     );
   }
 
@@ -101,30 +133,43 @@ export async function GET(request: NextRequest) {
 
   const adapter = getPlatformAdapter(platform);
   if (!adapter) {
-    return NextResponse.redirect(
-      buildRedirectUrl(request, returnUrl, { error: 'unsupported_platform', platform })
+    return clearOAuthCookies(
+      NextResponse.redirect(
+        buildRedirectUrl(request, returnUrl, { error: 'unsupported_platform', platform })
+      ),
+      effectiveState,
+      platform
     );
   }
 
-  // Get PKCE verifier from cookie for X/Twitter and Kick
+  // Get PKCE verifier from OAuth state (Redis/cookie) or PKCE cookie for X/Twitter and Kick
   let codeVerifier: string | undefined;
   if (platform === 'x' || platform === 'kick') {
-    const pkceCookie = parseAndConsumePKCECookie(request.headers.get('cookie'), effectiveState);
-    if (pkceCookie) {
-      codeVerifier = pkceCookie;
-    } else {
+    codeVerifier =
+      stateCodeVerifier ||
+      parseAndConsumePKCECookie(request.headers.get('cookie'), effectiveState) ||
+      undefined;
+    if (!codeVerifier) {
       logger.warn(`Missing PKCE verifier for ${platform} OAuth`, { state: effectiveState.slice(0, 8) + '...' });
+      return clearOAuthCookies(
+        NextResponse.redirect(
+          buildRedirectUrl(request, returnUrl, { error: 'invalid_state', platform })
+        ),
+        effectiveState,
+        platform
+      );
     }
   }
 
   try {
-    // Exchange code for token
+    // Exchange code for token using the exact storedRedirectUri across ALL OAuth platforms
     logger.info('Exchanging OAuth code for token', { platform, workspaceId, userId });
-    const tokenResponse = (platform === 'x' || platform === 'kick') && codeVerifier
-      ? await adapter.exchangeCodeForToken(code, codeVerifier)
-      : typeof (adapter as any).exchangeCodeForToken === 'function' && platform === 'facebook' && storedRedirectUri
-        ? await (adapter as any).exchangeCodeForToken(code, storedRedirectUri)
-        : await adapter.exchangeCodeForToken(code);
+    const tokenResponse =
+      platform === 'x' || platform === 'kick'
+        ? await adapter.exchangeCodeForToken(code, codeVerifier, storedRedirectUri)
+        : platform === 'facebook' && storedRedirectUri
+          ? await adapter.exchangeCodeForToken(code, storedRedirectUri)
+          : await adapter.exchangeCodeForToken(code, undefined, storedRedirectUri);
 
     logger.info('Token exchange successful', {
       platform,
@@ -295,14 +340,46 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Enforce plan channel limit before creating a new account connection (allow reconnecting the same account)
+    // Enforce plan channel limit before creating a new account connection (allow reconnecting an existing account)
     const planCtx = await getPlanContext(userId, finalWorkspaceId);
     const channelLimit = planCtx?.limits?.channels;
-    if (planCtx && typeof channelLimit === 'number' && channelLimit > 0) {
+    let targetReconnectRow: Awaited<ReturnType<typeof platformRepository.findByWorkspaceId>>[number] | undefined;
+    if (reconnectConnectionId) {
       const existingConnections = await platformRepository.findByWorkspaceId(finalWorkspaceId);
-      const activeConnections = existingConnections.filter(c => c.status === 'connected');
+      targetReconnectRow = existingConnections.find(
+        (c) => c.id === reconnectConnectionId && c.platform === platform
+      );
+      if (planCtx && typeof channelLimit === 'number' && channelLimit > 0 && !targetReconnectRow) {
+        const activeConnections = existingConnections.filter((c) => c.status === 'connected');
+        const isReconnectingSameAccount = activeConnections.some(
+          (c) => c.platform === platform && c.platformUserId === profile.platformUserId
+        );
+        if (!isReconnectingSameAccount && activeConnections.length >= channelLimit) {
+          logger.warn('OAuth callback blocked: channel limit reached for plan', {
+            workspaceId: finalWorkspaceId,
+            plan: planCtx.plan,
+            connectedCount: activeConnections.length,
+            channelLimit,
+            platform,
+          });
+          return clearOAuthCookies(
+            NextResponse.redirect(
+              buildRedirectUrl(request, returnUrl, {
+                error: 'channel_limit_exceeded',
+                limit: String(channelLimit),
+                plan: planCtx.plan,
+              })
+            ),
+            effectiveState,
+            platform
+          );
+        }
+      }
+    } else if (planCtx && typeof channelLimit === 'number' && channelLimit > 0) {
+      const existingConnections = await platformRepository.findByWorkspaceId(finalWorkspaceId);
+      const activeConnections = existingConnections.filter((c) => c.status === 'connected');
       const isReconnectingSameAccount = activeConnections.some(
-        c => c.platform === platform && c.platformUserId === profile.platformUserId
+        (c) => c.platform === platform && c.platformUserId === profile.platformUserId
       );
       if (!isReconnectingSameAccount && activeConnections.length >= channelLimit) {
         logger.warn('OAuth callback blocked: channel limit reached for plan', {
@@ -312,12 +389,16 @@ export async function GET(request: NextRequest) {
           channelLimit,
           platform,
         });
-        return NextResponse.redirect(
-          buildRedirectUrl(request, returnUrl, {
-            error: 'channel_limit_exceeded',
-            limit: String(channelLimit),
-            plan: planCtx.plan,
-          })
+        return clearOAuthCookies(
+          NextResponse.redirect(
+            buildRedirectUrl(request, returnUrl, {
+              error: 'channel_limit_exceeded',
+              limit: String(channelLimit),
+              plan: planCtx.plan,
+            })
+          ),
+          effectiveState,
+          platform
         );
       }
     }
@@ -337,6 +418,20 @@ export async function GET(request: NextRequest) {
       scopes: finalScopes,
       metadata: Object.keys(connectionMetadata).length > 0 ? connectionMetadata : undefined,
     });
+
+    // If reconnecting a specific broken/expired row and the provider returned a different user ID,
+    // revoke the old broken row so no ghost broken pill lingers alongside the fresh connection.
+    if (
+      targetReconnectRow &&
+      targetReconnectRow.id !== savedConnection.id &&
+      targetReconnectRow.status !== 'connected'
+    ) {
+      try {
+        await platformRepository.disconnect(targetReconnectRow.id);
+      } catch {
+        // Non-fatal cleanup
+      }
+    }
 
     logger.info('Platform connected successfully', {
       platform,
@@ -402,9 +497,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Invalidate dashboard overview cache so the newly connected platform shows immediately
+    // Invalidate dashboard overview & connections caches so the newly connected platform shows immediately
     try {
       invalidateOverviewCache(finalWorkspaceId);
+      await invalidateConnectionsCache(finalWorkspaceId);
     } catch {
       /* silent */
     }
@@ -412,13 +508,7 @@ export async function GET(request: NextRequest) {
     // Build success redirect URL
     const successUrl = buildRedirectUrl(request, returnUrl, { connected: platform });
 
-    const response = NextResponse.redirect(successUrl);
-    response.headers.append('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
-    if (platform === 'x') {
-      response.headers.append('Set-Cookie', `pkce_${effectiveState}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`);
-    }
-
-    return response;
+    return clearOAuthCookies(NextResponse.redirect(successUrl), effectiveState, platform);
   } catch (error) {
     // Supabase PostgrestError is a plain object (not instanceof Error), so String(error)
     // would produce "[object Object]". Properly extract the message from any shape.
@@ -438,12 +528,16 @@ export async function GET(request: NextRequest) {
       state: effectiveState.slice(0, 8) + '...',
     });
     const errorMsg = encodeURIComponent(errMsg.slice(0, 200) || 'unknown');
-    return NextResponse.redirect(
-      buildRedirectUrl(request, returnUrl, {
-        error: 'callback_failed',
-        platform,
-        detail: errorMsg,
-      })
+    return clearOAuthCookies(
+      NextResponse.redirect(
+        buildRedirectUrl(request, returnUrl, {
+          error: 'callback_failed',
+          platform,
+          detail: errorMsg,
+        })
+      ),
+      effectiveState,
+      platform
     );
   }
 }

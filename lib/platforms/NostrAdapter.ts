@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { validateHttpsWebhookUrl } from "@/lib/auth/platform-connect";
 import {
   PlatformAdapter,
   PlatformAuthConfig,
@@ -57,6 +58,11 @@ export class NostrAdapter implements PlatformAdapter {
     if (!webhookUrl) {
       throw new Error("Nostr Webhook/Relay Gateway URL is required to publish.");
     }
+
+    const check = await validateHttpsWebhookUrl(webhookUrl);
+    if (!check.ok) {
+      throw new Error(`Invalid or disallowed webhook URL: ${check.error}`);
+    }
     
     const identifier = npub || username;
 
@@ -71,10 +77,11 @@ export class NostrAdapter implements PlatformAdapter {
     }
 
     try {
-      const res = await fetch(webhookUrl, {
+      const res = await fetch(check.url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        redirect: "manual",
       });
 
       if (!res.ok) {

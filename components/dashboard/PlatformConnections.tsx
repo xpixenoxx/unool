@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import {
   Loader2,
   Phone, AlertCircle, Unlink2, Link2, Lock, Globe2,
-  ArrowRight, Wifi, WifiOff, RefreshCw, ExternalLink, Radio, Plus, X
+  ArrowRight, Wifi, WifiOff, RefreshCw, ExternalLink, Radio, Plus, X,
+  Search, Users, CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,10 @@ interface PlatformConnectionsProps {
   userId?: string;
   initialConnectionsProp?: Record<string, { status: string; username?: string; accounts?: ConnectedAccountItem[] }>;
   onConnectionChange?: (connections: Record<string, { status: string; username?: string; accounts?: ConnectedAccountItem[] }>) => void;
+  readOnly?: boolean;
+  initialConnectPlatform?: string | null;
+  onInitialConnectHandled?: () => void;
+  refreshNonce?: number;
 }
 
 /* ─── Platform display config ──────────────────────────────── */
@@ -372,12 +377,54 @@ export const PLATFORM_CONFIG: Record<
   },
 };
 
+type PlatformCategory = 'social' | 'developer' | 'communities';
+type PlatformFilterTab = 'all' | 'connected' | 'attention' | PlatformCategory;
+
+const PLATFORM_CATEGORY_MAP: Record<Platform, PlatformCategory> = {
+  linkedin: 'social',
+  x: 'social',
+  threads: 'social',
+  facebook: 'social',
+  instagram: 'social',
+  youtube: 'social',
+  pinterest: 'social',
+  bluesky: 'social',
+  mastodon: 'social',
+  warpcast: 'social',
+  mewe: 'social',
+  nostr: 'social',
+  dribbble: 'social',
+  medium: 'developer',
+  hashnode: 'developer',
+  devto: 'developer',
+  listmonk: 'developer',
+  manual: 'developer',
+  reddit: 'communities',
+  slack: 'communities',
+  twitch: 'communities',
+  telegram: 'communities',
+  discord: 'communities',
+  skool: 'communities',
+  whop: 'communities',
+  kick: 'communities',
+  lemmy: 'communities',
+};
+
 /* ─── In-memory cache for instant 0ms modal opening ────────────────── */
 const memoryConnectionsCache = new Map<string, Record<Platform, PlatformConnection>>();
 
 /* ─── Component ────────────────────────────────────────────── */
 
-export function PlatformConnections({ workspaceId, userId: initialUserId, initialConnectionsProp, onConnectionChange }: PlatformConnectionsProps) {
+export function PlatformConnections({
+  workspaceId,
+  userId: initialUserId,
+  initialConnectionsProp,
+  onConnectionChange,
+  readOnly = false,
+  initialConnectPlatform,
+  onInitialConnectHandled,
+  refreshNonce,
+}: PlatformConnectionsProps) {
   const connectablePlatforms = useMemo(
     () =>
       SUPPORTED_PLATFORMS.filter(
@@ -444,17 +491,17 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
   }, [initialConnectionsProp, workspaceId]);
 
 
-  // Sort platforms: ALL connected platforms first, followed by not-connected platforms (manual at end of not-connected)
+  // Sort platforms: connected first, then needs-attention (expired/error), then not-connected (manual at end)
   const sortedPlatforms = useMemo(() => {
-    const isConn = (p: Platform) => connections[p]?.status?.toLowerCase() === 'connected';
+    const rank = (p: Platform) => {
+      const st = connections[p]?.status?.toLowerCase();
+      if (st === 'connected') return 0;
+      if (st === 'expired' || st === 'error') return 1;
+      if (p === 'manual') return 3;
+      return 2;
+    };
 
-    // 1. All connected platforms first (preserving relative order)
-    const connected = connectablePlatforms.filter((p) => isConn(p));
-    // 2. All not-connected platforms (standard first, manual at the very end of not-connected)
-    const notConnectedNonManual = connectablePlatforms.filter((p) => !isConn(p) && p !== 'manual');
-    const notConnectedManual = connectablePlatforms.filter((p) => !isConn(p) && p === 'manual');
-
-    return [...connected, ...notConnectedNonManual, ...notConnectedManual];
+    return [...connectablePlatforms].sort((a, b) => rank(a) - rank(b));
   }, [connectablePlatforms, connections]);
 
   const router = useRouter();
@@ -465,6 +512,10 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
   });
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [configuredPlatforms, setConfiguredPlatforms] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<PlatformFilterTab>('all');
+  const [manageAccountsTarget, setManageAccountsTarget] = useState<Platform | null>(null);
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(false);
   const [mastodonDialogOpen, setMastodonDialogOpen] = useState(false);
@@ -498,17 +549,17 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     }
   }, [initialUserId]);
 
-  useEffect(() => {
-    loadConnections();
-  }, []);
-
-  const loadConnections = async () => {
+  const loadConnections = useCallback(async (opts?: { fresh?: boolean }) => {
     try {
-      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, {
-        credentials: 'include',
-      });
+      const res = await fetch(
+        `/api/platform/connections?${opts?.fresh ? 'fresh=1&' : ''}_t=${Date.now()}`,
+        { credentials: 'include' }
+      );
       if (res.ok) {
-        const data = await res.json();
+        const data: any = await res.json();
+        if (data.configuredPlatforms && typeof data.configuredPlatforms === 'object') {
+          setConfiguredPlatforms(data.configuredPlatforms as Record<string, boolean>);
+        }
         if (data.connections) {
           const prev = connectionsRef.current;
           let changed = false;
@@ -531,11 +582,19 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
               const prevAccounts = next[platformKey].accounts || [];
               const accountsChanged =
                 prevAccounts.length !== newAccounts.length ||
-                prevAccounts.some((a, i) => a.id !== newAccounts[i]?.id || a.status !== newAccounts[i]?.status || a.username !== newAccounts[i]?.username);
+                prevAccounts.some(
+                  (a, i) =>
+                    a.id !== newAccounts[i]?.id ||
+                    a.status !== newAccounts[i]?.status ||
+                    a.username !== newAccounts[i]?.username ||
+                    a.displayName !== newAccounts[i]?.displayName ||
+                    a.needsReconnect !== newAccounts[i]?.needsReconnect
+                );
 
               if (
                 next[platformKey].status !== newStatus ||
                 next[platformKey].username !== newUsername ||
+                next[platformKey].displayName !== typedVal.displayName ||
                 next[platformKey].streamConfigured !== typedVal.streamConfigured ||
                 accountsChanged
               ) {
@@ -570,10 +629,51 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadConnections();
+  }, [loadConnections]);
+
+  useEffect(() => {
+    if (refreshNonce && refreshNonce > 0) {
+      loadConnections({ fresh: true });
+    }
+  }, [refreshNonce, loadConnections]);
+
+  const handleCustomDialogSuccess = useCallback(
+    async (platform: Platform, username?: string) => {
+      const cfg = PLATFORM_CONFIG[platform];
+      setConnections((prev) => {
+        const next = {
+          ...prev,
+          [platform]: {
+            ...prev[platform],
+            platform,
+            status: 'connected' as const,
+            username: username || prev[platform]?.username,
+          },
+        };
+        memoryConnectionsCache.set(workspaceId, next);
+        return next;
+      });
+      await loadConnections({ fresh: true });
+      router.refresh();
+      toast.success(
+        username
+          ? `${cfg.name} (@${username.replace(/^@/, '')}) connected`
+          : `${cfg.name} connected`
+      );
+    },
+    [workspaceId, loadConnections, router]
+  );
 
   const handleConnect = useCallback((platform: Platform, options?: { addAccount?: boolean; reconnectConnectionId?: string }) => {
     const cfg = PLATFORM_CONFIG[platform];
+    if (readOnly) {
+      toast.error('View-only members cannot modify workspace channels.');
+      return;
+    }
     if (platform === 'manual') {
       setManualDialogOpen(true);
       return;
@@ -634,6 +734,10 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
       setDevtoDialogOpen(true);
       return;
     }
+    if (!cfg?.customConnect && configuredPlatforms[platform] === false) {
+      toast.error(`${cfg?.name || platform} OAuth is not configured on this environment yet.`);
+      return;
+    }
     // Show spinner immediately — gives instant visual feedback before the redirect
     setConnecting(platform);
     const effectiveUserId = userId || initialUserId;
@@ -647,9 +751,25 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     }
     // Use window.location for the OAuth redirect (router.push doesn't handle external URLs)
     window.location.href = `/api/auth/platform/connect?${params.toString()}`;
-  }, [workspaceId, userId, initialUserId]);
+  }, [workspaceId, userId, initialUserId, readOnly, configuredPlatforms]);
+
+  useEffect(() => {
+    if (!initialConnectPlatform || readOnly) return;
+    const normalized = initialConnectPlatform.trim().toLowerCase() as Platform;
+    if (
+      SUPPORTED_PLATFORMS.includes(normalized) &&
+      PLATFORM_CONFIG[normalized]?.available
+    ) {
+      handleConnect(normalized);
+    }
+    onInitialConnectHandled?.();
+  }, [initialConnectPlatform, readOnly, handleConnect, onInitialConnectHandled]);
 
   const handleDisconnect = (platform: Platform, connectionId?: string, accountLabel?: string) => {
+    if (readOnly) {
+      toast.error('View-only members cannot modify workspace channels.');
+      return;
+    }
     const scheduledPosts = dependencyCounts[platform]?.scheduledPosts || 0;
     setDisconnectTarget({
       platform,
@@ -676,7 +796,14 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
       });
       if (res.ok) {
         setDisconnectTarget(null);
-        await loadConnections();
+        await loadConnections({ fresh: true });
+        const afterConn = connectionsRef.current[platform];
+        if (
+          manageAccountsTarget === platform &&
+          (!afterConn || (afterConn.status !== 'connected' && afterConn.status !== 'expired' && afterConn.status !== 'error'))
+        ) {
+          setManageAccountsTarget(null);
+        }
         toast.success(`${targetLabel} disconnected`);
         router.refresh();
       } else {
@@ -689,6 +816,45 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
       setDisconnecting(null);
     }
   };
+
+  const visiblePlatforms = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return sortedPlatforms.filter((p) => {
+      const conn = connections[p];
+      const st = conn?.status?.toLowerCase();
+      if (categoryFilter === 'connected' && st !== 'connected') return false;
+      if (categoryFilter === 'attention' && st !== 'expired' && st !== 'error') return false;
+      if (
+        (categoryFilter === 'social' || categoryFilter === 'developer' || categoryFilter === 'communities') &&
+        PLATFORM_CATEGORY_MAP[p] !== categoryFilter
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      const cfg = PLATFORM_CONFIG[p];
+      if (
+        p.includes(q) ||
+        cfg.name.toLowerCase().includes(q) ||
+        cfg.shortName.toLowerCase().includes(q) ||
+        cfg.description.toLowerCase().includes(q) ||
+        (conn?.username && conn.username.toLowerCase().includes(q)) ||
+        (conn?.displayName && conn.displayName.toLowerCase().includes(q))
+      ) {
+        return true;
+      }
+      return Array.isArray(conn?.accounts)
+        ? conn.accounts.some(
+            (a) =>
+              (a.username && a.username.toLowerCase().includes(q)) ||
+              (a.displayName && a.displayName.toLowerCase().includes(q))
+          )
+        : false;
+    });
+  }, [sortedPlatforms, connections, categoryFilter, searchQuery]);
+
+  const attentionCount = connectablePlatforms.filter(
+    (p) => connections[p]?.status === 'expired' || connections[p]?.status === 'error'
+  ).length;
 
   const connectedCount = connectablePlatforms.filter(
     (p) => connections[p]?.status === 'connected'
@@ -740,12 +906,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setBlueskyDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            bluesky: { platform: 'bluesky', status: 'connected', username },
-          }));
-          // Reload the dashboard page so the Broadcast Network block updates too
-          window.location.reload();
+          void handleCustomDialogSuccess('bluesky', username);
         }}
       />
       <MastodonConnectDialog
@@ -753,12 +914,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setMastodonDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            mastodon: { platform: 'mastodon', status: 'connected', username },
-          }));
-          // Reload the dashboard page so the Broadcast Network block updates too
-          window.location.reload();
+          void handleCustomDialogSuccess('mastodon', username);
         }}
       />
       <SlackConnectDialog
@@ -766,11 +922,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setSlackDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            slack: { platform: 'slack', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('slack', username);
         }}
       />
       <TwitchConnectDialog
@@ -778,11 +930,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setTwitchDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            twitch: { platform: 'twitch', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('twitch', username);
         }}
       />
       <TelegramConnectDialog
@@ -790,11 +938,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setTelegramDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            telegram: { platform: 'telegram', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('telegram', username);
         }}
       />
       <SkoolConnectDialog
@@ -802,11 +946,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setSkoolDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            skool: { platform: 'skool', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('skool', username);
         }}
       />
       <KickStreamSetupDialog
@@ -818,7 +958,8 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         workspaceId={workspaceId}
         connectionId={selectedKickConnectionId}
         onSuccess={() => {
-          loadConnections();
+          void loadConnections({ fresh: true });
+          router.refresh();
         }}
       />
       <Dialog open={Boolean(addAccountTarget)} onOpenChange={(o) => !o && setAddAccountTarget(null)}>
@@ -828,7 +969,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
               Add another {addAccountTarget ? PLATFORM_CONFIG[addAccountTarget].name : ''} account
             </DialogTitle>
             <DialogDescription className="text-[#6E5A48] dark:text-[#B8A896]">
-              You can connect multiple accounts per channel.
+              You can connect multiple accounts per channel and publish to any of them.
             </DialogDescription>
           </DialogHeader>
           {addAccountTarget && (
@@ -839,7 +980,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                   <ul className="text-xs space-y-0.5">
                     {connections[addAccountTarget]!.accounts!.map((a) => (
                       <li key={a.id} className="truncate">
-                        {a.username ? `@${a.username}` : a.displayName || 'Account'}
+                        {a.username ? `@${a.username.replace(/^@/, '')}` : a.displayName || 'Account'}
                         {a.status !== 'connected' ? ' — needs reconnect' : ''}
                       </li>
                     ))}
@@ -847,9 +988,9 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                 </div>
               )}
               <p className="text-xs leading-relaxed">
-                {PLATFORM_CONFIG[addAccountTarget].name} signs you in with the account that is currently active in this
-                browser. To add a <strong>different</strong> account, switch to it on {PLATFORM_CONFIG[addAccountTarget].name} first
-                (or use a private window), then continue. Connecting the same account again just refreshes it.
+                {PLATFORM_CONFIG[addAccountTarget].customConnect
+                  ? `Enter the credentials, handle, or webhook details for the additional ${PLATFORM_CONFIG[addAccountTarget].name} account you want to connect.`
+                  : `${PLATFORM_CONFIG[addAccountTarget].name} signs you in with the account that is currently active in this browser. To add a different account, switch to it on ${PLATFORM_CONFIG[addAccountTarget].name} first (or use a private window), then continue. Connecting the same account again refreshes its tokens.`}
               </p>
             </div>
           )}
@@ -859,6 +1000,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
             </Button>
             <Button
               type="button"
+              disabled={readOnly}
               onClick={() => {
                 const p = addAccountTarget;
                 setAddAccountTarget(null);
@@ -869,6 +1011,170 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
               Continue to {addAccountTarget ? PLATFORM_CONFIG[addAccountTarget].name : ''}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(manageAccountsTarget)} onOpenChange={(o) => !o && setManageAccountsTarget(null)}>
+        <DialogContent className="sm:max-w-lg bg-white dark:bg-[#1F1A16] border-[#E4D9C8] dark:border-[#382F27]">
+          {manageAccountsTarget && (() => {
+            const mCfg = PLATFORM_CONFIG[manageAccountsTarget];
+            const mConn = connections[manageAccountsTarget];
+            const mHasRealIds = Array.isArray(mConn?.accounts) && mConn.accounts.length > 0;
+            const mAccounts: ConnectedAccountItem[] = mHasRealIds
+              ? mConn.accounts!
+              : mConn && (mConn.status === 'connected' || mConn.status === 'expired' || mConn.status === 'error')
+                ? [
+                    {
+                      id: `${manageAccountsTarget}:default`,
+                      platform: manageAccountsTarget,
+                      username: mConn.username,
+                      displayName: mConn.displayName,
+                      status: mConn.status,
+                      expiresAt: mConn.expiresAt,
+                      streamConfigured: mConn.streamConfigured,
+                    },
+                  ]
+                : [];
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-[#3D2B1F] dark:text-[#F5EFE6]">
+                    <PlatformBrandLogo platform={manageAccountsTarget} size={22} />
+                    <span>Manage {mCfg.name} accounts</span>
+                  </DialogTitle>
+                  <DialogDescription className="text-[#6E5A48] dark:text-[#B8A896]">
+                    Add another account, reconnect expired tokens, or disconnect an account individually.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  {mAccounts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">
+                      No accounts connected for {mCfg.name}.
+                    </p>
+                  ) : (
+                    mAccounts.map((acct) => {
+                      const acctActive = acct.status === 'connected' && !acct.needsReconnect;
+                      const label = acct.username
+                        ? `@${acct.username.replace(/^@/, '')}`
+                        : acct.displayName || mCfg.name;
+                      const busyId = mHasRealIds ? acct.id : manageAccountsTarget;
+                      return (
+                        <div
+                          key={acct.id}
+                          className="flex items-center justify-between gap-2 rounded-xl border border-[#E4D9C8] dark:border-[#382F27] px-3 py-2.5 bg-[#FAF7F2] dark:bg-[#28211C]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  'h-2 w-2 rounded-full flex-shrink-0',
+                                  acctActive ? 'bg-emerald-500' : 'bg-amber-500'
+                                )}
+                              />
+                              <span className="text-sm font-medium truncate text-[#3D2B1F] dark:text-[#F5EFE6]">
+                                {label}
+                              </span>
+                              <Badge
+                                variant={acctActive ? 'secondary' : 'outline'}
+                                className={cn(
+                                  'text-[10px] px-1.5 py-0',
+                                  acctActive
+                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                    : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                                )}
+                              >
+                                {acctActive ? 'Active' : 'Needs reconnect'}
+                              </Badge>
+                            </div>
+                            {acct.displayName && acct.username && acct.displayName !== acct.username && (
+                              <p className="text-xs text-[#6E5A48] dark:text-[#B8A896] truncate pl-4 mt-0.5">
+                                {acct.displayName}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {manageAccountsTarget === 'kick' && acctActive && mHasRealIds && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={readOnly}
+                                onClick={() => {
+                                  setSelectedKickConnectionId(acct.id);
+                                  setKickStreamDialogOpen(true);
+                                }}
+                                className="h-8 text-xs px-2.5"
+                              >
+                                <Radio className="h-3 w-3 mr-1" />
+                                RTMP
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={acctActive ? 'outline' : 'default'}
+                              disabled={readOnly || connecting === manageAccountsTarget}
+                              onClick={() => {
+                                setManageAccountsTarget(null);
+                                handleConnect(manageAccountsTarget, {
+                                  reconnectConnectionId: mHasRealIds ? acct.id : undefined,
+                                });
+                              }}
+                              className="h-8 text-xs px-2.5"
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Reconnect
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={readOnly || disconnecting === busyId || disconnecting === manageAccountsTarget}
+                              onClick={() =>
+                                handleDisconnect(
+                                  manageAccountsTarget,
+                                  mHasRealIds ? acct.id : undefined,
+                                  acct.username || acct.displayName
+                                )
+                              }
+                              className="h-8 text-xs px-2.5 text-[#9E2A2B] border-[#9E2A2B]/30 hover:bg-[#9E2A2B] hover:text-white"
+                            >
+                              {disconnecting === busyId ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <Unlink2 className="h-3 w-3 mr-1" />
+                                  Disconnect
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <div className="flex justify-between items-center gap-2 pt-2 border-t border-[#E4D9C8] dark:border-[#382F27]">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={readOnly}
+                    onClick={() => {
+                      const p = manageAccountsTarget;
+                      setManageAccountsTarget(null);
+                      setAddAccountTarget(p);
+                    }}
+                    className="min-h-[40px] sm:min-h-0"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    Add another account
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setManageAccountsTarget(null)}>
+                    Done
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(disconnectTarget)} onOpenChange={(o) => !o && !disconnecting && setDisconnectTarget(null)}>
@@ -923,11 +1229,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setWarpcastDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            warpcast: { platform: 'warpcast', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('warpcast', username);
         }}
       />
       <MeweConnectDialog
@@ -935,11 +1237,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setMeweDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            mewe: { platform: 'mewe', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('mewe', username);
         }}
       />
       <NostrConnectDialog
@@ -947,11 +1245,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setNostrDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            nostr: { platform: 'nostr', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('nostr', username);
         }}
       />
       <MediumConnectDialog
@@ -959,11 +1253,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setMediumDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            medium: { platform: 'medium', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('medium', username);
         }}
       />
       <LemmyConnectDialog
@@ -971,11 +1261,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setLemmyDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            lemmy: { platform: 'lemmy', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('lemmy', username);
         }}
       />
       <ListmonkConnectDialog
@@ -983,11 +1269,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setListmonkDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            listmonk: { platform: 'listmonk', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('listmonk', username);
         }}
       />
       <HashnodeConnectDialog
@@ -995,11 +1277,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setHashnodeDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            hashnode: { platform: 'hashnode', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('hashnode', username);
         }}
       />
       <DevtoConnectDialog
@@ -1007,11 +1285,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         onClose={() => setDevtoDialogOpen(false)}
         workspaceId={workspaceId}
         onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            devto: { platform: 'devto', status: 'connected', username },
-          }));
-          window.location.reload();
+          void handleCustomDialogSuccess('devto', username);
         }}
       />
       <ManualIntegrationDialog
@@ -1021,8 +1295,8 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
       />
 
       <Card className="border-border/60">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <div className="p-1.5 rounded-lg bg-primary/10">
                 <Globe2 className="h-4 w-4 text-primary" />
@@ -1034,21 +1308,98 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                 </p>
               </div>
             </div>
-            {connectedCount > 0 && (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <Wifi className="h-3 w-3" />
-                {totalConnectedAccountsCount > connectedCount
-                  ? `${totalConnectedAccountsCount} accounts · ${connectedCount} platforms`
-                  : `${connectedCount} connected`}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {readOnly && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Lock className="h-3 w-3" />
+                  View-only
+                </Badge>
+              )}
+              {attentionCount > 0 && (
+                <Badge variant="outline" className="text-xs gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                  <AlertCircle className="h-3 w-3" />
+                  {attentionCount} needs reconnect
+                </Badge>
+              )}
+              {connectedCount > 0 && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <Wifi className="h-3 w-3" />
+                  {totalConnectedAccountsCount > connectedCount
+                    ? `${totalConnectedAccountsCount} accounts · ${connectedCount} platforms`
+                    : `${connectedCount} connected`}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-[260px]">
+              <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search channels or @handles..."
+                aria-label="Search channels or handles"
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  { id: 'all', label: 'All' },
+                  { id: 'connected', label: `Connected (${connectedCount})` },
+                  ...(attentionCount > 0
+                    ? [{ id: 'attention', label: `Needs attention (${attentionCount})` }]
+                    : []),
+                  { id: 'social', label: 'Social' },
+                  { id: 'developer', label: 'Developer' },
+                  { id: 'communities', label: 'Communities' },
+                ] as Array<{ id: PlatformFilterTab; label: string }>
+              ).map((tab) => {
+                const active = categoryFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setCategoryFilter(tab.id)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer border',
+                      active
+                        ? 'bg-[#3D2B1F] text-white border-[#3D2B1F] dark:bg-[#C4A265] dark:text-[#16120F] dark:border-[#C4A265]'
+                        : 'bg-background hover:bg-muted text-muted-foreground border-border/70'
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </CardHeader>
 
         <CardContent className="pt-0">
-          {/* Connected + available platforms (connected first) */}
+          {visiblePlatforms.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/70 p-8 text-center space-y-2">
+              <p className="text-sm font-medium text-foreground">No channels match your filter</p>
+              <p className="text-xs text-muted-foreground">
+                Try clearing your search or switching back to All channels.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery('');
+                  setCategoryFilter('all');
+                }}
+              >
+                Reset filters
+              </Button>
+            </div>
+          ) : (
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {sortedPlatforms.map((platform, idx) => {
+            {visiblePlatforms.map((platform, idx) => {
               const cfg = PLATFORM_CONFIG[platform];
               const connection = connections[platform];
               const isConnected = connection?.status?.toLowerCase() === 'connected';
@@ -1056,6 +1407,26 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
               const isError = connection?.status === 'error';
               const hasIssue = isExpired || isError;
               const isBlue = idx % 2 === 0;
+              const serverUnconfigured =
+                !cfg.customConnect && platform !== 'manual' && configuredPlatforms[platform] === false;
+              const hasRealAccountIds =
+                Array.isArray(connection?.accounts) && connection.accounts.length > 0;
+              const accountRows: ConnectedAccountItem[] =
+                isConnected || hasIssue
+                  ? hasRealAccountIds
+                    ? connection!.accounts!
+                    : [
+                        {
+                          id: `${platform}:default`,
+                          platform,
+                          username: connection?.username,
+                          displayName: connection?.displayName,
+                          status: connection?.status || 'not_connected',
+                          streamConfigured: connection?.streamConfigured,
+                        },
+                      ]
+                  : [];
+              const primaryAcct = accountRows[0];
 
               return (
                 <div
@@ -1104,123 +1475,108 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                     {/* Status + connected accounts list */}
                     <div className="mb-3 space-y-1.5">
                       {isConnected || hasIssue ? (
-                        (() => {
-                          const accountRows: ConnectedAccountItem[] =
-                            Array.isArray(connection.accounts) && connection.accounts.length > 0
-                              ? connection.accounts
-                              : [
-                                  {
-                                    id: `${platform}:default`,
-                                    platform,
-                                    username: connection.username,
-                                    displayName: connection.displayName,
-                                    status: connection.status,
-                                    streamConfigured: connection.streamConfigured,
-                                  },
-                                ];
-                          const hasRealAccountIds = Array.isArray(connection.accounts) && connection.accounts.length > 0;
-                          return accountRows.map((acct) => {
-                            const acctConnected = acct.status === 'connected';
-                            const acctExpired = acct.status === 'expired' || acct.status === 'error';
-                            const label = acct.needsReconnect
-                              ? `${acct.username ? `@${acct.username}` : acct.displayName || cfg.name} · reconnect required`
-                              : acct.username
+                        accountRows.map((acct) => {
+                          const acctConnected = acct.status === 'connected';
+                          const acctExpired = acct.status === 'expired' || acct.status === 'error';
+                          const label = acct.needsReconnect
+                            ? `${acct.username ? `@${acct.username}` : acct.displayName || cfg.name} · reconnect required`
+                            : acct.username
                               ? `@${acct.username}`
                               : acct.displayName || (acctConnected ? 'Connected' : 'Reconnect');
-                            const busyId = hasRealAccountIds ? acct.id : platform;
-                            return (
-                              <div
-                                key={acct.id}
-                                className={cn(
-                                  'flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg',
-                                  isConnected
-                                    ? 'bg-white/10 border border-white/15'
-                                    : 'bg-amber-100/60 dark:bg-amber-900/30 border border-amber-300/60'
+                          const busyId = hasRealAccountIds ? acct.id : platform;
+                          return (
+                            <div
+                              key={acct.id}
+                              className={cn(
+                                'flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg',
+                                isConnected
+                                  ? 'bg-white/10 border border-white/15'
+                                  : 'bg-amber-100/60 dark:bg-amber-900/30 border border-amber-300/60'
+                              )}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {acctConnected ? (
+                                  <span className="w-2 h-2 rounded-full bg-[#7dffb0] shadow-[0_0_6px_#7dffb0] flex-shrink-0" />
+                                ) : (
+                                  <AlertCircle className="h-3 w-3 text-amber-500 flex-shrink-0" />
                                 )}
-                              >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  {acctConnected ? (
-                                    <span className="w-2 h-2 rounded-full bg-[#7dffb0] shadow-[0_0_6px_#7dffb0] flex-shrink-0" />
-                                  ) : (
-                                    <AlertCircle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                                <span
+                                  className={cn(
+                                    'text-xs font-medium truncate',
+                                    isConnected ? 'text-white/95' : 'text-amber-700 dark:text-amber-300'
                                   )}
-                                  <span
-                                    className={cn(
-                                      'text-xs font-medium truncate',
-                                      isConnected ? 'text-white/95' : 'text-amber-700 dark:text-amber-300'
-                                    )}
-                                    title={acct.displayName || acct.username || ''}
+                                  title={acct.displayName || acct.username || ''}
+                                >
+                                  {label}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                {platform === 'kick' && !acctExpired && hasRealAccountIds && (
+                                  <button
+                                    type="button"
+                                    disabled={readOnly}
+                                    onClick={() => {
+                                      setSelectedKickConnectionId(acct.id);
+                                      setKickStreamDialogOpen(true);
+                                    }}
+                                    title="Configure Kick RTMP stream settings"
+                                    className="p-1.5 sm:p-1 rounded hover:bg-white/20 transition-colors text-white/85 hover:text-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                   >
-                                    {label}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                  {platform === 'kick' && !acctExpired && hasRealAccountIds && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedKickConnectionId(acct.id);
-                                        setKickStreamDialogOpen(true);
-                                      }}
-                                      title="Configure Kick RTMP stream settings"
-                                      className="p-1.5 sm:p-1 rounded hover:bg-white/20 transition-colors text-white/85 hover:text-white cursor-pointer"
-                                    >
-                                      <Radio className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                  {acctExpired && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleConnect(platform, {
-                                          reconnectConnectionId: hasRealAccountIds ? acct.id : undefined,
-                                        })
-                                      }
-                                      disabled={connecting === platform}
-                                      title="Reconnect this account"
-                                      className={cn(
-                                        'p-1.5 sm:p-1 rounded hover:bg-white/20 transition-colors cursor-pointer',
-                                        isConnected ? 'text-white/85 hover:text-white' : 'text-amber-700 hover:text-amber-900'
-                                      )}
-                                    >
-                                      <RefreshCw className="h-3 w-3" />
-                                    </button>
-                                  )}
+                                    <Radio className="h-3 w-3" />
+                                  </button>
+                                )}
+                                {acctExpired && (
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      handleDisconnect(
-                                        platform,
-                                        hasRealAccountIds ? acct.id : undefined,
-                                        acct.username || acct.displayName
-                                      )
+                                      handleConnect(platform, {
+                                        reconnectConnectionId: hasRealAccountIds ? acct.id : undefined,
+                                      })
                                     }
-                                    disabled={disconnecting === busyId || disconnecting === platform}
-                                    title={`Disconnect ${acct.username || cfg.name}`}
-                                    aria-label={`Disconnect ${acct.username || cfg.name}`}
+                                    disabled={readOnly || connecting === platform}
+                                    title="Reconnect this account"
                                     className={cn(
-                                      'p-1.5 sm:p-1 rounded transition-colors cursor-pointer',
-                                      isConnected
-                                        ? 'text-white/75 hover:text-white hover:bg-white/20'
-                                        : 'text-amber-700/80 hover:text-amber-900 hover:bg-amber-200/60'
+                                      'p-1.5 sm:p-1 rounded hover:bg-white/20 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
+                                      isConnected ? 'text-white/85 hover:text-white' : 'text-amber-700 hover:text-amber-900'
                                     )}
                                   >
-                                    {disconnecting === busyId ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <X className="h-3 w-3" />
-                                    )}
+                                    <RefreshCw className="h-3 w-3" />
                                   </button>
-                                </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDisconnect(
+                                      platform,
+                                      hasRealAccountIds ? acct.id : undefined,
+                                      acct.username || acct.displayName
+                                    )
+                                  }
+                                  disabled={readOnly || disconnecting === busyId || disconnecting === platform}
+                                  title={`Disconnect ${acct.username || cfg.name}`}
+                                  aria-label={`Disconnect ${acct.username || cfg.name}`}
+                                  className={cn(
+                                    'p-1.5 sm:p-1 rounded transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
+                                    isConnected
+                                      ? 'text-white/75 hover:text-white hover:bg-white/20'
+                                      : 'text-amber-700/80 hover:text-amber-900 hover:bg-amber-200/60'
+                                  )}
+                                >
+                                  {disconnecting === busyId ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <X className="h-3 w-3" />
+                                  )}
+                                </button>
                               </div>
-                            );
-                          });
-                        })()
+                            </div>
+                          );
+                        })
                       ) : (
                         <div className="flex items-center gap-1.5">
                           <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
                           <span className="text-xs text-muted-foreground">
-                            Not connected
+                            {serverUnconfigured ? 'OAuth not configured' : 'Not connected'}
                           </span>
                         </div>
                       )}
@@ -1228,12 +1584,13 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                   </div>
 
                   {/* Action button */}
-                  {isConnected || isExpired ? (
+                  {isConnected || hasIssue ? (
                     <div className="space-y-2 mt-auto">
                       {platform === 'kick' && isConnected && (
                         <Button
                           size="sm"
                           variant="outline"
+                          disabled={readOnly}
                           className={cn(
                             'w-full h-8 text-xs font-medium gap-1.5 border-white/30 bg-white/15 text-white hover:bg-white',
                             isBlue ? 'hover:text-blue-900' : 'hover:text-black'
@@ -1252,48 +1609,92 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                             : 'Complete Setup'}
                         </Button>
                       )}
-                      <div className="flex gap-2">
+                      {hasIssue && accountRows.length <= 1 && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={readOnly || connecting === platform || serverUnconfigured}
+                          onClick={() =>
+                            handleConnect(platform, {
+                              reconnectConnectionId: hasRealAccountIds ? primaryAcct?.id : undefined,
+                            })
+                          }
+                          className="w-full h-8 text-xs font-medium gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Reconnect
+                        </Button>
+                      )}
+                      <div className="flex flex-wrap gap-1.5">
                         {platform !== 'manual' && (
                           <Button
                             size="sm"
-                            variant={isExpired ? 'default' : 'outline'}
+                            variant="outline"
                             className={cn(
-                              'flex-1 h-8 text-xs font-medium gap-1',
+                              'flex-1 min-w-[92px] h-8 text-xs font-medium gap-1',
                               isConnected &&
                                 (isBlue
                                   ? 'border-white/30 bg-white/15 text-white hover:bg-white hover:text-blue-900'
                                   : 'border-white/30 bg-white/15 text-white hover:bg-white hover:text-black')
                             )}
                             onClick={() => setAddAccountTarget(platform)}
-                            disabled={connecting === platform}
-                            title={`Connect another ${cfg.name} account (switch accounts in ${cfg.name} if it re-selects your active session)`}
+                            disabled={readOnly || connecting === platform || serverUnconfigured}
+                            title={`Connect another ${cfg.name} account`}
                           >
                             {connecting === platform ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               <>
                                 <Plus className="h-3 w-3" />
-                                Add account
+                                Add
                               </>
                             )}
                           </Button>
                         )}
-                        {platform === 'manual' && (
+                        {accountRows.length > 1 ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={readOnly}
+                            className={cn(
+                              'flex-1 min-w-[104px] h-8 text-xs font-medium gap-1',
+                              isConnected &&
+                                (isBlue
+                                  ? 'border-white/30 bg-white/10 text-white hover:bg-white hover:text-blue-900'
+                                  : 'border-white/30 bg-white/10 text-white hover:bg-white hover:text-black')
+                            )}
+                            onClick={() => setManageAccountsTarget(platform)}
+                          >
+                            <Users className="h-3 w-3" />
+                            Manage ({accountRows.length})
+                          </Button>
+                        ) : (
                           <Button
                             variant="ghost"
                             size="sm"
                             className={cn(
-                              'flex-1 h-8 text-xs transition-all font-medium',
+                              'flex-1 min-w-[100px] h-8 text-xs transition-all font-medium',
                               isConnected
                                 ? isBlue
                                   ? 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-blue-900'
                                   : 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-black'
-                                : 'text-muted-foreground'
+                                : 'border border-amber-400/60 text-amber-800 dark:text-amber-200 hover:bg-amber-200/50'
                             )}
-                            onClick={() => handleDisconnect(platform)}
-                            disabled={disconnecting === platform}
+                            onClick={() =>
+                              handleDisconnect(
+                                platform,
+                                hasRealAccountIds ? primaryAcct?.id : undefined,
+                                primaryAcct?.username || primaryAcct?.displayName
+                              )
+                            }
+                            disabled={
+                              readOnly ||
+                              disconnecting === platform ||
+                              Boolean(hasRealAccountIds && primaryAcct?.id && disconnecting === primaryAcct.id)
+                            }
                           >
-                            {disconnecting === platform ? (
+                            {disconnecting === platform ||
+                            Boolean(hasRealAccountIds && primaryAcct?.id && disconnecting === primaryAcct.id) ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               <>
@@ -1310,9 +1711,19 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                       size="sm"
                       className="w-full h-8 text-xs gap-1.5 mt-auto"
                       onClick={() => handleConnect(platform)}
-                      disabled={connecting === platform}
+                      disabled={readOnly || connecting === platform || serverUnconfigured}
+                      title={
+                        serverUnconfigured
+                          ? `${cfg.name} OAuth credentials are not configured on the server`
+                          : undefined
+                      }
                     >
-                      {connecting === platform ? (
+                      {serverUnconfigured ? (
+                        <>
+                          <Lock className="h-3 w-3" />
+                          Not configured
+                        </>
+                      ) : connecting === platform ? (
                         <>
                           <Loader2 className="h-3 w-3 animate-spin" />
                           Connecting…
@@ -1329,6 +1740,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
               );
             })}
           </div>
+          )}
 
           {/* Coming soon */}
           {comingSoonPlatforms.length > 0 && (

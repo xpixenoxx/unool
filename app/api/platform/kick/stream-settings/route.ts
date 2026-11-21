@@ -4,6 +4,7 @@ import { requireWorkspaceRole, verifyWorkspaceAccess } from '@/lib/auth/workspac
 import { logger } from '@/lib/logger';
 import { encryptToken, decryptToken } from '@/lib/crypto/encryption';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { invalidateConnectionsCache } from '@/lib/cache/connectionsCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save stream settings' }, { status: 500 });
     }
 
+    await invalidateConnectionsCache(workspaceId);
     logger.info('Kick stream settings saved successfully', { workspaceId });
 
     return NextResponse.json({

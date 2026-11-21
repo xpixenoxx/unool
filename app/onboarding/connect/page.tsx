@@ -10,6 +10,7 @@ interface Connection {
   platformId: string;
   username: string;
   platformName: string;
+  status?: 'connected' | 'expired' | 'revoked' | 'error';
   profileLogo?: string;
   platformLogo?: string;
 }
@@ -42,7 +43,7 @@ function ConnectPageContent() {
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
-  const loadConnections = useCallback(async () => {
+  const loadConnections = useCallback(async (opts?: { fresh?: boolean }) => {
     const clientDebug: string[] = [];
     try {
       // Get access token from multiple sources
@@ -74,10 +75,13 @@ function ConnectPageContent() {
 
       clientDebug.push(`fetching:hasToken=${!!token}`);
 
-      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, {
-        headers,
-        credentials: 'include', // Send cookies too
-      });
+      const res = await fetch(
+        `/api/platform/connections?${opts?.fresh ? 'fresh=1&' : ''}_t=${Date.now()}`,
+        {
+          headers,
+          credentials: 'include', // Send cookies too
+        }
+      );
 
       clientDebug.push(`response:${res.status}`);
 
@@ -92,17 +96,25 @@ function ConnectPageContent() {
 
         if (Array.isArray(data.accounts) && data.accounts.length > 0) {
           const mappedConnections: Connection[] = data.accounts
-            .filter((acct: any) => acct.status === 'connected' || acct.status === 'expired' || acct.status === 'revoked')
+            .filter(
+              (acct: any) =>
+                acct.status === 'connected' ||
+                acct.status === 'expired' ||
+                acct.status === 'revoked' ||
+                acct.status === 'error'
+            )
             .map((acct: any) => {
               const platformName = acct.platform === 'x'
                 ? 'X (Twitter)'
                 : acct.platform.charAt(0).toUpperCase() + acct.platform.slice(1);
-              const isExpired = acct.status === 'expired' || acct.status === 'revoked';
+              const isExpired =
+                acct.status === 'expired' || acct.status === 'revoked' || acct.status === 'error';
               return {
                 id: acct.id,
                 platformId: acct.platform,
                 username: acct.username || acct.displayName || acct.platform || 'User',
                 platformName: isExpired ? `${platformName} (Expired)` : platformName,
+                status: acct.status,
                 profileLogo: acct.avatarUrl || undefined,
               };
             });
@@ -111,14 +123,21 @@ function ConnectPageContent() {
         } else if (data.connections) {
           const mappedConnections: Connection[] = [];
           Object.entries(data.connections).forEach(([, conn]: [string, any]) => {
-            if (conn.status === 'connected' || conn.status === 'expired' || conn.status === 'revoked') {
+            if (
+              conn.status === 'connected' ||
+              conn.status === 'expired' ||
+              conn.status === 'revoked' ||
+              conn.status === 'error'
+            ) {
               const platformName = conn.platform === 'x' ? 'X (Twitter)' 
                 : conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1);
-              const isExpired = conn.status === 'expired' || conn.status === 'revoked';
+              const isExpired =
+                conn.status === 'expired' || conn.status === 'revoked' || conn.status === 'error';
               mappedConnections.push({
                 platformId: conn.platform,
                 username: conn.username || conn.platform || 'User',
                 platformName: isExpired ? `${platformName} (Expired)` : platformName,
+                status: conn.status,
               });
             }
           });
@@ -140,8 +159,8 @@ function ConnectPageContent() {
   }, []);
 
   useEffect(() => {
-    // Clean up the #_ fragment that Meta/Threads appends to URLs after OAuth
-    if (typeof window !== 'undefined' && window.location.hash === '#_') {
+    // Clean up the #_ or #_=_ fragment that Meta/Threads appends to URLs after OAuth
+    if (typeof window !== 'undefined' && (window.location.hash === '#_' || window.location.hash === '#_=_')) {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
 
@@ -149,23 +168,54 @@ function ConnectPageContent() {
     const connectedPlatform = searchParams.get('connected');
     const error = searchParams.get('error');
     const errorDetail = searchParams.get('detail');
+    const platformParam = searchParams.get('platform');
+    const limitParam = searchParams.get('limit');
+    const planParam = searchParams.get('plan');
 
     if (connectedPlatform) {
-      const platformName = connectedPlatform.charAt(0).toUpperCase() + connectedPlatform.slice(1);
+      const platformName = connectedPlatform === 'x'
+        ? 'X (Twitter)'
+        : connectedPlatform.charAt(0).toUpperCase() + connectedPlatform.slice(1);
       setToast({ type: 'success', message: `${platformName} account connected successfully!` });
       // Clean up the URL params without re-navigation
       const url = new URL(window.location.href);
       url.searchParams.delete('connected');
-      window.history.replaceState(null, '', url.pathname);
+      window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
     } else if (error) {
-      const description = searchParams.get('description') || errorDetail || error;
-      setToast({ type: 'error', message: `Connection failed: ${description}` });
+      const pName = platformParam
+        ? platformParam === 'x'
+          ? 'X (Twitter)'
+          : platformParam.charAt(0).toUpperCase() + platformParam.slice(1)
+        : 'Channel';
+      const description = searchParams.get('description') || errorDetail;
+      let friendly = description || `Connection failed (${error.replace(/_/g, ' ')})`;
+      if (error === 'oauth_denied') {
+        friendly = `${pName} connection was cancelled.`;
+      } else if (error === 'invalid_state') {
+        friendly = `Connection session expired. Please try connecting ${pName} again.`;
+      } else if (error === 'oauth_config_missing') {
+        friendly = `${pName} OAuth is not configured on this environment yet.`;
+      } else if (
+        error === 'quota_exceeded' ||
+        error === 'platform_limit' ||
+        error === 'channel_limit' ||
+        error === 'channel_limit_exceeded'
+      ) {
+        friendly = `Channel limit reached${limitParam ? ` (${limitParam})` : ''}${planParam ? ` on the ${planParam} plan` : ''}. Remove a channel or upgrade to add ${pName}.`;
+      } else if (error === 'access_denied' || error === 'permission_denied') {
+        friendly = `Missing required permissions for ${pName}. Please approve all requested scopes.`;
+      } else if (error === 'unsupported_platform') {
+        friendly = `Unsupported platform${platformParam ? `: ${platformParam}` : ''}.`;
+      }
+      setToast({ type: 'error', message: friendly });
       const url = new URL(window.location.href);
       url.searchParams.delete('error');
       url.searchParams.delete('description');
       url.searchParams.delete('detail');
       url.searchParams.delete('platform');
-      window.history.replaceState(null, '', url.pathname);
+      url.searchParams.delete('limit');
+      url.searchParams.delete('plan');
+      window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
     }
 
     // Auto-dismiss toast after 6 seconds
@@ -173,7 +223,7 @@ function ConnectPageContent() {
       setTimeout(() => setToast(null), 6000);
     }
 
-    loadConnections();
+    loadConnections({ fresh: Boolean(connectedPlatform) });
   }, [searchParams, loadConnections]);
 
   const handleNext = () => {
@@ -289,8 +339,19 @@ function ConnectPageContent() {
                 </div>
                 
                 <div className="flex items-center gap-3 ml-8 relative">
-                  <div className="w-[6px] h-[6px] rounded-full bg-[#10b981]"></div>
-                  <button 
+                  <div
+                    className={`w-[6px] h-[6px] rounded-full ${
+                      connection.status && connection.status !== 'connected'
+                        ? 'bg-[#f59e0b]'
+                        : 'bg-[#10b981]'
+                    }`}
+                    title={
+                      connection.status && connection.status !== 'connected'
+                        ? 'Needs reconnect'
+                        : 'Connected'
+                    }
+                  />
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === index ? null : index);
@@ -299,10 +360,28 @@ function ConnectPageContent() {
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
-                  
+
                   {openDropdown === index && (
                     <div className="absolute top-10 right-0 w-[160px] bg-white border border-zinc-100 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.08)] py-1.5 z-10 flex flex-col">
-                      <button 
+                      {connection.status && connection.status !== 'connected' && (
+                        <button
+                          onClick={() => {
+                            setOpenDropdown(null);
+                            const reconnectUrl = `/api/auth/platform/connect?platform=${encodeURIComponent(
+                              connection.platformId
+                            )}&returnUrl=${encodeURIComponent('/onboarding/connect')}${
+                              connection.id
+                                ? `&reconnectConnectionId=${encodeURIComponent(connection.id)}`
+                                : ''
+                            }`;
+                            window.location.href = reconnectUrl;
+                          }}
+                          className="text-[13px] text-amber-600 hover:bg-zinc-50 w-full px-3 py-2 flex items-center justify-center gap-2 transition-colors"
+                        >
+                          Reconnect
+                        </button>
+                      )}
+                      <button
                         onClick={() => handleRemoveConnection(connection.platformId, connection.id)}
                         className="text-[13px] text-red-500 hover:bg-zinc-50 w-full px-3 py-2 flex items-center justify-center gap-2 transition-colors"
                       >

@@ -7,7 +7,7 @@ import {
   PublishInput,
   PublishResult,
 } from './adapter';
-import { AtpAgent } from '@atproto/api';
+import { AtpAgent, RichText } from '@atproto/api';
 
 const BSKY_SERVICE = 'https://bsky.social';
 
@@ -181,24 +181,29 @@ export class BlueskyAdapter implements PlatformAdapter {
           const jobStatus = await uploadResponse.json();
           logger.info('Bluesky: video upload initiated, job ID:', { jobId: jobStatus.jobId });
 
-          // 3. Poll for processing status
+          // 3. Poll for processing status (capped to <=10 polls for Cloudflare Workers 50-subrequest limit)
           const videoAgent = new AtpAgent({ service: 'https://video.bsky.app' });
           let blob = jobStatus.jobStatus?.blob || jobStatus.blob;
-          let attempts = 0;
-          while (!blob && attempts < 90) { // Max 3 minutes
-            await new Promise((r) => setTimeout(r, 2000));
+          const backoffMs = [3000, 4000, 5000, 6000, 8000, 10000, 10000, 10000, 10000, 10000];
+          for (const delayMs of backoffMs) {
+            if (blob) break;
+            await new Promise((r) => setTimeout(r, delayMs));
             try {
-              const { data } = await videoAgent.app.bsky.video.getJobStatus({ 
-                jobId: jobStatus.jobId 
+              const { data } = await videoAgent.app.bsky.video.getJobStatus({
+                jobId: jobStatus.jobId,
               });
               blob = data.jobStatus.blob;
               if (data.jobStatus.state === 'JOB_STATE_FAILED' || data.jobStatus.state === 'FAILED') {
-                 throw new Error(`Video processing failed: ${data.jobStatus.error}`);
+                throw new Error(`Video processing failed: ${data.jobStatus.error}`);
               }
             } catch (err) {
-               logger.warn('Bluesky: error polling video status, retrying...', { err: err instanceof Error ? err.message : String(err) });
+              if (err instanceof Error && err.message.startsWith('Video processing failed:')) {
+                throw err;
+              }
+              logger.warn('Bluesky: error polling video status, retrying...', {
+                err: err instanceof Error ? err.message : String(err),
+              });
             }
-            attempts++;
           }
           
           if (!blob) {
@@ -243,9 +248,9 @@ export class BlueskyAdapter implements PlatformAdapter {
                 else mimeType = 'image/jpeg';
               }
               
-              if (buffer.byteLength > 1999999) {
-                logger.error(`Bluesky: image ${idx} exceeds 2MB limit`, { url: url.substring(0, 100), size: buffer.byteLength });
-                throw new Error('Image exceeds Bluesky\'s strict 2MB limit. Please compress it before uploading.');
+              if (buffer.byteLength > 1_000_000) {
+                logger.error(`Bluesky: image ${idx} exceeds 1MB limit`, { url: url.substring(0, 100), size: buffer.byteLength });
+                throw new Error('Image exceeds Bluesky\'s 1MB blob limit. Please compress it before uploading.');
               }
               
               logger.info(`Bluesky: uploading blob ${idx}`, { size: buffer.byteLength, mimeType });
@@ -274,7 +279,10 @@ export class BlueskyAdapter implements PlatformAdapter {
       }
     }
 
-    const record = await agent.post({ text, embed });
+    const rt = new RichText({ text });
+    await rt.detectFacets(agent);
+
+    const record = await agent.post({ text: rt.text, facets: rt.facets, embed });
 
     // Extract post ID from the AT URI (at://did:plc:.../app.bsky.feed.post/RKEY)
     const atUri = record.uri;

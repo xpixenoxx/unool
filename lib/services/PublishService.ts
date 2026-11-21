@@ -395,64 +395,28 @@ export class PublishService {
   }
 
   async refreshPlatformToken(connectionId: string): Promise<Result<string, Error>> {
-    const connection = await platformRepository.findById(connectionId);
-    if (!connection || !connection.refreshTokenEncrypted) {
+    const { data: row } = await supabaseAdmin
+      .from('platform_connections')
+      .select('*')
+      .eq('id', connectionId)
+      .limit(1)
+      .maybeSingle();
+
+    if (!row || !row.refresh_token_encrypted) {
       return err(new Error('Connection not found or no refresh token'));
     }
 
-    const adapter = getPlatformAdapter(connection.platform);
-    if (!adapter) {
-      return err(new Error(`Unsupported platform: ${connection.platform}`));
+    const { refreshPlatformConnectionToken } = await import('@/lib/services/automation/tokenRefresh');
+    const outcome = await refreshPlatformConnectionToken(row, {
+      failureStatus: 'error',
+      sendExpiryAlert: false,
+    });
+
+    if (outcome.ok && outcome.accessTokenEncrypted) {
+      return ok(outcome.accessTokenEncrypted);
     }
 
-    try {
-      let refreshToken: string;
-      try {
-        refreshToken = await decryptToken(connection.refreshTokenEncrypted);
-      } catch {
-        return err(new Error('Failed to decrypt refresh token'));
-      }
-
-      const tokenResponse = await adapter.refreshAccessToken(refreshToken);
-
-      // Encrypt new tokens (preserving Kick stream settings)
-      const { encryptToken } = await import('@/lib/crypto/encryption');
-      let finalAccessTokenToEncrypt = tokenResponse.accessToken;
-      if (connection.platform === 'kick') {
-        try {
-          const oldDecrypted = await decryptToken(connection.accessTokenEncrypted);
-          const parsed = JSON.parse(oldDecrypted);
-          if (parsed && typeof parsed === 'object' && (parsed.streamUrl || parsed.streamKey)) {
-            finalAccessTokenToEncrypt = JSON.stringify({
-              accessToken: tokenResponse.accessToken,
-              streamUrl: parsed.streamUrl,
-              streamKey: parsed.streamKey,
-            });
-          }
-        } catch {}
-      }
-      const accessTokenEncrypted = await encryptToken(finalAccessTokenToEncrypt);
-      const refreshTokenEncrypted = tokenResponse.refreshToken
-        ? await encryptToken(tokenResponse.refreshToken)
-        : connection.refreshTokenEncrypted;
-      const expiresAt = tokenResponse.expiresIn
-        ? new Date(Date.now() + tokenResponse.expiresIn * 1000)
-        : undefined;
-
-      await platformRepository.update(connectionId, {
-        accessTokenEncrypted,
-        refreshTokenEncrypted,
-        expiresAt,
-        status: 'connected',
-      });
-
-      return ok(accessTokenEncrypted);
-    } catch (error) {
-      const refreshError = error instanceof Error ? error : new Error(String(error));
-      logger.error('Token refresh failed', { error: refreshError, connectionId });
-      await platformRepository.updateStatus(connectionId, 'error');
-      return err(refreshError);
-    }
+    return err(new Error(outcome.error || 'Token refresh failed'));
   }
 
   async disconnectPlatform(connectionId: string): Promise<void> {

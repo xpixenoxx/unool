@@ -70,8 +70,13 @@ export class FacebookAdapter implements PlatformAdapter {
     return `${META_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string, redirectUri?: string): Promise<TokenResponse> {
-    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
+  async exchangeCodeForToken(code: string, codeVerifierOrRedirectUri?: string, redirectUri?: string): Promise<TokenResponse> {
+    const effectiveRedirectUri =
+      redirectUri ||
+      (codeVerifierOrRedirectUri && codeVerifierOrRedirectUri.startsWith('http')
+        ? codeVerifierOrRedirectUri
+        : undefined) ||
+      this.authConfig.redirectUri;
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
@@ -216,7 +221,13 @@ export class FacebookAdapter implements PlatformAdapter {
       }
 
       const data = await response.json();
-      return data.data || [];
+      return (data.data || []).map((p: Record<string, unknown>) => ({
+        id: String(p.id || ''),
+        name: String(p.name || ''),
+        category: String(p.category || ''),
+        accessToken: String(p.access_token || p.accessToken || ''),
+        tasks: Array.isArray(p.tasks) ? (p.tasks as string[]) : [],
+      }));
     });
   }
 
@@ -453,9 +464,10 @@ export class FacebookAdapter implements PlatformAdapter {
     return { id: videoId };
   }
 
-  private async waitForVideoReady(accessToken: string, videoId: string, maxAttempts = 30): Promise<void> {
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+  private async waitForVideoReady(accessToken: string, videoId: string): Promise<void> {
+    const delays = [3000, 4000, 5000, 6000, 8000, 10000, 10000, 10000, 10000, 10000];
+    for (const delayMs of delays) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
 
       const response = await fetchWithRetry(
         `${FACEBOOK_API_BASE}/${videoId}?fields=status&access_token=${accessToken}`,
@@ -540,11 +552,23 @@ export class FacebookAdapter implements PlatformAdapter {
     return fallbackUrl;
   }
 
+  private async resolveTokenForPost(accessToken: string, platformPostId: string): Promise<string> {
+    const match = platformPostId.match(/^(\d+)_/);
+    if (!match) return accessToken;
+    try {
+      const pageToken = await this.getPageAccessToken(accessToken, match[1]);
+      return pageToken || accessToken;
+    } catch {
+      return accessToken;
+    }
+  }
+
   async deletePost(accessToken: string, platformPostId: string): Promise<void> {
     return platformFetch('facebook', async () => {
+      const token = await this.resolveTokenForPost(accessToken, platformPostId);
       const response = await fetchWithRetry(`${FACEBOOK_API_BASE}/${platformPostId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -557,6 +581,7 @@ export class FacebookAdapter implements PlatformAdapter {
 
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('facebook', async () => {
+      const token = await this.resolveTokenForPost(accessToken, platformPostId);
       let likes = 0;
       let comments = 0;
       let shares = 0;
@@ -569,7 +594,7 @@ export class FacebookAdapter implements PlatformAdapter {
       // This is supported on all Facebook Page posts without requiring read_insights permission.
       try {
         const basicRes = await fetchWithRetry(
-          `${FACEBOOK_API_BASE}/${platformPostId}?fields=shares,reactions.summary(total_count),comments.summary(total_count)&access_token=${accessToken}`,
+          `${FACEBOOK_API_BASE}/${platformPostId}?fields=shares,reactions.summary(total_count),comments.summary(total_count)&access_token=${token}`,
           { method: 'GET' },
           { maxRetries: 1 }
         );
@@ -589,7 +614,7 @@ export class FacebookAdapter implements PlatformAdapter {
       // does not cause Meta API #100 error and fail the entire request.
       try {
         const insightRes = await fetchWithRetry(
-          `${FACEBOOK_API_BASE}/${platformPostId}/insights?metric=post_impressions,post_engaged_users,post_clicks_total,post_reactions_like_total&access_token=${accessToken}`,
+          `${FACEBOOK_API_BASE}/${platformPostId}/insights?metric=post_impressions,post_engaged_users,post_clicks_total,post_reactions_like_total&access_token=${token}`,
           { method: 'GET' },
           { maxRetries: 1 }
         );

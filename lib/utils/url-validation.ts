@@ -250,19 +250,64 @@ function ipToNumber(ip: string): number {
   return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
 }
 
+const dnsCache = new Map<string, { addresses: string[]; expiresAt: number }>();
+const DNS_CACHE_TTL_MS = 60_000;
+
+async function resolveViaDnsOverHttps(hostname: string): Promise<string[]> {
+  const queryType = async (type: 'A' | 'AAAA'): Promise<string[]> => {
+    try {
+      const res = await fetch(
+        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=${type}`,
+        {
+          headers: { Accept: 'application/dns-json' },
+          signal: AbortSignal.timeout(3000),
+        }
+      );
+      if (!res.ok) return [];
+      const json = (await res.json()) as { Answer?: Array<{ type?: number; data?: string }> };
+      const expectedType = type === 'A' ? 1 : 28;
+      return (json.Answer || [])
+        .filter((a) => a.type === expectedType && typeof a.data === 'string' && a.data.length > 0)
+        .map((a) => a.data!.trim());
+    } catch {
+      return [];
+    }
+  };
+
+  const [ipv4, ipv6] = await Promise.all([queryType('A'), queryType('AAAA')]);
+  return [...ipv4, ...ipv6];
+}
+
 async function resolveHostname(hostname: string): Promise<{ addresses: string[] }> {
-  // Use Node.js dns.promises for DNS resolution
-  // In Edge runtime, this will use the fallback
+  const now = Date.now();
+  const cached = dnsCache.get(hostname);
+  if (cached && cached.expiresAt > now) {
+    return { addresses: cached.addresses };
+  }
+
+  let addresses: string[] = [];
+
+  // Use Node.js dns.promises when available; fall back to DoH on Cloudflare Workers / Edge
   try {
     const { promises: dnsPromises } = await import('dns');
-    const addresses = await dnsPromises.resolve4(hostname).catch(() => []);
-    const addresses6 = await dnsPromises.resolve6(hostname).catch(() => []);
-    return { addresses: [...addresses, ...addresses6] };
+    const [ipv4, ipv6] = await Promise.all([
+      dnsPromises.resolve4(hostname).catch(() => [] as string[]),
+      dnsPromises.resolve6(hostname).catch(() => [] as string[]),
+    ]);
+    addresses = [...ipv4, ...ipv6];
   } catch {
-    // Fallback for Edge runtime or when dns is not available
-    // In production, ensure DNS resolution is configured
-    return { addresses: [hostname] };
+    addresses = [];
   }
+
+  if (addresses.length === 0) {
+    addresses = await resolveViaDnsOverHttps(hostname);
+  }
+
+  if (addresses.length > 0) {
+    dnsCache.set(hostname, { addresses, expiresAt: now + DNS_CACHE_TTL_MS });
+  }
+
+  return { addresses };
 }
 
 /**

@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getFeatureFlagsServer } from '@/lib/feature-flags-server';
 import { getWorkspaceSubscription } from '@/lib/billing/subscription';
 import { getPlan, type PlanId } from '@/lib/billing/plans';
+import { resolveConnectionRowStatus } from '@/lib/platforms/connectionStatus';
 import SettingsClient from './SettingsClient';
 import { LoadingSkeleton } from '@/components/dashboard/settings/tabs/shared';
 import {
@@ -118,7 +119,7 @@ export default async function SettingsPage() {
       .maybeSingle(),
     supabaseAdmin
       .from('platform_connections')
-      .select('platform, status, platform_username, token_expires_at')
+      .select('id, platform, platform_user_id, username, display_name, avatar_url, status, expires_at, created_at, updated_at, refresh_token_encrypted, access_token_encrypted')
       .eq('workspace_id', auth.workspaceId),
     getFeatureFlagsServer(),
   ]);
@@ -245,12 +246,13 @@ export default async function SettingsPage() {
     for (const row of connectionsRes.value.data) {
       const platform = String(row.platform || '').toLowerCase();
       if (!platform) continue;
-      const status = String(row.status || 'not_connected');
+      const status = resolveConnectionRowStatus(row);
+      if (status === 'not_connected') continue;
       if (!connectionsSummary[platform] || status === 'connected') {
         connectionsSummary[platform] = {
           status,
-          username: row.platform_username || undefined,
-          expiresAt: row.token_expires_at || undefined,
+          username: row.username || row.display_name || undefined,
+          expiresAt: row.expires_at || undefined,
         };
       }
     }

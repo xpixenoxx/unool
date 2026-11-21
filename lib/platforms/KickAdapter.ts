@@ -44,13 +44,14 @@ export class KickAdapter implements PlatformAdapter {
     };
   }
 
-  async getAuthUrl(state: string): Promise<{ url: string; pkceCookie: string }> {
+  async getAuthUrl(state: string, redirectUri?: string): Promise<{ url: string; pkceCookie: string; codeVerifier: string }> {
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const { codeVerifier, codeChallenge } = await generatePKCEAsync();
 
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.authConfig.clientId,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
       scope: this.authConfig.scopes.join(' '),
       state,
       code_challenge: codeChallenge,
@@ -62,15 +63,20 @@ export class KickAdapter implements PlatformAdapter {
     return {
       url: `${KICK_AUTH_URL}?${params.toString()}`,
       pkceCookie,
+      codeVerifier,
     };
   }
 
-  async exchangeCodeForToken(code: string, codeVerifier?: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, codeVerifier?: string, redirectUri?: string): Promise<TokenResponse> {
+    if (!codeVerifier) {
+      throw new Error('Kick OAuth PKCE code_verifier missing or expired. Please try connecting again.');
+    }
+    const effectiveRedirectUri = redirectUri || this.authConfig.redirectUri;
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.authConfig.clientId,
       code,
-      redirect_uri: this.authConfig.redirectUri,
+      redirect_uri: effectiveRedirectUri,
     });
 
     if (this.authConfig.clientSecret) {
