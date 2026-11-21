@@ -141,12 +141,28 @@ export async function getCurrentAuth(request?: NextRequest): Promise<AuthContext
       }
     }
 
-    // 3. Check SSR session cookies
-    const serverClient = await createSupabaseServerClient();
-    const {
-      data: { user: cookieUser },
-      error: cookieErr,
-    } = await serverClient.auth.getUser();
+    // 3. Check SSR session cookies. Prefer reading cookies directly off the request
+    // (works for public /api/auth/* routes on Workers where next/headers cookies() may be unavailable).
+    let serverClient: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+    if (request) {
+      const { createServerClient } = await import('@supabase/ssr');
+      serverClient = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+        cookies: {
+          getAll() { return request.cookies.getAll(); },
+          setAll() {},
+        },
+      }) as unknown as typeof serverClient;
+    } else {
+      serverClient = await createSupabaseServerClient();
+    }
+    let { data: { user: cookieUser }, error: cookieErr } = await serverClient.auth.getUser();
+    if ((cookieErr || !cookieUser) && request) {
+      // Fallback to next/headers cookies
+      const fallbackClient = await createSupabaseServerClient();
+      const fb = await fallbackClient.auth.getUser();
+      cookieUser = fb.data.user;
+      cookieErr = fb.error;
+    }
 
     if (cookieErr || !cookieUser || cookieUser.user_metadata?.is_deleted === true) {
       return null;
