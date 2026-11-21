@@ -115,6 +115,9 @@ export function LinkedInAnalyticsClient() {
         console.log('LI_DEBUG', json.debug);
 
         if (!res.ok) {
+          if (json.code === 'RECONNECT_REQUIRED' || (json.error && json.error.toLowerCase().includes('decrypt'))) {
+            throw new Error('__RECONNECT__');
+          }
           const debugInfo = json.debug ? `\n\nDebug: ${json.debug.join(' → ')}` : '';
           throw new Error((json.error || 'Failed to fetch analytics') + debugInfo);
         }
@@ -269,6 +272,11 @@ export function LinkedInAnalyticsClient() {
 
   /* ── Error State ─────────────────────── */
   if (error || !data) {
+    const isReconnectRequired = error === '__RECONNECT__';
+    const displayMessage = isReconnectRequired
+      ? 'Your LinkedIn session has expired. Please reconnect to continue viewing analytics.'
+      : (error || 'No data available');
+
     return (
       <div className="wrap">
         <nav className="nav clay" aria-label="Networks">
@@ -287,15 +295,25 @@ export function LinkedInAnalyticsClient() {
               <div className="big" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
                 <BarChart2 size={48} color="#0A66C2" />
               </div>
-              <div className="ptitle" style={{ maxWidth: '100%' }}>{error || 'No data available'}</div>
+              <div className="ptitle" style={{ maxWidth: '100%' }}>{displayMessage}</div>
               <div className="sub" style={{ marginTop: 8 }}>
-                {error?.includes('token') || error?.includes('reconnect')
+                {isReconnectRequired
                   ? 'Please reconnect your LinkedIn account from the dashboard.'
-                  : 'Post content on LinkedIn to see your analytics here.'}
+                  : (error?.includes('token') || error?.includes('reconnect') || error?.includes('decrypt'))
+                    ? 'Please reconnect your LinkedIn account from the dashboard.'
+                    : 'Post content on LinkedIn to see your analytics here.'}
               </div>
-              <button className="btn pri" style={{ marginTop: 16 }} onClick={() => window.location.href = '/dashboard'}>
-                Back to Dashboard
-              </button>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 16 }}>
+                {isReconnectRequired ? (
+                  <button className="btn pri" onClick={() => window.location.href = '/dashboard/settings?tab=channels&connect=linkedin'}>
+                    Reconnect LinkedIn
+                  </button>
+                ) : (
+                  <button className="btn pri" onClick={() => window.location.href = '/dashboard'}>
+                    Back to Dashboard
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         </main>

@@ -289,6 +289,8 @@ export async function middleware(request: NextRequest) {
 
     if (!hasAuthCookie) {
       const signinUrl = new URL('/signin', request.url);
+      // Only carry the pathname (not query params) to the redirect target so that OAuth
+      // error params like ?error=unauthorized never resurface on the login page.
       signinUrl.searchParams.set('redirect', pathname);
       const redirectResponse = NextResponse.redirect(signinUrl);
       redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');

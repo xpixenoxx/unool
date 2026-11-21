@@ -50,7 +50,11 @@ export async function GET(request: NextRequest) {
 
   if (!userId) {
     logger.warn('Platform connect: unauthenticated request', { platform });
-    return NextResponse.redirect(buildSafeRedirectUrl(request.url, errorRedirect, { error: 'unauthorized' }));
+    // Redirect directly to /signin — not to /dashboard?error=unauthorized — so the error
+    // param never leaks onto the login page when the middleware bounces an unauthed user.
+    const signinUrl = new URL('/signin', request.url);
+    if (platform) signinUrl.searchParams.set('platform', platform);
+    return NextResponse.redirect(signinUrl.toString());
   }
 
   const requestedWorkspaceId = searchParams.get('workspaceId');

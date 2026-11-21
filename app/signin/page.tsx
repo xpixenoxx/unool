@@ -38,15 +38,31 @@ function SignInComponent() {
   const [busy, setBusy] = useState(false);
   const [emailError, setEmailError] = useState('');
   const urlErrorParam = searchParams.get('error') ? decodeURIComponent(searchParams.get('error')!) : '';
+
+  // OAuth/platform error codes should NEVER surface as a password error on the login page.
+  // These codes arrive when an unauthenticated user triggers a platform connect flow and gets
+  // bounced through /dashboard (which redirects to /signin with the error param still in the URL).
+  const OAUTH_ONLY_ERROR_CODES = new Set([
+    'unauthorized', 'oauth_error', 'missing_code', 'missing_state', 'invalid_state',
+    'unsupported_platform', 'missing_params', 'forbidden_workspace', 'insufficient_role',
+    'channel_limit_exceeded', 'oauth_config_missing', 'access_denied', 'oauth_denied',
+    'permission_denied',
+  ]);
+  const isOAuthError = OAUTH_ONLY_ERROR_CODES.has(urlErrorParam) ||
+    urlErrorParam.startsWith('oauth_') ||
+    urlErrorParam.startsWith('missing_');
+
   const initialIsSuspended =
-    urlErrorParam === 'account_suspended' || urlErrorParam.toLowerCase().includes('account suspended');
+    !isOAuthError && (urlErrorParam === 'account_suspended' || urlErrorParam.toLowerCase().includes('account suspended'));
   const initialIsDeleted =
-    urlErrorParam === 'account_deleted' ||
-    urlErrorParam.toLowerCase().includes('session creation failed') ||
-    (!initialIsSuspended && urlErrorParam.toLowerCase().includes('contact unool team'));
+    !isOAuthError && (
+      urlErrorParam === 'account_deleted' ||
+      urlErrorParam.toLowerCase().includes('session creation failed') ||
+      (!initialIsSuspended && urlErrorParam.toLowerCase().includes('contact unool team'))
+    );
 
   const [passwordError, setPasswordError] = useState(
-    initialIsSuspended || initialIsDeleted ? '' : urlErrorParam
+    initialIsSuspended || initialIsDeleted || isOAuthError ? '' : urlErrorParam
   );
   // 'deleted' | 'suspended' | null — triggers a clickable error link
   const [accountError, setAccountError] = useState<'deleted' | 'suspended' | null>(
