@@ -33,6 +33,8 @@ const configSchema = z.object({
 
   // Encryption key for token encryption (32-byte base64, required in production)
   ENCRYPTION_KEY: z.string().optional(),
+  // Optional pre-derived AES-256 key (base64, 32 bytes) for key version 1 — avoids PBKDF2 CPU cost on Workers Free
+  ENCRYPTION_DERIVED_KEY_V1: z.string().optional(),
   ENCRYPTION_KEY_VERSION: z.coerce.number().default(1),
 
   // Dev auth bypass

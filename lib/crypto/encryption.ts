@@ -11,6 +11,22 @@ const CURRENT_VERSION = 1;
  * Uses PBKDF2 for proper key derivation with per-version salt
  */
 async function getDerivedKeys(version: number = CURRENT_VERSION, firstOnly = false): Promise<CryptoKey[]> {
+  // Fast path: a pre-derived key (PBKDF2 output computed offline) loads with ~zero CPU.
+  // Cloudflare Workers Free allows only ~10ms CPU/request, and PBKDF2(100k) can exceed that.
+  // It is byte-identical to deriving from ENCRYPTION_KEY, so existing ciphertext stays readable.
+  if (version === 1) {
+    const preDerived = config.ENCRYPTION_DERIVED_KEY_V1 || process.env.ENCRYPTION_DERIVED_KEY_V1;
+    if (preDerived) {
+      try {
+        return [await importPreDerivedKey(preDerived)];
+      } catch (error) {
+        logger.error('Invalid ENCRYPTION_DERIVED_KEY_V1, falling back to PBKDF2', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }
+  }
+
   const secrets: string[] = [];
   if (config.ENCRYPTION_KEY) secrets.push(config.ENCRYPTION_KEY);
   if (config.SUPABASE_SERVICE_ROLE_KEY && !secrets.includes(config.SUPABASE_SERVICE_ROLE_KEY)) {
@@ -36,6 +52,21 @@ async function getDerivedKeys(version: number = CURRENT_VERSION, firstOnly = fal
 // PBKDF2 (100k iterations) is CPU-heavy; derive once per secret+version per isolate.
 // Cache the promise so concurrent callers share a single derivation.
 const derivedKeyCache = new Map<string, Promise<CryptoKey>>();
+
+function importPreDerivedKey(base64Key: string): Promise<CryptoKey> {
+  const cacheKey = `raw:${base64Key}`;
+  let pending = derivedKeyCache.get(cacheKey);
+  if (!pending) {
+    const raw = Uint8Array.from(atob(base64Key), (c) => c.charCodeAt(0));
+    if (raw.length !== KEY_LENGTH / 8) {
+      return Promise.reject(new Error('ENCRYPTION_DERIVED_KEY_V1 must be 32 bytes (base64)'));
+    }
+    pending = crypto.subtle.importKey('raw', raw, { name: ENCRYPTION_ALGORITHM }, false, ['encrypt', 'decrypt']);
+    pending.catch(() => derivedKeyCache.delete(cacheKey));
+    derivedKeyCache.set(cacheKey, pending);
+  }
+  return pending;
+}
 
 function deriveCached(secret: string, version: number): Promise<CryptoKey> {
   const cacheKey = `${version}:${secret}`;
