@@ -210,6 +210,7 @@ export async function GET(request: NextRequest) {
       connectedAt?: string;
       expiresAt?: string;
       streamConfigured?: boolean;
+      needsReconnect?: boolean;
     }
 
     const result: Record<string, {
@@ -231,8 +232,11 @@ export async function GET(request: NextRequest) {
     const statusPriority: Record<string, number> = { connected: 3, expired: 2, not_connected: 1 };
 
     if (rows && rows.length > 0) {
-      // Collect refresh promises for connections with expired access tokens
-      const refreshPromises: Promise<{ platform: string; refreshed: boolean }>[] = [];
+      // Collect refresh promises for connections with expired access tokens.
+      // NOTE: Cloudflare Workers cancel un-awaited work once the response is sent, so these
+      // must be awaited (bounded by a timeout below) instead of fire-and-forget.
+      const refreshPromises: Promise<{ platform: string; refreshed: boolean; entry?: ConnectedAccountEntry }>[] = [];
+      const { decryptToken } = await import('@/lib/crypto/encryption');
 
       for (const row of rows) {
         const now = new Date();
@@ -243,6 +247,7 @@ export async function GET(request: NextRequest) {
 
         // Determine connection status
         let status: string;
+        let needsRefresh = false;
 
         if (dbStatus === 'error' || dbStatus === 'revoked') {
           // If voluntarily disconnected (revoked), show as not_connected so UI displays clean Connect state;
@@ -252,23 +257,22 @@ export async function GET(request: NextRequest) {
           // Access token expired and no refresh token — truly expired
           status = 'expired';
         } else if (accessTokenExpired && hasRefreshToken) {
-          // Access token expired but we have a refresh token — proactively refresh
-          // Show as connected optimistically; the refresh runs in the background
+          // Access token expired but we have a refresh token — refresh now (awaited below)
           status = 'connected';
-          refreshPromises.push(
-            tryRefreshToken(row, supabaseAdmin).then((refreshed) => ({
-              platform: row.platform,
-              refreshed,
-            }))
-          );
+          needsRefresh = true;
         } else {
           status = 'connected';
         }
 
+        // Detect tokens that can no longer be decrypted (e.g. encrypted with a retired key).
+        // Reported to the UI as "reconnect required" — derived only, never persisted, so a
+        // temporary key misconfiguration can't permanently flag healthy connections.
+        let needsReconnect = false;
+        if (dbStatus === 'error' && status === 'expired') needsReconnect = true;
+
         let streamConfigured: boolean | undefined = undefined;
         if (row.platform === 'kick' && row.access_token_encrypted) {
           try {
-            const { decryptToken } = await import('@/lib/crypto/encryption');
             const decrypted = await decryptToken(row.access_token_encrypted);
             const parsed = JSON.parse(decrypted);
             streamConfigured = Boolean(parsed.streamKey && parsed.streamUrl);
@@ -279,12 +283,12 @@ export async function GET(request: NextRequest) {
 
         if (row.platform === 'kick' && streamConfigured) {
           status = 'connected';
+          needsReconnect = false;
           if (row.status !== 'connected') {
-            supabaseAdmin
+            await supabaseAdmin
               .from('platform_connections')
               .update({ status: 'connected', updated_at: new Date().toISOString() })
-              .eq('id', row.id)
-              .then();
+              .eq('id', row.id);
           }
         }
 
@@ -299,7 +303,18 @@ export async function GET(request: NextRequest) {
           connectedAt: row.created_at,
           expiresAt: row.expires_at || undefined,
           streamConfigured,
+          needsReconnect: needsReconnect || undefined,
         };
+
+        if (needsRefresh) {
+          refreshPromises.push(
+            tryRefreshToken(row, supabaseAdmin).then((refreshed) => ({
+              platform: row.platform,
+              refreshed,
+              entry: accountEntry,
+            }))
+          );
+        }
 
         if (status !== 'not_connected') {
           const list = accountsByPlatform[row.platform] ?? [];
@@ -331,21 +346,25 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Run all token refreshes in parallel (fire-and-forget with logging)
-      // We don't block the response — the tokens get refreshed in the background.
-      // On the next page load or publish, the tokens will be fresh.
+      // Await refreshes (bounded) — Workers drop un-awaited work after the response is sent.
       if (refreshPromises.length > 0) {
-        Promise.allSettled(refreshPromises).then((results) => {
-          for (const r of results) {
+        const settled = await Promise.race([
+          Promise.allSettled(refreshPromises),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+        ]);
+        if (settled) {
+          for (const r of settled) {
             if (r.status === 'fulfilled' && !r.value.refreshed) {
-              logger.warn('Background token refresh failed for platform', {
-                platform: r.value.platform,
-                traceId,
-              });
+              logger.warn('Token refresh failed for platform', { platform: r.value.platform, traceId });
+              if (r.value.entry) r.value.entry.status = 'expired';
+              const accts = accountsByPlatform[r.value.platform] || [];
+              if (result[r.value.platform]) {
+                result[r.value.platform].status = accts.some((a) => a.status === 'connected') ? 'connected' : 'expired';
+              }
             }
           }
-        });
-        debug.push(`refresh_queued:${refreshPromises.length}`);
+        }
+        debug.push(`refresh_awaited:${refreshPromises.length}${settled ? '' : ':timeout'}`);
       }
     }
 

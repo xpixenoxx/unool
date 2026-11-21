@@ -42,16 +42,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'LinkedIn not connected. Please connect LinkedIn from Settings → Channels first.' }, { status: 404 });
     }
 
-    const connection = connRows[0];
+    // Prefer active connections (newest first); skip revoked rows; fall through undecryptable ones.
+    const candidates = [...connRows]
+      .filter((c) => c.status !== 'revoked')
+      .sort((a, b) => {
+        const rank = (s: string) => (s === 'connected' ? 0 : 1);
+        return rank(a.status) - rank(b.status) || String(b.created_at).localeCompare(String(a.created_at));
+      });
+
+    if (candidates.length === 0) {
+      return NextResponse.json({ error: 'LinkedIn not connected. Please connect LinkedIn from Settings → Channels first.' }, { status: 404 });
+    }
+
+    let connection = candidates[0];
+    let accessToken = '';
+    let decrypted = false;
+    for (const cand of candidates) {
+      try {
+        accessToken = await decryptToken(cand.access_token_encrypted);
+        connection = cand;
+        decrypted = true;
+        break;
+      } catch {
+        // Token unreadable (retired key) — flag so the UI offers Reconnect, then try the next account
+        await supabaseAdmin
+          .from('platform_connections')
+          .update({ status: 'error', updated_at: new Date().toISOString() })
+          .eq('id', cand.id);
+      }
+    }
     debug.push(`conn:${connection.id.slice(0, 8)},status=${connection.status}`);
 
-    let accessToken: string;
-    try {
-      accessToken = await decryptToken(connection.access_token_encrypted);
-      debug.push('token_ok');
-    } catch {
-      return NextResponse.json({ error: 'Failed to decrypt access token. Please reconnect LinkedIn.' }, { status: 401 });
+    if (!decrypted) {
+      return NextResponse.json({ error: 'Failed to decrypt access token. Please reconnect LinkedIn.', code: 'RECONNECT_REQUIRED' }, { status: 401 });
     }
+    debug.push('token_ok');
 
     // ── Get profile ───────────────────────────────────────
     const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {

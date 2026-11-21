@@ -47,6 +47,7 @@ export interface ConnectedAccountItem {
   connectedAt?: string;
   expiresAt?: string;
   streamConfigured?: boolean;
+  needsReconnect?: boolean;
 }
 
 interface PlatformConnection {
@@ -480,6 +481,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     accountLabel?: string;
     scheduledPosts: number;
   } | null>(null);
+  const [addAccountTarget, setAddAccountTarget] = useState<Platform | null>(null);
   const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
   const [meweDialogOpen, setMeweDialogOpen] = useState(false);
   const [nostrDialogOpen, setNostrDialogOpen] = useState(false);
@@ -819,6 +821,56 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
           loadConnections();
         }}
       />
+      <Dialog open={Boolean(addAccountTarget)} onOpenChange={(o) => !o && setAddAccountTarget(null)}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-[#1F1A16] border-[#E4D9C8] dark:border-[#382F27]">
+          <DialogHeader>
+            <DialogTitle className="text-[#3D2B1F] dark:text-[#F5EFE6]">
+              Add another {addAccountTarget ? PLATFORM_CONFIG[addAccountTarget].name : ''} account
+            </DialogTitle>
+            <DialogDescription className="text-[#6E5A48] dark:text-[#B8A896]">
+              You can connect multiple accounts per channel.
+            </DialogDescription>
+          </DialogHeader>
+          {addAccountTarget && (
+            <div className="space-y-3 text-sm text-[#5C4A3A] dark:text-[#CBBBA7]">
+              {(connections[addAccountTarget]?.accounts?.length ?? 0) > 0 && (
+                <div className="rounded-xl border border-[#E4D9C8] dark:border-[#382F27] px-3 py-2">
+                  <p className="text-xs font-medium mb-1">Already connected</p>
+                  <ul className="text-xs space-y-0.5">
+                    {connections[addAccountTarget]!.accounts!.map((a) => (
+                      <li key={a.id} className="truncate">
+                        {a.username ? `@${a.username}` : a.displayName || 'Account'}
+                        {a.status !== 'connected' ? ' — needs reconnect' : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="text-xs leading-relaxed">
+                {PLATFORM_CONFIG[addAccountTarget].name} signs you in with the account that is currently active in this
+                browser. To add a <strong>different</strong> account, switch to it on {PLATFORM_CONFIG[addAccountTarget].name} first
+                (or use a private window), then continue. Connecting the same account again just refreshes it.
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setAddAccountTarget(null)} className="min-h-[44px] sm:min-h-0">
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const p = addAccountTarget;
+                setAddAccountTarget(null);
+                if (p) handleConnect(p, { addAccount: true });
+              }}
+              className="min-h-[44px] sm:min-h-0"
+            >
+              Continue to {addAccountTarget ? PLATFORM_CONFIG[addAccountTarget].name : ''}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(disconnectTarget)} onOpenChange={(o) => !o && !disconnecting && setDisconnectTarget(null)}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-[#1F1A16] border-[#E4D9C8] dark:border-[#382F27]">
           <DialogHeader>
@@ -1070,7 +1122,9 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                           return accountRows.map((acct) => {
                             const acctConnected = acct.status === 'connected';
                             const acctExpired = acct.status === 'expired' || acct.status === 'error';
-                            const label = acct.username
+                            const label = acct.needsReconnect
+                              ? `${acct.username ? `@${acct.username}` : acct.displayName || cfg.name} · reconnect required`
+                              : acct.username
                               ? `@${acct.username}`
                               : acct.displayName || (acctConnected ? 'Connected' : 'Reconnect');
                             const busyId = hasRealAccountIds ? acct.id : platform;
@@ -1210,7 +1264,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                                   ? 'border-white/30 bg-white/15 text-white hover:bg-white hover:text-blue-900'
                                   : 'border-white/30 bg-white/15 text-white hover:bg-white hover:text-black')
                             )}
-                            onClick={() => handleConnect(platform, { addAccount: true })}
+                            onClick={() => setAddAccountTarget(platform)}
                             disabled={connecting === platform}
                             title={`Connect another ${cfg.name} account (switch accounts in ${cfg.name} if it re-selects your active session)`}
                           >

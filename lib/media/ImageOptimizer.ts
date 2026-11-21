@@ -1,4 +1,4 @@
-﻿import { loadSharp } from '@/lib/media/sharpLoader';
+import { loadSharp } from '@/lib/media/sharpLoader';
 import type { Platform, PostMedia } from '@/lib/repositories/interfaces/IPostRepository';
 import { logger } from '@/lib/logger';
 import { uploadToR2 } from '@/lib/storage/r2';

@@ -128,6 +128,10 @@ export class PublishService {
     } catch (error) {
       const decryptionError = error instanceof Error ? error : new Error(String(error));
       logger.error('Token decryption failed', { error: decryptionError, connectionId: connection.id });
+      // Flag the connection so the UI shows "Reconnect" instead of a silently broken "Connected"
+      try {
+        await platformRepository.updateStatus(connection.id, 'error');
+      } catch {}
       await postRepository.updateVariant(input.postVariantId, {
         status: 'failed',
         error: { code: 'DECRYPTION_FAILED', message: 'Failed to decrypt access token. Please reconnect account.' },
