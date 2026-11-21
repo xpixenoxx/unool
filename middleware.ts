@@ -268,7 +268,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public paths (still strip spoofed internal identity headers for /api/auth/* etc.)
-  if (!hostSubdomain && isPublicPath(pathname)) {
+  // /api/auth/platform/* (OAuth connect/callback) needs the signed-in identity, so it must go
+  // through the identity-injection branch below instead of the public-path shortcut.
+  if (!hostSubdomain && isPublicPath(pathname) && !pathname.startsWith('/api/auth/platform/')) {
     return applyApiCorsHeaders(
       request,
       attachRefCookie(NextResponse.next({ request: { headers: sanitizedHeaders } }))
