@@ -115,34 +115,19 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Create a Supabase session for this user ───────────────────────────────
-    // Since we manage the password_hash with Argon2id AND the user explicitly
-    // wants Magic Links disabled in Supabase, we cannot use admin.generateLink.
-    // Instead, we inject a secure temporary password, sign in via SSR to get
-    // the cookies, and then scramble the password so it can never be used again.
-
-    const crypto = await import('crypto');
-    const tempPassword = crypto.randomBytes(32).toString('base64');
-
-    // 1. Set temporary password
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      password: tempPassword
-    });
-
-    if (updateError) {
-      logger.error('Failed to prepare session', { error: updateError, userId: user.id });
-      return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
-    }
-
-    // 2. Exchange temp password for a real session (setting cookies)
+    // Primary strategy: magiclink token exchange via admin.generateLink + verifyOtp.
+    // Universally compatible with both OAuth-linked and email/password accounts,
+    // without clobbering passwords or failing on GoTrue identities check.
     const cookieStore = await cookies();
-    
     let sessionData: any = null;
     const cookiesToSet: { name: string; value: string; options: any }[] = [];
-    
+
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(toSet: Array<{ name: string; value: string; options?: any }>) { 
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(toSet: Array<{ name: string; value: string; options?: any }>) {
           toSet.forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
             cookiesToSet.push({ name, value, options });
@@ -151,19 +136,75 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const { data: signInData, error: signInError } = await supabaseSSR.auth.signInWithPassword({
-      email: emailLower,
-      password: tempPassword,
-    });
-    sessionData = signInData;
+    const normalizedEmail = user.email ? user.email.toLowerCase().trim() : emailLower;
+    let linkError: any = null;
+    try {
+      const linkResult = await supabaseAdmin?.auth?.admin?.generateLink?.({
+        type: 'magiclink',
+        email: normalizedEmail,
+      });
+      linkError = linkResult?.error;
+      const linkData = linkResult?.data;
 
-    // The password is a 32-byte secure random string that only the server knows.
-    // We intentionally DO NOT scramble it again because changing the password
-    // immediately revokes the JWT session we just created.
+      const tokenHash = (linkData?.properties as Record<string, unknown> | undefined)?.hashed_token as
+        | string
+        | undefined;
 
-    if (signInError) {
-      logger.error('Session exchange error', { error: signInError, userId: user.id });
-      return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+      if (!linkError && tokenHash && supabaseSSR?.auth?.verifyOtp) {
+        const otpResult = await supabaseSSR.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'magiclink',
+        });
+
+        if (!otpResult?.error && otpResult?.data?.session) {
+          sessionData = otpResult.data;
+        } else if (otpResult?.error) {
+          logger.warn('Signin verify-otp magiclink verifyOtp failed, trying fallback', {
+            error: otpResult.error.message,
+            userId: user.id,
+          });
+        }
+      } else if (linkError) {
+        logger.warn('Signin verify-otp generateLink failed, trying fallback', {
+          error: linkError.message,
+          userId: user.id,
+        });
+      }
+    } catch (genErr) {
+      logger.warn('Signin verify-otp generateLink threw exception, trying fallback', {
+        error: genErr instanceof Error ? genErr.message : String(genErr),
+        userId: user.id,
+      });
+    }
+
+    // Fallback strategy: temporary password update + signInWithPassword
+    if (!sessionData?.session) {
+      const crypto = await import('crypto');
+      const tempPassword = crypto.randomBytes(32).toString('base64');
+
+      const updateResult = await supabaseAdmin?.auth?.admin?.updateUserById?.(user.id, {
+        password: tempPassword,
+      });
+      const updateError = updateResult?.error;
+
+      if (updateError) {
+        logger.error('Failed to prepare session', { error: updateError, userId: user.id });
+        return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+      }
+
+      const passResult = await supabaseSSR?.auth?.signInWithPassword?.({
+        email: normalizedEmail,
+        password: tempPassword,
+      });
+      const passSignInData = passResult?.data;
+      const passSignInError = passResult?.error;
+
+      if (passSignInError || !passSignInData?.session) {
+        logger.error('Session exchange error', { error: passSignInError || linkError, userId: user.id });
+        return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+      }
+
+      sessionData = passSignInData;
     }
 
     logger.info('Signin OTP verified, session created', { userId: user.id });

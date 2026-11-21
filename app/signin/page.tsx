@@ -57,7 +57,6 @@ function SignInComponent() {
   const initialIsDeleted =
     !isOAuthError && (
       urlErrorParam === 'account_deleted' ||
-      urlErrorParam.toLowerCase().includes('session creation failed') ||
       (!initialIsSuspended && urlErrorParam.toLowerCase().includes('contact unool team'))
     );
 
@@ -165,7 +164,7 @@ function SignInComponent() {
         const isDeleted =
           data.code === 'account_deleted' ||
           data.message === 'account_deleted' ||
-          (typeof data.message === 'string' && data.message.toLowerCase().includes('session creation failed'));
+          (!isSuspended && typeof data.message === 'string' && data.message.toLowerCase().includes('contact unool team'));
 
         if (isSuspended) {
           setAccountError('suspended');
@@ -266,7 +265,7 @@ function SignInComponent() {
         const isDeleted =
           data.code === 'account_deleted' ||
           data.message === 'account_deleted' ||
-          (typeof data.message === 'string' && data.message.toLowerCase().includes('session creation failed'));
+          (!isSuspended && typeof data.message === 'string' && data.message.toLowerCase().includes('contact unool team'));
 
         if (isSuspended) {
           setAccountError('suspended');

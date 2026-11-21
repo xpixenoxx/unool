@@ -81,6 +81,21 @@ export async function POST(request: NextRequest) {
     });
     if (!storedHash) {
       // This user signed up via OAuth / magic link — no password set
+      const isGoogleUser =
+        (user as any).app_metadata?.provider === 'google' ||
+        (user as any).identities?.some((i: any) => i.provider === 'google');
+
+      if (isGoogleUser) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'oauth_account',
+            message: 'This account is linked with Google. Please click "Continue with Google" or reset your password to sign in.',
+          },
+          { status: 401 }
+        );
+      }
+
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });
     }
 
@@ -163,25 +178,16 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     } else {
       // ── MFA disabled: Create session directly ──────────────────────────────
-      const tempPassword = crypto.randomBytes(32).toString('base64');
-  
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-        password: tempPassword
-      });
-  
-      if (updateError) {
-        logger.error('Failed to prepare session (signin direct)', { error: updateError, userId: user.id });
-        return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
-      }
-
       const cookieStore = await cookies();
       let sessionData: any = null;
       const cookiesToSet: { name: string; value: string; options: any }[] = [];
-      
+
       const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
         cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll(toSet: Array<{ name: string; value: string; options?: any }>) { 
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(toSet: Array<{ name: string; value: string; options?: any }>) {
             toSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, options);
               cookiesToSet.push({ name, value, options });
@@ -190,39 +196,107 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const { data: signInData, error: signInError } = await supabaseSSR.auth.signInWithPassword({
-        email: emailLower,
-        password: tempPassword,
-      });
-      sessionData = signInData;
+      const normalizedEmail = user.email ? user.email.toLowerCase().trim() : emailLower;
 
-      if (signInError) {
-        logger.error('Session exchange error (signin direct)', { error: signInError, userId: user.id });
-        return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+      // Primary strategy: magiclink token exchange via admin.generateLink + verifyOtp.
+      // This works universally for all accounts (including Google OAuth users who have no
+      // password identity in GoTrue) without mutating the user's password or triggering GoTrue 400.
+      let linkError: any = null;
+      try {
+        const linkResult = await supabaseAdmin?.auth?.admin?.generateLink?.({
+          type: 'magiclink',
+          email: normalizedEmail,
+        });
+        linkError = linkResult?.error;
+        const linkData = linkResult?.data;
+
+        const tokenHash = (linkData?.properties as Record<string, unknown> | undefined)?.hashed_token as
+          | string
+          | undefined;
+
+        if (!linkError && tokenHash && supabaseSSR?.auth?.verifyOtp) {
+          const otpResult = await supabaseSSR.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: 'magiclink',
+          });
+
+          if (!otpResult?.error && otpResult?.data?.session) {
+            sessionData = otpResult.data;
+          } else if (otpResult?.error) {
+            logger.warn('Direct signin magiclink verifyOtp failed, trying fallback', {
+              error: otpResult.error.message,
+              userId: user.id,
+            });
+          }
+        } else if (linkError) {
+          logger.warn('Direct signin generateLink failed, trying fallback', {
+            error: linkError.message,
+            userId: user.id,
+          });
+        }
+      } catch (genErr) {
+        logger.warn('Direct signin generateLink threw exception, trying fallback', {
+          error: genErr instanceof Error ? genErr.message : String(genErr),
+          userId: user.id,
+        });
+      }
+
+      // Fallback strategy: temporary password update + signInWithPassword (for legacy environments)
+      if (!sessionData?.session) {
+        const tempPassword = crypto.randomBytes(32).toString('base64');
+        const updateResult = await supabaseAdmin?.auth?.admin?.updateUserById?.(user.id, {
+          password: tempPassword,
+        });
+        const updateError = updateResult?.error;
+
+        if (updateError) {
+          logger.error('Failed to prepare session (signin direct)', { error: updateError, userId: user.id });
+          return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+        }
+
+        const passResult = await supabaseSSR?.auth?.signInWithPassword?.({
+          email: normalizedEmail,
+          password: tempPassword,
+        });
+        const passSignInData = passResult?.data;
+        const passSignInError = passResult?.error;
+
+        if (passSignInError || !passSignInData?.session) {
+          logger.error('Session exchange error (signin direct)', {
+            error: passSignInError || linkError,
+            userId: user.id,
+          });
+          return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+        }
+
+        sessionData = passSignInData;
       }
 
       logger.info('Direct signin complete (MFA disabled)', { userId: user.id });
-      
-      const response = NextResponse.json({ 
-        success: true, 
-        message: 'Signed in successfully.', 
-        redirectTo: '/dashboard',
-        session: {
-          access_token: sessionData?.session?.access_token,
-          refresh_token: sessionData?.session?.refresh_token,
-          expires_at: sessionData?.session?.expires_at,
-          user: {
-            id: sessionData?.user?.id,
-            email: sessionData?.user?.email,
+
+      const response = NextResponse.json(
+        {
+          success: true,
+          message: 'Signed in successfully.',
+          redirectTo: '/dashboard',
+          session: {
+            access_token: sessionData?.session?.access_token,
+            refresh_token: sessionData?.session?.refresh_token,
+            expires_at: sessionData?.session?.expires_at,
+            user: {
+              id: sessionData?.user?.id,
+              email: sessionData?.user?.email,
+            },
           },
         },
-      }, { status: 200 });
-      
+        { status: 200 }
+      );
+
       // Apply cookies to the response with their original options (maxAge, etc.)
       cookiesToSet.forEach(({ name, value, options }) => {
         response.cookies.set(name, value, options);
       });
-      
+
       return response;
     }
 
