@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getCurrentAuth } from '@/lib/auth/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -11,18 +11,26 @@ import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 // GET /api/instagram/automation?workspaceId=xxx
 export async function GET(request: NextRequest) {
   try {
-    const userClient = await createSupabaseServerClient();
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getCurrentAuth(request);
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const workspaceId = request.nextUrl.searchParams.get('workspaceId');
     if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
 
     // Verify user has access to this workspace
-    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    const hasAccess =
+      workspaceId === auth.workspaceId || (await verifyWorkspaceAccess(auth.userId, workspaceId));
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const globalAutomationEnabled = await isAutomationEnabledServer();
+    const [globalAutomationEnabled, configResult] = await Promise.all([
+      isAutomationEnabledServer(),
+      supabaseAdmin
+        .from('instagram_automation_config')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle(),
+    ]);
+
     if (!globalAutomationEnabled) {
       return NextResponse.json({
         enabled: false,
@@ -53,19 +61,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const { data } = await supabaseAdmin
-      .from('instagram_automation_config')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .single();
+    const data = configResult.data;
 
     // ── Phase 12.3: Bio-link / Brand Materials Subdomain+Slug default ────────
     // When linkUrl is not explicitly set, resolve from creator's UNOOL subdomain
     // and published brand materials page slug (e.g. https://subdomain.unool.co/slug).
-    const resolvedDefaultLink = await resolveCreatorDeliveryLink(workspaceId, {
-      userId: user.id,
-    });
-    const defaultLinkUrl: string | null = resolvedDefaultLink || null;
+    const defaultLinkUrl: string | null = data?.link_url
+      ? null
+      : (await resolveCreatorDeliveryLink(workspaceId, { userId: auth.userId })) || null;
 
     // Return defaults if not configured yet
     if (!data) {
@@ -134,9 +137,8 @@ export async function GET(request: NextRequest) {
 // PUT /api/instagram/automation
 export async function PUT(request: NextRequest) {
   try {
-    const userClient = await createSupabaseServerClient();
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getCurrentAuth(request);
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
     const { workspaceId, ...rest } = body;
@@ -144,11 +146,12 @@ export async function PUT(request: NextRequest) {
     if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
 
     // Verify user has access to this workspace
-    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    const hasAccess =
+      workspaceId === auth.workspaceId || (await verifyWorkspaceAccess(auth.userId, workspaceId));
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Enforce subscription feature entitlements for paid-only automation capabilities
-    const planCtx = await getPlanContext(user.id, workspaceId);
+    const planCtx = await getPlanContext(auth.userId, workspaceId);
     if (planCtx) {
       if (rest.dmAutoReplyEnabled === true && !planCtx.features.dm_concierge) {
         return NextResponse.json(

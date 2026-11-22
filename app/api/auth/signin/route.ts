@@ -16,8 +16,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { issueOtp, isResendCoolingDown } from '@/lib/auth/otp';
-import { verifyPassword } from '@/lib/auth/password';
-import { getUserPasswordHash } from '@/lib/auth/credentials';
+import { verifyPassword, hashPassword, needsPasswordRehash } from '@/lib/auth/password';
+import { getUserPasswordHash, saveUserPasswordHash } from '@/lib/auth/credentials';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const user = await findUserByEmail(emailLower);
     if (!user) {
       // Constant-time: still run a dummy hash compare to avoid timing oracle
-      await verifyPassword('$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy', password);
+      await verifyPassword('$pbkdf2-sha256$i=100000$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', password);
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });
     }
 
@@ -99,11 +99,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });
     }
 
-    // Argon2id verification (timing-safe internally)
+    // Password verification (timing-safe internally)
     const passwordValid = await verifyPassword(storedHash, password);
     if (!passwordValid) {
       logger.warn('Failed signin attempt', { email: emailLower, ip });
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });
+    }
+
+    // Lazily upgrade legacy pure-JS Argon2 hashes to native WebCrypto PBKDF2-SHA256
+    // so subsequent logins on Cloudflare Workers execute in < 0.5 ms of CPU time.
+    if (typeof needsPasswordRehash === 'function' && needsPasswordRehash(storedHash)) {
+      try {
+        const upgradedHash = await hashPassword(password);
+        if (upgradedHash && typeof saveUserPasswordHash === 'function') {
+          await saveUserPasswordHash(
+            user.id,
+            upgradedHash,
+            user.user_metadata as Record<string, unknown> | undefined
+          );
+        }
+      } catch (rehashErr) {
+        logger.warn('Non-fatal password rehash upgrade skipped', {
+          userId: user.id,
+          error: rehashErr instanceof Error ? rehashErr.message : String(rehashErr),
+        });
+      }
     }
 
     // Check if account is deleted or suspended (only after password is verified)

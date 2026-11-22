@@ -20,6 +20,14 @@ export function normalizeWorkspaceRole(rawRole: unknown): WorkspaceRole {
   return 'viewer';
 }
 
+const MEMBERSHIP_CACHE_TTL_MS = 30_000;
+const membershipCache = new Map<string, { value: WorkspaceMembership | null; expiresAt: number }>();
+const membershipInFlight = new Map<string, Promise<WorkspaceMembership | null>>();
+
+export function clearWorkspaceMembershipCache(): void {
+  membershipCache.clear();
+}
+
 /**
  * Resolves the user's active membership and role inside a workspace.
  * Returns null when the user is not an active member or owner.
@@ -39,52 +47,80 @@ export async function getWorkspaceMembership(
     return null;
   }
 
-  // 1. Check active membership in workspace_members
-  const { data: member } = await supabaseAdmin
-    .from('workspace_members')
-    .select('role, status')
-    .eq('workspace_id', trimmedWorkspaceId)
-    .eq('user_id', trimmedUserId)
-    .limit(1)
-    .maybeSingle();
+  const cacheKey = `${trimmedUserId}:${trimmedWorkspaceId}`;
+  const cached = membershipCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
 
-  if (member) {
-    const status = typeof (member as { status?: unknown }).status === 'string'
-      ? (member as { status: string }).status
-      : 'active';
-    if (status && status !== 'active') {
-      return null;
+  const existingFlight = membershipInFlight.get(cacheKey);
+  if (existingFlight) {
+    return existingFlight;
+  }
+
+  const promise = (async (): Promise<WorkspaceMembership | null> => {
+    // 1. Check active membership in workspace_members
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('role, status')
+      .eq('workspace_id', trimmedWorkspaceId)
+      .eq('user_id', trimmedUserId)
+      .limit(1)
+      .maybeSingle();
+
+    if (member) {
+      const status = typeof (member as { status?: unknown }).status === 'string'
+        ? (member as { status: string }).status
+        : 'active';
+      if (status && status !== 'active') {
+        return null;
+      }
+      const role = normalizeWorkspaceRole((member as { role?: unknown }).role);
+      return {
+        workspaceId: trimmedWorkspaceId,
+        userId: trimmedUserId,
+        role,
+        status: status || 'active',
+        isOwner: role === 'owner',
+      };
     }
-    const role = normalizeWorkspaceRole((member as { role?: unknown }).role);
-    return {
-      workspaceId: trimmedWorkspaceId,
-      userId: trimmedUserId,
-      role,
-      status: status || 'active',
-      isOwner: role === 'owner',
-    };
+
+    // 2. Fallback: verify direct workspace ownership on workspaces.owner_id
+    const { data: workspace } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('id', trimmedWorkspaceId)
+      .eq('owner_id', trimmedUserId)
+      .limit(1)
+      .maybeSingle();
+
+    if (workspace?.id) {
+      return {
+        workspaceId: trimmedWorkspaceId,
+        userId: trimmedUserId,
+        role: 'owner',
+        status: 'active',
+        isOwner: true,
+      };
+    }
+
+    return null;
+  })();
+
+  membershipInFlight.set(cacheKey, promise);
+  try {
+    const result = await promise;
+    if (membershipCache.size > 1000) {
+      membershipCache.clear();
+    }
+    membershipCache.set(cacheKey, {
+      value: result,
+      expiresAt: Date.now() + MEMBERSHIP_CACHE_TTL_MS,
+    });
+    return result;
+  } finally {
+    membershipInFlight.delete(cacheKey);
   }
-
-  // 2. Fallback: verify direct workspace ownership on workspaces.owner_id
-  const { data: workspace } = await supabaseAdmin
-    .from('workspaces')
-    .select('id')
-    .eq('id', trimmedWorkspaceId)
-    .eq('owner_id', trimmedUserId)
-    .limit(1)
-    .maybeSingle();
-
-  if (workspace?.id) {
-    return {
-      workspaceId: trimmedWorkspaceId,
-      userId: trimmedUserId,
-      role: 'owner',
-      status: 'active',
-      isOwner: true,
-    };
-  }
-
-  return null;
 }
 
 /**

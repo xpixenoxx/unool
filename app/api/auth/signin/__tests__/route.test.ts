@@ -35,6 +35,8 @@ vi.mock('@/lib/auth/rate-limits', () => ({
 
 vi.mock('@/lib/auth/password', () => ({
   verifyPassword: vi.fn(),
+  hashPassword: vi.fn(),
+  needsPasswordRehash: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/auth/otp', () => ({

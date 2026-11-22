@@ -174,33 +174,65 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
+// Helper to ignore placeholder values so a stale placeholder in SUPABASE_URL or SUPABASE_ANON_KEY
+// never shadows a valid NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.
+function isPlaceholderEnvValue(val: string | undefined): boolean {
+  if (!val) return true;
+  const v = val.trim();
+  return (
+    v === '' ||
+    v.includes('your-project.supabase.co') ||
+    v === 'your-anon-key' ||
+    v === 'your-service-role-key' ||
+    v === 'your-project-id'
+  );
+}
+
+export function pickValidEnv(...candidates: Array<string | undefined>): string | undefined {
+  for (const c of candidates) {
+    if (!isPlaceholderEnvValue(c)) {
+      return c!.trim();
+    }
+  }
+  for (const c of candidates) {
+    if (c && c.trim().length > 0) {
+      return c.trim();
+    }
+  }
+  return undefined;
+}
+
 // Pre-process env matching NEXT_PUBLIC vars if server counterparts are missing
 // Also map legacy META_* env vars to THREADS_* (env files historically used META_ prefix for Threads OAuth)
-const env = {
-  ...process.env,
-  SUPABASE_URL: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  // Threads OAuth: support THREADS_*, META_*, and APP_ID variants
-  THREADS_CLIENT_ID: process.env.THREADS_CLIENT_ID || process.env.META_CLIENT_ID || process.env.THREADS_APP_ID || process.env.META_APP_ID,
-  THREADS_CLIENT_SECRET: process.env.THREADS_CLIENT_SECRET || process.env.META_CLIENT_SECRET || process.env.THREADS_APP_SECRET || process.env.META_APP_SECRET,
-  THREADS_REDIRECT_URI: process.env.THREADS_REDIRECT_URI || process.env.META_REDIRECT_URI,
-  // Facebook OAuth: support FACEBOOK_CLIENT_ID, FACEBOOK_APP_ID, META_CLIENT_ID, META_APP_ID variants
-  FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || process.env.META_CLIENT_ID || process.env.META_APP_ID,
-  FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || process.env.META_CLIENT_SECRET || process.env.META_APP_SECRET,
-  FACEBOOK_REDIRECT_URI: process.env.FACEBOOK_REDIRECT_URI || process.env.META_REDIRECT_URI,
-  FACEBOOK_WEBHOOK_SECRET: process.env.FACEBOOK_WEBHOOK_SECRET || process.env.META_WEBHOOK_SECRET,
-  // Instagram OAuth: support INSTAGRAM_CLIENT_ID, INSTAGRAM_APP_ID, META_CLIENT_ID, META_APP_ID variants
-  INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID || process.env.INSTAGRAM_APP_ID || process.env.META_CLIENT_ID || process.env.META_APP_ID,
-  INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET || process.env.INSTAGRAM_APP_SECRET || process.env.META_CLIENT_SECRET || process.env.META_APP_SECRET,
-  INSTAGRAM_REDIRECT_URI: process.env.INSTAGRAM_REDIRECT_URI || process.env.META_REDIRECT_URI,
-  // Instagram / Meta Webhook: support both INSTAGRAM_* and META_* env var names interchangeably
-  META_WEBHOOK_SECRET: process.env.META_WEBHOOK_SECRET || process.env.INSTAGRAM_WEBHOOK_SECRET,
-  META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,
-  INSTAGRAM_WEBHOOK_SECRET: process.env.INSTAGRAM_WEBHOOK_SECRET || process.env.META_WEBHOOK_SECRET,
-  INSTAGRAM_WEBHOOK_VERIFY_TOKEN: process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN || process.env.META_WEBHOOK_VERIFY_TOKEN,
-};
+function buildConfig(): Config {
+  const env = {
+    ...process.env,
+    SUPABASE_URL: pickValidEnv(process.env.SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_URL),
+    SUPABASE_ANON_KEY: pickValidEnv(process.env.SUPABASE_ANON_KEY, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    SUPABASE_SERVICE_ROLE_KEY: pickValidEnv(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    // Threads OAuth: support THREADS_*, META_*, and APP_ID variants
+    THREADS_CLIENT_ID: process.env.THREADS_CLIENT_ID || process.env.META_CLIENT_ID || process.env.THREADS_APP_ID || process.env.META_APP_ID,
+    THREADS_CLIENT_SECRET: process.env.THREADS_CLIENT_SECRET || process.env.META_CLIENT_SECRET || process.env.THREADS_APP_SECRET || process.env.META_APP_SECRET,
+    THREADS_REDIRECT_URI: process.env.THREADS_REDIRECT_URI || process.env.META_REDIRECT_URI,
+    // Facebook OAuth: support FACEBOOK_CLIENT_ID, FACEBOOK_APP_ID, META_CLIENT_ID, META_APP_ID variants
+    FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || process.env.META_CLIENT_ID || process.env.META_APP_ID,
+    FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET || process.env.META_CLIENT_SECRET || process.env.META_APP_SECRET,
+    FACEBOOK_REDIRECT_URI: process.env.FACEBOOK_REDIRECT_URI || process.env.META_REDIRECT_URI,
+    FACEBOOK_WEBHOOK_SECRET: process.env.FACEBOOK_WEBHOOK_SECRET || process.env.META_WEBHOOK_SECRET,
+    // Instagram OAuth: support INSTAGRAM_CLIENT_ID, INSTAGRAM_APP_ID, META_CLIENT_ID, META_APP_ID variants
+    INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID || process.env.INSTAGRAM_APP_ID || process.env.META_CLIENT_ID || process.env.META_APP_ID,
+    INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET || process.env.INSTAGRAM_APP_SECRET || process.env.META_CLIENT_SECRET || process.env.META_APP_SECRET,
+    INSTAGRAM_REDIRECT_URI: process.env.INSTAGRAM_REDIRECT_URI || process.env.META_REDIRECT_URI,
+    // Instagram / Meta Webhook: support both INSTAGRAM_* and META_* env var names interchangeably
+    META_WEBHOOK_SECRET: process.env.META_WEBHOOK_SECRET || process.env.INSTAGRAM_WEBHOOK_SECRET,
+    META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,
+    INSTAGRAM_WEBHOOK_SECRET: process.env.INSTAGRAM_WEBHOOK_SECRET || process.env.META_WEBHOOK_SECRET,
+    INSTAGRAM_WEBHOOK_VERIFY_TOKEN: process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN || process.env.META_WEBHOOK_VERIFY_TOKEN,
+  };
+  return configSchema.parse(env);
+}
 
-export const config = configSchema.parse(env);
+export const config: Config = buildConfig();
 
 // Augment NodeJS.ProcessEnv for type safety
 declare global {

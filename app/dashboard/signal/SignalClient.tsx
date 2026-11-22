@@ -835,42 +835,77 @@ export function SignalClient() {
         (analytics.operational.publishingPosts > 0 ||
           analytics.operational.failedPosts > 0 ||
           analytics.operational.partialFailurePosts > 0 ||
-          analytics.operational.overdueScheduledPosts > 0) && (
-          <div className="bg-white border border-[#E8E0D4] rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              {analytics.operational.publishingPosts > 0 && (
-                <span className="inline-flex items-center gap-1.5 font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>{analytics.operational.publishingPosts} publishing live</span>
-                </span>
-              )}
-              {(analytics.operational.failedPosts > 0 || analytics.operational.partialFailurePosts > 0) && (
-                <span className="inline-flex items-center gap-1.5 font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>
-                    {analytics.operational.failedPosts + analytics.operational.partialFailurePosts} delivery issue(s) need attention
+          analytics.operational.overdueScheduledPosts > 0) && (() => {
+          const hasFailures =
+            analytics.operational.failedPosts > 0 || analytics.operational.partialFailurePosts > 0;
+          const issuePost = analytics.posts.find(p =>
+            hasFailures
+              ? p.effectiveStatus === 'failed' || p.variants.some(v => v.status === 'failed')
+              : analytics.operational.overdueScheduledPosts > 0
+              ? p.effectiveStatus === 'scheduled'
+              : p.effectiveStatus === 'publishing'
+          );
+          const firstFailedVariant = issuePost?.variants.find(v => v.status === 'failed');
+          const firstFailedPlatform = firstFailedVariant
+            ? getPlatformConfig(firstFailedVariant.canonicalPlatform)?.name || firstFailedVariant.capability.label
+            : null;
+
+          return (
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                {analytics.operational.publishingPosts > 0 && (
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>{analytics.operational.publishingPosts} publishing live</span>
                   </span>
-                </span>
-              )}
-              {analytics.operational.overdueScheduledPosts > 0 && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-[#57534E]">
-                  <Clock className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{analytics.operational.overdueScheduledPosts} overdue scheduled item(s)</span>
-                </span>
-              )}
+                )}
+                {hasFailures && (
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>
+                      {analytics.operational.failedPosts + analytics.operational.partialFailurePosts} delivery issue(s) need attention
+                    </span>
+                  </span>
+                )}
+                {firstFailedVariant?.error && (
+                  <span className="text-rose-800 bg-rose-50/70 border border-rose-200/80 px-2.5 py-1 rounded-xl max-w-xl truncate" title={firstFailedVariant.error}>
+                    <strong>{firstFailedPlatform}:</strong> {firstFailedVariant.error}
+                  </span>
+                )}
+                {analytics.operational.overdueScheduledPosts > 0 && (
+                  <span className="inline-flex items-center gap-1.5 font-medium text-[#57534E]">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{analytics.operational.overdueScheduledPosts} overdue scheduled item(s)</span>
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setView('content');
+                  if (hasFailures) {
+                    setStatusFilter('failed');
+                  } else if (analytics.operational.overdueScheduledPosts > 0) {
+                    setStatusFilter('scheduled');
+                  } else if (analytics.operational.publishingPosts > 0) {
+                    setStatusFilter('publishing');
+                  }
+                  if (issuePost) {
+                    setInspectorPost(issuePost);
+                  }
+                  requestAnimationFrame(() => {
+                    document
+                      .getElementById('signal-post-feed')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  });
+                }}
+                className="text-xs font-semibold text-[#C8613D] hover:underline"
+              >
+                Inspect Queue →
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setView('content');
-                if (analytics.operational.failedPosts > 0) setStatusFilter('failed');
-              }}
-              className="text-xs font-semibold text-[#C8613D] hover:underline"
-            >
-              Inspect Queue →
-            </button>
-          </div>
-        )}
+          );
+        })()}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* VIEW 1: OVERVIEW                                                       */}
@@ -1143,7 +1178,7 @@ export function SignalClient() {
           />
 
           {/* Status Filter Pills + Sort + Card/Table Switcher */}
-          <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 space-y-4">
+          <div id="signal-post-feed" className="bg-white border border-[#E8E0D4] rounded-2xl p-4 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Post status filter">
                 {[
@@ -1152,7 +1187,10 @@ export function SignalClient() {
                   { id: 'publishing', label: `Publishing (${analytics.operational.publishingPosts})` },
                   { id: 'scheduled', label: `Scheduled (${analytics.operational.scheduledPosts})` },
                   { id: 'draft', label: `Drafts (${analytics.operational.draftPosts})` },
-                  { id: 'failed', label: `Failed (${analytics.operational.failedPosts})` },
+                  {
+                    id: 'failed',
+                    label: `Failed (${analytics.operational.failedPosts + analytics.operational.partialFailurePosts})`,
+                  },
                 ].map(st => (
                   <button
                     key={st.id}
@@ -1259,7 +1297,13 @@ export function SignalClient() {
                             ))}
                           </div>
                         </td>
-                        <td className="py-2.5 px-2 capitalize text-[#57534E]">{post.effectiveStatus}</td>
+                        <td className="py-2.5 px-2 capitalize text-[#57534E]">
+                          {post.effectiveStatus === 'published' && post.variants.some(v => v.status === 'failed') ? (
+                            <span className="text-rose-700 font-medium">published · issue</span>
+                          ) : (
+                            post.effectiveStatus
+                          )}
+                        </td>
                         <td className="py-2.5 px-2 text-right tabular-nums text-[#57534E]">
                           {post.scopedEngagement.views !== null ? formatCompact(post.scopedEngagement.views) : 'N/A'}
                         </td>
@@ -1322,14 +1366,16 @@ export function SignalClient() {
                           </div>
                           <span
                             className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase ${
-                              post.effectiveStatus === 'published'
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : post.effectiveStatus === 'failed' || hasFailedVar
+                              post.effectiveStatus === 'failed' || hasFailedVar
                                 ? 'bg-rose-50 text-rose-700'
+                                : post.effectiveStatus === 'published'
+                                ? 'bg-emerald-50 text-emerald-700'
                                 : 'bg-stone-200/70 text-[#57534E]'
                             }`}
                           >
-                            {post.effectiveStatus}
+                            {hasFailedVar && post.effectiveStatus === 'published'
+                              ? 'published · issue'
+                              : post.effectiveStatus}
                           </span>
                         </div>
 
@@ -1382,6 +1428,25 @@ export function SignalClient() {
                             );
                           })}
                         </div>
+
+                        {hasFailedVar && (
+                          <div className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 space-y-1 text-[11px] text-rose-800">
+                            {post.variants
+                              .filter(v => v.status === 'failed')
+                              .map(v => {
+                                const cfg = getPlatformConfig(v.canonicalPlatform);
+                                return (
+                                  <div key={v.id} className="flex items-start gap-1.5">
+                                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                    <span>
+                                      <strong>{cfg?.name || v.capability.label}:</strong>{' '}
+                                      {v.error || 'Delivery failed'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
                       </div>
 
                       <div className="pt-2.5 border-t border-[#E8E0D4] flex items-center justify-between gap-2 text-xs">

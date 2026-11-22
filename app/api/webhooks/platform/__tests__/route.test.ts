@@ -281,6 +281,39 @@ describe('Platform Webhooks Route (/api/webhooks/platform)', () => {
       }));
     });
 
+    it('skips Messenger echo events (is_echo=true)', async () => {
+      const payloadObj = {
+        object: 'page',
+        entry: [
+          {
+            id: '122106760341502479',
+            messaging: [
+              {
+                sender: { id: 'user_123' },
+                recipient: { id: '122106760341502479' },
+                message: { mid: 'mid_echo_1', text: 'Our own reply', is_echo: true },
+              },
+            ],
+          },
+        ],
+      };
+
+      const payloadStr = JSON.stringify(payloadObj);
+      const digest = await hmacSha256Hex(payloadStr, mockConfig.FACEBOOK_WEBHOOK_SECRET!);
+      const req = new NextRequest('https://unool.co/api/webhooks/platform?platform=facebook', {
+        method: 'POST',
+        headers: {
+          'x-hub-signature-256': `sha256=${digest}`,
+          'Content-Type': 'application/json',
+        },
+        body: payloadStr,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      expect(mockEnqueue).not.toHaveBeenCalled();
+    });
+
     it('rejects POST with invalid signature', async () => {
       const payloadStr = JSON.stringify({ object: 'page', entry: [] });
       const req = new NextRequest('https://unool.co/api/webhooks/platform?platform=facebook', {

@@ -45,8 +45,9 @@ export function SignalStrip() {
         const res = await fetch('/api/profile', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          if (data?.profile?.subdomain) {
-            setSubdomain(data.profile.subdomain);
+          const sub = data?.profile?.subdomain || data?.subdomain;
+          if (sub) {
+            setSubdomain(sub);
             return;
           }
         }

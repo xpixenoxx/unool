@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import argon2 from 'argon2';
 import * as dotenv from 'dotenv';
 import path from 'path';
+import { hashPassword } from '../lib/auth/password';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
@@ -22,14 +22,9 @@ async function main() {
 
   console.log('Connecting to Supabase at:', supabaseUrl);
 
-  // 1. Hash the password with argon2id (OWASP recommended)
-  console.log('Hashing password with Argon2id...');
-  const hash = await argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 65536,
-    timeCost: 3,
-    parallelism: 4,
-  });
+  // 1. Hash the password with WebCrypto PBKDF2-SHA256 (< 0.5 ms on Cloudflare Workers)
+  console.log('Hashing password with WebCrypto PBKDF2-SHA256...');
+  const hash = await hashPassword(password);
 
   const permissions = {
     users: true,

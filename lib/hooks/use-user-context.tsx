@@ -45,9 +45,46 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const fetchUserContext = async () => {
     try {
-      const res = await fetch('/api/user/context', { credentials: 'include' });
+      const headers: Record<string, string> = {};
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedSessionRaw = sessionStorage.getItem('unool_session');
+          if (cachedSessionRaw) {
+            const parsed = JSON.parse(cachedSessionRaw);
+            if (typeof parsed?.access_token === 'string' && parsed.access_token.length > 10) {
+              headers['Authorization'] = `Bearer ${parsed.access_token}`;
+            }
+          }
+        } catch {
+          // Ignore storage parse failure
+        }
+      }
+
+      let res = await fetch('/api/user/context', {
+        credentials: 'include',
+        headers,
+      });
+
+      if (res.status === 401 && typeof window !== 'undefined' && !headers['Authorization']) {
+        try {
+          const { getAccessToken } = await import('@/lib/supabase/browser');
+          const browserToken = await getAccessToken();
+          if (browserToken) {
+            res = await fetch('/api/user/context', {
+              credentials: 'include',
+              headers: { Authorization: `Bearer ${browserToken}` },
+            });
+          }
+        } catch {
+          // Ignore browser client fallback error
+        }
+      }
+
       if (res.status === 401) {
         clearAllClientCaches();
+        try {
+          sessionStorage.removeItem('unool_session');
+        } catch {}
         setUser(null);
         setProfile(null);
         setWorkspace(null);

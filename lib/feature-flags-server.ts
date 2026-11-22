@@ -5,11 +5,13 @@ const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_RO
 
 let cachedFlags: Record<string, boolean> | null = null;
 let cacheTime = 0;
-const CACHE_TTL_MS = 5_000; // 5 seconds cache
+let inFlightFlags: Promise<Record<string, boolean>> | null = null;
+const CACHE_TTL_MS = 60_000; // 60 seconds cache (cleared on update)
 
 export function clearFeatureFlagsCache() {
   cachedFlags = null;
   cacheTime = 0;
+  inFlightFlags = null;
 }
 
 export async function getFeatureFlagsServer(): Promise<Record<string, boolean>> {
@@ -17,60 +19,71 @@ export async function getFeatureFlagsServer(): Promise<Record<string, boolean>> 
   if (cachedFlags && now - cacheTime < CACHE_TTL_MS) {
     return cachedFlags;
   }
-
-  const flags: Record<string, boolean> = {
-    automation_enabled: true, // Default safe state
-  };
-
-  // 1. Try reading from admin_feature_flags table
-  try {
-    const { data, error } = await adminClient
-      .from('admin_feature_flags')
-      .select('flag_key, flag_value');
-
-    if (!error && Array.isArray(data) && data.length > 0) {
-      for (const row of data) {
-        flags[row.flag_key] = Boolean(row.flag_value);
-      }
-      cachedFlags = flags;
-      cacheTime = now;
-      return flags;
-    }
-  } catch (err) {
-    // If admin_feature_flags table does not exist yet in Supabase, fall back to audit log
-    console.warn('[feature-flags-server] Note: admin_feature_flags table read fell through to audit log');
+  if (inFlightFlags) {
+    return inFlightFlags;
   }
 
-  // 2. Resilient Fallback: Read latest flag states from admin_audit_log
-  try {
-    const { data: audits, error: auditErr } = await adminClient
-      .from('admin_audit_log')
-      .select('target_id, metadata, created_at')
-      .eq('action', 'feature_flag_update')
-      .order('created_at', { ascending: false })
-      .limit(50);
+  inFlightFlags = (async () => {
+    const flags: Record<string, boolean> = {
+      automation_enabled: true, // Default safe state
+    };
 
-    if (!auditErr && Array.isArray(audits) && audits.length > 0) {
-      const seen = new Set<string>();
-      for (const row of audits) {
-        const meta = (row.metadata as any) || {};
-        const key = meta.flag_key || (row.target_id && !row.target_id.includes('-') ? row.target_id : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          const val = meta.flag_value;
-          if (typeof val === 'boolean') {
-            flags[key] = val;
+    // 1. Try reading from admin_feature_flags table
+    try {
+      const { data, error } = await adminClient
+        .from('admin_feature_flags')
+        .select('flag_key, flag_value');
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        for (const row of data) {
+          flags[row.flag_key] = Boolean(row.flag_value);
+        }
+        cachedFlags = flags;
+        cacheTime = Date.now();
+        return flags;
+      }
+    } catch {
+      // If admin_feature_flags table does not exist yet in Supabase, fall back to audit log
+      console.warn('[feature-flags-server] Note: admin_feature_flags table read fell through to audit log');
+    }
+
+    // 2. Resilient Fallback: Read latest flag states from admin_audit_log
+    try {
+      const { data: audits, error: auditErr } = await adminClient
+        .from('admin_audit_log')
+        .select('target_id, metadata, created_at')
+        .eq('action', 'feature_flag_update')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!auditErr && Array.isArray(audits) && audits.length > 0) {
+        const seen = new Set<string>();
+        for (const row of audits) {
+          const meta = (row.metadata as any) || {};
+          const key = meta.flag_key || (row.target_id && !row.target_id.includes('-') ? row.target_id : null);
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            const val = meta.flag_value;
+            if (typeof val === 'boolean') {
+              flags[key] = val;
+            }
           }
         }
       }
+    } catch (auditErr) {
+      console.warn('[feature-flags-server] Audit log fallback read note:', auditErr);
     }
-  } catch (auditErr) {
-    console.warn('[feature-flags-server] Audit log fallback read note:', auditErr);
-  }
 
-  cachedFlags = flags;
-  cacheTime = now;
-  return flags;
+    cachedFlags = flags;
+    cacheTime = Date.now();
+    return flags;
+  })();
+
+  try {
+    return await inFlightFlags;
+  } finally {
+    inFlightFlags = null;
+  }
 }
 
 export async function setFeatureFlagServer(

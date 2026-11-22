@@ -377,4 +377,71 @@ describe('Profile & Composer API Contracts (PROF-API)', () => {
     const data = await okRes.json();
     expect(data.postId).toBe('post-1');
   });
+
+  it('GET /api/profile exposes both top-level fields and data.profile for Studio Draft All / Draft Selected', async () => {
+    const { GET: getProfile } = await import('@/app/api/profile/route');
+    const { POST: postComposerAdapt } = await import('@/app/api/composer/adapt/route');
+
+    vi.spyOn(authServer, 'getCurrentAuth').mockResolvedValue({
+      userId: 'user-1',
+      workspaceId: 'ws-1',
+      isImpersonated: false,
+    });
+    vi.spyOn(planMiddleware.planEnforcement, 'useAI').mockImplementation(async (req, handler) => {
+      return handler(req, { plan: 'creator' });
+    });
+
+    mockFindByWorkspaceId.mockResolvedValue({
+      id: 'prof-studio-1',
+      workspaceId: 'ws-1',
+      userId: 'user-1',
+      subdomain: 'shruthi',
+      name: 'Shruthi',
+      headline: 'Creator',
+      theme: { preset: 'minimal', template: 'identity' },
+    });
+
+    const profRes = await getProfile(new NextRequest('http://localhost/api/profile'));
+    expect(profRes.status).toBe(200);
+    const profBody = await profRes.json();
+    expect(profBody.id).toBe('prof-studio-1');
+    expect(profBody.profile?.id).toBe('prof-studio-1');
+    expect(profBody.profile?.name).toBe('Shruthi');
+
+    // Draft All across facebook, instagram, linkedin, threads without media attached
+    mockPlatformFindByWs.mockResolvedValue([
+      { id: 'conn-fb', platform: 'facebook', status: 'connected' },
+      { id: 'conn-ig', platform: 'instagram', status: 'connected' },
+      { id: 'conn-li', platform: 'linkedin', status: 'connected' },
+      { id: 'conn-th', platform: 'threads', status: 'connected' },
+    ]);
+    mockAdaptForPlatforms.mockResolvedValue({
+      facebook: { ok: true, value: { content: 'FB event post', characterCount: 13, hashtags: ['#Vizag'] } },
+      instagram: { ok: true, value: { content: 'IG event post', characterCount: 13, hashtags: ['#Vizag'] } },
+      linkedin: { ok: true, value: { content: 'LI event post', characterCount: 13, hashtags: ['#Vizag'] } },
+      threads: { ok: true, value: { content: 'TH event post', characterCount: 13, hashtags: ['#Vizag'] } },
+    });
+    mockPostCreate.mockResolvedValue({ id: 'post-all-4' });
+    mockCreateVariant.mockImplementation(async (v: any) => ({ id: `var-${v.platform}`, ...v }));
+
+    const adaptAllReq = new NextRequest('http://localhost/api/composer/adapt', {
+      method: 'POST',
+      body: JSON.stringify({
+        content: 'Conducting a sports event in Vizag on 25th November. No age bias, no gender bias.',
+        profileId: profBody.profile.id,
+        selectedPlatforms: ['facebook', 'instagram', 'linkedin', 'threads'],
+        selectedTargets: [
+          { platform: 'facebook', platformConnectionId: 'conn-fb' },
+          { platform: 'instagram', platformConnectionId: 'conn-ig' },
+          { platform: 'linkedin', platformConnectionId: 'conn-li' },
+          { platform: 'threads', platformConnectionId: 'conn-th' },
+        ],
+      }),
+    });
+    const adaptAllRes = await postComposerAdapt(adaptAllReq);
+    expect(adaptAllRes.status).toBe(200);
+    const adaptAllBody = await adaptAllRes.json();
+    expect(Object.keys(adaptAllBody.variants)).toEqual(['facebook', 'instagram', 'linkedin', 'threads']);
+    expect(adaptAllBody.targetVariants).toHaveLength(4);
+  });
 });

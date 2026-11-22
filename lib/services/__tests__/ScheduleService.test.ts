@@ -521,6 +521,96 @@ describe('ScheduleService.scheduleArc & schedulePost', () => {
     expect(createArcSpy).not.toHaveBeenCalled();
     expect(createPostSpy).not.toHaveBeenCalled();
   });
+
+  it('reuses an orphaned content_arc with 0 posts when retrying the same idempotencyKey', async () => {
+    const orphanedArc = {
+      id: 'arc-orphaned-45',
+      workspaceId: 'ws-1',
+      profileId: 'prof-1',
+      title: 'Ditching Enterprise for Self-Serve',
+      coreStory: 'We dropped our enterprise plan and launched a $29 self-serve tier.',
+      storyType: 'shipped' as const,
+      startDate: '2026-11-21',
+      endDate: '2026-11-27',
+      status: 'active' as const,
+      idempotencyKey: 'flightplan_2026-11-21_pjioj2',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.spyOn(SupabasePostRepository.prototype, 'findContentArcByIdempotencyKey').mockResolvedValue(orphanedArc);
+    vi.spyOn(SupabasePostRepository.prototype, 'findPostsByArcId').mockResolvedValue([]);
+    const createArcSpy = vi.spyOn(SupabasePostRepository.prototype, 'createContentArc');
+    vi.spyOn(SupabasePostRepository.prototype, 'create').mockImplementation(async (input: any) => ({
+      id: 'post-recovered-1',
+      profileId: input.profileId,
+      workspaceId: input.workspaceId,
+      content: input.content,
+      status: 'draft',
+      scheduledAt: null,
+      publishedAt: null,
+      adaptationPromptVersion: input.adaptationPromptVersion,
+      version: 1,
+      qstashMessageId: null,
+      scheduleStrategy: 'simultaneous',
+      arcId: orphanedArc.id,
+      arcBeat: input.arcBeat ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+    vi.spyOn(SupabasePostRepository.prototype, 'createVariantsBatch').mockImplementation(async (inputs: any[]) =>
+      inputs.map((input: any) => ({
+        id: 'var-recovered-1',
+        postId: input.postId,
+        platform: input.platform,
+        adaptedContent: input.adaptedContent,
+        mediaUrls: input.mediaUrls || [],
+        characterCount: input.characterCount,
+        hashtagStrategy: input.hashtagStrategy || [],
+        firstCommentHint: null,
+        platformPostId: null,
+        status: 'scheduled',
+        scheduledAt: input.scheduledAt,
+        qstashMessageId: null,
+        autoFirstComment: null,
+        error: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+    );
+    vi.spyOn(SupabasePostRepository.prototype, 'update').mockResolvedValue({} as any);
+
+    const result = await scheduleService.scheduleArc({
+      workspaceId: 'ws-1',
+      profileId: 'prof-1',
+      arcTitle: 'Ditching Enterprise for Self-Serve',
+      coreStory: 'We dropped our enterprise plan and launched a $29 self-serve tier.',
+      storyType: 'shipped',
+      weekStartDate: new Date('2026-11-21T00:00:00.000Z'),
+      userTimezone: 'Asia/Calcutta',
+      idempotencyKey: 'flightplan_2026-11-21_pjioj2',
+      posts: [
+        {
+          day: 0,
+          scheduledHour: 17,
+          scheduledMinute: 30,
+          strategy: 'simultaneous',
+          arcBeat: 'The Contrarian Hook',
+          platforms: [
+            {
+              platform: 'threads',
+              content: 'We just deleted our enterprise plan. No more 90-day sales cycles. We launched a $29 self-serve tier instead.',
+              hashtags: ['SaaS', 'StartupLife'],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.arc.id).toBe('arc-orphaned-45');
+    expect(result.posts).toHaveLength(1);
+    expect(createArcSpy).not.toHaveBeenCalled();
+  });
 });
 
 // ── DST / Timezone precision tests ──────────────────────────────────────────────

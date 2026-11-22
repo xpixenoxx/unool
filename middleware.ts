@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { isOriginAllowed } from '@/lib/security/cors';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import {
+  signInternalAuthHeaders,
+  INTERNAL_AUTH_SIGNATURE_HEADER,
+} from '@/lib/auth/internal-header';
 
 function applyApiCorsHeaders(request: NextRequest, response: NextResponse): NextResponse {
   if (!request.nextUrl.pathname.startsWith('/api/')) {
@@ -29,6 +34,7 @@ const publicPaths = [
   '/signin',
   '/auth/callback',
   '/api/auth',
+  '/api/feature-flags',
   '/api/health',
   '/u',
   '/s',
@@ -50,7 +56,7 @@ function decodeBase64Url(str: string): string {
     if (typeof Buffer !== 'undefined') {
       return Buffer.from(str, 'base64url').toString();
     }
-  } catch {}
+  } catch { }
   return atob(str.replace(/-/g, '+').replace(/_/g, '/'));
 }
 
@@ -96,6 +102,203 @@ function isProfilePath(pathname: string): string | null {
 const customDomainCache = new Map<string, { subdomain: string | null; expiresAt: number }>();
 const CUSTOM_DOMAIN_TTL_MS = 60_000;
 
+function pickValidSupabaseEnv(...candidates: Array<string | undefined>): string | undefined {
+  for (const c of candidates) {
+    if (!c) continue;
+    const v = c.trim();
+    if (
+      v &&
+      !v.includes('your-project.supabase.co') &&
+      v !== 'your-anon-key' &&
+      v !== 'your-service-role-key'
+    ) {
+      return v;
+    }
+  }
+  return undefined;
+}
+
+interface CachedSignedIdentity {
+  userId: string;
+  workspaceId: string;
+  sig: string;
+  expiresAt: number;
+}
+
+const IDENTITY_CACHE_TTL_MS = 30_000;
+const signedIdentityCache = new Map<string, CachedSignedIdentity>();
+const signedIdentityInFlight = new Map<
+  string,
+  Promise<Omit<CachedSignedIdentity, 'expiresAt'> | null>
+>();
+
+async function resolveWorkspaceIdForMiddleware(
+  userId: string,
+  preferredWsId: string
+): Promise<{ workspaceId: string; timedOut: boolean }> {
+  let timedOut = false;
+
+  const resolveWs = async (): Promise<string> => {
+    if (preferredWsId) {
+      const { data: prefMember } = await supabaseAdmin
+        .from('workspace_members')
+        .select('workspace_id, status')
+        .eq('workspace_id', preferredWsId)
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+      if (prefMember?.workspace_id && (!prefMember.status || prefMember.status === 'active')) {
+        return prefMember.workspace_id;
+      }
+      const { data: prefOwner } = await supabaseAdmin
+        .from('workspaces')
+        .select('id')
+        .eq('id', preferredWsId)
+        .eq('owner_id', userId)
+        .limit(1)
+        .maybeSingle();
+      if (prefOwner?.id) {
+        return prefOwner.id;
+      }
+    }
+
+    const { data: firstMember } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id, status')
+      .eq('user_id', userId)
+      .or('status.eq.active,status.is.null')
+      .order('joined_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (firstMember?.workspace_id) {
+      return firstMember.workspace_id;
+    }
+
+    const { data: firstOwned } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return firstOwned?.id || userId;
+  };
+
+  const timeoutPromise = new Promise<string>((resolve) =>
+    setTimeout(() => {
+      timedOut = true;
+      resolve(userId);
+    }, 1500)
+  );
+  const workspaceId = await Promise.race([resolveWs(), timeoutPromise]);
+  return { workspaceId, timedOut };
+}
+
+async function resolveSignedIdentity(
+  request: NextRequest
+): Promise<Omit<CachedSignedIdentity, 'expiresAt'> | null> {
+  const allCookies = request.cookies.getAll();
+  const authCookies = allCookies
+    .filter(
+      (c) =>
+        c.name.startsWith('sb-') &&
+        !c.name.startsWith('sb-your-project-') &&
+        c.name.includes('-auth-token') &&
+        c.value &&
+        c.value.length > 5
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const authHeader = request.headers.get('authorization');
+  const rawBearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const bearerToken = rawBearer && rawBearer.split('.').length === 3 ? rawBearer : '';
+
+  if (authCookies.length === 0 && !bearerToken) {
+    return null;
+  }
+
+  const preferredWsId = request.cookies.get('active_workspace_id')?.value?.trim() || '';
+  const cookieSig = authCookies.map((c) => `${c.name}=${c.value}`).join('&');
+  const cacheKey = cookieSig
+    ? `cookie:${cookieSig}:ws:${preferredWsId}`
+    : `bearer:${bearerToken}:ws:${preferredWsId}`;
+
+  const cached = signedIdentityCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { userId: cached.userId, workspaceId: cached.workspaceId, sig: cached.sig };
+  }
+
+  const existingFlight = signedIdentityInFlight.get(cacheKey);
+  if (existingFlight) {
+    return existingFlight;
+  }
+
+  const work = (async (): Promise<Omit<CachedSignedIdentity, 'expiresAt'> | null> => {
+    try {
+      let user: { id: string; user_metadata?: Record<string, unknown> } | null = null;
+
+      if (authCookies.length > 0) {
+        const supabaseUrl = pickValidSupabaseEnv(
+          process.env.SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_URL
+        );
+        const supabaseAnonKey = pickValidSupabaseEnv(
+          process.env.SUPABASE_ANON_KEY,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
+        if (!supabaseUrl || !supabaseAnonKey) {
+          return null;
+        }
+        const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+          cookies: {
+            getAll() {
+              return allCookies;
+            },
+            setAll() { },
+          },
+        });
+        const { data } = await supabase.auth.getUser();
+        user = data.user;
+      } else if (bearerToken) {
+        const { data } = await supabaseAdmin.auth.getUser(bearerToken);
+        user = data.user;
+      }
+
+      if (!user || user.user_metadata?.is_deleted === true) {
+        return null;
+      }
+
+      const { workspaceId, timedOut } = await resolveWorkspaceIdForMiddleware(
+        user.id,
+        preferredWsId
+      );
+      const sig = await signInternalAuthHeaders(user.id, workspaceId);
+      const identity = { userId: user.id, workspaceId, sig };
+
+      if (!timedOut) {
+        if (signedIdentityCache.size > 500) {
+          signedIdentityCache.clear();
+        }
+        signedIdentityCache.set(cacheKey, {
+          ...identity,
+          expiresAt: Date.now() + IDENTITY_CACHE_TTL_MS,
+        });
+      }
+
+      return identity;
+    } catch {
+      return null;
+    }
+  })();
+
+  signedIdentityInFlight.set(cacheKey, work);
+  try {
+    return await work;
+  } finally {
+    signedIdentityInFlight.delete(cacheKey);
+  }
+}
+
 async function resolveVerifiedCustomDomainSubdomain(hostWithoutPort: string): Promise<string | null> {
   const now = Date.now();
   const cached = customDomainCache.get(hostWithoutPort);
@@ -103,16 +306,8 @@ async function resolveVerifiedCustomDomainSubdomain(hostWithoutPort: string): Pr
     return cached.subdomain;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return null;
-  }
-
   try {
-    const { createClient: createSbClient } = await import('@supabase/supabase-js');
-    const admin = createSbClient(supabaseUrl, supabaseServiceKey);
-    const lookupPromise = admin
+    const lookupPromise = supabaseAdmin
       .from('profiles')
       .select('subdomain')
       .eq('custom_domain', hostWithoutPort)
@@ -286,7 +481,12 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/dashboard')) {
     const allCookies = request.cookies.getAll();
     const hasAuthCookie = allCookies.some(
-      (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token') && c.value && c.value.length > 5
+      (c) =>
+        c.name.startsWith('sb-') &&
+        !c.name.startsWith('sb-your-project-') &&
+        c.name.includes('-auth-token') &&
+        c.value &&
+        c.value.length > 5
     );
 
     if (!hasAuthCookie) {
@@ -301,102 +501,29 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    return attachRefCookie(NextResponse.next());
+    const identity = await resolveSignedIdentity(request);
+    if (identity) {
+      sanitizedHeaders.set('x-user-id', identity.userId);
+      sanitizedHeaders.set('x-workspace-id', identity.workspaceId);
+      if (identity.sig) {
+        sanitizedHeaders.set(INTERNAL_AUTH_SIGNATURE_HEADER, identity.sig);
+      }
+    }
+
+    return attachRefCookie(NextResponse.next({ request: { headers: sanitizedHeaders } }));
   }
 
   // ── Inject auth identity headers for API routes ──────────────────────────
   if (pathname.startsWith('/api/')) {
-    try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      if (supabaseUrl && supabaseAnonKey) {
-        const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-          cookies: {
-            getAll() { return request.cookies.getAll(); },
-            setAll() {},
-          },
-        });
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          sanitizedHeaders.set('x-user-id', user.id);
-
-          // Resolve workspace ID deterministically (honoring validated active_workspace_id cookie)
-          if (supabaseServiceKey) {
-            try {
-              const { createClient: createSbClient } = await import('@supabase/supabase-js');
-              const { signInternalAuthHeaders, INTERNAL_AUTH_SIGNATURE_HEADER } = await import('@/lib/auth/internal-header');
-              const admin = createSbClient(supabaseUrl, supabaseServiceKey);
-              const preferredWsId = request.cookies.get('active_workspace_id')?.value?.trim() || '';
-
-              const resolveWs = async (): Promise<string> => {
-                if (preferredWsId) {
-                  const { data: prefMember } = await admin
-                    .from('workspace_members')
-                    .select('workspace_id, status')
-                    .eq('workspace_id', preferredWsId)
-                    .eq('user_id', user.id)
-                    .limit(1)
-                    .maybeSingle();
-                  if (prefMember?.workspace_id && (!prefMember.status || prefMember.status === 'active')) {
-                    return prefMember.workspace_id;
-                  }
-                  const { data: prefOwner } = await admin
-                    .from('workspaces')
-                    .select('id')
-                    .eq('id', preferredWsId)
-                    .eq('owner_id', user.id)
-                    .limit(1)
-                    .maybeSingle();
-                  if (prefOwner?.id) {
-                    return prefOwner.id;
-                  }
-                }
-
-                const { data: firstMember } = await admin
-                  .from('workspace_members')
-                  .select('workspace_id, status')
-                  .eq('user_id', user.id)
-                  .or('status.eq.active,status.is.null')
-                  .order('joined_at', { ascending: true })
-                  .limit(1)
-                  .maybeSingle();
-                if (firstMember?.workspace_id) {
-                  return firstMember.workspace_id;
-                }
-
-                const { data: firstOwned } = await admin
-                  .from('workspaces')
-                  .select('id')
-                  .eq('owner_id', user.id)
-                  .order('created_at', { ascending: true })
-                  .limit(1)
-                  .maybeSingle();
-                return firstOwned?.id || user.id;
-              };
-
-              const timeoutPromise = new Promise<string>((resolve) =>
-                setTimeout(() => resolve(user.id), 1500)
-              );
-              const workspaceId = await Promise.race([resolveWs(), timeoutPromise]);
-              sanitizedHeaders.set('x-workspace-id', workspaceId);
-              const sig = await signInternalAuthHeaders(user.id, workspaceId);
-              if (sig) {
-                sanitizedHeaders.set(INTERNAL_AUTH_SIGNATURE_HEADER, sig);
-              }
-            } catch {
-              // workspace lookup failed — getCurrentAuth will resolve it
-            }
-          }
-
-          return applyApiCorsHeaders(
-            request,
-            NextResponse.next({ request: { headers: sanitizedHeaders } })
-          );
+    if (!pathname.startsWith('/api/webhooks/') && !pathname.startsWith('/api/cron/')) {
+      const identity = await resolveSignedIdentity(request);
+      if (identity) {
+        sanitizedHeaders.set('x-user-id', identity.userId);
+        sanitizedHeaders.set('x-workspace-id', identity.workspaceId);
+        if (identity.sig) {
+          sanitizedHeaders.set(INTERNAL_AUTH_SIGNATURE_HEADER, identity.sig);
         }
       }
-    } catch {
-      // Auth injection failed — let routes handle their own auth with stripped headers
     }
 
     return applyApiCorsHeaders(

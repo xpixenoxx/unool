@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { signAdminJwt } from '@/lib/auth/admin-jwt';
 import { getAdminLoginRateLimit } from '@/lib/middleware/admin-rate-limit';
-import { hashPassword, verifyPassword } from '@/lib/auth/password';
+import { hashPassword, verifyPassword, needsPasswordRehash } from '@/lib/auth/password';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 
@@ -61,6 +61,17 @@ export async function POST(request: NextRequest) {
     let valid = false;
     if (adminUser.password_hash) {
       valid = await verifyPassword(adminUser.password_hash, password);
+      if (valid && typeof needsPasswordRehash === 'function' && needsPasswordRehash(adminUser.password_hash)) {
+        try {
+          const upgradedHash = await hashPassword(password);
+          await supabaseAdmin
+            .from('admin_users')
+            .update({ password_hash: upgradedHash, updated_at: new Date().toISOString() })
+            .eq('id', adminUser.id);
+        } catch (rehashErr) {
+          console.error('Admin password rehash upgrade failed:', rehashErr);
+        }
+      }
     } else {
       const envPassword = process.env.ADMIN_PASSWORD;
       if (envPassword && password === envPassword) {

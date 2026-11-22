@@ -786,26 +786,40 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         headers: { 'Cache-Control': 'no-cache' },
       });
       const data = await res.json();
-      if (data.profile) {
+      const rawProfile = data?.profile || (data?.id ? data : null);
+      if (rawProfile && rawProfile.id) {
         const loadedProf: Profile = {
-          id: data.profile.id,
-          name: data.profile.name || '',
-          headline: data.profile.headline || '',
-          bio: data.profile.bio || '',
-          role: data.profile.role || '',
-          company: data.profile.company || '',
-          onboardingAnswers: data.profile.onboardingAnswers || null,
-          studioProfile: data.profile.studioProfile || null,
+          id: rawProfile.id,
+          name: rawProfile.name || '',
+          headline: rawProfile.headline || '',
+          bio: rawProfile.bio || '',
+          role: rawProfile.role || '',
+          company: rawProfile.company || '',
+          onboardingAnswers: rawProfile.onboardingAnswers || rawProfile.onboarding_answers || null,
+          studioProfile: rawProfile.studioProfile || rawProfile.studio_profile || null,
         };
         memoryComposerProfile = loadedProf;
         setProfile(loadedProf);
+      } else if (userCtxProfile?.id) {
+        const fallbackProf: Profile = {
+          id: userCtxProfile.id,
+          name: userCtxProfile.name || '',
+          headline: userCtxProfile.headline || '',
+          bio: '',
+          role: '',
+          company: '',
+          onboardingAnswers: null,
+          studioProfile: null,
+        };
+        memoryComposerProfile = fallbackProf;
+        setProfile(fallbackProf);
       }
     } catch {
       // Ignore — profile might not exist yet
     } finally {
       setProfileLoading(false);
     }
-  }, [featureFlags.automationEnabled]);
+  }, [featureFlags.automationEnabled, userCtxProfile]);
 
   useEffect(() => {
     loadProfile();
@@ -866,10 +880,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     checkSignalDm();
   }, [featureFlags.automationEnabled]);
 
-  const getValidPlatformsForMedia = (platforms: PlatformType[]) => {
+  const getValidPlatformsForMedia = (platforms: PlatformType[], enforceMediaRequired: boolean = true) => {
     return platforms.filter(platform => {
       const limit = getPlatformLimit(platform);
-      if (limit.requiresMedia && media.length === 0) {
+      if (enforceMediaRequired && limit.requiresMedia && media.length === 0) {
         return false;
       }
       for (const m of media) {
@@ -882,8 +896,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   };
 
   const generateDrafts = async (useSelectedOnly: boolean = false) => {
-    if (!sourceContent.trim() || !profile) {
-      studioToast.error('Please complete your profile first in the Presence tab');
+    if (!sourceContent.trim()) {
+      studioToast.error('Please write your idea first.');
       return;
     }
 
@@ -906,14 +920,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
-    if (skippedPlatforms.length > 0) {
-      studioToast.info(
-        `${skippedPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')} require(s) an image/video to publish. Attach media to include them.`
-      );
-    }
-
-    const platformsToUse = getValidPlatformsForMedia(targetPlatforms);
+    const platformsToUse = getValidPlatformsForMedia(targetPlatforms, false);
     const accountsToUse = targetAccounts.filter(a => platformsToUse.includes(a.platform));
     if (accountsToUse.length === 0) {
       studioToast.generationFailed('No accounts selected or all selected platforms reject this media.', {
@@ -946,12 +953,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         credentials: 'include',
         body: JSON.stringify({ 
           content: sourceContent, 
-          profileId: profile.id, 
+          profileId: profile?.id || undefined, 
           mediaItems: media,
           selectedPlatforms: platformsToUse,
           selectedTargets: accountsToUse.map(a => ({ platform: a.platform, platformConnectionId: a.id })),
           disablePersonalization: !personalizeWithProfile,
-          studioProfile: profile.studioProfile || null,
+          studioProfile: profile?.studioProfile || null,
         }),
       });
 
@@ -1055,7 +1062,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   };
 
   const retrySingleDraft = async (draftKey: string) => {
-    if (!sourceContent.trim() || !profile) return;
+    if (!sourceContent.trim()) return;
     const targetDraft = drafts.find(d => getDraftKey(d) === draftKey);
     if (!targetDraft) return;
     const platform = targetDraft.platform;
@@ -1068,14 +1075,14 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         credentials: 'include',
         body: JSON.stringify({
           content: sourceContent,
-          profileId: profile.id,
+          profileId: profile?.id || undefined,
           mediaItems: media,
           selectedPlatforms: [platform],
           selectedTargets: targetDraft.platformConnectionId
             ? [{ platform, platformConnectionId: targetDraft.platformConnectionId }]
             : undefined,
           postId,
-          onboardingAnswers: profile.onboardingAnswers || undefined,
+          onboardingAnswers: profile?.onboardingAnswers || undefined,
         }),
       });
       const data = await res.json();
@@ -1295,8 +1302,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   };
 
   const handleDirectBroadcast = async (useSelectedOnly: boolean = false) => {
-    if (!quickContent.trim() || !profile) {
-      studioToast.error('Please complete your profile first');
+    if (!quickContent.trim()) {
+      studioToast.error('Please write your post content first.');
       return;
     }
 
@@ -1347,11 +1354,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         credentials: 'include',
         body: JSON.stringify({ 
           content: quickContent, 
-          profileId: profile.id, 
+          profileId: profile?.id || undefined, 
           mediaItems: media,
           selectedPlatforms: platformsToUse,
           selectedTargets: accountsToUse.map(a => ({ platform: a.platform, platformConnectionId: a.id })),
-          studioProfile: profile.studioProfile || null,
+          studioProfile: profile?.studioProfile || null,
           postId: postId || undefined,
         }),
       });
@@ -1990,7 +1997,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <button
                     type="button"
                     onClick={() => handleDirectBroadcast(true)}
-                    disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0 || connectedPlatforms.length === 0}
+                    disabled={isBroadcasting || !quickContent.trim() || selectedPlatforms.length === 0 || connectedPlatforms.length === 0}
                     className="h-10 px-4 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {broadcastingType === 'selected' ? (
@@ -2004,7 +2011,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <button
                     type="button"
                     onClick={() => handleDirectBroadcast(false)}
-                    disabled={isBroadcasting || !quickContent.trim() || !profile || connectedPlatforms.length === 0}
+                    disabled={isBroadcasting || !quickContent.trim() || connectedPlatforms.length === 0}
                     className="h-10 px-4 rounded-xl bg-[#1C1611] hover:bg-black text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {broadcastingType === 'all' ? (
@@ -2230,7 +2237,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     <button
                       type="button"
                       onClick={() => generateDrafts(true)}
-                      disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0 || connectedPlatforms.length === 0}
+                      disabled={isGenerating || !sourceContent.trim() || selectedPlatforms.length === 0 || connectedPlatforms.length === 0}
                       className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-2 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
                     >
                       {generatingType === 'selected' ? (
@@ -2243,7 +2250,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     <button
                       type="button"
                       onClick={() => generateDrafts(false)}
-                      disabled={isGenerating || !sourceContent.trim() || !profile || connectedPlatforms.length === 0}
+                      disabled={isGenerating || !sourceContent.trim() || connectedPlatforms.length === 0}
                       className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1C1611] text-white hover:bg-[#2D2319] flex items-center gap-2 cursor-pointer shadow-sm transition-all disabled:opacity-50"
                     >
                       {generatingType === 'all' ? (

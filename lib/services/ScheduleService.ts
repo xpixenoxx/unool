@@ -297,8 +297,9 @@ export class ScheduleService {
    * or network retries return the existing arc without duplicating posts.
    */
   async scheduleArc(input: ScheduleArcInput): Promise<ScheduleArcResult> {
+    let existingArc: ContentArc | null = null;
     if (input.idempotencyKey) {
-      const existingArc = await postRepository.findContentArcByIdempotencyKey(
+      existingArc = await postRepository.findContentArcByIdempotencyKey(
         input.workspaceId,
         input.idempotencyKey
       );
@@ -334,11 +335,11 @@ export class ScheduleService {
       }
     }
 
-    // 1. Create the content arc record
+    // 1. Create or reuse the content arc record (reuses orphaned arc if a prior attempt failed before creating posts)
     const endDate = new Date(input.weekStartDate);
     endDate.setDate(endDate.getDate() + 6);
 
-    const arc = await postRepository.createContentArc({
+    const arc = existingArc ?? await postRepository.createContentArc({
       workspaceId: input.workspaceId,
       profileId: input.profileId,
       title: input.arcTitle,

@@ -23,6 +23,14 @@ import type {
 } from '../interfaces/IPostRepository';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
+const DB_SAFE_HOOK_TYPES = new Set(['question', 'story', 'statement', 'statistic']);
+const DB_SAFE_STORY_TYPES = new Set(['shipped', 'learned', 'milestone', 'opinion']);
+
+function toDbSafeHookType(hookType: string | null | undefined): string | null {
+  if (!hookType) return null;
+  return DB_SAFE_HOOK_TYPES.has(hookType) ? hookType : null;
+}
+
 export class SupabasePostRepository implements IPostRepository {
   private supabase = supabaseAdmin;
 
@@ -119,7 +127,7 @@ export class SupabasePostRepository implements IPostRepository {
       adaptation_prompt_version: input.adaptationPromptVersion,
       status: 'draft',
       version: 1,
-      hook_type: telemetry.hookType,
+      hook_type: toDbSafeHookType(telemetry.hookType),
       hook_formula_id: telemetry.hookFormulaId,
       hook_score: telemetry.hookScore,
       word_count: telemetry.wordCount,
@@ -137,6 +145,14 @@ export class SupabasePostRepository implements IPostRepository {
       .insert(insertRow)
       .select()
       .single();
+
+    if (error && (error.code === '23514' || String(error.message || '').includes('posts_hook_type_check'))) {
+      insertRow.hook_type = null;
+      const retryHook = await this.supabase.from('posts').insert(insertRow).select().single();
+      if (!retryHook.error && retryHook.data) {
+        return this.mapPostRow(retryHook.data);
+      }
+    }
 
     if (error && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('column'))) {
       delete insertRow.arc_beat;
@@ -171,7 +187,7 @@ export class SupabasePostRepository implements IPostRepository {
         existingMediaCount: data.mediaCount,
         existingFormat: data.contentFormat,
       });
-      updateData.hook_type = telemetry.hookType;
+      updateData.hook_type = toDbSafeHookType(telemetry.hookType);
       updateData.hook_formula_id = telemetry.hookFormulaId;
       updateData.hook_score = telemetry.hookScore;
       updateData.word_count = telemetry.wordCount;
@@ -179,7 +195,7 @@ export class SupabasePostRepository implements IPostRepository {
       updateData.media_count = telemetry.mediaCount;
       updateData.content_format = telemetry.contentFormat;
     } else {
-      if (data.hookType !== undefined) updateData.hook_type = data.hookType;
+      if (data.hookType !== undefined) updateData.hook_type = toDbSafeHookType(data.hookType);
       if (data.hookFormulaId !== undefined) updateData.hook_formula_id = data.hookFormulaId;
       if (data.hookScore !== undefined) updateData.hook_score = data.hookScore;
       if (data.wordCount !== undefined) updateData.word_count = data.wordCount;
@@ -197,6 +213,13 @@ export class SupabasePostRepository implements IPostRepository {
     if (data.arcBeat !== undefined) updateData.arc_beat = data.arcBeat;
 
     const { data: row, error } = await this.supabase.from('posts').update(updateData).eq('id', id).select().single();
+    if (error && (error.code === '23514' || String(error.message || '').includes('posts_hook_type_check'))) {
+      updateData.hook_type = null;
+      const retryHook = await this.supabase.from('posts').update(updateData).eq('id', id).select().single();
+      if (!retryHook.error && retryHook.data) {
+        return this.mapPostRow(retryHook.data);
+      }
+    }
     if (error && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('column'))) {
       delete updateData.arc_beat;
       delete updateData.hook_type;
@@ -395,7 +418,7 @@ export class SupabasePostRepository implements IPostRepository {
     const updateFields: Record<string, unknown> = {
       content,
       updated_at: new Date().toISOString(),
-      hook_type: telemetry.hookType,
+      hook_type: toDbSafeHookType(telemetry.hookType),
       hook_formula_id: telemetry.hookFormulaId,
       hook_score: telemetry.hookScore,
       word_count: telemetry.wordCount,
@@ -404,6 +427,11 @@ export class SupabasePostRepository implements IPostRepository {
       .from('posts')
       .update(updateFields)
       .eq('id', postId);
+    if (error && (error.code === '23514' || String(error.message || '').includes('posts_hook_type_check'))) {
+      updateFields.hook_type = null;
+      const retryHook = await this.supabase.from('posts').update(updateFields).eq('id', postId);
+      if (!retryHook.error) return;
+    }
     if (error && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('column'))) {
       const retry = await this.supabase
         .from('posts')
@@ -537,12 +565,13 @@ export class SupabasePostRepository implements IPostRepository {
   }
 
   async createContentArc(input: CreateContentArcInput): Promise<ContentArc> {
+    const safeStoryType = DB_SAFE_STORY_TYPES.has(input.storyType) ? input.storyType : 'shipped';
     const insertRow: Record<string, unknown> = {
       workspace_id: input.workspaceId,
       profile_id: input.profileId,
       title: input.title,
       core_story: input.coreStory,
-      story_type: input.storyType,
+      story_type: safeStoryType,
       start_date: input.startDate,
       end_date: input.endDate,
       status: 'active',
@@ -556,6 +585,11 @@ export class SupabasePostRepository implements IPostRepository {
       .insert(insertRow)
       .select()
       .single();
+
+    if (error && input.idempotencyKey && error.code === '23505') {
+      const existing = await this.findContentArcByIdempotencyKey(input.workspaceId, input.idempotencyKey);
+      if (existing) return existing;
+    }
 
     if (error && input.idempotencyKey && (error.code === 'PGRST204' || error.code === '42703' || String(error.message || '').includes('idempotency_key'))) {
       delete insertRow.idempotency_key;

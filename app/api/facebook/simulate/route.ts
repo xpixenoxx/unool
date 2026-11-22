@@ -5,6 +5,7 @@ import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,8 +42,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Load actual config
-    let automationConfig: AutomationConfig = DEFAULT_AUTOMATION_CONFIG;
+    // Load actual config (table first, then workspaces.settings fallback)
+    let configRow: Record<string, any> | null = null;
     try {
       const { data } = await supabaseAdmin
         .from('facebook_automation_config')
@@ -50,27 +51,50 @@ export async function POST(request: NextRequest) {
         .eq('workspace_id', workspaceId)
         .limit(1)
         .maybeSingle();
+      if (data) configRow = data;
+    } catch {}
 
-      if (data) {
-        automationConfig = {
+    if (!configRow) {
+      try {
+        const { data: ws } = await supabaseAdmin
+          .from('workspaces')
+          .select('settings')
+          .eq('id', workspaceId)
+          .maybeSingle();
+        const wsSettings = (ws?.settings as Record<string, any>) || {};
+        if (wsSettings.facebook_automation) {
+          configRow = wsSettings.facebook_automation;
+        }
+      } catch {}
+    }
+
+    const resolvedLinkUrl = await resolveCreatorDeliveryLink(workspaceId, {
+      configuredLinkUrl: configRow?.link_url || configRow?.linkUrl || undefined,
+      userId: user.id,
+    });
+
+    const automationConfig: AutomationConfig = configRow
+      ? {
           enabled: true,
-          autoReplyPositive: data.auto_reply_positive ?? true,
-          autoReplyQuestions: data.auto_reply_questions ?? true,
-          autoReplyLinkRequests: data.auto_reply_link_requests ?? true,
-          autoReplyPurchaseIntent: data.auto_reply_purchase_intent ?? true,
-          linkUrl: data.link_url || undefined,
-          customInstructions: data.custom_instructions || undefined,
-          brandPersona: data.brand_persona || undefined,
-          flagNegative: data.flag_negative ?? true,
-          flagSpam: data.flag_spam ?? true,
-          maxRepliesPerHour: data.max_replies_per_hour ?? 20,
-          jitterMinSeconds: 20,
-          jitterMaxSeconds: 90,
+          autoReplyPositive: configRow.auto_reply_positive ?? configRow.autoReplyPositive ?? true,
+          autoReplyQuestions: configRow.auto_reply_questions ?? configRow.autoReplyQuestions ?? true,
+          autoReplyLinkRequests: configRow.auto_reply_link_requests ?? configRow.autoReplyLinkRequests ?? true,
+          autoReplyPurchaseIntent: configRow.auto_reply_purchase_intent ?? configRow.autoReplyPurchaseIntent ?? true,
+          linkUrl: resolvedLinkUrl,
+          customInstructions: configRow.custom_instructions || configRow.customInstructions || undefined,
+          brandPersona: configRow.brand_persona || configRow.brandPersona || undefined,
+          flagNegative: configRow.flag_negative ?? configRow.flagNegative ?? true,
+          flagSpam: configRow.flag_spam ?? configRow.flagSpam ?? true,
+          maxRepliesPerHour: configRow.max_replies_per_hour ?? configRow.maxRepliesPerHour ?? 20,
+          jitterMinSeconds: configRow.jitter_min_seconds ?? configRow.jitterMinSeconds ?? 20,
+          jitterMaxSeconds: configRow.jitter_max_seconds ?? configRow.jitterMaxSeconds ?? 90,
           threadChainingEnabled: false,
           requireFollowForDm: false,
+        }
+      : {
+          ...DEFAULT_AUTOMATION_CONFIG,
+          linkUrl: resolvedLinkUrl,
         };
-      }
-    } catch {}
 
     const automation = new InstagramCommentAutomation(groqApiKey);
     const result = await automation.classifyAndGenerateReply(

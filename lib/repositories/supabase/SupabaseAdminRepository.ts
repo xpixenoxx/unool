@@ -37,10 +37,12 @@ import { findUserByEmail } from '@/lib/auth/findUserByEmail';
 
 interface CachedPlatformUsers {
   users: any[];
+  byId: Map<string, any>;
   timestamp: number;
 }
 let platformUsersCache: CachedPlatformUsers | null = null;
-const PLATFORM_USERS_CACHE_TTL_MS = 15_000;
+let platformUsersInFlight: Promise<any[]> | null = null;
+const PLATFORM_USERS_CACHE_TTL_MS = 30_000;
 
 
 
@@ -528,24 +530,24 @@ export class SupabaseAdminRepository implements IAdminRepository {
           });
 
           if (missingIds.length > 0) {
-            await Promise.allSettled(
-              missingIds.map(async (uid) => {
-                try {
-                  const { data: authData } = await supabaseAdmin.auth.admin.getUserById(uid);
-                  if (authData?.user) {
-                    const meta = (authData.user.user_metadata || {}) as Record<string, any>;
-                    const authName = meta.full_name || meta.name || meta.user_name || meta.display_name || meta.preferred_username || null;
-                    const existing = userMap.get(uid);
-                    userMap.set(uid, {
-                      email: existing?.email || authData.user.email || null,
-                      name: existing?.name || authName || null,
-                    });
-                  }
-                } catch (authErr) {
-                  console.warn(`Failed to fetch auth user ${uid}:`, authErr);
+            try {
+              await this.fetchAllPlatformAuthUsers();
+              const cachedById = platformUsersCache?.byId;
+              for (const uid of missingIds) {
+                const authUser = cachedById?.get(uid);
+                if (authUser) {
+                  const meta = (authUser.user_metadata || {}) as Record<string, any>;
+                  const authName = meta.full_name || meta.name || meta.user_name || meta.display_name || meta.preferred_username || null;
+                  const existing = userMap.get(uid);
+                  userMap.set(uid, {
+                    email: existing?.email || authUser.email || null,
+                    name: existing?.name || authName || null,
+                  });
                 }
-              })
-            );
+              }
+            } catch (authErr) {
+              console.warn('Failed to resolve workspace owners from cached auth users:', authErr);
+            }
           }
         }
 
@@ -719,7 +721,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
     let query = supabaseAdmin
       .from('analytics_events')
       .select('event_type, event_data, created_at, workspace_id, profile_id')
-      .gte('created_at', startDate.toISOString());
+      .gte('created_at', startDate.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(5000);
 
     if (workspaceId) {
       query = query.eq('workspace_id', workspaceId);
@@ -809,23 +813,21 @@ export class SupabaseAdminRepository implements IAdminRepository {
           .in('id', allProfileIdsToFetch)
       : Promise.resolve({ data: [] as any[], error: null });
 
-    // Get workspace/user counts and profile data in parallel
+    // Get workspace/user counts and profile data in parallel (reusing deduplicated auth user cache)
     const [
       { count: totalWorkspaces },
-      { count: totalUsers },
+      allAuthUsers,
       { count: totalPostsPublished },
       profilesRes,
     ] = await Promise.all([
       supabaseAdmin.from('workspaces').select('id', { count: 'exact', head: true }),
-      Promise.resolve(supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true }).limit(1))
-        .then(() => supabaseAdmin.auth.admin.listUsers())
-        .then((r) => ({ count: r?.data?.users?.length ?? 0 }))
-        .catch(() => ({ count: 0 })),
+      this.fetchAllPlatformAuthUsers().catch(() => [] as any[]),
       supabaseAdmin.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'published'),
       fetchProfilesPromise,
     ]);
+    const totalUsers = allAuthUsers.length;
 
-    // Resolve user emails for profile owners
+    // Resolve user emails for profile owners in O(1) from cached auth users (0 extra subrequests)
     const userIdsToLookup = new Set<string>();
     if (profilesRes && 'data' in profilesRes && Array.isArray(profilesRes.data)) {
       profilesRes.data.forEach((p: any) => {
@@ -835,20 +837,13 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     const userEmailMap = new Map<string, string>();
     if (userIdsToLookup.size > 0) {
-      try {
-        const userPromises = Array.from(userIdsToLookup).map(async (uid) => {
-          try {
-            const res = await supabaseAdmin.auth.admin.getUserById(uid);
-            return res.data?.user ? { id: uid, email: res.data.user.email || '' } : null;
-          } catch {
-            return null;
-          }
-        });
-        const users = await Promise.all(userPromises);
-        users.forEach((u) => {
-          if (u && u.email) userEmailMap.set(u.id, u.email);
-        });
-      } catch {}
+      const cachedById = platformUsersCache?.byId;
+      for (const uid of userIdsToLookup) {
+        const u = cachedById?.get(uid);
+        if (u?.email) {
+          userEmailMap.set(uid, u.email);
+        }
+      }
     }
 
     const profileMap = new Map<string, {
@@ -1215,6 +1210,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
   invalidateUsersCache(): void {
     platformUsersCache = null;
+    platformUsersInFlight = null;
   }
 
   private async fetchAllPlatformAuthUsers(forceRefresh = false): Promise<any[]> {
@@ -1223,42 +1219,63 @@ export class SupabaseAdminRepository implements IAdminRepository {
       return platformUsersCache.users;
     }
 
-    const allUsers: any[] = [];
-    const perPage = 1000;
-    let page = 1;
-    const maxPages = 50;
-
-    while (page <= maxPages) {
-      const res = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-      if (res?.error) {
-        console.error(`listUsers failed on page ${page}:`, res.error);
-        if (allUsers.length > 0) break;
-        if (platformUsersCache) return platformUsersCache.users;
-        throw new Error(`Failed to list users from auth: ${res.error.message}`);
-      }
-
-      const pageUsers = res?.data?.users || [];
-      allUsers.push(...pageUsers);
-
-      if (pageUsers.length < perPage) {
-        break;
-      }
-
-      const nextPage = (res?.data as any)?.nextPage;
-      if (nextPage === null) break;
-      if (typeof nextPage === 'number' && nextPage > page) {
-        page = nextPage;
-      } else {
-        page++;
-      }
+    if (!forceRefresh && platformUsersInFlight) {
+      return platformUsersInFlight;
     }
 
-    platformUsersCache = {
-      users: allUsers,
-      timestamp: now,
-    };
+    const loadPromise = (async () => {
+      const allUsers: any[] = [];
+      const perPage = 1000;
+      let page = 1;
+      const maxPages = 50;
 
-    return allUsers;
+      while (page <= maxPages) {
+        const res = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+        if (res?.error) {
+          console.error(`listUsers failed on page ${page}:`, res.error);
+          if (allUsers.length > 0) break;
+          if (platformUsersCache) return platformUsersCache.users;
+          throw new Error(`Failed to list users from auth: ${res.error.message}`);
+        }
+
+        const pageUsers = res?.data?.users || [];
+        allUsers.push(...pageUsers);
+
+        if (pageUsers.length < perPage) {
+          break;
+        }
+
+        const nextPage = (res?.data as any)?.nextPage;
+        if (nextPage === null) break;
+        if (typeof nextPage === 'number' && nextPage > page) {
+          page = nextPage;
+        } else {
+          page++;
+        }
+      }
+
+      const byId = new Map<string, any>();
+      for (const u of allUsers) {
+        if (u?.id) byId.set(u.id, u);
+      }
+
+      platformUsersCache = {
+        users: allUsers,
+        byId,
+        timestamp: Date.now(),
+      };
+
+      return allUsers;
+    })();
+
+    platformUsersInFlight = loadPromise;
+    try {
+      return await loadPromise;
+    } finally {
+      if (platformUsersInFlight === loadPromise) {
+        platformUsersInFlight = null;
+      }
+    }
   }
 
   async listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{
@@ -1399,13 +1416,10 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
 
     try {
-      const usersRes = await Promise.resolve(supabaseAdmin.auth?.admin?.listUsers?.({ perPage: 1000 })).catch(() => null);
-      const usersData = usersRes?.data;
-      if (!usersData?.users) {
+      const rawUsers = await this.fetchAllPlatformAuthUsers().catch(() => null);
+      if (!rawUsers) {
         return defaultData;
       }
-
-      const rawUsers = usersData.users || [];
       const activeUsers = rawUsers.filter((u) => {
         const meta = (u as Record<string, any>).user_metadata;
         return meta?.is_deleted !== true;
@@ -1666,19 +1680,14 @@ export class SupabaseAdminRepository implements IAdminRepository {
         .not('deleted_at', 'is', null);
 
       if (!pErr && deletedRows && deletedRows.length > 0) {
+        await this.fetchAllPlatformAuthUsers();
+        const authById = SupabaseAdminRepository.platformUsersCache?.byId;
         for (const row of deletedRows) {
           // If already in items from deleted_accounts, skip
           if (items.some((i) => i.profileId === row.id || i.userId === row.user_id)) continue;
 
-          let email = 'Unknown user';
-          try {
-            const { data: uData } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
-            if (uData?.user?.email) {
-              email = uData.user.email;
-            }
-          } catch {
-            // ignore auth lookup error
-          }
+          const cachedUser = authById?.get(row.user_id);
+          const email = cachedUser?.email || 'Unknown user';
 
           const audit = latestAuditByUser.get(row.user_id);
           items.push({
@@ -1702,17 +1711,17 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     // 3. Fetch deleted and suspended users from auth.users
     try {
-      const { data: usersData, error: uErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-      if (!uErr && usersData?.users) {
+      const authUsers = await this.fetchAllPlatformAuthUsers();
+      if (authUsers.length > 0) {
         const now = new Date();
 
         // 3a. Deleted users from Auth metadata (is_deleted === true)
-        const deletedUsers = usersData.users.filter((u) => {
+        const deletedUsers = authUsers.filter((u) => {
           return (u as Record<string, any>).user_metadata?.is_deleted === true;
         });
 
         // 3b. Suspended users (banned and not deleted)
-        const suspendedUsers = usersData.users.filter((u) => {
+        const suspendedUsers = authUsers.filter((u) => {
           const bannedUntil = (u as Record<string, any>).banned_until;
           const isBanned = !!(bannedUntil && new Date(bannedUntil) > now);
           const isDeleted = (u as Record<string, any>).user_metadata?.is_deleted === true;

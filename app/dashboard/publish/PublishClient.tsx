@@ -98,7 +98,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       const res = await fetch('/api/profile', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        const sub = data?.profile?.subdomain || null;
+        const sub = data?.profile?.subdomain || data?.subdomain || null;
         if (sub) {
           setProfileSubdomain(sub);
           return sub;

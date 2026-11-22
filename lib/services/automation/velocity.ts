@@ -15,9 +15,18 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 export class VelocityThrottle {
   private supabase = supabaseAdmin;
 
-  private parseKey(key: string, explicitChannel?: 'comment' | 'dm'): { workspaceId: string; channel: 'comment' | 'dm' } {
+  private parseKey(key: string, explicitChannel?: string): { workspaceId: string; channel: string } {
     if (key.startsWith('dm:')) {
       return { workspaceId: key.slice(3), channel: 'dm' };
+    }
+    if (key.startsWith('fb:')) {
+      return { workspaceId: key.slice(3), channel: 'fb_comment' };
+    }
+    if (key.startsWith('fb-dm:')) {
+      return { workspaceId: key.slice(6), channel: 'fb_dm' };
+    }
+    if (key.startsWith('threads:')) {
+      return { workspaceId: key.slice(8), channel: 'threads_reply' };
     }
     return { workspaceId: key, channel: explicitChannel || 'comment' };
   }
@@ -25,7 +34,7 @@ export class VelocityThrottle {
   /**
    * Check if a workspace can send another reply this hour.
    */
-  async canReply(key: string, maxPerHour = 30, channel?: 'comment' | 'dm'): Promise<boolean> {
+  async canReply(key: string, maxPerHour = 30, channel?: string): Promise<boolean> {
     const { workspaceId, channel: ch } = this.parseKey(key, channel);
     const hourBucket = this.getCurrentHourBucket();
 

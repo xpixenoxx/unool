@@ -18,11 +18,12 @@ export const maxDuration = 120;
  */
 export async function POST(request: NextRequest) {
   return planEnforcement.scheduling(request, async (request, planCtx) => {
-    const auth = await getCurrentAuth(request);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const { workspaceId } = auth;
+    try {
+      const auth = await getCurrentAuth(request);
+      if (!auth) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      const { workspaceId } = auth;
 
     const body = await request.json();
     const {
@@ -273,16 +274,24 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    return NextResponse.json({
-      success: true,
-      postId: result.postId,
-      scheduledAt: result.scheduledAt.toISOString(),
-      platforms: result.variantResults.map(v => ({
-        variantId: v.variantId,
-        platform: v.platform,
-        platformConnectionId: v.platformConnectionId ?? null,
-        scheduledAt: v.scheduledAt.toISOString(),
-      })),
-    });
+      return NextResponse.json({
+        success: true,
+        postId: result.postId,
+        scheduledAt: result.scheduledAt.toISOString(),
+        platforms: result.variantResults.map(v => ({
+          variantId: v.variantId,
+          platform: v.platform,
+          platformConnectionId: v.platformConnectionId ?? null,
+          scheduledAt: v.scheduledAt.toISOString(),
+        })),
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to schedule post or flight plan', { error: err });
+      return NextResponse.json(
+        { error: err.message || 'Failed to schedule flight plan.' },
+        { status: 500 }
+      );
+    }
   });
 }

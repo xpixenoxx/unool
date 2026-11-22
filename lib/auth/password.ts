@@ -12,6 +12,7 @@ import { argon2idAsync, argon2iAsync, argon2dAsync } from '@noble/hashes/argon2.
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
 
+const PBKDF2_ITERATIONS = 100_000;
 const DEFAULT_MEMORY_KIB = 19456; // 19 MiB (OWASP minimum)
 const DEFAULT_TIME_COST = 3;
 const DEFAULT_PARALLELISM = 1;
@@ -45,6 +46,33 @@ function timingSafeEqualBytes(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
+async function derivePbkdf2Sha256(
+  password: string,
+  salt: Uint8Array,
+  iterations: number,
+  hashLenBytes: number
+): Promise<Uint8Array> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      salt: salt as unknown as BufferSource,
+      iterations,
+    },
+    keyMaterial,
+    hashLenBytes * 8
+  );
+  return new Uint8Array(bits);
+}
+
 /** Returns a human-readable reason string or null if the password is valid. */
 export function validatePassword(password: string): string | null {
   if (!password || typeof password !== 'string') return 'Password is required.';
@@ -53,28 +81,59 @@ export function validatePassword(password: string): string | null {
   return null;
 }
 
-/** Hashes a password with Argon2id. Returns the PHC-encoded hash string. */
+/**
+ * Hashes a password with WebCrypto PBKDF2-HMAC-SHA256 (100,000 iterations).
+ * Executes in native C++ inside Cloudflare Workers (< 0.5 ms JS CPU time).
+ */
 export async function hashPassword(password: string): Promise<string> {
   const salt = new Uint8Array(DEFAULT_SALT_LEN);
   crypto.getRandomValues(salt);
 
-  const derived = await argon2idAsync(password, salt, {
-    m: DEFAULT_MEMORY_KIB,
-    t: DEFAULT_TIME_COST,
-    p: DEFAULT_PARALLELISM,
-    dkLen: DEFAULT_HASH_LEN,
-  });
-
-  return `$argon2id$v=19$m=${DEFAULT_MEMORY_KIB},t=${DEFAULT_TIME_COST},p=${DEFAULT_PARALLELISM}$${toBase64NoPad(salt)}$${toBase64NoPad(derived)}`;
+  const derived = await derivePbkdf2Sha256(password, salt, PBKDF2_ITERATIONS, DEFAULT_HASH_LEN);
+  return `$pbkdf2-sha256$i=${PBKDF2_ITERATIONS}$${toBase64NoPad(salt)}$${toBase64NoPad(derived)}`;
 }
 
 /**
- * Verifies a password against a PHC-encoded Argon2 hash (`$argon2id$...`).
+ * Returns true if the stored hash uses a legacy pure-JS Argon2 format that should be
+ * upgraded to native WebCrypto PBKDF2-SHA256 after a successful verification.
+ */
+export function needsPasswordRehash(hash: string | null | undefined): boolean {
+  return Boolean(hash && typeof hash === 'string' && hash.startsWith('$argon2'));
+}
+
+/**
+ * Verifies a password against a PHC-encoded PBKDF2-SHA256 (`$pbkdf2-sha256$...`)
+ * or legacy Argon2 (`$argon2id$...`) hash.
  * Uses constant-time byte comparison.
  */
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
   try {
-    if (!hash || typeof hash !== 'string' || !hash.startsWith('$argon2')) {
+    if (!hash || typeof hash !== 'string') {
+      return false;
+    }
+
+    if (hash.startsWith('$pbkdf2-sha256$')) {
+      const parts = hash.split('$').filter(Boolean);
+      if (parts.length !== 4) return false;
+      const iterPart = parts[1];
+      const saltB64 = parts[2];
+      const expectedB64 = parts[3];
+      if (!iterPart?.startsWith('i=') || !saltB64 || !expectedB64) return false;
+
+      const iterations = Number(iterPart.slice(2));
+      if (!Number.isFinite(iterations) || iterations < 1000 || iterations > 10_000_000) {
+        return false;
+      }
+
+      const salt = fromBase64NoPad(saltB64);
+      const expected = fromBase64NoPad(expectedB64);
+      if (salt.length === 0 || expected.length === 0) return false;
+
+      const derived = await derivePbkdf2Sha256(password, salt, iterations, expected.length);
+      return timingSafeEqualBytes(derived, expected);
+    }
+
+    if (!hash.startsWith('$argon2')) {
       return false;
     }
 

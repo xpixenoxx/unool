@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
 /**
  * OAuth Callback Route Handler (GET)
@@ -34,10 +35,11 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const cookieStore = await cookies();
+    const cookiesToSetOnResponse: Array<{ name: string; value: string; options?: any }> = [];
 
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      config.SUPABASE_URL,
+      config.SUPABASE_ANON_KEY,
       {
         cookies: {
           getAll() {
@@ -45,7 +47,10 @@ export async function GET(request: NextRequest) {
           },
           setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
+              cookiesToSetOnResponse.push({ name, value, options });
+              try {
+                cookieStore.set(name, value, options);
+              } catch {}
             });
           },
         },
@@ -66,8 +71,8 @@ export async function GET(request: NextRequest) {
     if (user) {
       try {
         const adminClient = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
+          config.SUPABASE_URL,
+          config.SUPABASE_SERVICE_ROLE_KEY
         );
 
         // Check whether user already exists before upserting profile (prevents returning OAuth referral farming)
@@ -161,8 +166,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Success — redirect to dashboard (session cookies are now set)
-    return NextResponse.redirect(`${origin}${redirect}`);
+    // Success — redirect to dashboard (session cookies are now set on both cookieStore and response)
+    const redirectResponse = NextResponse.redirect(`${origin}${redirect}`);
+    cookiesToSetOnResponse.forEach(({ name, value, options }) => {
+      redirectResponse.cookies.set(name, value, options);
+    });
+    return redirectResponse;
   }
 
   // No code found — redirect to signin

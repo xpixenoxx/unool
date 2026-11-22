@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { verifyWebhookSignature, extractWebhookSignature } from '@/lib/webhooks/verify';
 import { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { config } from '@/lib/config/schema';
 import { queueService, type FacebookOutboundJobParams, type ThreadsOutboundJobParams } from '@/lib/services/QueueService';
 import { resolveFacebookAutomationTarget } from '@/lib/services/automation/facebookPageResolver';
+import { getHumanizedDelayMs } from '@/lib/services/automation/jitter';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -556,6 +557,11 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
     }
 
     const connectionId = target.connectionId;
+    const jitterMin = typeof cfg.jitter_min_seconds === 'number' ? cfg.jitter_min_seconds : 20;
+    const jitterMax = typeof cfg.jitter_max_seconds === 'number' ? cfg.jitter_max_seconds : 90;
+    const delaySeconds = queueService.isAvailable()
+      ? Math.max(1, Math.round(getHumanizedDelayMs(jitterMin, Math.max(jitterMin, jitterMax)) / 1000))
+      : undefined;
 
     const jobParams: FacebookOutboundJobParams = {
       jobId: `fb-comment-${commentId}-${Date.now()}`,
@@ -569,6 +575,7 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
       commenterName: commenterName || undefined,
       commenterId: commenterId || undefined,
       commentTimestamp: new Date().toISOString(),
+      ...(delaySeconds ? { delaySeconds } : {}),
     };
 
     const enqueued = await queueService.enqueueFacebookOutboundTask(jobParams);
@@ -597,7 +604,7 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
   const senderId = sender?.id as string | undefined;
   const dmText = msgObj?.text as string | undefined;
 
-  if (!messageId || !senderId || senderId === pageId) return;
+  if (!messageId || !senderId || senderId === pageId || msgObj?.is_echo === true) return;
 
   try {
     const target = await resolveFacebookAutomationTarget(pageId);
@@ -616,6 +623,11 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
     }
 
     const connectionId = target.connectionId;
+    const jitterMin = typeof cfg.jitter_min_seconds === 'number' ? cfg.jitter_min_seconds : 10;
+    const jitterMax = typeof cfg.jitter_max_seconds === 'number' ? cfg.jitter_max_seconds : 60;
+    const delaySeconds = queueService.isAvailable()
+      ? Math.max(1, Math.round(getHumanizedDelayMs(jitterMin, Math.max(jitterMin, jitterMax)) / 1000))
+      : undefined;
 
     const jobParams: FacebookOutboundJobParams = {
       jobId: `fb-dm-${messageId}-${Date.now()}`,
@@ -626,6 +638,7 @@ async function processFacebookMessengerEvent(pageId: string, msg: Record<string,
       messageId,
       senderId,
       dmText: dmText || undefined,
+      ...(delaySeconds ? { delaySeconds } : {}),
     };
 
     const enqueued = await queueService.enqueueFacebookOutboundTask(jobParams);

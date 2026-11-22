@@ -100,13 +100,9 @@ export async function getCurrentAuth(request?: NextRequest): Promise<AuthContext
       if (headerUserId && headerWorkspaceId && sig) {
         const validSig = await verifyInternalAuthHeaders(headerUserId, headerWorkspaceId, sig);
         if (validSig) {
-          const resolvedWs = await resolveWorkspaceForUser(
-            headerUserId,
-            preferredWorkspaceId || headerWorkspaceId
-          );
           return {
             userId: headerUserId,
-            workspaceId: resolvedWs,
+            workspaceId: headerWorkspaceId,
             isImpersonated,
           };
         }
@@ -149,7 +145,7 @@ export async function getCurrentAuth(request?: NextRequest): Promise<AuthContext
       serverClient = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
         cookies: {
           getAll() { return request.cookies.getAll(); },
-          setAll() {},
+          setAll() { },
         },
       }) as unknown as typeof serverClient;
     } else {

@@ -801,7 +801,14 @@ export function computeSignalAnalytics(input: {
   const matchesAttributeFilters = (p: EnrichedSignalPost, includeStatusFilter = true): boolean => {
     if (filterPlatform && !p.variants.some(v => v.canonicalPlatform === filterPlatform)) return false;
     if (filterAccount && !p.variants.some(v => v.platformAccountId === filterAccount || v.id === filterAccount)) return false;
-    if (includeStatusFilter && filterStatus && p.effectiveStatus !== filterStatus) return false;
+    if (includeStatusFilter && filterStatus) {
+      if (filterStatus === 'failed') {
+        const hasFailedVariant = p.variants.some(v => v.status === 'failed');
+        if (p.effectiveStatus !== 'failed' && !hasFailedVariant) return false;
+      } else if (p.effectiveStatus !== filterStatus) {
+        return false;
+      }
+    }
     if (filterHook && p.hookType !== filterHook) return false;
     if (filterFormat && p.contentFormat !== filterFormat) return false;
     if (filterOrigin !== 'all' && p.originKind !== filterOrigin) return false;

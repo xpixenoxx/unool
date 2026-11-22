@@ -318,8 +318,8 @@ export async function PUT(request: NextRequest) {
           const { decryptToken } = await import('@/lib/crypto/encryption');
           const userToken = await decryptToken(conn.access_token_encrypted);
           const { facebookAdapter } = await import('@/lib/platforms/FacebookAdapter');
-          const targetPageId = String(pageId || conn.platform_user_id);
-          if (targetPageId && targetPageId !== 'default_page') {
+          const targetPageId = String(pageId || '');
+          if (targetPageId && targetPageId !== 'default_page' && targetPageId !== conn.platform_user_id) {
             const pageToken = await facebookAdapter.getPageAccessToken(userToken, targetPageId);
             await facebookAdapter.subscribePageWebhook(pageToken, targetPageId);
             logger.info('Facebook page webhook subscribed on config save', { pageId: targetPageId });

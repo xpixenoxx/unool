@@ -22,6 +22,32 @@ export class LexicalEntropyGuard {
   // Key: workspaceId (for workspace-wide) or `${workspaceId}:${mediaId}` (for thread-specific)
   private cache: Map<string, string[]> = new Map();
 
+  private parseWorkspaceKey(key: string): {
+    table: 'instagram_comment_logs' | 'facebook_comment_logs' | 'threads_reply_logs';
+    postColumn: 'media_id' | 'post_id';
+    workspaceId: string;
+  } {
+    if (key.startsWith('fb:')) {
+      return {
+        table: 'facebook_comment_logs',
+        postColumn: 'post_id',
+        workspaceId: key.slice(3),
+      };
+    }
+    if (key.startsWith('threads:')) {
+      return {
+        table: 'threads_reply_logs',
+        postColumn: 'post_id',
+        workspaceId: key.slice(8),
+      };
+    }
+    return {
+      table: 'instagram_comment_logs',
+      postColumn: 'media_id',
+      workspaceId: key,
+    };
+  }
+
   /**
    * Get the last N reply texts for a workspace (and optionally a specific media thread).
    * Thread replies are prioritized first so the AI avoids repeating patterns in the exact same post.
@@ -43,16 +69,18 @@ export class LexicalEntropyGuard {
       }
     }
 
+    const { table, postColumn, workspaceId: cleanWorkspaceId } = this.parseWorkspaceKey(workspaceId);
+
     try {
       if (mediaId?.trim()) {
         const cleanMediaId = mediaId.trim();
 
-        // 1. Fetch thread-specific replies for this media
+        // 1. Fetch thread-specific replies for this media/post
         const { data: threadData } = await this.supabase
-          .from('instagram_comment_logs')
+          .from(table)
           .select('suggested_reply')
-          .eq('workspace_id', workspaceId)
-          .eq('media_id', cleanMediaId)
+          .eq('workspace_id', cleanWorkspaceId)
+          .eq(postColumn, cleanMediaId)
           .eq('auto_replied', true)
           .not('suggested_reply', 'is', null)
           .order('created_at', { ascending: false })
@@ -65,9 +93,9 @@ export class LexicalEntropyGuard {
         // 2. Fetch recent workspace replies to fill any remaining slots
         const workspaceLimit = Math.max(5, Math.floor(limit / 2));
         const { data: wsData } = await this.supabase
-          .from('instagram_comment_logs')
+          .from(table)
           .select('suggested_reply')
-          .eq('workspace_id', workspaceId)
+          .eq('workspace_id', cleanWorkspaceId)
           .eq('auto_replied', true)
           .not('suggested_reply', 'is', null)
           .order('created_at', { ascending: false })
@@ -97,9 +125,9 @@ export class LexicalEntropyGuard {
 
       // Workspace-wide fetch (fallback when no mediaId)
       const { data } = await this.supabase
-        .from('instagram_comment_logs')
+        .from(table)
         .select('suggested_reply')
-        .eq('workspace_id', workspaceId)
+        .eq('workspace_id', cleanWorkspaceId)
         .eq('auto_replied', true)
         .not('suggested_reply', 'is', null)
         .order('created_at', { ascending: false })

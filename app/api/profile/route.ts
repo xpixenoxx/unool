@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     const normalizedTemplate = normalizeTemplateId(profile.theme?.template || DEFAULT_TEMPLATE_ID);
 
-    return NextResponse.json({
+    const serializedProfile = {
       ...profile,
       theme: {
         ...profile.theme,
@@ -77,6 +77,11 @@ export async function GET(request: NextRequest) {
       onboardingAnswers: profile.onboardingAnswers ?? null,
       studio_profile: profile.studioProfile ?? null,
       studioProfile: profile.studioProfile ?? null,
+    };
+
+    return NextResponse.json({
+      ...serializedProfile,
+      profile: serializedProfile,
     });
   } catch (error) {
     logger.error('Failed to get profile', { error });

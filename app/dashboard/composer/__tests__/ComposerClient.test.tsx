@@ -131,4 +131,49 @@ describe('ComposerClient platform connection filtering', () => {
     expect(screen.queryByText('Dribbble')).toBeNull();
     expect(screen.queryByText('YouTube')).toBeNull();
   });
+
+  it('enables Draft All when content is entered and /api/profile returns flat profile payload', async () => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/platform/connections')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            accounts: [
+              { id: 'conn-fb', platform: 'facebook', username: 'fbuser', status: 'connected' },
+              { id: 'conn-ig', platform: 'instagram', username: 'iguser', status: 'connected' },
+            ],
+          }),
+        });
+      }
+      if (url.includes('/api/profile')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: 'p1',
+            name: 'Chetna',
+            headline: 'Professional',
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({}),
+      });
+    });
+
+    const { fireEvent } = await import('@testing-library/react');
+    render(<ComposerClient userId="u1" workspaceId="w1" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Facebook').length).toBeGreaterThan(0);
+    });
+
+    const textarea = screen.getByPlaceholderText(/Just launched v2/i);
+    fireEvent.change(textarea, { target: { value: 'Conducting a sports event in Vizag on Nov 25!' } });
+
+    const draftAllBtn = screen.getByRole('button', { name: /Draft All/i });
+    await waitFor(() => {
+      expect((draftAllBtn as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
 });

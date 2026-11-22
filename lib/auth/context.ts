@@ -9,7 +9,6 @@ import {
   verifyInternalAuthHeaders,
   INTERNAL_AUTH_SIGNATURE_HEADER,
 } from '@/lib/auth/internal-header';
-import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 export interface AuthContext {
   userId: string;
@@ -176,13 +175,9 @@ export const getAuthContext = cache(async function getAuthContext(): Promise<Aut
     if (headerUserId && headerWorkspaceId && headerSig) {
       const valid = await verifyInternalAuthHeaders(headerUserId, headerWorkspaceId, headerSig);
       if (valid) {
-        const finalWs =
-          preferredWorkspaceId && (await verifyWorkspaceAccess(headerUserId, preferredWorkspaceId))
-            ? preferredWorkspaceId
-            : headerWorkspaceId;
         return {
           userId: headerUserId,
-          workspaceId: finalWs,
+          workspaceId: headerWorkspaceId,
           email: '',
           userRole: 'authenticated',
           isImpersonated,

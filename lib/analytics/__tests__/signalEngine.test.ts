@@ -262,4 +262,41 @@ describe('Canonical Signal Engine (Formulas, TZ, Multi-Account, Denominators, CS
     expect(csv).toContain("'=HYPERLINK(");
     expect(csv).toContain('N/A'); // LinkedIn views & eng rate are N/A
   });
+
+  it('includes partial-failure posts when filtering by status=failed and counts partialFailurePosts', () => {
+    const partialPost: SignalPostInput = {
+      id: 'partial-1',
+      content: 'Hackathon win post published to 3 platforms, failed on Instagram.',
+      status: 'published',
+      createdAt: '2026-11-15T10:00:00.000Z',
+      publishedAt: '2026-11-15T10:05:00.000Z',
+      variants: [
+        {
+          id: 'v-fb',
+          platform: 'facebook',
+          status: 'published',
+        },
+        {
+          id: 'v-ig',
+          platform: 'instagram',
+          status: 'failed',
+          error: 'Instagram requires an image to be uploaded.',
+        },
+      ],
+    };
+
+    const res = computeSignalAnalytics({
+      posts: [partialPost],
+      connectedAccounts: accounts,
+      options: { range: '30d', status: 'failed', timezone: 'UTC', now: baseNow },
+    });
+
+    expect(res.operational.failedPosts).toBe(0);
+    expect(res.operational.partialFailurePosts).toBe(1);
+    expect(res.posts).toHaveLength(1);
+    expect(res.posts[0].id).toBe('partial-1');
+    expect(res.posts[0].variants.find(v => v.platform === 'instagram')?.error).toBe(
+      'Instagram requires an image to be uploaded.'
+    );
+  });
 });

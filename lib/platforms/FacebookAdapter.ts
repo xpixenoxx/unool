@@ -241,14 +241,27 @@ export class FacebookAdapter implements PlatformAdapter {
         {}
       );
 
-      if (!response.ok) {
+      if (response.ok) {
+        const data = (await response.json()) as { access_token?: string } | null;
+        if (typeof data?.access_token === 'string' && data.access_token.length > 0) {
+          return data.access_token;
+        }
+      } else {
         const error = await response.text();
-        logger.error('Facebook page token fetch failed', { errorMessage: error, status: response.status });
-        throw new Error(`Page token fetch failed: ${error}`);
+        logger.warn('Direct Facebook page token fetch failed, falling back to /me/accounts', {
+          errorMessage: error,
+          status: response.status,
+          pageId,
+        });
       }
 
-      const data = await response.json();
-      return data.access_token;
+      const pages = await this.getUserPages(userAccessToken);
+      const matched = pages.find((p) => p.id === pageId && p.accessToken);
+      if (matched) {
+        return matched.accessToken;
+      }
+
+      throw new Error(`Page token fetch failed for page ${pageId}`);
     });
   }
 
