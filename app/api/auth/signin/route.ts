@@ -16,7 +16,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { issueOtp, isResendCoolingDown } from '@/lib/auth/otp';
-import { verifyPassword, hashPassword, needsPasswordRehash } from '@/lib/auth/password';
+import {
+  verifyPassword,
+  hashPassword,
+  needsPasswordRehash,
+  isPasswordHashUnsupportedInRuntime,
+} from '@/lib/auth/password';
 import { getUserPasswordHash, saveUserPasswordHash } from '@/lib/auth/credentials';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
@@ -97,6 +102,36 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });
+    }
+
+    // Legacy pure-JS Argon2 hashes (e.g. $argon2id$m=65536,p=4,t=3) cannot run inside
+    // Cloudflare Workers isolates without triggering Error 1102 (CPU/RAM limits).
+    // Return an actionable migration code so the user can upgrade once via email OTP / Google.
+    if (
+      typeof isPasswordHashUnsupportedInRuntime === 'function' &&
+      isPasswordHashUnsupportedInRuntime(storedHash)
+    ) {
+      const isGoogleUser =
+        (user as any).app_metadata?.provider === 'google' ||
+        (user as any).identities?.some((i: any) => i.provider === 'google');
+
+      logger.warn('Legacy Argon2 hash cannot be verified in edge Worker runtime; reset required', {
+        userId: user.id,
+        email: emailLower,
+        hasGoogle: isGoogleUser,
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'legacy_password_migration_required',
+          hasGoogle: isGoogleUser,
+          message: isGoogleUser
+            ? 'Your account needs a one-time password upgrade before email sign-in. Click "Reset password to upgrade" below, or use "Continue with Google".'
+            : 'Your account needs a one-time password upgrade before signing in. Click "Reset password to upgrade" below to verify by email and continue.',
+        },
+        { status: 409 }
+      );
     }
 
     // Password verification (timing-safe internally)

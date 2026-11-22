@@ -37,6 +37,7 @@ vi.mock('@/lib/auth/password', () => ({
   verifyPassword: vi.fn(),
   hashPassword: vi.fn(),
   needsPasswordRehash: vi.fn(() => false),
+  isPasswordHashUnsupportedInRuntime: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/auth/otp', () => ({
@@ -93,7 +94,7 @@ vi.mock('@supabase/ssr', () => ({
 }));
 
 import { POST } from '../route';
-import { verifyPassword } from '@/lib/auth/password';
+import { verifyPassword, isPasswordHashUnsupportedInRuntime } from '@/lib/auth/password';
 import { checkOtpGenerateLimit } from '@/lib/auth/rate-limits';
 import { isResendCoolingDown } from '@/lib/auth/otp';
 import { sendOtpEmail } from '@/lib/auth/email';
@@ -359,5 +360,40 @@ describe('POST /api/auth/signin', () => {
     expect(data.success).toBe(true);
     expect(data.session?.access_token).toBe('mock-token');
     expect(supabaseAdmin.auth.admin.updateUserById).toHaveBeenCalled();
+  });
+
+  it('returns 409 legacy_password_migration_required without calling verifyPassword when Argon2 is unsupported in edge runtime', async () => {
+    vi.mocked(supabaseAdmin.auth.admin.listUsers).mockResolvedValue({
+      data: {
+        users: [
+          {
+            id: 'user-legacy',
+            email: 'legacy@example.com',
+            email_confirmed_at: '2026-01-01T00:00:00Z',
+            app_metadata: { provider: 'google', providers: ['email', 'google'] },
+            user_metadata: {
+              password_hash: '$argon2id$v=19$m=65536,p=4,t=3$salt$hash',
+            },
+          } as any,
+        ],
+        aud: '',
+      },
+      error: null,
+    });
+    vi.mocked(isPasswordHashUnsupportedInRuntime).mockReturnValueOnce(true);
+
+    const req = new NextRequest('http://localhost:3000/api/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'legacy@example.com', password: 'AnyPassword123!' }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+    expect(res.status).toBe(409);
+    expect(data.success).toBe(false);
+    expect(data.code).toBe('legacy_password_migration_required');
+    expect(data.hasGoogle).toBe(true);
+    expect(verifyPassword).not.toHaveBeenCalled();
   });
 });

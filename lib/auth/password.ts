@@ -94,11 +94,37 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 /**
+ * Returns true if running inside a resource-constrained Edge / Cloudflare Worker
+ * runtime where pure-JS Argon2 key derivation exceeds CPU/memory limits (Error 1102).
+ */
+export function isEdgeWorkerRuntime(): boolean {
+  const g = globalThis as {
+    navigator?: { userAgent?: string };
+    WebSocketPair?: unknown;
+  };
+  return (
+    g.navigator?.userAgent === 'Cloudflare-Workers' ||
+    typeof g.WebSocketPair !== 'undefined'
+  );
+}
+
+/**
  * Returns true if the stored hash uses a legacy pure-JS Argon2 format that should be
  * upgraded to native WebCrypto PBKDF2-SHA256 after a successful verification.
  */
 export function needsPasswordRehash(hash: string | null | undefined): boolean {
   return Boolean(hash && typeof hash === 'string' && hash.startsWith('$argon2'));
+}
+
+/**
+ * Returns true when verifying `hash` would require running legacy pure-JS Argon2
+ * inside a Cloudflare Worker / Edge isolate where its memory/CPU cost causes Error 1102.
+ */
+export function isPasswordHashUnsupportedInRuntime(
+  hash: string | null | undefined,
+  isEdgeRuntime: boolean = isEdgeWorkerRuntime()
+): boolean {
+  return isEdgeRuntime && needsPasswordRehash(hash);
 }
 
 /**
@@ -134,6 +160,12 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
     }
 
     if (!hash.startsWith('$argon2')) {
+      return false;
+    }
+
+    // Never execute pure-JS Argon2 inside Cloudflare Workers / Edge isolates; callers should
+    // pre-check isPasswordHashUnsupportedInRuntime() to return a migration prompt instead of 1102.
+    if (isPasswordHashUnsupportedInRuntime(hash)) {
       return false;
     }
 

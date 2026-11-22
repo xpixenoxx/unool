@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { hashPassword, validatePassword, verifyPassword } from '@/lib/auth/password';
+import {
+  hashPassword,
+  validatePassword,
+  verifyPassword,
+  isPasswordHashUnsupportedInRuntime,
+} from '@/lib/auth/password';
 import { getUserPasswordHash, saveUserPasswordHash } from '@/lib/auth/credentials';
 import { bumpUserSecurityVersion } from '@/lib/auth/security-version';
 import { NO_STORE_HEADERS } from '@/lib/auth/session-cookies';
@@ -94,6 +99,20 @@ export async function POST(request: NextRequest) {
           code: 'PASSWORD_NOT_SET',
         },
         { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    if (
+      typeof isPasswordHashUnsupportedInRuntime === 'function' &&
+      isPasswordHashUnsupportedInRuntime(existingHash)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Your account uses a legacy password format. Please use "Forgot password" via email verification code to upgrade your password.',
+          code: 'LEGACY_PASSWORD_MIGRATION_REQUIRED',
+        },
+        { status: 409, headers: NO_STORE_HEADERS }
       );
     }
 

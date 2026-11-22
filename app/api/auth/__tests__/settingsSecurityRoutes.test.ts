@@ -67,6 +67,7 @@ vi.mock('@/lib/auth/password', () => ({
   validatePassword: mockValidatePassword,
   verifyPassword: mockVerifyPassword,
   hashPassword: mockHashPassword,
+  isPasswordHashUnsupportedInRuntime: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/auth/security-version', () => ({

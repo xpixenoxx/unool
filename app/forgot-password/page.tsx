@@ -20,6 +20,15 @@ export default function ForgotPasswordPage() {
   const [cooldown, setCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Pre-fill email if navigated from /signin upgrade prompt (?email=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const paramEmail = new URLSearchParams(window.location.search).get('email');
+    if (paramEmail && !email) {
+      setEmail(paramEmail.trim().toLowerCase());
+    }
+  }, [email]);
+
   // Focus the first OTP input upon entering OTP stage
   useEffect(() => {
     if (stage === 'otp') {

@@ -67,6 +67,7 @@ function SignInComponent() {
   const [accountError, setAccountError] = useState<'deleted' | 'suspended' | null>(
     initialIsSuspended ? 'suspended' : initialIsDeleted ? 'deleted' : null
   );
+  const [needsPasswordMigration, setNeedsPasswordMigration] = useState(false);
 
   // OTP States
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -124,6 +125,30 @@ function SignInComponent() {
     setTimeout(onComplete, TILES.length * 75 + 350);
   };
 
+  const parseJsonResponse = async (res: Response): Promise<{ ok: boolean; data: any; nonJsonError?: string }> => {
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return {
+        ok: res.ok,
+        data: null,
+        nonJsonError: res.ok
+          ? 'Unexpected response from server. Please try again.'
+          : `Server error (${res.status}). Please try again in a moment.`,
+      };
+    }
+    const data = await res.json().catch(() => null);
+    if (!data || typeof data !== 'object') {
+      return {
+        ok: res.ok,
+        data: null,
+        nonJsonError: res.ok
+          ? 'Unexpected response from server. Please try again.'
+          : `Server error (${res.status}). Please try again in a moment.`,
+      };
+    }
+    return { ok: res.ok, data };
+  };
+
   // Submit password authentication
   const submitAuth = async () => {
     if (busy) return;
@@ -147,13 +172,21 @@ function SignInComponent() {
     if (hasErr) return;
 
     setBusy(true);
+    setNeedsPasswordMigration(false);
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
-      const data = await res.json();
+      const parsed = await parseJsonResponse(res);
+      if (parsed.nonJsonError) {
+        setAccountError(null);
+        setPasswordError(parsed.nonJsonError);
+        setBusy(false);
+        return;
+      }
+      const data = parsed.data;
 
       if (!res.ok) {
         const isSuspended =
@@ -174,6 +207,7 @@ function SignInComponent() {
           setPasswordError('');
         } else {
           setAccountError(null);
+          setNeedsPasswordMigration(data.code === 'legacy_password_migration_required');
           setPasswordError(data.message || 'Invalid credentials.');
         }
         setBusy(false);
@@ -254,7 +288,14 @@ function SignInComponent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), otp: token }),
       });
-      const data = await res.json();
+      const parsed = await parseJsonResponse(res);
+      if (parsed.nonJsonError) {
+        setAccountError(null);
+        setOtpError(parsed.nonJsonError);
+        setBusy(false);
+        return;
+      }
+      const data = parsed.data;
 
       if (!res.ok) {
         const isSuspended =
@@ -408,6 +449,7 @@ function SignInComponent() {
                         setEmail(e.target.value);
                         setEmailError('');
                         setAccountError(null);
+                        setNeedsPasswordMigration(false);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -480,9 +522,21 @@ function SignInComponent() {
                         </a>
                       </p>
                     ) : (
-                      <p className="err" id="pwerr" role="alert">
-                        {passwordError}
-                      </p>
+                      <>
+                        <p className="err" id="pwerr" role="alert">
+                          {passwordError}
+                        </p>
+                        {needsPasswordMigration && (
+                          <p style={{ marginTop: '4px', fontSize: '12px' }}>
+                            <Link
+                              href={`/forgot-password?email=${encodeURIComponent(email.trim().toLowerCase())}`}
+                              className="lnk"
+                            >
+                              Reset password to upgrade →
+                            </Link>
+                          </p>
+                        )}
+                      </>
                     )}
 
                     <label className="ck">

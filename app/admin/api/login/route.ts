@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { signAdminJwt } from '@/lib/auth/admin-jwt';
 import { getAdminLoginRateLimit } from '@/lib/middleware/admin-rate-limit';
-import { hashPassword, verifyPassword, needsPasswordRehash } from '@/lib/auth/password';
+import {
+  hashPassword,
+  verifyPassword,
+  needsPasswordRehash,
+  isPasswordHashUnsupportedInRuntime,
+} from '@/lib/auth/password';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 
@@ -60,6 +65,18 @@ export async function POST(request: NextRequest) {
     // ── Verify password ───────────────────────────────────────
     let valid = false;
     if (adminUser.password_hash) {
+      if (
+        typeof isPasswordHashUnsupportedInRuntime === 'function' &&
+        isPasswordHashUnsupportedInRuntime(adminUser.password_hash)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'This admin account still uses a legacy Argon2 password hash that cannot execute in Cloudflare Workers. Upgrade admin_users.password_hash to PBKDF2-SHA256.',
+          },
+          { status: 409 }
+        );
+      }
       valid = await verifyPassword(adminUser.password_hash, password);
       if (valid && typeof needsPasswordRehash === 'function' && needsPasswordRehash(adminUser.password_hash)) {
         try {
