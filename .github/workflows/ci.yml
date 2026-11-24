@@ -23,8 +23,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci
-      - name: Run lint
+        run: npm ci --legacy-peer-deps$([char]10)      - name: Run lint
         run: npm run lint
 
   typecheck:
@@ -39,8 +38,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci
-      - name: Run typecheck
+        run: npm ci --legacy-peer-deps$([char]10)      - name: Run typecheck
         run: npm run typecheck
 
   test:
@@ -84,8 +82,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci
-      - name: Run tests
+        run: npm ci --legacy-peer-deps$([char]10)      - name: Run tests
         run: npm run test -- --coverage
 
   build:
@@ -101,8 +98,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci
-      - name: Build
+        run: npm ci --legacy-peer-deps$([char]10)      - name: Build
         run: npm run build
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
