@@ -5,6 +5,7 @@ import { SupabasePlatformRepository } from '@/lib/repositories/supabase/Supabase
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 import { invalidateOverviewCache } from '@/lib/cache/overviewCache';
+import { invalidateConnectionsCache } from '@/lib/cache/connectionsCache';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -66,6 +67,7 @@ export async function DELETE(
     }
 
     invalidateOverviewCache(auth.workspaceId);
+    await invalidateConnectionsCache(auth.workspaceId);
 
     logger.info('Platform disconnected', { traceId, workspaceId: auth.workspaceId, platform, connectionId: connectionId || 'all' });
 

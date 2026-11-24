@@ -766,10 +766,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   };
 
   useEffect(() => {
-    if (data.connections) {
-      setConnections(data.connections);
-    }
-  }, [data.connections]);
+    // An unauthenticated/empty RSC payload (no workspaceId) must never wipe known connections.
+    if (!data.workspaceId || !data.connections) return;
+    setConnections(data.connections);
+  }, [data.connections, data.workspaceId]);
 
   // Proactively sync live connections on mount and on window focus
   useEffect(() => {
@@ -926,6 +926,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         setDisconnectConfirmTarget(null);
+        // Optimistic, targeted update: only the disconnected platform/account changes.
+        setConnections((prev) => {
+          const cur = prev[platformId] as any;
+          const remaining = connectionId && Array.isArray(cur?.accounts)
+            ? cur.accounts.filter((a: any) => a.id !== connectionId)
+            : [];
+          if (remaining.length > 0) {
+            return { ...prev, [platformId]: { ...cur, accounts: remaining, username: remaining[0].username ?? cur.username } };
+          }
+          return { ...prev, [platformId]: { status: 'not_connected', accounts: [] } as any };
+        });
         await refetchConnections({ fresh: true });
         if (manageOverviewTarget === platformId) {
           setManageOverviewTarget(null);

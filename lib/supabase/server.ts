@@ -4,7 +4,17 @@ import { config } from '@/lib/config/schema';
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
-  return createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+  // Fall back to NEXT_PUBLIC_* values when the server-only vars are unset (e.g. Cloudflare),
+  // otherwise auth silently fails during RSC refreshes.
+  const url =
+    config.SUPABASE_URL === 'http://localhost:54321' && process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? process.env.NEXT_PUBLIC_SUPABASE_URL
+      : config.SUPABASE_URL;
+  const anonKey =
+    config.SUPABASE_ANON_KEY === 'test-anon-key' && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      : config.SUPABASE_ANON_KEY;
+  return createServerClient(url, anonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
