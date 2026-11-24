@@ -79,6 +79,7 @@
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.61.1",
     "@supabase/supabase-js": "^2.47.0",
+    "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "6.6.0",
     "@testing-library/react": "16.1.0",
     "@types/node": "22.10.0",

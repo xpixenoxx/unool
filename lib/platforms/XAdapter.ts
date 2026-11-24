@@ -50,7 +50,7 @@ export class XAdapter implements PlatformAdapter {
         config.X_REDIRECT_URI ||
         process.env.X_REDIRECT_URI ||
         `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
-      scopes: ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+      scopes: ['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'],
     };
   }
 
@@ -187,16 +187,223 @@ export class XAdapter implements PlatformAdapter {
     });
   }
 
+  private inferMediaTypeAndCategory(
+    url: string,
+    headerContentType: string | null
+  ): { mediaType: string; mediaCategory: 'tweet_image' | 'tweet_gif' | 'tweet_video'; isVideoOrGif: boolean } {
+    const rawType = (headerContentType || '').split(';')[0].trim().toLowerCase();
+    const cleanUrl = url.split('?')[0].toLowerCase();
+
+    if (rawType === 'image/gif' || cleanUrl.endsWith('.gif')) {
+      return { mediaType: 'image/gif', mediaCategory: 'tweet_gif', isVideoOrGif: true };
+    }
+    if (rawType.startsWith('video/') || /\.(mp4|mov|m4v|webm)$/i.test(cleanUrl)) {
+      const videoMime = rawType.startsWith('video/') ? rawType : cleanUrl.endsWith('.mov') ? 'video/quicktime' : 'video/mp4';
+      return { mediaType: videoMime, mediaCategory: 'tweet_video', isVideoOrGif: true };
+    }
+    if (rawType === 'image/png' || cleanUrl.endsWith('.png')) {
+      return { mediaType: 'image/png', mediaCategory: 'tweet_image', isVideoOrGif: false };
+    }
+    if (rawType === 'image/webp' || cleanUrl.endsWith('.webp')) {
+      return { mediaType: 'image/webp', mediaCategory: 'tweet_image', isVideoOrGif: false };
+    }
+    return { mediaType: 'image/jpeg', mediaCategory: 'tweet_image', isVideoOrGif: false };
+  }
+
+  /**
+   * Uploads a single media asset to X via X API v2 chunked media upload
+   * (`/2/media/upload/initialize` -> `/append` -> `/finalize` -> optional STATUS polling).
+   */
+  private async uploadSingleMedia(accessToken: string, mediaUrl: string): Promise<string> {
+    const MAX_MEDIA_BYTES = 80 * 1024 * 1024; // 80MB safety ceiling for Cloudflare Workers memory
+    const CHUNK_BYTES = 4 * 1024 * 1024; // 4MB chunks (X limit is 5MB per APPEND chunk)
+
+    const downloadRes = await fetchWithRetry(
+      mediaUrl,
+      {},
+      {
+        maxRetries: 2,
+        baseDelayMs: 1000,
+        maxDelayMs: 5000,
+        retryableStatuses: [408, 429, 500, 502, 503, 504],
+        isRetryableError: (e) => e instanceof TypeError,
+      }
+    );
+
+    if (!downloadRes.ok) {
+      throw new Error(`Failed to fetch media for X upload (${downloadRes.status})`);
+    }
+
+    const declaredLen = Number(downloadRes.headers.get('content-length') || 0);
+    if (declaredLen > MAX_MEDIA_BYTES) {
+      throw new Error(
+        `Media file too large for X upload (${Math.round(declaredLen / 1024 / 1024)}MB). Maximum supported size is 80MB.`
+      );
+    }
+
+    const buffer = await downloadRes.arrayBuffer();
+    if (buffer.byteLength === 0) {
+      throw new Error('Downloaded media file for X is empty');
+    }
+    if (buffer.byteLength > MAX_MEDIA_BYTES) {
+      throw new Error(
+        `Media file too large for X upload (${Math.round(buffer.byteLength / 1024 / 1024)}MB). Maximum supported size is 80MB.`
+      );
+    }
+
+    const { mediaType, mediaCategory } = this.inferMediaTypeAndCategory(
+      mediaUrl,
+      downloadRes.headers.get('content-type')
+    );
+
+    // 1. INITIALIZE via X API v2
+    const initRes = await fetchWithRetry(`${X_API_BASE}/media/upload/initialize`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        total_bytes: buffer.byteLength,
+        media_type: mediaType,
+        media_category: mediaCategory,
+      }),
+    });
+
+    if (!initRes.ok) {
+      const errBody = await initRes.text().catch(() => '');
+      if (initRes.status === 401 || initRes.status === 403) {
+        if (/scope|media\.write|forbidden|unauthorized/i.test(errBody)) {
+          throw new Error(
+            'X media upload requires reconnecting your X account in Settings to grant media upload permissions (media.write).'
+          );
+        }
+        throw new TokenExpiredError('Token expired or invalid during X media upload', 'x');
+      }
+      throw new Error(`X media initialize failed (${initRes.status}): ${errBody}`);
+    }
+
+    const initJson = await initRes.json();
+    const mediaId: string | undefined = initJson?.data?.id || initJson?.media_id_string;
+    if (!mediaId) {
+      throw new Error('X media initialize did not return a media ID');
+    }
+
+    // 2. APPEND chunks
+    let segmentIndex = 0;
+    for (let offset = 0; offset < buffer.byteLength; offset += CHUNK_BYTES) {
+      const slice = buffer.slice(offset, Math.min(offset + CHUNK_BYTES, buffer.byteLength));
+      const form = new FormData();
+      form.append('segment_index', String(segmentIndex));
+      form.append('media', new Blob([slice], { type: mediaType }), `chunk-${segmentIndex}`);
+
+      const appendRes = await fetchWithRetry(`${X_API_BASE}/media/upload/${mediaId}/append`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: form,
+      });
+
+      if (!appendRes.ok) {
+        const errBody = await appendRes.text().catch(() => '');
+        throw new Error(`X media append failed on segment ${segmentIndex} (${appendRes.status}): ${errBody}`);
+      }
+      segmentIndex++;
+    }
+
+    // 3. FINALIZE
+    const finalizeRes = await fetchWithRetry(`${X_API_BASE}/media/upload/${mediaId}/finalize`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!finalizeRes.ok) {
+      const errBody = await finalizeRes.text().catch(() => '');
+      throw new Error(`X media finalize failed (${finalizeRes.status}): ${errBody}`);
+    }
+
+    const finalizeJson = await finalizeRes.json().catch(() => ({}));
+    let processingInfo = finalizeJson?.data?.processing_info || finalizeJson?.processing_info;
+
+    // 4. Poll STATUS if X is asynchronously transcoding video/GIF
+    let attempts = 0;
+    while (
+      processingInfo &&
+      (processingInfo.state === 'pending' || processingInfo.state === 'in_progress') &&
+      attempts < 8
+    ) {
+      const waitSec = Math.min(Math.max(Number(processingInfo.check_after_secs) || 2, 1), 10);
+      await new Promise((resolve) => setTimeout(resolve, waitSec * 1000));
+      attempts++;
+
+      const statusRes = await fetchWithRetry(
+        `${X_API_BASE}/media/upload?media_id=${encodeURIComponent(mediaId)}&command=STATUS`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      if (!statusRes.ok) break;
+      const statusJson = await statusRes.json().catch(() => ({}));
+      processingInfo = statusJson?.data?.processing_info || statusJson?.processing_info;
+
+      if (processingInfo?.state === 'failed') {
+        const reason = processingInfo?.error?.message || 'Media transcoding failed on X';
+        throw new Error(`X media processing failed: ${reason}`);
+      }
+    }
+
+    return mediaId;
+  }
+
+  async postReply(accessToken: string, inReplyToTweetId: string, text: string): Promise<{ id?: string }> {
+    return platformFetch('x', async () => {
+      const response = await fetchWithRetry(`${X_API_BASE}/tweets`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          reply: { in_reply_to_tweet_id: inReplyToTweetId },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        logger.error('X reply failed', { errorMessage: error, inReplyToTweetId, status: response.status });
+        throw new Error(`X reply failed (${response.status}): ${error}`);
+      }
+
+      const data = await response.json();
+      return { id: data?.data?.id };
+    });
+  }
+
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     return platformFetch('x', async () => {
       const body: Record<string, unknown> = { text: input.content };
 
       if (input.mediaUrls && input.mediaUrls.length > 0) {
-        logger.warn('Media upload for X not fully implemented', { mediaUrls: input.mediaUrls });
-      }
+        // X allows either 1 video/GIF OR up to 4 images per post
+        const firstMeta = this.inferMediaTypeAndCategory(input.mediaUrls[0], null);
+        const urlsToUpload = firstMeta.isVideoOrGif
+          ? input.mediaUrls.slice(0, 1)
+          : input.mediaUrls.slice(0, 4);
 
-      if (input.firstComment) {
-        body.text = `${input.content}\n\n${input.firstComment}`;
+        const mediaIds: string[] = [];
+        for (const url of urlsToUpload) {
+          const uploadedId = await this.uploadSingleMedia(accessToken, url);
+          mediaIds.push(uploadedId);
+        }
+
+        if (mediaIds.length > 0) {
+          body.media = { media_ids: mediaIds };
+        }
       }
 
       const response = await fetchWithRetry(`${X_API_BASE}/tweets`, {
@@ -222,6 +429,17 @@ export class XAdapter implements PlatformAdapter {
       const data = await response.json();
       const platformPostId = data.data.id;
       const platformUrl = `https://x.com/i/web/status/${platformPostId}`;
+
+      if (input.firstComment && input.firstComment.trim()) {
+        try {
+          await this.postReply(accessToken, platformPostId, input.firstComment);
+        } catch (replyErr) {
+          logger.warn('X first comment reply failed', {
+            platformPostId,
+            error: replyErr instanceof Error ? replyErr : new Error(String(replyErr)),
+          });
+        }
+      }
 
       return {
         platformPostId,

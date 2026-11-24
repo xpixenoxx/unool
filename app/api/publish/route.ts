@@ -3,7 +3,7 @@ import { publishService } from '@/lib/services/PublishService';
 import { logger } from '@/lib/logger';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { requireWorkspaceRole, verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { config } from '@/lib/config/schema';
@@ -47,8 +47,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // SECURITY: Prevent cross-tenant IDOR — ensure caller belongs to the post's workspace
-      if (resolvedWorkspaceId !== auth.workspaceId) {
+      // SECURITY: Prevent cross-tenant IDOR & enforce editor+ RBAC (viewers cannot publish)
+      if (typeof requireWorkspaceRole === 'function') {
+        const roleCheck = await requireWorkspaceRole(auth.userId, resolvedWorkspaceId, ['owner', 'admin', 'editor']);
+        if (!roleCheck.allowed) {
+          return NextResponse.json(
+            {
+              error:
+                roleCheck.reason === 'insufficient_role'
+                  ? 'Viewer role cannot publish posts. Ask a workspace admin for Editor permissions.'
+                  : 'Forbidden',
+            },
+            { status: 403 }
+          );
+        }
+      } else if (resolvedWorkspaceId !== auth.workspaceId) {
         const hasAccess = await verifyWorkspaceAccess(auth.userId, resolvedWorkspaceId);
         if (!hasAccess) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

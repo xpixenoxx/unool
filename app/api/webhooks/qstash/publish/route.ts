@@ -16,7 +16,7 @@ const postRepository = new SupabasePostRepository();
 
 function isPermanentPublishError(errorMsg?: string): boolean {
   if (!errorMsg) return false;
-  return /unsupported platform|no active connection|requires an image|monthly x .* cap reached|failed to decrypt|marked as failed prior to publishing/i.test(
+  return /unsupported platform|no active connection|requires an image|requires reconnecting your x account|monthly x .* cap reached|failed to decrypt|marked as failed prior to publishing/i.test(
     errorMsg
   );
 }
@@ -185,7 +185,9 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
 
     try {
       const accessToken = await decryptToken(connectionRow.access_token_encrypted);
-      await postFirstComment(accessToken, platformPostId, autoFirstComment, variant.platform);
+      await postFirstComment(accessToken, platformPostId, autoFirstComment, variant.platform, {
+        platformUserId: connectionRow.platform_user_id ?? null,
+      });
       logger.info('QStash first-comment: posted successfully', { platformPostId, platform: variant.platform });
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));

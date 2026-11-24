@@ -117,6 +117,9 @@ export function AiVoiceTab({
   const [versionConflict, setVersionConflict] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [customInterest, setCustomInterest] = useState('');
+  const [cloningVoice, setCloningVoice] = useState(false);
+  const [showSampleDrawer, setShowSampleDrawer] = useState(false);
+  const [samplePostsInput, setSamplePostsInput] = useState('');
 
   useEffect(() => {
     setSavedProfile(initialProfile);
@@ -285,6 +288,53 @@ export function AiVoiceTab({
     return Array.from(set);
   }, [draft.interests]);
 
+  const handleRecloneVoice = async (opts?: { samplePosts?: string[] }) => {
+    if (isViewer || cloningVoice) return;
+    setCloningVoice(true);
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/studio/voice-clone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          forceOverwrite: true,
+          ...(opts?.samplePosts ? { samplePosts: opts.samplePosts } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as Record<string, any> | null;
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to clone voice from connected channels.');
+      }
+      if (data?.profile) {
+        const nextVersion = (version || 1) + 1;
+        setSavedProfile(data.profile);
+        setDraft(buildDraft(data.profile));
+        setVersion(nextVersion);
+        setCompleted(true);
+        onProfileUpdated(data.profile, nextVersion, true);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('studio-profile-updated', { detail: data.profile }));
+        }
+        if (opts?.samplePosts?.length) {
+          setShowSampleDrawer(false);
+          setSamplePostsInput('');
+        }
+        toast.success(
+          data.postsAnalyzed > 0
+            ? `Voice Fingerprint calibrated from ${data.postsAnalyzed} posts!`
+            : 'Voice Fingerprint refreshed from connected channels.'
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Voice cloning failed');
+    } finally {
+      setCloningVoice(false);
+    }
+  };
+
+  const activeFingerprint = savedProfile?.voiceFingerprint || null;
+
   return (
     <div className="space-y-6">
       <SectionHeading
@@ -380,6 +430,144 @@ export function AiVoiceTab({
           </Button>
         </div>
       )}
+
+      {/* Zero-Form Voice Fingerprint Card */}
+      <PCard>
+        <PCardHead
+          action={
+            !isViewer && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={cloningVoice}
+                  onClick={() => setShowSampleDrawer((prev) => !prev)}
+                  className="min-h-[36px] border-[#E4D9C8] text-[#3D2B1F] dark:text-[#F5EFE6] cursor-pointer"
+                >
+                  Paste sample posts
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={cloningVoice}
+                  onClick={() => handleRecloneVoice()}
+                  className="min-h-[36px] border-[#C4A265]/60 text-[#5C4315] dark:text-[#C4A265] cursor-pointer gap-1.5"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${cloningVoice ? 'animate-spin' : ''}`} aria-hidden="true" />
+                  {cloningVoice ? 'Cloning…' : activeFingerprint ? 'Re-clone from channels' : 'Clone from channels'}
+                </Button>
+              </div>
+            )
+          }
+        >
+          <span className="inline-flex items-center gap-2">
+            <span>Zero-Form Voice Fingerprint</span>
+            {activeFingerprint ? (
+              <Badge className="bg-[#EEF7F1] text-[#236B42] border-[#B8DEC6] dark:bg-[#16291E] dark:text-[#6EE7B7]">
+                {activeFingerprint.postsAnalyzed > 0
+                  ? `${activeFingerprint.postsAnalyzed} posts analyzed`
+                  : 'Profile calibrated'}
+              </Badge>
+            ) : (
+              <Badge className="bg-[#F5EFE2] text-[#5C4315] border-[#C4A265]/40">
+                Auto-clones on connect
+              </Badge>
+            )}
+          </span>
+        </PCardHead>
+        <PCardBody className="space-y-4">
+          {activeFingerprint ? (
+            <>
+              <p className="text-[13.5px] leading-[21px] text-[#3D2B1F] dark:text-[#F5EFE6] bg-[#FAF7F2] dark:bg-[#221C17] border border-[#E8DEC8] dark:border-[#382F27] rounded-xl px-3.5 py-2.5">
+                {activeFingerprint.voiceSummary}
+              </p>
+
+              <div className="flex flex-wrap gap-2 text-[12px]">
+                <span className="px-2.5 py-1 rounded-full bg-[#F5EFE2] dark:bg-[#2D2419] text-[#5C4315] dark:text-[#EAD7B0] border border-[#E4D9C8] dark:border-[#3E3225]">
+                  ~{activeFingerprint.stylometry?.avgWordsPerSentence || 12} words/sentence
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-[#FAF7F2] dark:bg-[#28211C] text-[#3D2B1F] dark:text-[#F5EFE6] border border-[#E4D9C8] dark:border-[#382F27]">
+                  Cadence: {(activeFingerprint.stylometry?.paragraphCadence || 'short-paragraphs').replace(/-/g, ' ')}
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-[#FAF7F2] dark:bg-[#28211C] text-[#3D2B1F] dark:text-[#F5EFE6] border border-[#E4D9C8] dark:border-[#382F27]">
+                  Emojis: {activeFingerprint.stylometry?.emojiProfile || 'none'}
+                </span>
+                {activeFingerprint.sourcePlatforms?.length > 0 && (
+                  <span className="px-2.5 py-1 rounded-full bg-[#FAF7F2] dark:bg-[#28211C] text-[#6E5A48] dark:text-[#B8A896] border border-[#E4D9C8] dark:border-[#382F27]">
+                    Sources: {activeFingerprint.sourcePlatforms.join(', ')}
+                  </span>
+                )}
+              </div>
+
+              {activeFingerprint.signatureRules?.length > 0 && (
+                <div>
+                  <p className="text-[12px] font-semibold uppercase tracking-wider text-[#6E5A48] dark:text-[#B8A896] mb-1.5">
+                    Cloned Writing Rules
+                  </p>
+                  <ul className="space-y-1 text-[12.5px] text-[#3D2B1F] dark:text-[#F5EFE6]">
+                    {activeFingerprint.signatureRules.slice(0, 4).map((rule, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-[#236B42] font-bold">•</span>
+                        <span>{rule}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-[13px] leading-[20px] text-[#6E5A48] dark:text-[#B8A896]">
+              Connect LinkedIn, X, or Instagram (or click <strong className="text-[#3D2B1F] dark:text-[#F5EFE6]">Clone from channels</strong> above) to ingest your top 20 historical posts and auto-build your quantitative Voice DNA — sentence rhythm, hook style, emoji discipline, and authentic style excerpts.
+            </p>
+          )}
+
+          {showSampleDrawer && !isViewer && (
+            <div className="rounded-xl border border-[#E4D9C8] dark:border-[#382F27] bg-[#FAF7F2] dark:bg-[#221C17] p-3.5 space-y-2.5">
+              <p className="text-[12.5px] font-medium text-[#3D2B1F] dark:text-[#F5EFE6]">
+                Paste 2–5 of your best past posts (separate posts with <code className="px-1 py-0.5 rounded bg-white dark:bg-black/30">---</code>)
+              </p>
+              <textarea
+                value={samplePostsInput}
+                onChange={(e) => setSamplePostsInput(e.target.value)}
+                rows={5}
+                placeholder="Paste authentic posts you wrote so Unool can lock onto your exact rhythm, hooks, and phrasing..."
+                className="w-full rounded-lg border border-[#E4D9C8] dark:border-[#382F27] bg-white dark:bg-[#191512] px-3 py-2 text-[13px] text-[#3D2B1F] dark:text-[#F5EFE6] focus:outline-none focus:border-[#C4A265]"
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={cloningVoice || samplePostsInput.trim().length < 18}
+                  onClick={() => {
+                    const samples = samplePostsInput
+                      .split(/\n\s*---+\s*\n|\n{3,}/)
+                      .map((s) => s.trim())
+                      .filter((s) => s.length >= 18);
+                    if (samples.length === 0) {
+                      toast.error('Paste at least one post with 4+ words.');
+                      return;
+                    }
+                    handleRecloneVoice({ samplePosts: samples });
+                  }}
+                  className="bg-[#3D2B1F] hover:bg-[#231C16] text-white cursor-pointer"
+                >
+                  {cloningVoice ? 'Calibrating…' : 'Calibrate from Sample Posts'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowSampleDrawer(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </PCardBody>
+      </PCard>
 
       {/* Brand Voice editor */}
       <PCard>

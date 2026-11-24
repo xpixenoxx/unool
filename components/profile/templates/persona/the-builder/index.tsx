@@ -64,7 +64,7 @@ function BuilderContent({ profile, isPreview, onLinkClick }: TemplateProps) {
               className="text-xs uppercase tracking-[0.18em] font-semibold truncate"
               style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, monospace', color: muted }}
             >
-              {normalized.handle || 'blueprint'} // BUILDER_SPEC
+              {normalized.handle || 'blueprint'} {'// BUILDER_SPEC'}
             </span>
           </div>
 

@@ -14,7 +14,7 @@ export class GroqProvider implements AIProvider {
   private defaultModel: string;
   private baseUrl = 'https://api.groq.com/openai/v1';
 
-  constructor(apiKey: string, defaultModel: string = 'qwen/qwen3.8-27b') {
+  constructor(apiKey: string, defaultModel: string = 'llama-3.3-70b-versatile') {
     this.apiKey = apiKey;
     const isOpenAiKey = Boolean(apiKey && apiKey.startsWith('sk-') && !apiKey.startsWith('gsk_'));
     if (isOpenAiKey) {
@@ -32,7 +32,7 @@ export class GroqProvider implements AIProvider {
     prompt: string,
     options?: GenerationOptions & { responseFormatJson?: boolean }
   ): Promise<Result<AIResponse, AIError>> {
-    const model = options?.model || this.defaultModel || 'qwen/qwen3.8-27b';
+    const model = options?.model || this.defaultModel || 'llama-3.3-70b-versatile';
     const systemPrompt = options?.systemPrompt || '';
     const maxTokens = options?.maxTokens || 4000;
     const temperature = options?.temperature ?? 0.7;

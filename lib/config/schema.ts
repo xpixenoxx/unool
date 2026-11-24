@@ -132,7 +132,7 @@ const configSchema = z.object({
 
   // Groq API (for AI generation and automation)
   GROQ_API_KEY: z.string().optional(),
-  AI_GROQ_MODEL: z.string().default('qwen/qwen3.8-27b'),
+  AI_GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
 
   // Security hardening
   ENABLE_HSTS: z.coerce.boolean().default(true),
@@ -154,6 +154,11 @@ const configSchema = z.object({
   // Public CDN base URLs for R2 (each bucket has a unique URL)
   CF_R2_MEDIA_PUBLIC_URL: z.string().url().optional(),
   CF_R2_AVATARS_PUBLIC_URL: z.string().url().optional(),
+
+  // Cloudflare Custom Hostnames (Cloudflare for SaaS custom domains)
+  CLOUDFLARE_ZONE_ID: z.string().optional(),
+  CLOUDFLARE_API_TOKEN: z.string().optional(),
+  CUSTOM_DOMAIN_CNAME_TARGET: z.string().optional().default('cname.unool.co'),
 
   // -------------------------------------------------------------------
   // Cashfree Payment Gateway

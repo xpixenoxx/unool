@@ -1459,7 +1459,7 @@ export default function HomePage() {
               <li>Everything in Spark, plus:</li>
               <li>Unlimited posts/month</li>
               <li>4 connected platforms</li>
-              <li>All 16 persona templates</li>
+              <li>All 24 persona templates</li>
               <li>No "Made with Unool" badge</li>
               <li>Basic DM Concierge &amp; 90-day analytics</li>
             </ul>
@@ -1502,10 +1502,10 @@ export default function HomePage() {
             <ul>
               <li>Everything in Pro, plus:</li>
               <li>3 workspaces (3 brands/clients)</li>
-              <li>Full white-label (zero branding)</li>
+              <li>Zero Unool branding + custom domains</li>
               <li>Unlimited channels &amp; AI credits</li>
-              <li>10 team seats + granular roles</li>
-              <li>Webhook API + Zapier triggers</li>
+              <li>10 team seats + granular RBAC roles</li>
+              <li>Unlimited Voice DNA fingerprints</li>
               <li>Priority support + onboarding call</li>
             </ul>
             <Link className="btn" href="/signup?plan=studio" style={{ background: '#8b5cf6' }}>

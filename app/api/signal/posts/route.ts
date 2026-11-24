@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { extractExtendedEngagement } from '@/lib/services/analytics/normalize';
 import { syncWorkspaceEngagement } from '@/lib/services/analytics/syncEngagement';
 import { scheduleService } from '@/lib/services/ScheduleService';
@@ -282,10 +283,20 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Missing postId' }, { status: 400 });
   }
 
+  if (typeof requireWorkspaceRole === 'function') {
+    const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+    if (!roleCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Insufficient workspace permissions to delete posts.' },
+        { status: 403 }
+      );
+    }
+  }
+
   // Verify workspace ownership
   const { data: post } = await supabaseAdmin
     .from('posts')
-    .select('id, workspace_id')
+    .select('id, workspace_id, qstash_message_id')
     .eq('id', postId)
     .eq('workspace_id', auth.workspaceId)
     .single();
@@ -294,11 +305,30 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Post not found' }, { status: 404 });
   }
 
-  // Find and clean up variants & platform posts
+  // Find and clean up variants, scheduled QStash timers, & platform posts
   const { data: variants } = await supabaseAdmin
     .from('post_variants')
-    .select('id')
+    .select('id, qstash_message_id')
     .eq('post_id', postId);
+
+  const qstashIdsToCancel = Array.from(
+    new Set(
+      [
+        (post as any).qstash_message_id,
+        ...(variants || []).map((v: any) => v.qstash_message_id),
+      ].filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    )
+  );
+  if (qstashIdsToCancel.length > 0) {
+    try {
+      const { queueService } = await import('@/lib/services/QueueService');
+      await Promise.allSettled(
+        qstashIdsToCancel.map(msgId => queueService.cancelScheduledTask(msgId))
+      );
+    } catch {
+      // Non-fatal QStash cancellation warning
+    }
+  }
 
   const variantIds = (variants || []).map((v: any) => v.id);
   if (variantIds.length > 0) {

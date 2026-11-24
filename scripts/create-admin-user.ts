@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import path from 'path';
-import { hashPassword } from '../lib/auth/password';
+import { hashPassword, verifyPassword } from '../lib/auth/password';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
@@ -132,8 +132,8 @@ async function main() {
     console.log(JSON.stringify(created, null, 2));
   }
 
-  // 4. Verify password with argon2
-  const isValid = await argon2.verify(hash, password);
+  // 4. Verify password with WebCrypto PBKDF2-SHA256
+  const isValid = await verifyPassword(hash, password);
   console.log('Password verification check:', isValid ? 'PASS' : 'FAIL');
   console.log(`\n🎉 Admin setup complete! You can now log in at /admin/login with:`);
   console.log(`Email:    ${email}`);

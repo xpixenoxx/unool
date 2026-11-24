@@ -332,7 +332,7 @@ export class LinkedInAdapter implements PlatformAdapter {
               });
 
               const results = await Promise.all(batchPromises);
-              uploadedImageUrns.push(...results.filter((urn): urn is string => urn !== null));
+              uploadedImageUrns.push(...results.filter((urn: string | null): urn is string => urn !== null));
             }
 
             if (uploadedImageUrns.length === 1) {

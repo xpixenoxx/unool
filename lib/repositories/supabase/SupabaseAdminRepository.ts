@@ -64,6 +64,10 @@ function applySorting(query: any, sortBy?: string, sortOrder: 'asc' | 'desc' = '
 }
 
 export class SupabaseAdminRepository implements IAdminRepository {
+  constructor() {
+    this.invalidateUsersCache();
+  }
+
   // ===== Admin Users =====
 
   async getAdminUserById(id: string): Promise<AdminUser | null> {
@@ -718,14 +722,18 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    let query = supabaseAdmin
+    let query: any = supabaseAdmin
       .from('analytics_events')
       .select('event_type, event_data, created_at, workspace_id, profile_id')
-      .gte('created_at', startDate.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(5000);
+      .gte('created_at', startDate.toISOString());
 
-    if (workspaceId) {
+    if (typeof query.order === 'function') {
+      query = query.order('created_at', { ascending: false });
+    }
+    if (typeof query.limit === 'function') {
+      query = query.limit(5000);
+    }
+    if (workspaceId && typeof query.eq === 'function') {
       query = query.eq('workspace_id', workspaceId);
     }
 
@@ -746,7 +754,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const linkClicksMap = new Map<string, LinkClickAggregate>();
     const profileViews: Record<string, number> = {};
 
-    events?.forEach((e) => {
+    events?.forEach((e: any) => {
       eventsByType[e.event_type] = (eventsByType[e.event_type] || 0) + 1;
 
       const day = e.created_at.split('T')[0];
@@ -1681,13 +1689,21 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
       if (!pErr && deletedRows && deletedRows.length > 0) {
         await this.fetchAllPlatformAuthUsers();
-        const authById = SupabaseAdminRepository.platformUsersCache?.byId;
+        const authById = platformUsersCache?.byId;
         for (const row of deletedRows) {
           // If already in items from deleted_accounts, skip
           if (items.some((i) => i.profileId === row.id || i.userId === row.user_id)) continue;
 
-          const cachedUser = authById?.get(row.user_id);
-          const email = cachedUser?.email || 'Unknown user';
+          let resolvedEmail = authById?.get(row.user_id)?.email || null;
+          if (!resolvedEmail && row.user_id) {
+            try {
+              const { data: singleUser } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
+              resolvedEmail = singleUser?.user?.email || null;
+            } catch {
+              // Ignore fallback user lookup errors
+            }
+          }
+          const email = resolvedEmail || 'Unknown user';
 
           const audit = latestAuditByUser.get(row.user_id);
           items.push({

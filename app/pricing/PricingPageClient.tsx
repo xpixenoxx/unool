@@ -116,7 +116,7 @@ const PLANS_FALLBACK: PlanData[] = [
     u: [60, 50],
     r: [
       '3 brands or clients',
-      'All 24 + white-label',
+      'All 24 persona themes',
       'Unlimited',
       'Unlimited',
       'Unlimited (fair use)',
@@ -124,10 +124,10 @@ const PLANS_FALLBACK: PlanData[] = [
       'Unlimited',
       'Full + multi-routing',
       '0–3 triage',
-      'Unlimited',
-      'Lifetime + export',
-      '10 + roles',
-      'White-label',
+      'Unlimited + Voice DNA',
+      'Lifetime + CSV export',
+      '10 + RBAC roles',
+      'Zero Unool branding + custom domain',
     ],
   },
 ];
@@ -180,7 +180,7 @@ const FAQS: [string, string][] = [
   ],
   [
     'Can I remove the Made with Unool badge or use a custom domain?',
-    'Yes. Badge removal, white-label controls, and custom domains unlock on Pro and Studio. Spark and Creator profiles are hosted on your name.unool.co address.',
+    'Yes. Badge removal unlocks on Creator and above, and Cloudflare-verified custom domains unlock on Pro and Studio. Spark and Creator profiles are hosted on your name.unool.co address.',
   ],
 ];
 

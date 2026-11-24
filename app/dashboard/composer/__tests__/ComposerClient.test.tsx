@@ -79,7 +79,7 @@ describe('ComposerClient platform connection filtering', () => {
     render(<ComposerClient userId="u1" workspaceId="w1" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/No connected platforms yet/i)).toBeDefined();
+      expect(screen.getByText(/No connected (platforms|accounts) yet/i)).toBeDefined();
     });
 
     // None of the 8 fixed platforms should be shown to select

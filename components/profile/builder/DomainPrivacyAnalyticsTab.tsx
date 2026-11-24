@@ -42,6 +42,7 @@ interface CustomDomainStatus {
   txtRecordName: string | null;
   txtRecordValue: string | null;
   cnameTarget: string;
+  sslStatus?: string;
 }
 
 interface PrivateViewer {
@@ -630,10 +631,18 @@ export function DomainPrivacyAnalyticsTab({
           </div>
 
           {domainStatus?.verified && domainStatus.customDomain && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-              Verified DNS
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                Verified DNS
+              </span>
+              {domainStatus.sslStatus === 'active' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 text-xs font-medium">
+                  <Shield className="w-3.5 h-3.5" aria-hidden="true" />
+                  Cloudflare Edge SSL
+                </span>
+              )}
+            </div>
           )}
         </div>
 

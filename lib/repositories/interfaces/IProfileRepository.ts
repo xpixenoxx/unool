@@ -1,3 +1,5 @@
+import type { VoiceFingerprint } from '@/lib/config/studioOnboarding';
+
 export interface ProfileLink {
   id?: string;
   label: string;
@@ -72,6 +74,7 @@ export interface StudioProfile {
   style: string;
   interests: string[];
   completedAt?: string;
+  voiceFingerprint?: VoiceFingerprint | null;
 }
 
 export interface ProfileSeo {

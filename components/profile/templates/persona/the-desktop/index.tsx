@@ -508,7 +508,7 @@ function DesktopTemplateInner({
             {/* Notepad Content */}
             <div className="bg-white border-2 border-[#111111] p-4 text-xs sm:text-sm font-mono space-y-2">
               <h2 className="font-bold pb-2 border-b border-[#111111]/20 text-xs sm:text-sm" style={{ color: readableAccentOnWhite }}>
-                // TRACK RECORD & HIGHLIGHTS
+                {'// TRACK RECORD & HIGHLIGHTS'}
               </h2>
               <ul className="flex flex-wrap gap-2 list-none p-0 m-0 pt-1">
                 {servicesList.map((srv, idx) => (

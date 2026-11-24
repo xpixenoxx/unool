@@ -355,7 +355,7 @@ function DashboardSidebar({
           name: 'Studio',
           href: '/dashboard/studio',
           icon: PenTool,
-          description: 'Bio-link profile & persona templates',
+          description: 'Write once. AI adapts. Publish everywhere.',
         },
         {
           id: 'flightplan',
@@ -448,7 +448,7 @@ function DashboardSidebar({
       e.stopPropagation();
     }
     if (!currentSubdomain) {
-      toast.error('Set up your subdomain in Presence first');
+      toast.error('Set up your subdomain in Profile first');
       return;
     }
     const urlToCopy = `https://${currentSubdomain}.unool.co`;
@@ -819,8 +819,8 @@ function DashboardSidebar({
                 onClick={() => {
                   const sub = profile?.subdomain;
                   if (!sub) {
-                    toast.info('Claim your unool.co subdomain in Presence first');
-                    router.push('/dashboard/presence');
+                    toast.info('Claim your unool.co subdomain in Profile first');
+                    router.push('/dashboard/profile');
                     return;
                   }
                   window.open(`https://${sub}.unool.co`, '_blank');
@@ -868,8 +868,57 @@ function DashboardMobileMenuButton({
  * if the user has no subdomain yet and hasn't dismissed it before.
  */
 function DashboardOnboarding() {
-  const { profile, loading } = useUserContext();
+  const { profile, loading, refetch } = useUserContext();
+  const pathname = usePathname();
   const [refreshSubdomain, setRefreshSubdomain] = useState<string | undefined | null>(undefined);
+
+  // Auto-clone Voice DNA in the background whenever a social account is connected from any Dashboard route
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const voiceClone = params.get('voiceClone');
+    const connected = params.get('connected');
+    const connectionId = params.get('connectionId') || undefined;
+
+    if (voiceClone !== 'auto' || !connected) return;
+
+    // Strip voiceClone & connectionId immediately so reloads don't re-trigger, leaving `connected` intact for page banners
+    params.delete('voiceClone');
+    params.delete('connectionId');
+    const nextSearch = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + (nextSearch ? `?${nextSearch}` : '') + window.location.hash
+    );
+
+    (async () => {
+      try {
+        const res = await fetch('/api/studio/voice-clone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            platform: connected.toLowerCase(),
+            connectionId,
+            forceOverwrite: false,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as Record<string, any> | null;
+        if (res.ok && data?.profile && !data?.skippedManualOverwrite) {
+          window.dispatchEvent(new CustomEvent('studio-profile-updated', { detail: data.profile }));
+          await refetch();
+          toast.success(
+            data.postsAnalyzed > 0
+              ? `Voice Fingerprint cloned from ${data.postsAnalyzed} recent posts — Studio is tuned to your style.`
+              : 'Voice Fingerprint calibrated from your connected profile.'
+          );
+        }
+      } catch {
+        // Non-blocking background calibration
+      }
+    })();
+  }, [pathname, refetch]);
 
   // After a successful claim, refresh the displayed subdomain
   const handleClaimed = useCallback((sub: string) => {

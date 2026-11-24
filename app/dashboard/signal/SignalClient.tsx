@@ -49,7 +49,7 @@ import type {
   SignalRange,
   SignalSort,
 } from '@/lib/analytics/signalEngine';
-import { HOOK_TYPE_META } from '@/lib/analytics/postTelemetry';
+import { HOOK_TYPE_META, extractLeadHook } from '@/lib/analytics/postTelemetry';
 import { getAllPlatformCapabilities } from '@/lib/analytics/platformCapabilities';
 import {
   ChannelComparisonBars,
@@ -1466,14 +1466,23 @@ export function SignalClient() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          {isDraft && (
+                          {isDraft ? (
                             <Link
                               href={draftRedirect.href}
                               className="text-[11px] font-semibold text-[#C8613D] hover:underline"
                             >
                               Resume
                             </Link>
-                          )}
+                          ) : post.effectiveStatus === 'published' ? (
+                            <Link
+                              href={`/dashboard/studio?hookStyle=${encodeURIComponent(post.hookType)}&winningHook=${encodeURIComponent(extractLeadHook(post.content))}&followUpPostId=${encodeURIComponent(post.id)}`}
+                              title="Write a fresh follow-up post in Studio using this winning hook structure"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#C8613D] hover:underline"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>Follow-up</span>
+                            </Link>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => setInspectorPost(post)}

@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { promises as dns } from 'dns';
 import crypto from 'crypto';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { getPlanContext } from '@/lib/middleware/plan-enforcement-middleware';
 import { CustomDomainSchema } from '@/lib/validation/profileSchemas';
+import {
+  checkCustomDomainCname,
+  getCloudflareCustomHostnameStatus,
+  provisionCloudflareCustomHostname,
+  removeCloudflareCustomHostname,
+  verifyCustomDomainTxtRecord,
+  type CustomDomainSslStatus,
+} from '@/lib/domains/cloudflareCustomDomains';
 import { logger } from '@/lib/logger';
 
 const profileRepository = new SupabaseProfileRepository();
+
+function getCnameTarget(): string {
+  return (process.env.CUSTOM_DOMAIN_CNAME_TARGET || 'cname.unool.co').trim();
+}
 
 function buildTxtRecordValue(token: string): string {
   return `unool-verify=${token}`;
@@ -30,15 +41,26 @@ export async function GET(request: NextRequest) {
     const allowed = Boolean(planCtx?.features?.custom_domain);
     const domain = profile?.customDomain || null;
     const token = profile?.customDomainVerificationToken || null;
+    const verified = Boolean(domain && profile?.customDomainVerifiedAt);
+    const cnameTarget = getCnameTarget();
+
+    let sslStatus: CustomDomainSslStatus = verified ? 'dns_only' : 'unverified';
+    if (domain) {
+      const cfInfo = await getCloudflareCustomHostnameStatus(domain);
+      if (cfInfo) {
+        sslStatus = cfInfo.sslStatus;
+      }
+    }
 
     return NextResponse.json({
       allowed,
       customDomain: domain,
-      verified: Boolean(domain && profile?.customDomainVerifiedAt),
+      verified,
       verifiedAt: profile?.customDomainVerifiedAt || null,
       txtRecordName: domain ? `_unool-challenge.${domain}` : null,
       txtRecordValue: token ? buildTxtRecordValue(token) : null,
-      cnameTarget: 'cname.unool.co',
+      cnameTarget,
+      sslStatus,
     });
   } catch (error) {
     logger.error('Failed to read custom domain settings', { error });
@@ -95,6 +117,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Create your profile before adding a custom domain' }, { status: 404 });
     }
 
+    // If changing away from a previous custom domain, clean up old Cloudflare hostname best-effort
+    if (profile.customDomain && profile.customDomain !== cleanDomain) {
+      await removeCloudflareCustomHostname(profile.customDomain).catch(() => false);
+    }
+
     const existingOwner = await profileRepository.findByCustomDomain?.(cleanDomain);
     if (existingOwner && existingOwner.id !== profile.id) {
       return NextResponse.json({ error: 'This domain is already connected to another workspace' }, { status: 409 });
@@ -111,13 +138,18 @@ export async function POST(request: NextRequest) {
       profile.version
     );
 
+    // Pre-provision Cloudflare for SaaS Custom Hostname so edge TLS cert starts initializing as soon as CNAME resolves
+    const cfHostname = await provisionCloudflareCustomHostname(cleanDomain);
+    const cnameTarget = getCnameTarget();
+
     return NextResponse.json({
       success: true,
       customDomain: updated.customDomain,
       verified: false,
       txtRecordName: `_unool-challenge.${cleanDomain}`,
       txtRecordValue: buildTxtRecordValue(token),
-      cnameTarget: 'cname.unool.co',
+      cnameTarget,
+      sslStatus: cfHostname?.sslStatus || 'unverified',
     });
   } catch (error) {
     logger.error('Failed to save custom domain', { error });
@@ -147,35 +179,25 @@ export async function PUT(request: NextRequest) {
 
     const expectedTxt = buildTxtRecordValue(profile.customDomainVerificationToken);
     const challengeHost = `_unool-challenge.${profile.customDomain}`;
+    const cnameTarget = getCnameTarget();
 
-    let txtMatches = false;
-    try {
-      const records = await dns.resolveTxt(challengeHost);
-      txtMatches = records.some((parts) => parts.join('').trim() === expectedTxt);
-    } catch {
-      txtMatches = false;
-    }
-
-    if (!txtMatches) {
-      // Also check apex/root TXT in case DNS provider placed TXT directly on domain
-      try {
-        const apexRecords = await dns.resolveTxt(profile.customDomain);
-        txtMatches = apexRecords.some((parts) => parts.join('').trim() === expectedTxt);
-      } catch {
-        txtMatches = false;
-      }
-    }
+    const [txtMatches, cnameVerified] = await Promise.all([
+      verifyCustomDomainTxtRecord(profile.customDomain, expectedTxt),
+      checkCustomDomainCname(profile.customDomain, cnameTarget),
+    ]);
 
     if (!txtMatches) {
       return NextResponse.json(
         {
           verified: false,
+          cnameVerified,
           error: `TXT record "${expectedTxt}" was not found at ${challengeHost}. DNS changes can take a few minutes to propagate.`,
         },
         { status: 422 }
       );
     }
 
+    const cfHostname = await provisionCloudflareCustomHostname(profile.customDomain);
     const verifiedAt = new Date().toISOString();
     const updated = await profileRepository.update(
       profile.id,
@@ -195,6 +217,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       verified: true,
+      cnameVerified,
+      sslStatus: cfHostname?.sslStatus || 'dns_only',
       verifiedAt,
       customDomain: updated.customDomain,
     });
@@ -224,6 +248,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    if (profile.customDomain) {
+      await removeCloudflareCustomHostname(profile.customDomain).catch(() => false);
+    }
+
     await profileRepository.update(
       profile.id,
       {
@@ -240,4 +268,3 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to remove custom domain' }, { status: 500 });
   }
 }
-

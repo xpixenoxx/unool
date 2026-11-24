@@ -101,6 +101,7 @@ import { cn, formatPlatformError } from '@/lib/utils';
 // Note: Supabase browser client no longer needed for storage (using Cloudflare R2 via presigned PUT)
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { PLATFORM_LIMITS, getPlatformLimit } from '@/lib/config/platformLimits';
+import { HOOK_TYPE_META, normalizeHookType } from '@/lib/analytics/postTelemetry';
 import { emitSignalStrip } from '../signal/SignalStrip';
 import {
   PlatformMobilePreview,
@@ -155,8 +156,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const repurposePostId = searchParams?.get('repurposePostId') || null;
   const suggestedHook = searchParams?.get('suggestedHook') || null;
   const hookStyleParam = searchParams?.get('hookStyle') || null;
+  const winningHookParam = searchParams?.get('winningHook') || null;
+  const followUpPostId = searchParams?.get('followUpPostId') || null;
   const hasLoadedTargetPost = useRef<string | null>(null);
   const hasAppliedSeed = useRef(false);
+  const [activeHookInspiration, setActiveHookInspiration] = useState<{
+    hookLabel: string;
+    hookColor: string;
+    shortHint: string;
+    winningHook: string;
+    isFollowUp: boolean;
+  } | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const reducedMotion = useReducedMotion();
@@ -237,6 +247,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
   const [personalizeWithProfile, setPersonalizeWithProfile] = useState(true);
   const [isIdeaGeneratorOpen, setIsIdeaGeneratorOpen] = useState(false);
+  const [isAutoCloningVoice, setIsAutoCloningVoice] = useState(false);
+  const hasAttemptedAutoVoiceClone = useRef(false);
   const [attachedBrandSlug, setAttachedBrandSlug] = useState<string | null>(null);
   const [attachedBrandUrl, setAttachedBrandUrl] = useState<string | null>(null);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
@@ -377,17 +389,56 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    if (suggestedHook || hookStyleParam) {
+    if (winningHookParam || suggestedHook || hookStyleParam) {
       hasAppliedSeed.current = true;
       setMode('ai');
-      if (suggestedHook) {
+
+      const normalizedHook = normalizeHookType(hookStyleParam);
+      const hookMeta = normalizedHook ? HOOK_TYPE_META[normalizedHook] : null;
+      const openerReference = (winningHookParam || suggestedHook || hookMeta?.sampleStarter || '').trim();
+
+      if (winningHookParam) {
+        setSourceContent(`${winningHookParam.trim()}\n\nPart 2 — here is what happened next:\n`);
+      } else if (suggestedHook) {
         setSourceContent(suggestedHook);
+      } else if (hookMeta?.sampleStarter) {
+        setSourceContent(`${hookMeta.sampleStarter}\n\n`);
       }
-      if (hookStyleParam) {
-        studioToast.info(`Pre-selected "${hookStyleParam}" hook inspiration from Signal`);
+
+      if (hookMeta || winningHookParam) {
+        setActiveHookInspiration({
+          hookLabel: hookMeta?.label || 'Winning Opener',
+          hookColor: hookMeta?.color || '#C8613D',
+          shortHint: hookMeta?.shortHint || 'Derived from your top-performing Signal post',
+          winningHook: openerReference,
+          isFollowUp: Boolean(winningHookParam || followUpPostId),
+        });
+      }
+
+      if (followUpPostId) {
+        fetch(`/api/publish/${encodeURIComponent(followUpPostId)}`, { credentials: 'include' })
+          .then(async (res) => {
+            if (!res.ok) return;
+            const data = (await res.json().catch(() => null)) as Record<string, any> | null;
+            const connIds = Array.from(
+              new Set<string>(
+                (data?.variants || [])
+                  .map((v: any) => (v.platformConnectionId || v.platform) as string)
+                  .filter(Boolean)
+              )
+            );
+            if (connIds.length > 0) setSelectedConnectionIds(connIds);
+          })
+          .catch(() => {});
+      }
+
+      if (winningHookParam) {
+        studioToast.info('Loaded winning hook structure from Signal — ready for your follow-up');
+      } else if (hookMeta) {
+        studioToast.info(`Pre-populated "${hookMeta.label}" hook structure from Signal`);
       }
     }
-  }, [targetPostId, repurposePostId, suggestedHook, hookStyleParam]);
+  }, [targetPostId, repurposePostId, suggestedHook, hookStyleParam, winningHookParam, followUpPostId]);
   
 
   // ── Save post as draft in Signal and clear composer to start fresh ─────────
@@ -860,6 +911,55 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       window.removeEventListener('focus', handleFocus);
     };
   }, [loadProfile, loadConnections]);
+
+  // Silent Zero-Form Voice Clone backfill if creator has LinkedIn/X/Instagram connected without a Voice Fingerprint yet
+  useEffect(() => {
+    if (profileLoading || connectionsLoading || hasAttemptedAutoVoiceClone.current) return;
+    const hasFingerprint = Boolean(profile?.studioProfile?.voiceFingerprint);
+    if (hasFingerprint) return;
+
+    const voiceCapableAccount = connectedAccounts.find((a) =>
+      ['linkedin', 'x', 'instagram', 'threads', 'bluesky'].includes(a.platform)
+    );
+    if (!voiceCapableAccount) return;
+
+    hasAttemptedAutoVoiceClone.current = true;
+    setIsAutoCloningVoice(true);
+
+    fetch('/api/studio/voice-clone', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        platform: voiceCapableAccount.platform,
+        connectionId: voiceCapableAccount.id,
+        forceOverwrite: false,
+      }),
+    })
+      .then((r) => (r.ok ? (r.json() as Promise<Record<string, any>>) : null))
+      .then((data) => {
+        if (data?.profile) {
+          setProfile((prev) => {
+            const nextProf: Profile = {
+              id: prev?.id || '',
+              name: prev?.name || '',
+              headline: prev?.headline || '',
+              bio: prev?.bio || '',
+              role: data.profile.role || prev?.role || '',
+              company: prev?.company || '',
+              onboardingAnswers: prev?.onboardingAnswers || null,
+              studioProfile: data.profile,
+            };
+            memoryComposerProfile = nextProf;
+            return nextProf;
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsAutoCloningVoice(false);
+      });
+  }, [profileLoading, connectionsLoading, profile?.studioProfile?.voiceFingerprint, connectedAccounts]);
 
   // ── Fetch SignalDM automation status (non-blocking, best-effort) ─────────────
   useEffect(() => {
@@ -1659,6 +1759,53 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           )}
         </AnimatePresence>
 
+        {/* Signal Winning Hook Inspiration Banner */}
+        <AnimatePresence>
+          {activeHookInspiration && !postId && (
+            <motion.div
+              key="signal-winning-hook-banner"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#FAF6EE] via-[#FFFDF9] to-[#F5EFE4] border border-[#E0D5BE] shadow-[0_4px_20px_rgba(61,43,31,0.05)] flex-wrap gap-3"
+            >
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-xl bg-[#F3EAD9] border border-[#DFC9B4] flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4 text-[#C8613D]" />
+                </div>
+                <div className="min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-[#231C16]">
+                      {activeHookInspiration.isFollowUp
+                        ? 'Follow-Up Seeded from Winning Hook'
+                        : 'Signal Hook Archetype Active'}
+                    </span>
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                      style={{ backgroundColor: activeHookInspiration.hookColor }}
+                    >
+                      {activeHookInspiration.hookLabel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#6E5A48] truncate max-w-2xl">
+                    {activeHookInspiration.shortHint}
+                    {activeHookInspiration.winningHook
+                      ? ` · Reference: "${activeHookInspiration.winningHook}"`
+                      : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveHookInspiration(null)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium text-[#7A6B60] hover:text-[#231C16] hover:bg-[#EDE5D8]/60 transition-colors cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Plan error banner */}
         <AnimatePresence>
           {planError && (
@@ -1732,8 +1879,31 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   </div>
                 </div>
                 
-                {/* Edit action */}
-                <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Voice DNA badge + Edit action */}
+                <div className="flex items-center gap-2.5 flex-shrink-0">
+                  {isAutoCloningVoice ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#F5EFE2] text-[#735A42] border border-[#E2D6C2]">
+                      <Loader2 className="w-3 h-3 animate-spin text-[#C4A265]" />
+                      <span>Cloning Voice DNA…</span>
+                    </span>
+                  ) : profile.studioProfile?.voiceFingerprint ? (
+                    <Link
+                      href="/dashboard/settings?tab=ai-voice"
+                      title={
+                        profile.studioProfile.voiceFingerprint.voiceSummary ||
+                        'Your writing voice is cloned from your historical posts'
+                      }
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EEF7F1] hover:bg-[#E2F2E8] text-[#236B42] border border-[#B8DEC6] transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>
+                        Voice DNA Active
+                        {profile.studioProfile.voiceFingerprint.postsAnalyzed > 0
+                          ? ` · ${profile.studioProfile.voiceFingerprint.postsAnalyzed} posts`
+                          : ''}
+                      </span>
+                    </Link>
+                  ) : null}
                   <Link
                     href="/dashboard/profile"
                     className="text-xs font-semibold text-[#231C16] hover:underline px-2 py-1 transition-colors"

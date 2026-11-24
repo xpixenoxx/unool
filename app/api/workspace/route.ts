@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { withWorkspacePlan } from '@/lib/entitlements';
 import {
+  clearWorkspaceMembershipCache,
   listUserWorkspaces,
   normalizeWorkspaceRole,
   requireWorkspaceRole,
@@ -331,6 +332,8 @@ export const POST = withWorkspacePlan(
         return NextResponse.json({ error: 'Failed to add member' }, { status: 500, headers: NO_STORE_HEADERS });
       }
 
+      clearWorkspaceMembershipCache();
+
       await sendWorkspaceInviteEmail({
         to: existingUser.email || email,
         workspaceName,
@@ -425,6 +428,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update member role.' }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
+    clearWorkspaceMembershipCache();
     return NextResponse.json({ member: updated }, { status: 200, headers: NO_STORE_HEADERS });
   } catch (error) {
     logger.error('PATCH /api/workspace failed', {
@@ -497,6 +501,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to remove workspace member.' }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
+    clearWorkspaceMembershipCache();
     return NextResponse.json({ success: true, removedMemberId: memberId }, { status: 200, headers: NO_STORE_HEADERS });
   } catch (error) {
     logger.error('DELETE /api/workspace failed', {

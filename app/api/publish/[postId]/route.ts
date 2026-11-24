@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
+import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
@@ -141,9 +142,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
 
-    // Verify workspace ownership
+    // Verify workspace ownership & editor+ RBAC
     if (post.workspaceId !== auth.workspaceId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (typeof requireWorkspaceRole === 'function') {
+      const roleCheck = await requireWorkspaceRole(auth.userId, auth.workspaceId, ['owner', 'admin', 'editor']);
+      if (!roleCheck.allowed) {
+        return NextResponse.json(
+          { error: 'Insufficient workspace permissions to delete posts.' },
+          { status: 403 }
+        );
+      }
     }
 
     
@@ -151,6 +161,31 @@ export async function DELETE(
     // 1. Find all variants for this post
     const variants = await postRepository.findVariantsByPostId(postId);
     const variantIds = variants.map(v => v.id);
+
+    // 1b. Cancel any scheduled QStash timers on the parent post or its variants so deleted posts never fire orphaned webhooks
+    const qstashIdsToCancel = Array.from(
+      new Set(
+        [
+          post.qstashMessageId,
+          ...variants.map(v => v.qstashMessageId),
+        ].filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      )
+    );
+    if (qstashIdsToCancel.length > 0) {
+      try {
+        const { queueService } = await import('@/lib/services/QueueService');
+        await Promise.allSettled(
+          qstashIdsToCancel.map(msgId => queueService.cancelScheduledTask(msgId))
+        );
+      } catch (cancelErr) {
+        logger.warn('Non-fatal error cancelling QStash timers during post delete', {
+          traceId,
+          postId,
+          qstashCount: qstashIdsToCancel.length,
+          error: cancelErr,
+        });
+      }
+    }
 
     if (variantIds.length > 0) {
       // 2. Delete platform_posts if any exist

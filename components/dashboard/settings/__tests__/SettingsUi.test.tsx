@@ -190,7 +190,7 @@ describe('Settings UI workflows', () => {
   });
 
   it('normalizes legacy ?tab=persona query to ?tab=ai-voice cleanly', async () => {
-    mockSearchParamsGet.mockReturnValue('persona');
+    mockSearchParamsGet.mockImplementation((k: string) => (k === 'tab' ? 'persona' : null));
     render(<SettingsClient initialData={makeInitialData()} />);
 
     await waitFor(() => {
@@ -344,7 +344,7 @@ describe('Settings UI workflows', () => {
   });
 
   it('loads SecurityTab once without an infinite MFA-callback blink or pulse loop', async () => {
-    mockSearchParamsGet.mockReturnValue('security');
+    mockSearchParamsGet.mockImplementation((k: string) => (k === 'tab' ? 'security' : null));
     mockListFactors.mockResolvedValue({
       data: {
         totp: [

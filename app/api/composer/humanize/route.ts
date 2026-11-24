@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ContentHumanizer } from '@/lib/ai/engines';
 import { PlatformType } from '@/lib/ai/PostAdapter';
+import { buildCreatorIdentityContext } from '@/lib/ai/studioContext';
+import { resolveAiPersonalization } from '@/lib/ai/resolvePersonalization';
+import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { getPlanContext, enforcePlanLimit, trackAiUsage } from '@/lib/entitlements';
 import { config } from '@/lib/config/schema';
 import { z } from 'zod';
+
+const profileRepository = new SupabaseProfileRepository();
 
 export const maxDuration = 60;
 
@@ -81,7 +86,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await ContentHumanizer.humanizeWithAI(content, platform as PlatformType | undefined);
+    let creatorVoiceContext: string | undefined;
+    try {
+      const profile = await profileRepository.findByWorkspaceId(auth.workspaceId);
+      const personalization = await resolveAiPersonalization({
+        userId: auth.userId,
+        workspaceId: auth.workspaceId,
+        profileStudioProfile: (profile?.studioProfile as Record<string, any> | null) ?? null,
+        profileOnboardingAnswers: (profile?.onboardingAnswers as Record<string, any> | null) ?? null,
+      });
+      if (personalization.enabled && personalization.studioProfile) {
+        const built = buildCreatorIdentityContext({
+          profile,
+          studioProfile: personalization.studioProfile,
+        });
+        if (built) creatorVoiceContext = built;
+      }
+    } catch {
+      // Non-fatal fallback if profile lookup is unavailable
+    }
+
+    const result = await ContentHumanizer.humanizeWithAI(
+      content,
+      platform as PlatformType | undefined,
+      creatorVoiceContext
+    );
 
     try {
       await trackAiUsage(

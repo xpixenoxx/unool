@@ -149,10 +149,13 @@ export class PublishService {
       })
       .filter((u): u is string => typeof u === 'string' && u.length > 0);
 
+    const hasDelayedQStashFirstComment = Boolean(config.QSTASH_TOKEN);
+
     const publishInput: PublishInput = {
       content: variant.adaptedContent,
       mediaUrls,
-      firstComment: variant.autoFirstComment || undefined,
+      // When QStash is active, first comments are dispatched 90s later via QStash across all supported platforms
+      firstComment: !hasDelayedQStashFirstComment && variant.autoFirstComment ? variant.autoFirstComment : undefined,
       platformUserId: connection.platformUserId || undefined,
       username: connection.username || undefined,
     };
@@ -242,6 +245,32 @@ export class PublishService {
           status: 'published',
           platformPostId: result.platformPostId,
         });
+
+        // Fallback immediate first-comment for Instagram & LinkedIn when QStash is not configured
+        // (X and Threads handle direct publishInput.firstComment inside their adapters when QStash is off)
+        if (
+          !hasDelayedQStashFirstComment &&
+          variant.autoFirstComment &&
+          result.platformPostId &&
+          (input.platform === 'instagram' || input.platform === 'linkedin')
+        ) {
+          try {
+            const { postFirstComment } = await import('@/lib/platforms/firstComment');
+            await postFirstComment(
+              currentAccessToken,
+              result.platformPostId,
+              variant.autoFirstComment,
+              input.platform,
+              { platformUserId: connection.platformUserId }
+            );
+          } catch (fcErr) {
+            logger.warn('Immediate fallback first-comment failed', {
+              platform: input.platform,
+              platformPostId: result.platformPostId,
+              error: fcErr,
+            });
+          }
+        }
 
         logger.info('Post published successfully', {
           platform: input.platform,

@@ -163,10 +163,28 @@ export class ScheduleService {
     if (input.postId) {
       const existing = await postRepository.findById(input.postId);
       if (existing && existing.workspaceId === input.workspaceId) {
+        // Cancel any prior QStash timers before replacing variants
+        try {
+          const priorVariants = await postRepository.findVariantsByPostId(existing.id);
+          const priorMsgIds = Array.from(
+            new Set(
+              [existing.qstashMessageId, ...priorVariants.map(v => v.qstashMessageId)].filter(
+                (id): id is string => typeof id === 'string' && id.trim().length > 0
+              )
+            )
+          );
+          if (priorMsgIds.length > 0) {
+            await Promise.allSettled(priorMsgIds.map(id => queueService.cancelScheduledTask(id)));
+          }
+        } catch {
+          // Non-fatal
+        }
+
         post = await postRepository.update(existing.id, {
           content: input.platforms[0]?.content ?? existing.content,
           status: 'scheduled',
           scheduledAt: input.baseScheduledAt,
+          qstashMessageId: null,
           scheduleStrategy: input.strategy,
           arcId: input.arcId ?? existing.arcId,
           arcBeat: input.arcBeat ?? existing.arcBeat,

@@ -121,7 +121,7 @@ function pickValidSupabaseEnv(...candidates: Array<string | undefined>): string 
 interface CachedSignedIdentity {
   userId: string;
   workspaceId: string;
-  sig: string;
+  sig: string | null;
   expiresAt: number;
 }
 

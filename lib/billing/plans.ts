@@ -479,10 +479,10 @@ const CANONICAL_FEATURE_BULLETS: Record<PlanId, string[]> = {
   studio: [
     'Everything in Pro, plus:',
     '3 workspaces (3 brands/clients)',
-    'Full white-label (zero branding)',
+    'Zero Unool branding + custom domains',
     'Unlimited channels & AI credits',
-    '10 team seats + granular roles',
-    'Webhook API + Zapier triggers',
+    '10 team seats + granular RBAC roles',
+    'Unlimited Voice DNA fingerprints',
     'Priority support + onboarding call',
   ],
 };

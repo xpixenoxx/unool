@@ -1,9 +1,10 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, MoreVertical, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, MoreVertical, Loader2, CheckCircle2, AlertCircle, Sparkles, ArrowRight } from 'lucide-react';
 import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
+import type { StudioProfile } from '@/lib/config/studioOnboarding';
 
 interface Connection {
   id?: string;
@@ -35,6 +36,95 @@ function ConnectPageContent() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [cloningVoice, setCloningVoice] = useState(false);
+  const [clonedProfile, setClonedProfile] = useState<StudioProfile | null>(null);
+  const [showSampleEnrich, setShowSampleEnrich] = useState(false);
+  const [sampleText, setSampleText] = useState('');
+  const hasTriggeredCloneRef = useRef(false);
+
+  const getAuthHeaders = useCallback(async (json = false): Promise<HeadersInit> => {
+    let token: string | null = null;
+    try {
+      const stored = sessionStorage.getItem('unool_session');
+      if (stored) token = JSON.parse(stored).access_token || null;
+    } catch { /* ignore */ }
+    if (!token) {
+      try {
+        const { getAccessToken } = await import('@/lib/supabase/browser');
+        token = await getAccessToken();
+      } catch { /* ignore */ }
+    }
+    const headers: Record<string, string> = { 'Cache-Control': 'no-cache' };
+    if (json) headers['Content-Type'] = 'application/json';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  }, []);
+
+  const triggerVoiceClone = useCallback(
+    async (opts?: {
+      platform?: string;
+      connectionId?: string;
+      samplePosts?: string[];
+      forceOverwrite?: boolean;
+    }) => {
+      setCloningVoice(true);
+      try {
+        const headers = await getAuthHeaders(true);
+        const res = await fetch('/api/studio/voice-clone', {
+          method: 'POST',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({
+            platform: opts?.platform,
+            connectionId: opts?.connectionId,
+            samplePosts: opts?.samplePosts,
+            forceOverwrite: opts?.forceOverwrite ?? false,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as Record<string, any> | null;
+        if (res.ok && data?.profile) {
+          setClonedProfile(data.profile);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('studio-profile-updated', { detail: data.profile }));
+          }
+          if (opts?.samplePosts?.length) {
+            setShowSampleEnrich(false);
+            setSampleText('');
+            setToast({ type: 'success', message: 'Voice Fingerprint sharpened from your sample posts!' });
+          }
+        }
+      } catch {
+        // Non-blocking: user can still proceed seamlessly
+      } finally {
+        setCloningVoice(false);
+      }
+    },
+    [getAuthHeaders]
+  );
+
+  // Hydrate existing Voice Fingerprint if already calibrated
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const headers = await getAuthHeaders(false);
+        const res = await fetch('/api/studio/voice-clone', {
+          headers,
+          credentials: 'include',
+        });
+        if (!res.ok || !active) return;
+        const data = (await res.json().catch(() => null)) as Record<string, any> | null;
+        if (active && data?.profile?.voiceFingerprint) {
+          setClonedProfile(data.profile);
+        }
+      } catch {
+        // Silent
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [getAuthHeaders]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -166,6 +256,8 @@ function ConnectPageContent() {
 
     // Check for success/error params from OAuth callback
     const connectedPlatform = searchParams.get('connected');
+    const voiceCloneParam = searchParams.get('voiceClone');
+    const connectionIdParam = searchParams.get('connectionId');
     const error = searchParams.get('error');
     const errorDetail = searchParams.get('detail');
     const platformParam = searchParams.get('platform');
@@ -180,7 +272,20 @@ function ConnectPageContent() {
       // Clean up the URL params without re-navigation
       const url = new URL(window.location.href);
       url.searchParams.delete('connected');
+      url.searchParams.delete('voiceClone');
+      url.searchParams.delete('connectionId');
       window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
+
+      const isVoicePlatform = ['linkedin', 'x', 'instagram', 'threads', 'bluesky'].includes(
+        connectedPlatform.toLowerCase()
+      );
+      if ((voiceCloneParam === 'auto' || isVoicePlatform) && !hasTriggeredCloneRef.current) {
+        hasTriggeredCloneRef.current = true;
+        triggerVoiceClone({
+          platform: connectedPlatform.toLowerCase(),
+          connectionId: connectionIdParam || undefined,
+        });
+      }
     } else if (error) {
       const pName = platformParam
         ? platformParam === 'x'
@@ -224,7 +329,7 @@ function ConnectPageContent() {
     }
 
     loadConnections({ fresh: Boolean(connectedPlatform) });
-  }, [searchParams, loadConnections]);
+  }, [searchParams, loadConnections, triggerVoiceClone]);
 
   const handleNext = () => {
     router.push('/dashboard');
@@ -393,6 +498,122 @@ function ConnectPageContent() {
                 </div>
               </div>
             ))
+          )}
+
+          {/* Zero-Form Voice Clone Live Card */}
+          {(cloningVoice || clonedProfile?.voiceFingerprint) && (
+            <div className="w-full mt-4 rounded-xl border border-[#E5D7BF] bg-[#FFFDF9] p-4 shadow-sm animate-in fade-in duration-300">
+              {cloningVoice ? (
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-[#F5EFE2] border border-[#E5D7BF] flex items-center justify-center shrink-0 mt-0.5">
+                    <Loader2 className="w-4 h-4 text-[#A46728] animate-spin" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold text-[#231C16]">
+                      Cloning your writing voice in the background…
+                    </p>
+                    <p className="text-[12.5px] text-[#6E5A48] mt-0.5 leading-relaxed">
+                      Ingesting up to your top 20 historical posts to map your hook style, sentence cadence, and vocabulary — zero forms required.
+                    </p>
+                  </div>
+                </div>
+              ) : clonedProfile?.voiceFingerprint ? (
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EEF7F1] text-[#236B42] border border-[#B8DEC6]">
+                        <Sparkles className="w-3 h-3" />
+                        Voice Fingerprint Ready
+                      </span>
+                      <span className="text-[11.5px] text-zinc-500">
+                        {clonedProfile.voiceFingerprint.postsAnalyzed > 0
+                          ? `${clonedProfile.voiceFingerprint.postsAnalyzed} historical post${clonedProfile.voiceFingerprint.postsAnalyzed === 1 ? '' : 's'} analyzed`
+                          : 'Calibrated from connected profile'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[13px] text-[#3D2B1F] leading-relaxed">
+                    {clonedProfile.voiceFingerprint.voiceSummary}
+                  </p>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="px-2.5 py-0.5 rounded-md text-[11.5px] font-medium bg-[#F5EFE2] text-[#5C4315] border border-[#E5D7BF]">
+                      {clonedProfile.role}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-md text-[11.5px] font-medium bg-[#FAF7F2] text-[#3D2B1F] border border-[#E5D7BF]">
+                      Tone: {clonedProfile.tone}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-md text-[11.5px] font-medium bg-[#FAF7F2] text-[#3D2B1F] border border-[#E5D7BF]">
+                      Style: {clonedProfile.style}
+                    </span>
+                  </div>
+
+                  {clonedProfile.voiceFingerprint.postsAnalyzed < 3 && (
+                    <div className="pt-1">
+                      {!showSampleEnrich ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowSampleEnrich(true)}
+                          className="text-[12px] font-medium text-[#8A6726] hover:text-[#5C4315] underline underline-offset-2"
+                        >
+                          Want sharper precision? Paste 2–3 past posts (optional)
+                        </button>
+                      ) : (
+                        <div className="space-y-2 pt-1">
+                          <textarea
+                            value={sampleText}
+                            onChange={(e) => setSampleText(e.target.value)}
+                            rows={4}
+                            placeholder="Paste 2–3 of your favorite past LinkedIn/X/Instagram posts (separate posts with --- or a blank line)..."
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12.5px] text-zinc-800 focus:outline-none focus:border-[#C4A265]"
+                          />
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const samples = sampleText
+                                  .split(/\n\s*---+\s*\n|\n{3,}/)
+                                  .map((s) => s.trim())
+                                  .filter((s) => s.length >= 18);
+                                if (samples.length > 0) {
+                                  triggerVoiceClone({ samplePosts: samples, forceOverwrite: true });
+                                }
+                              }}
+                              disabled={sampleText.trim().length < 18}
+                              className="px-3 py-1.5 rounded-md bg-[#231C16] text-white text-[12px] font-semibold hover:bg-black disabled:opacity-50"
+                            >
+                              Sharpen Voice DNA
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowSampleEnrich(false)}
+                              className="px-2.5 py-1.5 text-[12px] text-zinc-500 hover:text-zinc-700"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="pt-1 flex items-center justify-between gap-2 border-t border-[#F0E8DA]">
+                    <span className="text-[11.5px] text-zinc-500">
+                      Your first Studio AI draft is pre-calibrated to your voice.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/dashboard/studio')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#231C16] hover:bg-black text-white text-[12.5px] font-semibold transition-colors"
+                    >
+                      <span>Write First Draft</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
       </div>

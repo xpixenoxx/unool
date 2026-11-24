@@ -505,8 +505,20 @@ export async function GET(request: NextRequest) {
       /* silent */
     }
 
-    // Build success redirect URL
-    const successUrl = buildRedirectUrl(request, returnUrl, { connected: platform });
+    // Build success redirect URL (signal zero-form voice cloning for text-first social channels)
+    const shouldTriggerVoiceClone =
+      platform === 'linkedin' ||
+      platform === 'x' ||
+      platform === 'instagram' ||
+      platform === 'threads' ||
+      platform === 'bluesky';
+
+    const successUrl = buildRedirectUrl(request, returnUrl, {
+      connected: platform,
+      ...(shouldTriggerVoiceClone
+        ? { voiceClone: 'auto', connectionId: savedConnection.id }
+        : {}),
+    });
 
     return clearOAuthCookies(NextResponse.redirect(successUrl), effectiveState, platform);
   } catch (error) {

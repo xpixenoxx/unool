@@ -13,7 +13,7 @@ async function getPublishData() {
 export default async function PublishPage({ searchParams }: { searchParams?: Promise<{ postId?: string }> }) {
   const params = searchParams ? await searchParams : {};
   if (!params?.postId) {
-    redirect('/dashboard/signal');
+    redirect('/dashboard/studio');
   }
 
   const data = await getPublishData();

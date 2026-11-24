@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import type { EnrichedSignalPost } from '@/lib/analytics/signalEngine';
+import { extractLeadHook } from '@/lib/analytics/postTelemetry';
 import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
 import { getDraftRedirect } from '@/app/dashboard/signal/types';
 
@@ -401,6 +402,15 @@ export function PostInspectorDrawer({
         {/* Cross-Module Actions Footer */}
         <div className="mt-auto pt-4 border-t border-[#E8E0D4] flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
+            {post.effectiveStatus === 'published' && (
+              <Link
+                href={`/dashboard/studio?hookStyle=${encodeURIComponent(post.hookType)}&winningHook=${encodeURIComponent(extractLeadHook(post.content))}&followUpPostId=${encodeURIComponent(post.id)}`}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#C8613D] text-white text-xs font-semibold hover:bg-[#B25332]"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Write follow-up using this winning hook</span>
+              </Link>
+            )}
             <Link
               href={`/dashboard/composer?repurposePostId=${post.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1A1612] text-white text-xs font-medium hover:bg-[#332C25]"

@@ -63,6 +63,12 @@ function formatPlatformLabel(raw: string | null): string {
   return PLATFORM_LABELS[key] || `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
 }
 
+function safeSearchParamsString(sp: { toString?: () => string } | null | undefined): string {
+  if (!sp || typeof sp.toString !== 'function') return '';
+  const str = sp.toString();
+  return str === '[object Object]' ? '' : str;
+}
+
 export interface SettingsClientProps {
   initialData: SettingsInitialData;
 }
@@ -117,7 +123,7 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
       lastRedirectedFromRef.current !== resolved.redirectedFrom
     ) {
       lastRedirectedFromRef.current = resolved.redirectedFrom;
-      const nextParams = new URLSearchParams(searchParams.toString());
+      const nextParams = new URLSearchParams(safeSearchParamsString(searchParams));
       nextParams.set('tab', resolved.section);
       router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
     } else if (!resolved.redirectedFrom) {
@@ -149,7 +155,7 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
 
     if (!connected && !error) return;
 
-    const queryKey = searchParams.toString();
+    const queryKey = safeSearchParamsString(searchParams) || `${connected || ''}:${error || ''}`;
     if (handledOAuthQueryRef.current === queryKey) return;
     handledOAuthQueryRef.current = queryKey;
 
@@ -193,7 +199,7 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
       toast.error(message, { duration: 6000 });
     }
 
-    const cleaned = new URLSearchParams(searchParams.toString());
+    const cleaned = new URLSearchParams(safeSearchParamsString(searchParams));
     cleaned.delete('connected');
     cleaned.delete('error');
     cleaned.delete('platform');
@@ -211,7 +217,7 @@ export default function SettingsClient({ initialData }: SettingsClientProps) {
   const handleInitialConnectHandled = useCallback(() => {
     setInitialConnectPlatform(null);
     if (!searchParams.get('connect')) return;
-    const cleaned = new URLSearchParams(searchParams.toString());
+    const cleaned = new URLSearchParams(safeSearchParamsString(searchParams));
     cleaned.delete('connect');
     const qs = cleaned.toString();
     router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });

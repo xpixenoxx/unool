@@ -163,7 +163,8 @@ export class ContentHumanizer {
    */
   static async humanizeWithAI(
     content: string,
-    platform?: PlatformType | null
+    platform?: PlatformType | null,
+    studioContext?: string | null
   ): Promise<HumanizeResult> {
     if (!content || !content.trim()) {
       return this.humanize(content, platform);
@@ -171,11 +172,12 @@ export class ContentHumanizer {
 
     const platformKey = platform || 'linkedin';
     const platformGuidance = getPlatformHumanizeGuidance(platformKey);
+    const hasClonedVoice = Boolean(studioContext && studioContext.trim());
 
     const prompt = `You are an elite copy editor and world-class content creator known for ruthless anti-AI humanization.
-Your task is to take this AI-generated draft and rewrite it so it sounds like it was written by a top 1% human practitioner and industry expert on ${platformKey.toUpperCase()} — NOT an AI.
+Your task is to take this AI-generated draft and rewrite it so it sounds like it was written by ${hasClonedVoice ? 'THIS EXACT CREATOR in their cloned personal voice' : `a top 1% human practitioner and industry expert on ${platformKey.toUpperCase()}`} — NOT an AI.
 
-## Strict Humanization Rules:
+${hasClonedVoice ? `## Creator Voice & Fingerprint (HIGHEST STYLE PRIORITY — match this author's rhythm, casing, emoji habit, and anti-patterns):\n${studioContext!.trim()}\n` : ''}## Strict Humanization Rules:
 1. REMOVE ALL AI TELLS AND SLOP:
    - Eliminate robotic bold bullet labels (e.g. "**Week 1:**", "**Step 2:**", "**Key Takeaway:**", "**1. Consistency:**"). Transform into natural, organic narrative flow.
    - Eliminate cliché motivational platitudes (e.g. "You just need to stay consistent", "In today's fast-paced digital landscape"). Replace with authentic, grounded practitioner insight.
