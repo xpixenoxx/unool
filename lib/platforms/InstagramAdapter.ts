@@ -84,31 +84,41 @@ export class InstagramAdapter implements PlatformAdapter {
         access_token: shortLivedToken,
       });
 
-      const longLivedResponse = await fetchWithRetry(
-        `https://graph.instagram.com/access_token?${longLivedParams.toString()}`,
-        {}
-      );
-
-      if (!longLivedResponse.ok) {
-        const error = await longLivedResponse.text();
-        logger.warn('Instagram long-lived token exchange failed, using short-lived token', { errorMessage: error });
-        // Fall back to short-lived token
-        return {
-          accessToken: shortLivedToken,
-          refreshToken: shortLivedToken,
-          expiresIn: shortLivedData.expires_in || 3600,
-          scope: shortLivedData.scope,
-        };
-      }
-
-      const longLivedData = await longLivedResponse.json();
-      
-      return {
-        accessToken: longLivedData.access_token,
-        refreshToken: longLivedData.access_token,
-        expiresIn: longLivedData.expires_in || 5184000,
+      const shortLivedFallback = {
+        accessToken: shortLivedToken,
+        refreshToken: shortLivedToken,
+        expiresIn: shortLivedData.expires_in || 3600,
         scope: shortLivedData.scope,
       };
+
+      try {
+        const longLivedResponse = await fetchWithRetry(
+          `https://graph.instagram.com/access_token?${longLivedParams.toString()}`,
+          {}
+        );
+
+        if (!longLivedResponse.ok) {
+          const error = await longLivedResponse.text();
+          logger.warn('Instagram long-lived token exchange failed, using short-lived token', { errorMessage: error });
+          return shortLivedFallback;
+        }
+
+        const longLivedData = await longLivedResponse.json();
+        return {
+          accessToken: longLivedData.access_token,
+          refreshToken: longLivedData.access_token,
+          expiresIn: longLivedData.expires_in || 5184000,
+          scope: shortLivedData.scope,
+        };
+      } catch (err) {
+        if (err instanceof TokenExpiredError) {
+          throw err;
+        }
+        logger.warn('Instagram long-lived token exchange threw error, using short-lived token', {
+          errorMessage: err instanceof Error ? err.message : String(err),
+        });
+        return shortLivedFallback;
+      }
     });
   }
 
@@ -141,26 +151,59 @@ export class InstagramAdapter implements PlatformAdapter {
 
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('instagram', async () => {
-      let profileResponse = await fetchWithRetry(
-        `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name,profile_picture_url,user_id,account_type`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
+      const encodedToken = encodeURIComponent(accessToken);
+      const headers = { Authorization: `Bearer ${accessToken}` };
+      let profileResponse: Response | null = null;
 
-      // If full field query fails (e.g. unknown field for personal/creator accounts), fallback to core fields
-      if (!profileResponse.ok) {
-        logger.warn('Instagram full profile fetch failed, falling back to core fields (id,username)');
-        profileResponse = await fetchWithRetry(
-          `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
+      try {
+        const fullRes = await fetchWithRetry(
+          `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username,name,profile_picture_url,user_id,account_type&access_token=${encodedToken}`,
+          { headers }
         );
+        if (fullRes.ok) {
+          profileResponse = fullRes;
+        } else {
+          logger.warn('Instagram full profile fetch failed, falling back to core fields (id,username)');
+        }
+      } catch (err) {
+        if (err instanceof TokenExpiredError) {
+          throw err;
+        }
+        logger.warn('Instagram full profile fetch threw error, falling back to core fields (id,username)', {
+          errorMessage: err instanceof Error ? err.message : String(err),
+        });
       }
 
-      if (!profileResponse.ok) {
-        if (profileResponse.status === 401 || profileResponse.status === 403) {
-          throw new TokenExpiredError('Token expired or invalid', 'instagram');
+      if (!profileResponse) {
+        try {
+          const fallbackRes = await fetchWithRetry(
+            `https://graph.instagram.com/${API_VERSIONS.instagram}/me?fields=id,username&access_token=${encodedToken}`,
+            { headers }
+          );
+          if (!fallbackRes.ok) {
+            if (fallbackRes.status === 401 || fallbackRes.status === 403) {
+              throw new TokenExpiredError('Token expired or invalid', 'instagram');
+            }
+            const error = await fallbackRes.text();
+            if (this.isMetaCode100UnsupportedGetError(error)) {
+              throw new Error(InstagramAdapter.META_CODE_100_GUIDANCE);
+            }
+            throw new Error(`Failed to fetch Instagram profile: ${error}`);
+          }
+          profileResponse = fallbackRes;
+        } catch (err) {
+          if (err instanceof TokenExpiredError) {
+            throw err;
+          }
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg === InstagramAdapter.META_CODE_100_GUIDANCE) {
+            throw err;
+          }
+          if (this.isMetaCode100UnsupportedGetError(msg)) {
+            throw new Error(InstagramAdapter.META_CODE_100_GUIDANCE);
+          }
+          throw err;
         }
-        const error = await profileResponse.text();
-        throw new Error(`Failed to fetch Instagram profile: ${error}`);
       }
 
       const profileData = await profileResponse.json();
@@ -175,6 +218,18 @@ export class InstagramAdapter implements PlatformAdapter {
         accountType: profileData.account_type || undefined,
       };
     });
+  }
+
+  private static readonly META_CODE_100_GUIDANCE =
+    'Instagram could not complete this connection (Meta API code 100). Make sure this Instagram account is a Professional (Creator or Business) account, all requested permissions were approved, and—if the Meta app is not yet approved for Advanced Access—this account has accepted an Instagram Tester invite.';
+
+  private isMetaCode100UnsupportedGetError(text: string): boolean {
+    return (
+      text.includes('IGApiException') &&
+      (text.includes('"code":100') ||
+        text.includes('"code": 100') ||
+        text.includes('Unsupported request - method type: get'))
+    );
   }
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {

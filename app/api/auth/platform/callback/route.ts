@@ -539,7 +539,7 @@ export async function GET(request: NextRequest) {
       workspaceId,
       state: effectiveState.slice(0, 8) + '...',
     });
-    const errorMsg = encodeURIComponent(errMsg.slice(0, 200) || 'unknown');
+    const errorMsg = (errMsg.slice(0, 300) || 'unknown').trim();
     return clearOAuthCookies(
       NextResponse.redirect(
         buildRedirectUrl(request, returnUrl, {
