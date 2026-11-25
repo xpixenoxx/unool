@@ -943,7 +943,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         }
         showToast(`${label} disconnected`);
         toast.success(`${label} disconnected`);
-        router.refresh();
       } else {
         const errBody = await res.json().catch(() => null);
         const msg = errBody?.error || 'Failed to disconnect';

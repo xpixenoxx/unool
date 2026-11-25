@@ -805,7 +805,6 @@ export function PlatformConnections({
           setManageAccountsTarget(null);
         }
         toast.success(`${targetLabel} disconnected`);
-        router.refresh();
       } else {
         const errBody = await res.json().catch(() => null);
         toast.error(errBody?.error || 'Failed to disconnect');

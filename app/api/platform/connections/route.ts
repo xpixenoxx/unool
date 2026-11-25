@@ -70,7 +70,12 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('workspace_id', auth.workspaceId);
 
-    debug.push(`ws:wid=${auth.workspaceId.slice(0, 8)}:count=${rows?.length || 0}:err=${rowsErr?.message || 'none'}`);
+    if (rowsErr) {
+      logger.error('Platform connections DB query failed', { traceId, workspaceId: auth.workspaceId, error: rowsErr });
+      return NextResponse.json({ error: 'Failed to fetch connections' }, { status: 500 });
+    }
+
+    debug.push(`ws:wid=${auth.workspaceId.slice(0, 8)}:count=${rows?.length || 0}:err=none`);
 
     // Compute scheduled post dependency counts per platform (best-effort)
     const dependencyCounts: Record<string, { scheduledPosts: number }> = {};
