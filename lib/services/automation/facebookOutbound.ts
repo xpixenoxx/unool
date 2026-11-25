@@ -157,7 +157,7 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
     return NextResponse.json({ error: errorMsg, deadLetter: true });
   }
 
-  const automation = new InstagramCommentAutomation(groqApiKey);
+  const automation = new InstagramCommentAutomation(groqApiKey, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b');
   const configuredLink = cfg.link_url ?? cfg.linkUrl ?? undefined;
   const maxRepliesPerHour = cfg.max_replies_per_hour ?? cfg.maxRepliesPerHour ?? 20;
   const dmMaxRepliesPerHour = cfg.dm_max_replies_per_hour ?? cfg.dmMaxRepliesPerHour ?? 20;

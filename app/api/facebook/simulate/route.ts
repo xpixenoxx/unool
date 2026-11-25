@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
+import { config } from '@/lib/config/schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
           linkUrl: resolvedLinkUrl,
         };
 
-    const automation = new InstagramCommentAutomation(groqApiKey);
+    const automation = new InstagramCommentAutomation(groqApiKey, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b');
     const result = await automation.classifyAndGenerateReply(
       {
         commentId: `sim_${Date.now()}`,

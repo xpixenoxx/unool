@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger';
 import { GroqProvider } from '@/lib/ai/providers/GroqProvider';
 import { fetchWithRetry } from '@/lib/utils/retry';
 import { API_VERSIONS, resolveInstagramApiHost } from '@/lib/platforms/apiVersions';
+import { config } from '@/lib/config/schema';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -289,8 +290,8 @@ export class InstagramCommentAutomation {
   private groq: GroqProvider;
   private fetchedUsernames = new Map<string, string>();
 
-  constructor(groqApiKey: string) {
-    this.groq = new GroqProvider(groqApiKey);
+  constructor(groqApiKey: string, model?: string) {
+    this.groq = new GroqProvider(groqApiKey, model || (config as any).AI_GROQ_MODEL || 'openai/gpt-oss-120b');
   }
 
   /**
@@ -401,7 +402,7 @@ Return ONLY valid JSON (no markdown, no explanation):
     });
 
     if (!result.ok) {
-      logger.error('Comment classification failed', { error: result.error, commentId: comment.commentId });
+      logger.error('Comment classification failed', { error: result.error instanceof Error ? result.error : new Error(result.error?.message || String(result.error)), commentId: comment.commentId });
       return {
         classification: 'unrelated',
         confidence: 0,
