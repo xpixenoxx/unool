@@ -676,29 +676,43 @@ export class FacebookAdapter implements PlatformAdapter {
         subscribed_fields: 'feed,messages',
         access_token: pageAccessToken,
       });
-      const response = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/${pageId}/subscribed_apps`,
-        { method: 'POST', body: params }
-      );
-      if (!response.ok) {
-        // Fallback: if 'messages' scope (pages_messaging) was not granted, still subscribe 'feed' for comment automation
-        const feedOnlyParams = new URLSearchParams({
-          subscribed_fields: 'feed',
-          access_token: pageAccessToken,
-        });
-        const feedResponse = await fetchWithRetry(
+
+      let fullSubscribed = false;
+      try {
+        const response = await fetchWithRetry(
           `${FACEBOOK_API_BASE}/${pageId}/subscribed_apps`,
-          { method: 'POST', body: feedOnlyParams }
+          { method: 'POST', body: params }
         );
-        if (!feedResponse.ok) {
-          const error = await feedResponse.text();
-          logger.error('Facebook page webhook subscription failed', { errorMessage: error, pageId });
-          throw new Error(`Page webhook subscription failed: ${error}`);
-        }
-        logger.info('Facebook page webhook subscribed (feed only)', { pageId });
+        fullSubscribed = Boolean(response.ok);
+      } catch (err) {
+        // fetchWithRetry throws AuthenticationError (403) / ValidationError (400) on non-2xx responses;
+        // fall through to subscribe 'feed' only when 'pages_messaging' is not granted.
+        logger.warn('Facebook page feed+messages subscription failed, falling back to feed only', {
+          pageId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      if (fullSubscribed) {
+        logger.info('Facebook page webhook subscribed', { pageId });
         return;
       }
-      logger.info('Facebook page webhook subscribed', { pageId });
+
+      // Fallback: if 'messages' scope (pages_messaging) was not granted, still subscribe 'feed' for comment automation
+      const feedOnlyParams = new URLSearchParams({
+        subscribed_fields: 'feed',
+        access_token: pageAccessToken,
+      });
+      const feedResponse = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${pageId}/subscribed_apps`,
+        { method: 'POST', body: feedOnlyParams }
+      );
+      if (!feedResponse.ok) {
+        const error = await feedResponse.text();
+        logger.error('Facebook page webhook subscription failed', { errorMessage: error, pageId });
+        throw new Error(`Page webhook subscription failed: ${error}`);
+      }
+      logger.info('Facebook page webhook subscribed (feed only)', { pageId });
     });
   }
 

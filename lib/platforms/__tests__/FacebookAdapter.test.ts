@@ -157,6 +157,46 @@ describe('FacebookAdapter', () => {
     expect(subscribedAppCalled).toBe(true);
   });
 
+  it('falls back to feed-only webhook subscription when pages_messaging returns 403', async () => {
+    const submittedFields: string[] = [];
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/page_777/subscribed_apps')) {
+        const bodyStr = init?.body ? String(init.body) : '';
+        const params = new URLSearchParams(bodyStr);
+        const fields = params.get('subscribed_fields') || '';
+        submittedFields.push(fields);
+
+        if (fields === 'feed,messages') {
+          return {
+            ok: false,
+            status: 403,
+            statusText: 'Forbidden',
+            text: async () => JSON.stringify({
+              error: {
+                message: '(#200) To subscribe to the messages field, one of these permissions is needed: pages_messaging',
+                type: 'OAuthException',
+                code: 200,
+              },
+            }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true }),
+          headers: new Headers(),
+        } as unknown as Response;
+      }
+      return { ok: false, status: 404 } as unknown as Response;
+    });
+
+    const adapter = new FacebookAdapter();
+    await adapter.subscribePageWebhook('page_token_777', 'page_777');
+    expect(submittedFields).toEqual(['feed,messages', 'feed']);
+  });
+
   it('publishes text post and resolves canonical permalink from Graph API', async () => {
     globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes('/me/accounts')) {
