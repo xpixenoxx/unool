@@ -42,6 +42,16 @@ vi.mock('@/lib/services/automation/facebookPageResolver', () => ({
   resolveFacebookAutomationTarget: (...args: unknown[]) => mockResolveTarget(...args),
 }));
 
+const mockResolveThreadsTarget = vi.fn().mockResolvedValue({
+  cfg: { workspace_id: 'ws_threads_1', threads_user_id: 'threads_owner_999', enabled: true },
+  connectionId: 'conn_th_1',
+  threadsUserId: 'threads_owner_999',
+  username: 'creator_handle',
+});
+vi.mock('@/lib/services/automation/threadsTargetResolver', () => ({
+  resolveThreadsAutomationTarget: (...args: unknown[]) => mockResolveThreadsTarget(...args),
+}));
+
 const mockFrom = vi.fn();
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
@@ -57,6 +67,12 @@ describe('Platform Webhooks Route (/api/webhooks/platform)', () => {
     mockResolveTarget.mockResolvedValue({
       cfg: { id: 'cfg_1', workspace_id: 'ws_123', page_id: '122106760341502479', enabled: true },
       connectionId: 'conn_fb_123',
+    });
+    mockResolveThreadsTarget.mockResolvedValue({
+      cfg: { workspace_id: 'ws_threads_1', threads_user_id: 'threads_owner_999', enabled: true },
+      connectionId: 'conn_th_1',
+      threadsUserId: 'threads_owner_999',
+      username: 'creator_handle',
     });
     mockEnqueue.mockResolvedValue('msg_123');
   });

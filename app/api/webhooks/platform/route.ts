@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { config } from '@/lib/config/schema';
 import { queueService, type FacebookOutboundJobParams, type ThreadsOutboundJobParams } from '@/lib/services/QueueService';
 import { resolveFacebookAutomationTarget } from '@/lib/services/automation/facebookPageResolver';
+import { resolveThreadsAutomationTarget } from '@/lib/services/automation/threadsTargetResolver';
 import { getHumanizedDelayMs } from '@/lib/services/automation/jitter';
 
 const platformRepository = new SupabasePlatformRepository();
@@ -367,50 +368,19 @@ async function processThreadsReplyEvent(
   }
 
   try {
-    // Load threads automation config by threadsUserId first, with fallback via platform_connections
-    let cfg: Record<string, any> | null = null;
-    if (threadsUserId) {
-      const { data } = await supabaseAdmin
-        .from('threads_automation_config')
-        .select('*')
-        .eq('threads_user_id', threadsUserId)
-        .eq('enabled', true)
-        .maybeSingle();
-      cfg = data;
+    // Resolve active workspace/config/connection (ranks newest updated_at when shared across workspaces)
+    const target = await resolveThreadsAutomationTarget(threadsUserId, rootOwnerUsername);
+    if (!target) {
+      logger.warn('Threads automation not configured or disabled for user', { threadsUserId, rootOwnerUsername });
+      return;
     }
+    const cfg = target.cfg;
+    const connectionId = target.connectionId;
+    const effectiveThreadsUserId = target.threadsUserId;
 
-    if (!cfg && (threadsUserId || rootOwnerUsername)) {
-      let connQuery = supabaseAdmin
-        .from('platform_connections')
-        .select('workspace_id, platform_user_id, username')
-        .eq('platform', 'threads')
-        .eq('status', 'connected');
-
-      if (threadsUserId && rootOwnerUsername) {
-        connQuery = connQuery.or(`platform_user_id.eq.${threadsUserId},username.eq.${rootOwnerUsername}`);
-      } else if (threadsUserId) {
-        connQuery = connQuery.eq('platform_user_id', threadsUserId);
-      } else if (rootOwnerUsername) {
-        connQuery = connQuery.eq('username', rootOwnerUsername);
-      }
-
-      const { data: conn } = await connQuery.limit(1).maybeSingle();
-      if (conn?.workspace_id) {
-        const { data: fallbackCfg } = await supabaseAdmin
-          .from('threads_automation_config')
-          .select('*')
-          .eq('workspace_id', conn.workspace_id)
-          .eq('enabled', true)
-          .maybeSingle();
-        cfg = fallbackCfg;
-        if (!threadsUserId && conn.platform_user_id) {
-          threadsUserId = conn.platform_user_id;
-        }
-      }
-    }
-
-    if (!cfg) {
-      logger.debug('Threads automation not configured or disabled for user', { threadsUserId, rootOwnerUsername });
+    // Guard self-reply against the connected account's own username
+    if (replierUsername && target.username && replierUsername.toLowerCase() === target.username.toLowerCase()) {
+      logger.debug('Threads webhook: skipping self-authored reply (matches connected username)', { replyId, replierUsername });
       return;
     }
 
@@ -425,30 +395,6 @@ async function processThreadsReplyEvent(
       logger.debug('Threads reply already processed (dedup)', { replyId });
       return;
     }
-
-    // Load platform connection
-    const { data: connections } = await supabaseAdmin
-      .from('platform_connections')
-      .select('id, platform_user_id, username')
-      .eq('workspace_id', cfg.workspace_id)
-      .eq('platform', 'threads')
-      .eq('status', 'connected')
-      .limit(1);
-
-    const connection = connections?.[0];
-    const connectionId = connection?.id;
-    if (!connectionId) {
-      logger.warn('No active Threads connection for workspace', { workspaceId: cfg.workspace_id });
-      return;
-    }
-
-    // Also guard self-reply against the connected account's own username
-    if (replierUsername && connection.username && replierUsername.toLowerCase() === connection.username.toLowerCase()) {
-      logger.debug('Threads webhook: skipping self-authored reply (matches connected username)', { replyId, replierUsername });
-      return;
-    }
-
-    const effectiveThreadsUserId = threadsUserId || connection.platform_user_id || cfg.threads_user_id;
 
     const jobParams: ThreadsOutboundJobParams = {
       jobId: `threads-${replyId}-${Date.now()}`,

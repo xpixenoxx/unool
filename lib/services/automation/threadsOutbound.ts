@@ -132,6 +132,9 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
 
   const automation = new InstagramCommentAutomation(groqApiKey, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b');
 
+  let pendingClassified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string; shouldFlagForReview?: boolean } | null = null;
+  let pendingFinalReply: string | null = null;
+
   try {
     if (!replyText) {
       logger.info('Threads reply event has no text — skipping', { replyId });
@@ -208,6 +211,8 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
     let finalReply = clampThreadsText(classified.suggestedReply);
     finalReply = ContentGuard.sanitizeOutput(finalReply);
     finalReply = clampThreadsText(finalReply);
+    pendingClassified = classified;
+    pendingFinalReply = finalReply;
 
     if (lexicalEntropyGuard.isTooSimilar(finalReply, recentReplies)) {
       const errorMsg = 'Generated reply too similar to recent replies — flagged for review';
@@ -228,6 +233,20 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
   } catch (jobErr) {
     const errorMsg = jobErr instanceof Error ? jobErr.message : String(jobErr);
     logger.error('Threads outbound job failed', { jobId, jobType, replyId, error: errorMsg });
+    if (pendingClassified) {
+      await upsertReplyLog(
+        workspaceId,
+        params,
+        {
+          ...pendingClassified,
+          shouldFlagForReview: true,
+          reasoning: `Reply delivery failed: ${errorMsg}`,
+        },
+        pendingFinalReply,
+        false,
+        'failed'
+      );
+    }
     if (currentRetry >= (existingJob?.max_retries || 3)) {
       await markDeadLetter(workspaceId, jobType, replyId, errorMsg, params);
     } else {
@@ -269,7 +288,8 @@ async function upsertReplyLog(
   params: ThreadsOutboundJobParams,
   classified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string; shouldFlagForReview?: boolean },
   finalReply: string | null,
-  autoReplied: boolean
+  autoReplied: boolean,
+  deliveryStatusOverride?: 'sent' | 'skipped' | 'failed'
 ) {
   const now = new Date().toISOString();
   const corePayload = {
@@ -285,7 +305,7 @@ async function upsertReplyLog(
     suggested_reply: finalReply || classified.suggestedReply || null,
     reasoning: classified.reasoning || null,
     auto_replied: autoReplied,
-    delivery_status: autoReplied ? 'sent' : 'skipped',
+    delivery_status: deliveryStatusOverride || (autoReplied ? 'sent' : 'skipped'),
     reply_sent_at: autoReplied ? now : null,
     created_at: now,
   };
