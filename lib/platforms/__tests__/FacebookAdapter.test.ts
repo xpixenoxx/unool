@@ -296,6 +296,31 @@ describe('FacebookAdapter', () => {
     expect(result.platformPostId).toBe('page_12345_9876543210');
     expect(result.platformUrl).toBe('https://www.facebook.com/page_12345/posts/9876543210');
   });
+
+  it('sends a Private Reply via /{pageId}/messages with recipient.comment_id', async () => {
+    let sentUrl = '';
+    let sentBody: Record<string, unknown> = {};
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      sentUrl = url;
+      sentBody = JSON.parse(String(init?.body || '{}'));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ recipient_id: 'psid_1', message_id: 'mid_priv_1' }),
+        headers: new Headers(),
+      } as unknown as Response;
+    });
+
+    const adapter = new FacebookAdapter();
+    const res = await adapter.sendPrivateReplyFromComment('page_tok_1', 'page_999', 'cmt_123', 'Here is your guide!');
+    expect(res.message_id).toBe('mid_priv_1');
+    expect(sentUrl).toContain('/page_999/messages');
+    expect(sentBody).toEqual({
+      recipient: { comment_id: 'cmt_123' },
+      message: { text: 'Here is your guide!' },
+      access_token: 'page_tok_1',
+    });
+  });
 });
 
 describe('OAuth State redirectUri persistence', () => {

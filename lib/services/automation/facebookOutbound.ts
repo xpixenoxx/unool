@@ -344,21 +344,41 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
       // Post public comment reply
       const replyResult = await facebookAdapter.postCommentReply(pageAccessToken, commentId, finalReply);
 
-      // Post private DM only if auto_reply_dm is enabled, shouldSendDM, and a delivery link exists
+      // Post private DM only if auto_reply_dm is enabled, shouldSendDM is true, and DM content or link exists
       let didSendDm = false;
-      if (autoReplyDm !== false && classified.shouldSendDM && activeLinkUrl) {
+      let dmErrorMessage: string | null = null;
+      if (autoReplyDm !== false && classified.shouldSendDM && (classified.suggestedDM || activeLinkUrl)) {
         try {
-          const dmMsg = classified.suggestedDM || `Here's the link: ${activeLinkUrl}`;
-          await facebookAdapter.sendPrivateReplyFromComment(pageAccessToken, pageId, commentId, ContentGuard.sanitizeOutput(dmMsg));
+          const dmMsg =
+            classified.suggestedDM ||
+            `Hey ${params.commenterName ? `@${params.commenterName}` : 'there'}! Here's the link: ${activeLinkUrl}`;
+          await facebookAdapter.sendPrivateReplyFromComment(
+            pageAccessToken,
+            pageId,
+            commentId,
+            ContentGuard.sanitizeOutput(dmMsg)
+          );
           didSendDm = true;
           logger.info('Facebook private reply from comment sent', { commentId });
         } catch (dmErr) {
-          logger.warn('Failed to send Facebook private reply from comment', { commentId, error: dmErr });
+          dmErrorMessage = formatDbError(dmErr);
+          logger.warn('Failed to send Facebook private reply from comment', {
+            commentId,
+            pageId,
+            errorMessage: dmErrorMessage,
+          });
         }
       }
 
+      const logClassified = dmErrorMessage
+        ? {
+            ...classified,
+            reasoning: `${classified.reasoning || ''} | Private DM failed: ${dmErrorMessage}`.replace(/^\s*\|\s*/, ''),
+          }
+        : classified;
+
       await markJobSent(workspaceId, jobType, targetId);
-      await upsertCommentLog(workspaceId, commentId, params, classified, finalReply, true, didSendDm);
+      await upsertCommentLog(workspaceId, commentId, params, logClassified, finalReply, true, didSendDm);
       await velocityThrottle.recordReply(`fb:${workspaceId}`);
       lexicalEntropyGuard.recordReply(`fb:${workspaceId}`, finalReply, params.postId);
 

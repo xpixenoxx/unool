@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatFacebookPostUrl } from '@/lib/platforms/facebookUrl';
+import BrandMaterialsSection from './BrandMaterialsSection';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -130,6 +131,11 @@ const SvgMail = () => (
     <path d="M1 4l7 5 7-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
+const SvgSparkle = () => (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+    <path d="M8 1l1.8 4.2L14 7l-4.2 1.8L8 13l-1.8-4.2L2 7l4.2-1.8L8 1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+  </svg>
+);
 
 // ─── Capsule Toggle ───────────────────────────────────────────────────────────
 function CapsuleToggle({
@@ -170,7 +176,7 @@ export default function FacebookAutomationClient({
   const [config, setConfig] = useState<FacebookAutomationConfig>(DEFAULT_CONFIG);
   const configRef = useRef<FacebookAutomationConfig>(DEFAULT_CONFIG);
   const [fbConnection, setFbConnection] = useState<{ status: 'connected' | 'not_connected' | 'expired'; username?: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'control' | 'simulator' | 'feed' | 'triage'>('control');
+  const [activeTab, setActiveTab] = useState<'control' | 'materials' | 'simulator' | 'feed' | 'triage'>('control');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncingWebhook, setSyncingWebhook] = useState(false);
@@ -219,6 +225,12 @@ export default function FacebookAutomationClient({
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
       const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['control', 'materials', 'simulator', 'feed', 'triage'].includes(tabParam)) {
+        setActiveTab(tabParam as 'control' | 'materials' | 'simulator' | 'feed' | 'triage');
+      } else if (params.get('newPostPage') === 'true') {
+        setActiveTab('materials');
+      }
       const connected = params.get('connected');
       const err = params.get('error');
       const detail = params.get('detail') || params.get('description');
@@ -470,6 +482,7 @@ export default function FacebookAutomationClient({
           <div className="un-tabs-bar">
             {[
               { id: 'control', label: 'Engine Controls', icon: <SvgGrid /> },
+              { id: 'materials', label: 'Brand & Materials', icon: <SvgSparkle /> },
               { id: 'simulator', label: 'Intent Lab', icon: <SvgPlay /> },
               { id: 'feed', label: 'Dispatch Ledger', icon: <SvgLedger />, badge: commentStats?.total },
               { id: 'triage', label: 'Triage Queue', icon: <SvgTriage />, badge: flaggedCount || undefined },
@@ -477,7 +490,7 @@ export default function FacebookAutomationClient({
               <button
                 key={tab.id}
                 className={`un-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id as 'control' | 'simulator' | 'feed' | 'triage')}
+                onClick={() => setActiveTab(tab.id as 'control' | 'materials' | 'simulator' | 'feed' | 'triage')}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -490,6 +503,19 @@ export default function FacebookAutomationClient({
 
       {/* ── Main Workspace Body ── */}
       <div className="un-body">
+
+        {/* ════ TAB: BRAND & PRODUCT MATERIALS HUB ════ */}
+        {activeTab === 'materials' && (
+          <BrandMaterialsSection
+            workspaceId={workspaceId}
+            userId={userId || ''}
+            platform="facebook"
+            currentLinkUrl={config.linkUrl}
+            onLinkCreated={(url) => {
+              updateConfig({ linkUrl: url });
+            }}
+          />
+        )}
 
         {/* ════ TAB 1: ENGINE CONTROLS ════ */}
         {activeTab === 'control' && (

@@ -752,7 +752,6 @@ export class FacebookAdapter implements PlatformAdapter {
       const body = JSON.stringify({
         recipient: { comment_id: commentId },
         message: { text: message },
-        messaging_type: 'RESPONSE',
         access_token: pageAccessToken,
       });
       const response = await fetchWithRetry(

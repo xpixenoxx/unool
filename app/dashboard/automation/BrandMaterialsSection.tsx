@@ -80,7 +80,14 @@ interface BrandMaterialsSectionProps {
   userId: string;
   onLinkCreated?: (url: string) => void;
   currentLinkUrl?: string | null;
+  platform?: 'instagram' | 'facebook';
 }
+
+const FacebookGlyph = ({ size = 16, style }: { size?: number; style?: React.CSSProperties }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={style} aria-hidden="true">
+    <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
+  </svg>
+);
 
 // Clean helper for masking Cloudflare URLs
 export function maskCloudflareUrl(url?: string | null): string {
@@ -111,7 +118,16 @@ export default function BrandMaterialsSection({
   userId,
   onLinkCreated,
   currentLinkUrl,
+  platform = 'instagram',
 }: BrandMaterialsSectionProps) {
+  const isFacebook = platform === 'facebook';
+  const platformLabel = isFacebook ? 'Facebook' : 'Instagram';
+  const accentHex = isFacebook ? '#1877F2' : '#E1306C';
+  const accentBg = isFacebook ? '#EFF6FF' : '#FDF2F8';
+  const accentBorder = isFacebook ? '#BFDBFE' : '#FBCFE8';
+  const postsApiPath = isFacebook ? '/api/facebook/posts' : '/api/instagram/posts';
+  const renderPlatformIcon = (size: number, style?: React.CSSProperties) =>
+    isFacebook ? <FacebookGlyph size={size} style={style} /> : <Instagram size={size} style={style} />;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -167,12 +183,12 @@ export default function BrandMaterialsSection({
   const activeItemQuery = getItemQueryParam(firstMaterial);
   const livePageUrl = `https://${subdomain}.unool.co/${internalSlug && internalSlug !== 'showcase' ? internalSlug : (activeItemQuery ? `?${activeItemQuery}` : '')}`;
 
-  // Load published Instagram posts from Meta Graph API & UNOOL records
+  // Load published platform posts from Meta Graph API & UNOOL records
   const loadInstagramPosts = async () => {
     if (!workspaceId) return;
     setLoadingPosts(true);
     try {
-      const res = await fetch(`/api/instagram/posts?workspaceId=${workspaceId}`);
+      const res = await fetch(`${postsApiPath}?workspaceId=${workspaceId}`);
       if (res.ok) {
         const data = await res.json();
         setIsInstagramConnected(!!data.connected);
@@ -182,7 +198,7 @@ export default function BrandMaterialsSection({
         }
       }
     } catch (err) {
-      console.error('Failed to load Instagram posts:', err);
+      console.error(`Failed to load ${platformLabel} posts:`, err);
     } finally {
       setLoadingPosts(false);
     }
@@ -312,14 +328,21 @@ export default function BrandMaterialsSection({
     }
   };
 
-  // Manually link an Instagram post via URL or Media ID
+  // Manually link a platform post via URL or Post/Media ID
   const handleAddManualPost = () => {
     const trimmed = manualPostUrl.trim();
     if (!trimmed) return;
     let identifier = trimmed;
-    const urlMatch = trimmed.match(/\/p\/([a-zA-Z0-9_-]+)/);
-    if (urlMatch && urlMatch[1]) {
-      identifier = urlMatch[1];
+    if (isFacebook) {
+      const fbPostMatch = trimmed.match(/\/posts\/([a-zA-Z0-9_-]+)/);
+      const fbFbidMatch = trimmed.match(/[?&]story_fbid=([a-zA-Z0-9_-]+)/);
+      if (fbPostMatch?.[1]) identifier = fbPostMatch[1];
+      else if (fbFbidMatch?.[1]) identifier = fbFbidMatch[1];
+    } else {
+      const urlMatch = trimmed.match(/\/p\/([a-zA-Z0-9_-]+)/);
+      if (urlMatch && urlMatch[1]) {
+        identifier = urlMatch[1];
+      }
     }
     if (!linkedPostIds.includes(identifier)) {
       setLinkedPostIds(prev => [identifier, ...prev]);
@@ -328,9 +351,13 @@ export default function BrandMaterialsSection({
           {
             id: identifier,
             caption: trimmed.startsWith('http') ? `Direct Link: ${trimmed}` : `Post ID: ${identifier}`,
-            permalink: trimmed.startsWith('http') ? trimmed : `https://www.instagram.com/p/${identifier}/`,
+            permalink: trimmed.startsWith('http')
+              ? trimmed
+              : isFacebook
+              ? `https://www.facebook.com/${identifier}`
+              : `https://www.instagram.com/p/${identifier}/`,
             timestamp: new Date().toISOString(),
-            media_type: 'IMAGE',
+            media_type: isFacebook ? 'POST' : 'IMAGE',
           },
           ...prev,
         ]);
@@ -354,6 +381,7 @@ export default function BrandMaterialsSection({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           workspaceId,
+          platform,
           slug: slugToUse,
           title: title.trim() || 'Brand Materials',
           tagline: tagline.trim(),
@@ -371,10 +399,10 @@ export default function BrandMaterialsSection({
       if (res.ok) {
         const data = await res.json();
         if (data.pages) setPages(data.pages);
-        setPostLinkSavedToast(`✓ Saved: ${linkedPostIds.length} Instagram post(s) linked to this page!`);
+        setPostLinkSavedToast(`✓ Saved: ${linkedPostIds.length} ${platformLabel} post(s) linked to this page!`);
         setTimeout(() => setPostLinkSavedToast(null), 3500);
       } else {
-        alert('Failed to save Instagram post connections.');
+        alert(`Failed to save ${platformLabel} post connections.`);
       }
     } catch (err) {
       console.error('Error saving post links:', err);
@@ -692,6 +720,7 @@ export default function BrandMaterialsSection({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           workspaceId,
+          platform,
           slug: slugToUse,
           title: title.trim() || 'Brand Materials',
           tagline: tagline.trim(),
@@ -900,7 +929,7 @@ export default function BrandMaterialsSection({
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#DF5B4C', background: '#FDF2F0', padding: '3px 10px', borderRadius: 8 }}>
               Brand &amp; Product Showcase
             </span>
-            <span style={{ fontSize: 12, color: '#8B7355', fontWeight: 500 }}>Auto-Dispatched on Instagram DM &amp; Comments</span>
+            <span style={{ fontSize: 12, color: '#8B7355', fontWeight: 500 }}>Auto-Dispatched on {platformLabel} DM &amp; Comments</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
             <h2 className="un-editorial-font" style={{ fontSize: 21, fontWeight: 700, color: '#3D2B1F', margin: 0, wordBreak: 'break-all' }}>
@@ -1584,22 +1613,22 @@ export default function BrandMaterialsSection({
             )}
           </div>
 
-      {/* ── Connect to Published Instagram Posts ── */}
-      <div className="un-card" style={{ border: linkedPostIds.length > 0 ? '1.5px solid #FBCFE8' : undefined }}>
+      {/* ── Connect to Published Platform Posts ── */}
+      <div className="un-card" style={{ border: linkedPostIds.length > 0 ? `1.5px solid ${accentBorder}` : undefined }}>
         <div className="un-card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
           <div className="un-card-title">
             <div
               className="un-card-title-icon"
               style={{
-                background: 'linear-gradient(135deg, #FDF2F8 0%, #FFF1F2 100%)',
-                color: '#E1306C',
-                border: '1px solid #FCE7F3'
+                background: accentBg,
+                color: accentHex,
+                border: `1px solid ${accentBorder}`
               }}
             >
-              <Instagram size={17} />
+              {renderPlatformIcon(17)}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span>Connect to Published Instagram Posts</span>
+              <span>Connect to Published {platformLabel} Posts</span>
               {isInstagramConnected ? (
                 <span
                   style={{
@@ -1616,7 +1645,7 @@ export default function BrandMaterialsSection({
                   }}
                 >
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} />
-                  @{instagramUsername || 'instagram'} Connected
+                  {isFacebook ? (instagramUsername || 'Facebook Page') : `@${instagramUsername || 'instagram'}`} Connected
                 </span>
               ) : (
                 <a
@@ -1624,7 +1653,7 @@ export default function BrandMaterialsSection({
                   className="un-btn"
                   style={{ fontSize: 11, padding: '3px 8px', color: '#8B7355', textDecoration: 'none' }}
                 >
-                  Connect Instagram
+                  Connect {platformLabel}
                 </a>
               )}
             </div>
@@ -1649,7 +1678,7 @@ export default function BrandMaterialsSection({
               onClick={loadInstagramPosts}
               className="un-btn"
               style={{ padding: '5px 9px', fontSize: 11.5 }}
-              title="Refresh published posts from Instagram"
+              title={`Refresh published posts from ${platformLabel}`}
             >
               <RotateCw size={13} className={loadingPosts ? 'animate-spin' : ''} />
             </button>
@@ -1658,7 +1687,7 @@ export default function BrandMaterialsSection({
               onClick={handleSavePostLinksOnly}
               disabled={savingPostLinks}
               className="un-btn un-btn-primary"
-              style={{ fontSize: 11.5, padding: '5px 14px', background: '#E1306C', borderColor: '#E1306C' }}
+              style={{ fontSize: 11.5, padding: '5px 14px', background: accentHex, borderColor: accentHex }}
             >
               {savingPostLinks ? (
                 <>
@@ -1676,7 +1705,7 @@ export default function BrandMaterialsSection({
         </div>
 
         <p style={{ fontSize: 13, color: '#8B7355', margin: '0 0 16px', lineHeight: 1.5 }}>
-          Link this brand page (<strong>{title || activePageSlug}</strong>) to one, many, or all of your published Instagram posts.
+          Link this brand page (<strong>{title || activePageSlug}</strong>) to one, many, or all of your published {platformLabel} posts.
           Whenever audience members comment on these posts, UNOOL&apos;s automation will instantly reply and DM this specific brand page URL (
           <code style={{ fontSize: 11.5, background: '#F5EFE2', padding: '1px 5px', borderRadius: 4, color: '#3D2B1F' }}>
             {livePageUrl}
@@ -1736,7 +1765,7 @@ export default function BrandMaterialsSection({
           <div style={{ display: 'flex', gap: 6, flex: '1 1 300px' }}>
             <input
               type="text"
-              placeholder="Paste Instagram post URL or Media ID (e.g. instagram.com/p/...)"
+              placeholder={isFacebook ? 'Paste Facebook post URL or Post ID (e.g. facebook.com/.../posts/...)' : 'Paste Instagram post URL or Media ID (e.g. instagram.com/p/...)'}
               value={manualPostUrl}
               onChange={e => setManualPostUrl(e.target.value)}
               onKeyDown={e => {
@@ -1776,8 +1805,8 @@ export default function BrandMaterialsSection({
               gap: 10,
             }}
           >
-            <Loader2 className="animate-spin" size={18} style={{ color: '#E1306C' }} />
-            <span>Loading your published Instagram posts...</span>
+            <Loader2 className="animate-spin" size={18} style={{ color: accentHex }} />
+            <span>Loading your published {platformLabel} posts...</span>
           </div>
         ) : publishedPosts.length === 0 ? (
           <div
@@ -1796,23 +1825,23 @@ export default function BrandMaterialsSection({
                 width: 44,
                 height: 44,
                 borderRadius: '50%',
-                background: '#FDF2F8',
-                color: '#E1306C',
+                background: accentBg,
+                color: accentHex,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 10px',
               }}
             >
-              <Instagram size={22} />
+              {renderPlatformIcon(22)}
             </div>
             <div style={{ fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>
-              {isInstagramConnected ? 'No published posts found yet' : 'Instagram account not connected'}
+              {isInstagramConnected ? 'No published posts found yet' : `${platformLabel} account not connected`}
             </div>
             <p style={{ margin: '0 auto 12px', maxWidth: 440, fontSize: 12.5, lineHeight: 1.45 }}>
               {isInstagramConnected
-                ? 'When you publish posts on Instagram or via UNOOL Composer, they will automatically appear here. You can also paste any Instagram post link in the box above to link it directly.'
-                : 'Connect your Instagram account in Settings to automatically sync your posts, or paste any Instagram post URL above to link it immediately.'}
+                ? `When you publish posts on ${platformLabel} or via UNOOL Composer, they will automatically appear here. You can also paste any ${platformLabel} post link in the box above to link it directly.`
+                : `Connect your ${platformLabel} account in Settings to automatically sync your posts, or paste any ${platformLabel} post URL above to link it immediately.`}
             </p>
             {!isInstagramConnected && (
               <a
@@ -1820,7 +1849,7 @@ export default function BrandMaterialsSection({
                 className="un-btn un-btn-primary"
                 style={{ fontSize: 12, padding: '6px 14px', textDecoration: 'none', display: 'inline-flex' }}
               >
-                Connect Instagram Account
+                Connect {platformLabel} Account
               </a>
             )}
           </div>
@@ -1854,15 +1883,15 @@ export default function BrandMaterialsSection({
                       <div
                         key={post.id}
                         style={{
-                          background: isLinked ? '#FFF9FB' : '#FFFFFF',
-                          border: isLinked ? '2px solid #E1306C' : '1.5px solid #E8E0D4',
+                          background: isLinked ? (isFacebook ? '#F4F9FF' : '#FFF9FB') : '#FFFFFF',
+                          border: isLinked ? `2px solid ${accentHex}` : '1.5px solid #E8E0D4',
                           borderRadius: 14,
                           padding: '12px 14px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
                           gap: 10,
-                          boxShadow: isLinked ? '0 4px 14px rgba(225,48,108,0.12)' : '0 1px 3px rgba(61,43,31,0.02)',
+                          boxShadow: isLinked ? (isFacebook ? '0 4px 14px rgba(24,119,242,0.12)' : '0 4px 14px rgba(225,48,108,0.12)') : '0 1px 3px rgba(61,43,31,0.02)',
                           transition: 'all 0.2s ease',
                         }}
                       >
@@ -1878,8 +1907,8 @@ export default function BrandMaterialsSection({
                                   letterSpacing: '0.04em',
                                   padding: '2px 7px',
                                   borderRadius: 5,
-                                  background: isLinked ? '#FDF2F8' : '#F5EFE2',
-                                  color: isLinked ? '#E1306C' : '#8B7355',
+                                  background: isLinked ? accentBg : '#F5EFE2',
+                                  color: isLinked ? accentHex : '#8B7355',
                                 }}
                               >
                                 {post.media_type || 'POST'}
@@ -1898,7 +1927,7 @@ export default function BrandMaterialsSection({
                                 rel="noopener noreferrer"
                                 className="un-btn"
                                 style={{ padding: '3px 7px', fontSize: 11, background: '#FAF8F5' }}
-                                title="Open post on Instagram"
+                                title={`Open post on ${platformLabel}`}
                               >
                                 <ExternalLink size={12} />
                               </a>
@@ -1928,7 +1957,7 @@ export default function BrandMaterialsSection({
                                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                               ) : (
-                                <Instagram size={22} style={{ color: '#C4A265' }} />
+                                renderPlatformIcon(22, { color: '#C4A265' })
                               )}
                             </div>
 
@@ -2008,13 +2037,13 @@ export default function BrandMaterialsSection({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Instagram size={14} style={{ color: '#E1306C' }} />
+                    {renderPlatformIcon(14, { color: accentHex })}
                     <span style={{ fontWeight: 600, color: '#3D2B1F' }}>
                       {linkedPostIds.length} of {publishedPosts.length} post(s) linked to this page.
                     </span>
                   </div>
                   <span>
-                    Audience commenting on linked posts will automatically receive this page via SignalDM.
+                    Audience commenting on linked posts will automatically receive this page via {isFacebook ? 'SignalFB' : 'SignalDM'}.
                   </span>
                 </div>
               </>
@@ -2044,7 +2073,7 @@ export default function BrandMaterialsSection({
         </div>
 
         <p style={{ fontSize: 13, color: '#8B7355', margin: '0 0 16px' }}>
-          Every post, product drop, or lookbook can have its own dedicated page. Audience members who interact with your Instagram posts will automatically receive the matching link via SignalDM.
+          Every post, product drop, or lookbook can have its own dedicated page. Audience members who interact with your {platformLabel} posts will automatically receive the matching link via {isFacebook ? 'SignalFB' : 'SignalDM'}.
         </p>
 
         {pages.length === 0 ? (
@@ -2103,16 +2132,16 @@ export default function BrandMaterialsSection({
                       </a>
                     </div>
 
-                    {/* Instagram Linked Posts Count Pill */}
+                    {/* Platform Linked Posts Count Pill */}
                     {pLinkedCount > 0 ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#E1306C', fontWeight: 600, marginTop: 6 }}>
-                        <Instagram size={12} />
-                        <span>{pLinkedCount} Instagram post(s) linked</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: accentHex, fontWeight: 600, marginTop: 6 }}>
+                        {renderPlatformIcon(12)}
+                        <span>{pLinkedCount} {platformLabel} post(s) linked</span>
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#A89F91', marginTop: 6 }}>
-                        <Instagram size={12} />
-                        <span>Not linked to Instagram yet</span>
+                        {renderPlatformIcon(12)}
+                        <span>Not linked to {platformLabel} yet</span>
                       </div>
                     )}
                   </div>

@@ -505,6 +505,45 @@ describe('Facebook automation fixes', () => {
     expect((logUpsert?.data as any).reasoning).toContain('pages_read_user_content');
   });
 
+  it('records Private DM failure details in facebook_comment_logs when sendPrivateReplyFromComment throws', async () => {
+    mockClassifyAndGenerateReply.mockResolvedValueOnce({
+      classification: 'link_request',
+      confidence: 0.94,
+      suggestedReply: "I'll send the link to your Messenger inbox!",
+      suggestedDM: 'Here is the resource: https://creator.unool.co/kit',
+      threadHook: null,
+      leadScore: 2,
+      shouldAutoReply: true,
+      shouldSendDM: true,
+      shouldFlagForReview: false,
+      reasoning: 'User requested resource link',
+    });
+    mockSendPrivateReplyFromComment.mockRejectedValueOnce(
+      new Error('Permission denied (403): (#200) pages_messaging required')
+    );
+
+    const res = await processFacebookOutboundJob({
+      jobId: 'job_dm_fail_log',
+      jobType: 'comment_reply',
+      workspaceId: WS_ID,
+      connectionId: 'conn_1',
+      pageId: 'page_123',
+      commentId: 'cmt_dm_fail',
+      postId: 'post_dm_fail',
+      commentText: 'send me link',
+      commenterName: 'Tester',
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockPostCommentReply).toHaveBeenCalledTimes(1);
+    const logUpsert = supabaseCalls.find((c) => c.table === 'facebook_comment_logs' && c.op === 'upsert');
+    expect(logUpsert).toBeDefined();
+    expect((logUpsert?.data as any).auto_replied).toBe(true);
+    expect((logUpsert?.data as any).dm_sent).toBe(false);
+    expect((logUpsert?.data as any).reasoning).toContain('Private DM failed:');
+    expect((logUpsert?.data as any).reasoning).toContain('pages_messaging');
+  });
+
   it('skips processing when global admin automation kill-switch is off', async () => {
     mockIsAutomationEnabledServer.mockResolvedValueOnce(false);
     const res = await processFacebookOutboundJob({

@@ -346,20 +346,55 @@ export async function PUT(request: NextRequest) {
     }
     const cleanPageUrl = `https://${subdomain}.unool.co/`;
 
-    // When requested (or by default), update the Instagram automation canonical resource link
+    // When requested (or by default), update the active platform's automation canonical resource link
     // so any audience asking for links in DMs or comments receives this newly created page!
     if (updateAutomationLink) {
-      try {
-        await supabaseAdmin
-          .from('instagram_automation_config')
-          .update({
-            link_url: pageUrl,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('workspace_id', workspaceId);
-        logger.info('Updated Instagram automation link_url to brand page', { workspaceId, pageUrl });
-      } catch (linkErr) {
-        logger.warn('Failed to auto-update instagram_automation_config link_url', { error: linkErr });
+      const targetPlatform = body.platform === 'facebook' ? 'facebook' : 'instagram';
+      const nowIso = new Date().toISOString();
+      if (targetPlatform === 'facebook') {
+        try {
+          await supabaseAdmin
+            .from('facebook_automation_config')
+            .update({ link_url: pageUrl, updated_at: nowIso })
+            .eq('workspace_id', workspaceId);
+          const { data: wsRow } = await supabaseAdmin
+            .from('workspaces')
+            .select('settings')
+            .eq('id', workspaceId)
+            .maybeSingle();
+          const curSettings = (wsRow?.settings as Record<string, any>) || {};
+          if (curSettings.facebook_automation) {
+            await supabaseAdmin
+              .from('workspaces')
+              .update({
+                settings: {
+                  ...curSettings,
+                  facebook_automation: {
+                    ...curSettings.facebook_automation,
+                    link_url: pageUrl,
+                    updated_at: nowIso,
+                  },
+                },
+              })
+              .eq('id', workspaceId);
+          }
+          logger.info('Updated Facebook automation link_url to brand page', { workspaceId, pageUrl });
+        } catch (linkErr) {
+          logger.warn('Failed to auto-update facebook_automation_config link_url', { error: linkErr });
+        }
+      } else {
+        try {
+          await supabaseAdmin
+            .from('instagram_automation_config')
+            .update({
+              link_url: pageUrl,
+              updated_at: nowIso,
+            })
+            .eq('workspace_id', workspaceId);
+          logger.info('Updated Instagram automation link_url to brand page', { workspaceId, pageUrl });
+        } catch (linkErr) {
+          logger.warn('Failed to auto-update instagram_automation_config link_url', { error: linkErr });
+        }
       }
     }
 
