@@ -398,7 +398,7 @@ Return ONLY valid JSON (no markdown, no explanation):
 
     const result = await this.groq.generateObject(prompt, classificationSchema, {
       temperature: 0.65,
-      maxTokens: 600,
+      maxTokens: 2000,
     });
 
     if (!result.ok) {
@@ -608,11 +608,14 @@ Return ONLY valid JSON:
 
     const result = await this.groq.generateObject(prompt, dmClassificationSchema, {
       temperature: 0.75,
-      maxTokens: 400,
+      maxTokens: 1800,
     });
 
     if (!result.ok) {
-      logger.error('DM classification failed', { error: result.error, messageId: dm.messageId });
+      logger.error('DM classification failed', {
+        error: result.error instanceof Error ? result.error : new Error(result.error?.message || String(result.error)),
+        messageId: dm.messageId,
+      });
       return {
         classification: 'unrelated',
         confidence: 0,

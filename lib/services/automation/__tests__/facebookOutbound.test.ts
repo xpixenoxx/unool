@@ -17,6 +17,7 @@ const {
   const supabaseCalls: Array<{ table: string; op: string; data?: unknown; filters: Array<{ col: string; val: unknown }> }> = [];
   const dbState = {
     existingJob: null as any,
+    upsertErrors: [] as Array<{ table: string; error: any }>,
     fbConfig: {
       workspace_id: '11111111-1111-4111-8111-111111111111',
       page_id: 'page_123',
@@ -140,6 +141,11 @@ vi.mock('@/lib/supabase/admin', () => ({
         },
         upsert: (data: unknown) => {
           supabaseCalls.push({ table, op: 'upsert', data, filters: [...filters] });
+          const nextErr = dbState.upsertErrors.findIndex((e) => e.table === table);
+          if (nextErr >= 0) {
+            const [item] = dbState.upsertErrors.splice(nextErr, 1);
+            return Promise.resolve({ error: item.error });
+          }
           return Promise.resolve({ error: null });
         },
         insert: (data: unknown) => {
@@ -188,6 +194,7 @@ describe('Facebook automation fixes', () => {
     vi.clearAllMocks();
     supabaseCalls.length = 0;
     dbState.existingJob = null;
+    dbState.upsertErrors = [];
     dbState.fbConfig = {
       workspace_id: WS_ID,
       page_id: 'page_123',
@@ -424,6 +431,34 @@ describe('Facebook automation fixes', () => {
     expect(dmUpsert).toBeDefined();
     expect((dmUpsert?.data as any)?.updated_at).toBeUndefined();
     expect((dmUpsert?.data as any)?.auto_replied).toBe(true);
+  });
+
+  it('falls back to core columns in facebook_comment_logs when optional dm_sent/updated_at columns are missing', async () => {
+    dbState.upsertErrors = [
+      {
+        table: 'facebook_comment_logs',
+        error: { code: 'PGRST204', message: "Could not find the 'dm_sent' column of 'facebook_comment_logs' in the schema cache" },
+      },
+    ];
+
+    const res = await processFacebookOutboundJob({
+      jobId: 'job_schema_fallback',
+      jobType: 'comment_reply',
+      workspaceId: WS_ID,
+      connectionId: 'conn_1',
+      pageId: 'page_123',
+      commentId: 'cmt_schema_1',
+      postId: 'post_1',
+      commentText: 'How does pricing work?',
+    });
+
+    expect(res.status).toBe(200);
+    const commentUpserts = supabaseCalls.filter((c) => c.table === 'facebook_comment_logs' && c.op === 'upsert');
+    expect(commentUpserts).toHaveLength(2);
+    expect((commentUpserts[0].data as any).dm_sent).toBe(false);
+    expect((commentUpserts[1].data as any).dm_sent).toBeUndefined();
+    expect((commentUpserts[1].data as any).updated_at).toBeUndefined();
+    expect((commentUpserts[1].data as any).comment_id).toBe('cmt_schema_1');
   });
 
   it('skips processing when global admin automation kill-switch is off', async () => {

@@ -306,7 +306,14 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
       }
 
       if (!classified.shouldAutoReply || !classified.suggestedReply || classified.suggestedReply === 'SKIP') {
-        logger.info('Facebook AI: comment does not need auto-reply', { commentId, classification: classified.classification });
+        if (classified.reasoning?.startsWith('Classification failed:')) {
+          logger.error('Facebook AI classification failed — logging comment for review', {
+            commentId,
+            reasoning: classified.reasoning,
+          });
+        } else {
+          logger.info('Facebook AI: comment does not need auto-reply', { commentId, classification: classified.classification });
+        }
         await upsertCommentLog(workspaceId, commentId, params, classified, null, false);
         await markJobSent(workspaceId, jobType, targetId);
         return NextResponse.json({ success: true, action: 'skipped_by_policy' });
@@ -552,6 +559,16 @@ async function markDeadLetter(
   logger.error('Facebook outbound job dead-lettered', { workspaceId, jobType, targetId, reason });
 }
 
+function formatDbError(error: unknown): string {
+  if (!error) return 'Unknown error';
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object') {
+    const e = error as { message?: string; details?: string; code?: string };
+    return [e.code, e.message, e.details].filter(Boolean).join(': ') || JSON.stringify(error);
+  }
+  return String(error);
+}
+
 async function upsertDmLog(
   workspaceId: string,
   pageId: string,
@@ -586,7 +603,7 @@ async function upsertDmLog(
   }, { onConflict: 'message_id' });
 
   if (error) {
-    logger.warn('Failed to upsert facebook_dm_logs', { messageId, error });
+    logger.warn('Failed to upsert facebook_dm_logs', { messageId, errorMessage: formatDbError(error) });
   }
 }
 
@@ -600,7 +617,7 @@ async function upsertCommentLog(
   dmSent: boolean = false
 ) {
   const now = new Date().toISOString();
-  const { error } = await supabaseAdmin.from('facebook_comment_logs').upsert({
+  const corePayload = {
     workspace_id: workspaceId,
     page_id: params.pageId,
     comment_id: commentId,
@@ -613,16 +630,38 @@ async function upsertCommentLog(
     suggested_reply: finalReply || classified.suggestedReply || null,
     reasoning: classified.reasoning || null,
     auto_replied: autoReplied,
-    dm_sent: dmSent,
     delivery_status: autoReplied ? 'sent' : 'skipped',
     flagged_for_review: classified.shouldFlagForReview ?? false,
     reply_sent_at: autoReplied ? now : null,
     created_at: now,
-    updated_at: now,
-  }, { onConflict: 'comment_id' });
+  };
+
+  let { error } = await supabaseAdmin.from('facebook_comment_logs').upsert(
+    {
+      ...corePayload,
+      dm_sent: dmSent,
+      updated_at: now,
+    },
+    { onConflict: 'comment_id' }
+  );
+
+  // Resilient fallback if 20261113000003_fb_threads_schema_fixes.sql columns (dm_sent, updated_at) aren't applied yet
+  if (error && (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('column'))) {
+    logger.warn('facebook_comment_logs column mismatch, retrying upsert with core columns', {
+      commentId,
+      errorMessage: formatDbError(error),
+    });
+    const retry = await supabaseAdmin
+      .from('facebook_comment_logs')
+      .upsert(corePayload, { onConflict: 'comment_id' });
+    error = retry.error;
+  }
 
   if (error) {
-    logger.warn('Failed to upsert facebook_comment_logs', { commentId, error });
+    logger.error('Failed to upsert facebook_comment_logs', {
+      commentId,
+      errorMessage: formatDbError(error),
+    });
   }
 }
 

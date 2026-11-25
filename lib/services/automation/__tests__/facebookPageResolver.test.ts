@@ -108,6 +108,32 @@ describe('resolveFacebookAutomationTarget', () => {
     expect(r?.cfg.enabled).toBe(true);
   });
 
+  it('prefers the most recently updated workspace when multiple workspaces share a page_id', async () => {
+    tables = {
+      platform_connections: [
+        {
+          data: [
+            { id: 'c_new', workspace_id: 'ws_new', scopes: ['fb_page_id:P_SHARED'], updated_at: '2026-11-25T11:12:48Z' },
+            { id: 'c_old', workspace_id: 'ws_old', scopes: ['fb_page_id:P_SHARED'], updated_at: '2026-11-14T07:18:37Z' },
+          ],
+          error: null,
+        },
+      ],
+      facebook_automation_config: [
+        {
+          data: [
+            { id: 'cfg_old', workspace_id: 'ws_old', page_id: 'P_SHARED', enabled: true, updated_at: '2026-11-14T07:28:10Z' },
+            { id: 'cfg_new', workspace_id: 'ws_new', page_id: 'P_SHARED', enabled: true, updated_at: '2026-11-25T11:14:55Z' },
+          ],
+          error: null,
+        },
+      ],
+    };
+    const r = await resolveFacebookAutomationTarget('P_SHARED');
+    expect(r?.connectionId).toBe('c_new');
+    expect(r?.cfg.workspace_id).toBe('ws_new');
+  });
+
   it('returns null when no workspace owns the page', async () => {
     mockGetUserPages.mockResolvedValue([]);
     tables = {

@@ -130,7 +130,7 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
     return NextResponse.json({ error: errorMsg, deadLetter: true });
   }
 
-  const automation = new InstagramCommentAutomation(groqApiKey);
+  const automation = new InstagramCommentAutomation(groqApiKey, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b');
 
   try {
     if (!replyText) {
@@ -271,7 +271,8 @@ async function upsertReplyLog(
   finalReply: string | null,
   autoReplied: boolean
 ) {
-  await supabaseAdmin.from('threads_reply_logs').upsert({
+  const now = new Date().toISOString();
+  const corePayload = {
     workspace_id: workspaceId,
     threads_user_id: params.threadsUserId,
     reply_id: params.replyId,
@@ -285,9 +286,30 @@ async function upsertReplyLog(
     reasoning: classified.reasoning || null,
     auto_replied: autoReplied,
     delivery_status: autoReplied ? 'sent' : 'skipped',
-    flagged_for_review: classified.shouldFlagForReview ?? false,
-    reply_sent_at: autoReplied ? new Date().toISOString() : null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'reply_id' });
+    reply_sent_at: autoReplied ? now : null,
+    created_at: now,
+  };
+
+  let { error } = await supabaseAdmin.from('threads_reply_logs').upsert(
+    {
+      ...corePayload,
+      flagged_for_review: classified.shouldFlagForReview ?? false,
+      updated_at: now,
+    },
+    { onConflict: 'reply_id' }
+  );
+
+  if (error && (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('column'))) {
+    const retry = await supabaseAdmin
+      .from('threads_reply_logs')
+      .upsert(corePayload, { onConflict: 'reply_id' });
+    error = retry.error;
+  }
+
+  if (error) {
+    logger.error('Failed to upsert threads_reply_logs', {
+      replyId: params.replyId,
+      errorMessage: error.message || String(error),
+    });
+  }
 }

@@ -12,7 +12,7 @@ export interface FacebookAutomationTarget {
 const PLACEHOLDER_PAGE_IDS = new Set(['', 'default_page']);
 const MAX_LEGACY_SCAN = 25;
 
-type ConnRow = { id: string; workspace_id: string; scopes: string[] | null; access_token_encrypted?: string };
+type ConnRow = { id: string; workspace_id: string; scopes: string[] | null; updated_at?: string; access_token_encrypted?: string };
 
 /**
  * Connections created before page tagging existed have no `fb_page_id:<id>` scope.
@@ -60,47 +60,75 @@ export async function resolveFacebookAutomationTarget(pageId: string): Promise<F
   const tag = `fb_page_id:${pageId}`;
 
   // 1. Connections that own this page (newest first)
-  let { data: conns } = await supabaseAdmin
+  const { data: initialConns } = await supabaseAdmin
     .from('platform_connections')
-    .select('id, workspace_id, scopes')
+    .select('id, workspace_id, scopes, updated_at')
     .eq('platform', 'facebook')
     .eq('status', 'connected')
     .contains('scopes', [tag])
     .order('updated_at', { ascending: false })
     .limit(20);
 
+  let conns: ConnRow[] = (initialConns as ConnRow[] | null) || [];
+
   // 2. Fallback: legacy untagged connections — discover + tag lazily
-  if (!conns || conns.length === 0) {
+  if (conns.length === 0) {
     conns = await tagLegacyConnections(pageId);
   }
 
-  // 3. Config explicitly bound to this page (supports configs whose connection tag is missing)
+  // 3. Config explicitly bound to this page (newest updated_at first so active workspace wins when shared)
   const { data: exactCfgs } = await supabaseAdmin
     .from('facebook_automation_config')
     .select('*')
     .eq('page_id', pageId)
     .eq('enabled', true)
-    .limit(5);
+    .order('updated_at', { ascending: false })
+    .limit(20);
 
   const candidateWorkspaces = new Map<string, string>(); // workspaceId -> connectionId
+  const connRecency = new Map<string, number>(); // workspaceId -> timestamp ms
   for (const c of conns || []) {
-    if (!candidateWorkspaces.has(c.workspace_id)) candidateWorkspaces.set(c.workspace_id, c.id);
+    if (!candidateWorkspaces.has(c.workspace_id)) {
+      candidateWorkspaces.set(c.workspace_id, c.id);
+      const ts = c.updated_at ? Date.parse(c.updated_at) : 0;
+      connRecency.set(c.workspace_id, Number.isFinite(ts) ? ts : 0);
+    }
   }
 
-  for (const exact of exactCfgs || []) {
+  const exactMatches: Array<{ cfg: Record<string, any>; connectionId: string; recency: number; order: number }> = [];
+  for (let i = 0; i < (exactCfgs || []).length; i++) {
+    const exact = exactCfgs![i];
     let connectionId = candidateWorkspaces.get(exact.workspace_id);
     if (!connectionId) {
       const { data: wsConn } = await supabaseAdmin
         .from('platform_connections')
-        .select('id')
+        .select('id, updated_at')
         .eq('workspace_id', exact.workspace_id)
         .eq('platform', 'facebook')
         .eq('status', 'connected')
         .order('updated_at', { ascending: false })
         .limit(1);
       connectionId = wsConn?.[0]?.id;
+      if (connectionId && wsConn?.[0]?.updated_at) {
+        const ts = Date.parse(wsConn[0].updated_at);
+        if (Number.isFinite(ts)) connRecency.set(exact.workspace_id, ts);
+      }
     }
-    if (connectionId) return { cfg: exact, connectionId };
+    if (connectionId) {
+      const cfgTs = exact.updated_at ? Date.parse(exact.updated_at) : 0;
+      const connTs = connRecency.get(exact.workspace_id) || 0;
+      exactMatches.push({
+        cfg: exact,
+        connectionId,
+        recency: Math.max(Number.isFinite(cfgTs) ? cfgTs : 0, connTs),
+        order: i,
+      });
+    }
+  }
+
+  if (exactMatches.length > 0) {
+    exactMatches.sort((a, b) => (b.recency - a.recency) || (a.order - b.order));
+    return { cfg: exactMatches[0].cfg, connectionId: exactMatches[0].connectionId };
   }
 
   // 4. Enabled config in a workspace that owns this page; heal placeholder page_id

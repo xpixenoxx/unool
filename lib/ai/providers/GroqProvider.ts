@@ -14,7 +14,7 @@ export class GroqProvider implements AIProvider {
   private defaultModel: string;
   private baseUrl = 'https://api.groq.com/openai/v1';
 
-  constructor(apiKey: string, defaultModel: string = 'llama-3.3-70b-versatile') {
+  constructor(apiKey: string, defaultModel: string = 'openai/gpt-oss-120b') {
     this.apiKey = apiKey;
     const isOpenAiKey = Boolean(apiKey && apiKey.startsWith('sk-') && !apiKey.startsWith('gsk_'));
     if (isOpenAiKey) {
@@ -32,9 +32,14 @@ export class GroqProvider implements AIProvider {
     prompt: string,
     options?: GenerationOptions & { responseFormatJson?: boolean }
   ): Promise<Result<AIResponse, AIError>> {
-    const model = options?.model || this.defaultModel || 'llama-3.3-70b-versatile';
+    const model = options?.model || this.defaultModel || 'openai/gpt-oss-120b';
     const systemPrompt = options?.systemPrompt || '';
-    const maxTokens = options?.maxTokens || 4000;
+    const requestedMaxTokens = options?.maxTokens || 4000;
+    const isReasoningModel =
+      !this.baseUrl.includes('api.openai.com') &&
+      (model.includes('gpt-oss') || model.includes('qwen3') || model.includes('deepseek-r1'));
+    // Reasoning models consume internal reasoning tokens before generating output JSON/text.
+    const maxTokens = isReasoningModel ? Math.max(requestedMaxTokens, 2000) : requestedMaxTokens;
     const temperature = options?.temperature ?? 0.7;
 
     const requestBody: Record<string, unknown> = {
