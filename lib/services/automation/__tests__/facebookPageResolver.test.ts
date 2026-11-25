@@ -76,6 +76,38 @@ describe('resolveFacebookAutomationTarget', () => {
     );
   });
 
+  it('falls back to workspaces.settings.facebook_automation when dedicated table row is missing', async () => {
+    tables = {
+      platform_connections: [{ data: [{ id: 'c5', workspace_id: 'w5', scopes: ['fb_page_id:P5'] }], error: null }],
+      facebook_automation_config: [
+        { data: [], error: null }, // no exact page_id config
+        { data: [], error: null }, // no workspace row in dedicated table
+      ],
+      workspaces: [
+        {
+          data: [
+            {
+              settings: {
+                facebook_automation: {
+                  enabled: true,
+                  page_id: 'default_page',
+                  auto_reply_comments: true,
+                },
+              },
+            },
+          ],
+          error: null,
+        },
+      ],
+    };
+    const r = await resolveFacebookAutomationTarget('P5');
+    expect(r).not.toBeNull();
+    expect(r?.connectionId).toBe('c5');
+    expect(r?.cfg.workspace_id).toBe('w5');
+    expect(r?.cfg.page_id).toBe('P5');
+    expect(r?.cfg.enabled).toBe(true);
+  });
+
   it('returns null when no workspace owns the page', async () => {
     mockGetUserPages.mockResolvedValue([]);
     tables = {

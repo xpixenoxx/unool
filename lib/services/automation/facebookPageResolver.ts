@@ -112,16 +112,42 @@ export async function resolveFacebookAutomationTarget(pageId: string): Promise<F
       .eq('enabled', true)
       .limit(1);
     const cfg = cfgs?.[0];
-    if (!cfg) continue;
-
-    if (PLACEHOLDER_PAGE_IDS.has(cfg.page_id || '')) {
-      await supabaseAdmin
-        .from('facebook_automation_config')
-        .update({ page_id: pageId })
-        .eq('workspace_id', workspaceId);
-      cfg.page_id = pageId;
+    if (cfg) {
+      if (PLACEHOLDER_PAGE_IDS.has(cfg.page_id || '')) {
+        await supabaseAdmin
+          .from('facebook_automation_config')
+          .update({ page_id: pageId })
+          .eq('workspace_id', workspaceId);
+        cfg.page_id = pageId;
+      }
+      return { cfg, connectionId };
     }
-    return { cfg, connectionId };
+
+    // 5. Fallback: workspaces.settings.facebook_automation (mirrors PUT /api/facebook/automation & facebookOutbound.ts)
+    try {
+      const { data: wsRows } = await supabaseAdmin
+        .from('workspaces')
+        .select('settings')
+        .eq('id', workspaceId)
+        .limit(1);
+      const wsSettings = (wsRows?.[0]?.settings as Record<string, unknown> | undefined) || {};
+      const fbSettings = wsSettings.facebook_automation as Record<string, unknown> | undefined;
+      if (fbSettings && fbSettings.enabled === true) {
+        return {
+          cfg: {
+            ...fbSettings,
+            workspace_id: (fbSettings.workspace_id as string | undefined) || workspaceId,
+            page_id: PLACEHOLDER_PAGE_IDS.has(String(fbSettings.page_id || '')) ? pageId : String(fbSettings.page_id),
+          },
+          connectionId,
+        };
+      }
+    } catch (wsErr) {
+      logger.debug('Facebook workspace settings fallback lookup failed', {
+        workspaceId,
+        error: wsErr instanceof Error ? wsErr.message : String(wsErr),
+      });
+    }
   }
 
   return null;

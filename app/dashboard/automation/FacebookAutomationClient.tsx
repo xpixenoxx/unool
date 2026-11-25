@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatFacebookPostUrl } from '@/lib/platforms/facebookUrl';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -24,6 +24,8 @@ interface FacebookAutomationConfig {
   jitterMinSeconds: number;
   jitterMaxSeconds: number;
   pageId?: string;
+  pageName?: string;
+  disabledByAdmin?: boolean;
 }
 
 interface FacebookCommentLog {
@@ -134,16 +136,19 @@ function CapsuleToggle({
   checked,
   onChange,
   color = 'color-blue',
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   color?: string;
+  disabled?: boolean;
 }) {
   return (
-    <label className={`un-capsule-toggle ${color}`} style={{ cursor: 'pointer', flexShrink: 0 }}>
+    <label className={`un-capsule-toggle ${color}`} style={{ cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1, flexShrink: 0 }}>
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={e => onChange(e.target.checked)}
         style={{ display: 'none' }}
       />
@@ -163,10 +168,12 @@ export default function FacebookAutomationClient({
   userId?: string;
 }) {
   const [config, setConfig] = useState<FacebookAutomationConfig>(DEFAULT_CONFIG);
+  const configRef = useRef<FacebookAutomationConfig>(DEFAULT_CONFIG);
   const [fbConnection, setFbConnection] = useState<{ status: 'connected' | 'not_connected' | 'expired'; username?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'control' | 'simulator' | 'feed' | 'triage'>('control');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncingWebhook, setSyncingWebhook] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Feed & comments
@@ -198,7 +205,11 @@ export default function FacebookAutomationClient({
   };
 
   const updateConfig = (patch: Partial<FacebookAutomationConfig>) => {
-    setConfig(prev => ({ ...prev, ...patch }));
+    setConfig(prev => {
+      const next = { ...prev, ...patch };
+      configRef.current = next;
+      return next;
+    });
   };
 
   // ── Load Platform Connection Status and Handle OAuth Feedback ──
@@ -248,7 +259,9 @@ export default function FacebookAutomationClient({
       .then(r => r.json())
       .then(data => {
         if (data && !data.error) {
-          setConfig({ ...DEFAULT_CONFIG, ...data });
+          const merged = { ...DEFAULT_CONFIG, ...data };
+          configRef.current = merged;
+          setConfig(merged);
         }
       })
       .catch(() => { })
@@ -292,9 +305,17 @@ export default function FacebookAutomationClient({
 
   // ── Save Config ──
   const handleSave = async (overrides?: Partial<FacebookAutomationConfig>) => {
-    if (!workspaceId) return;
+    if (!workspaceId) {
+      showToast('Workspace not loaded yet. Please refresh and try again.', 'error');
+      return;
+    }
+    const previousConfig = configRef.current;
+    const nextConfig = overrides ? { ...previousConfig, ...overrides } : previousConfig;
+    configRef.current = nextConfig;
+    setConfig(nextConfig);
     setSaving(true);
-    const payload = { workspaceId, ...(overrides ? { ...config, ...overrides } : config) };
+
+    const payload = { workspaceId, ...nextConfig };
     try {
       const res = await fetch('/api/facebook/automation', {
         method: 'PUT',
@@ -303,16 +324,50 @@ export default function FacebookAutomationClient({
       });
       const data = await res.json().catch(() => null);
       if (res.ok) {
-        if (overrides) setConfig(prev => ({ ...prev, ...overrides }));
-        showToast('Facebook automation settings saved!', 'success');
+        if (data?.webhookError) {
+          showToast(`Saved, but Facebook Page webhook sync failed: ${data.webhookError}`, 'error');
+        } else if (data?.savedToTable === false) {
+          showToast('Saved to workspace fallback (dedicated table sync warning).', 'success');
+        } else {
+          showToast('Facebook automation settings saved!', 'success');
+        }
       } else {
+        // Rollback optimistic update so UI stays truthful to server state
+        configRef.current = previousConfig;
+        setConfig(previousConfig);
         const errorMsg = data?.error || data?.message || 'Failed to save settings';
         showToast(errorMsg, 'error');
       }
     } catch {
+      configRef.current = previousConfig;
+      setConfig(previousConfig);
       showToast('Error saving settings', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Sync Page Webhook Subscription ──
+  const handleSyncWebhook = async () => {
+    if (!workspaceId) return;
+    setSyncingWebhook(true);
+    try {
+      const res = await fetch('/api/facebook/automation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId, ...configRef.current, enabled: true }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.webhookSubscribed) {
+        updateConfig({ enabled: true });
+        showToast('Facebook Page webhook subscribed & active!', 'success');
+      } else {
+        showToast(data?.webhookError || data?.error || 'Could not subscribe Facebook Page webhook. Try reconnecting Facebook.', 'error');
+      }
+    } catch {
+      showToast('Failed to sync Facebook webhook', 'error');
+    } finally {
+      setSyncingWebhook(false);
     }
   };
 
@@ -387,10 +442,21 @@ export default function FacebookAutomationClient({
             {/* Status Jewel & Connection */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {fbConnection?.status === 'connected' ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 20, background: '#EFF6FF', border: '1px solid #BFDBFE', fontSize: 12.5, fontWeight: 600, color: '#1D4ED8' }}>
-                  <span className="un-pulse-dot" style={{ background: '#1877F2' }} />
-                  <span>@{fbConnection.username || 'facebook_page'}</span>
-                  <span style={{ color: '#1E40AF', opacity: 0.7, fontSize: 11 }}>Active API</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 20, background: '#EFF6FF', border: '1px solid #BFDBFE', fontSize: 12.5, fontWeight: 600, color: '#1D4ED8' }}>
+                    <span className="un-pulse-dot" style={{ background: '#1877F2' }} />
+                    <span>{config.pageName ? config.pageName : `@${fbConnection.username || 'facebook_page'}`}</span>
+                    <span style={{ color: '#1E40AF', opacity: 0.7, fontSize: 11 }}>Active API</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSyncWebhook}
+                    disabled={syncingWebhook || saving || Boolean(config.disabledByAdmin)}
+                    className="un-btn un-btn-secondary"
+                    style={{ padding: '6px 13px', fontSize: 12 }}
+                  >
+                    {syncingWebhook ? 'Syncing Webhook...' : 'Sync Webhook'}
+                  </button>
                 </div>
               ) : (
                 <a href={`/api/auth/platform/connect?platform=facebook&workspaceId=${workspaceId || ''}&userId=${userId || ''}&returnUrl=${encodeURIComponent('/dashboard/automation?platform=facebook')}`} className="un-btn un-btn-primary" style={{ padding: '6px 14px', fontSize: 12.5, background: '#1877F2' }}>
@@ -439,6 +505,13 @@ export default function FacebookAutomationClient({
               </div>
             )}
 
+            {/* Admin Disabled Banner */}
+            {config.disabledByAdmin && (
+              <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 16, padding: '14px 20px', marginBottom: 18, color: '#991B1B', fontSize: 13, fontWeight: 600 }}>
+                Automation features are currently disabled globally by an administrator.
+              </div>
+            )}
+
             {/* Master Hero Toggle */}
             <div className="un-master-hero">
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -462,15 +535,14 @@ export default function FacebookAutomationClient({
               <label
                 className="un-master-switch"
                 title={config.enabled ? 'Click to pause automation' : 'Click to activate automation'}
-                style={{ cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}
+                style={{ cursor: saving || config.disabledByAdmin ? 'wait' : 'pointer', opacity: saving || config.disabledByAdmin ? 0.6 : 1 }}
               >
                 <input
                   type="checkbox"
                   checked={config.enabled}
-                  disabled={saving}
+                  disabled={saving || Boolean(config.disabledByAdmin)}
                   onChange={e => {
                     const nextVal = e.target.checked;
-                    updateConfig({ enabled: nextVal });
                     handleSave({ enabled: nextVal });
                   }}
                 />
@@ -505,6 +577,7 @@ export default function FacebookAutomationClient({
                   </div>
 
                   {[
+                    { key: 'autoReplyComments', color: 'color-sapphire', label: 'Public Comment Auto-Replies', desc: 'Master switch for replying publicly to comments on your Facebook Page posts.' },
                     { key: 'autoReplyPositive', color: 'color-emerald', label: 'Praise & Community Delight', desc: 'Warm acknowledgments for testimonials, applause, and appreciation.' },
                     { key: 'autoReplyQuestions', color: 'color-sapphire', label: 'Direct Knowledge Queries', desc: 'Context-aware factual replies to product & technical questions.' },
                     { key: 'autoReplyLinkRequests', color: 'color-amethyst', label: 'Resource & Link Dispatch', desc: 'Public reply + optional private Messenger delivery for resource requests.' },
@@ -520,7 +593,8 @@ export default function FacebookAutomationClient({
                       </div>
                       <CapsuleToggle
                         checked={!!(config as unknown as Record<string, unknown>)[key]}
-                        onChange={v => { updateConfig({ [key]: v } as Partial<FacebookAutomationConfig>); handleSave({ [key]: v } as Partial<FacebookAutomationConfig>); }}
+                        disabled={saving || Boolean(config.disabledByAdmin)}
+                        onChange={v => { handleSave({ [key]: v } as Partial<FacebookAutomationConfig>); }}
                         color={color}
                       />
                     </div>
@@ -689,7 +763,8 @@ export default function FacebookAutomationClient({
                       </div>
                       <CapsuleToggle
                         checked={!!(config as unknown as Record<string, unknown>)[key]}
-                        onChange={v => { updateConfig({ [key]: v } as Partial<FacebookAutomationConfig>); handleSave({ [key]: v } as Partial<FacebookAutomationConfig>); }}
+                        disabled={saving || Boolean(config.disabledByAdmin)}
+                        onChange={v => { handleSave({ [key]: v } as Partial<FacebookAutomationConfig>); }}
                         color={color}
                       />
                     </div>

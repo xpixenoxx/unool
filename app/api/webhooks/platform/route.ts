@@ -531,7 +531,7 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
 
   // Skip self-authored comments (page replying to itself)
   if (commenterId === pageId) {
-    logger.debug('Facebook webhook: skipping self-authored comment', { commentId, pageId });
+    logger.info('Facebook webhook: skipping self-authored comment', { commentId, pageId });
     return;
   }
 
@@ -539,7 +539,7 @@ async function processFacebookCommentEvent(pageId: string, value: Record<string,
     // Resolve workspace/config/connection for this page (multi-account safe, self-healing for legacy connections)
     const target = await resolveFacebookAutomationTarget(pageId);
     if (!target) {
-      logger.debug('Facebook automation not configured or disabled for page', { pageId });
+      logger.warn('Facebook automation not configured or disabled for page', { pageId, commentId });
       return;
     }
     const cfg = target.cfg;

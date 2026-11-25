@@ -87,10 +87,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Resolve connected Facebook Page metadata (page_name / page_id) for UI clarity
+    let connectedPageName: string | undefined;
+    let connectedPageId: string | undefined;
+    try {
+      const { data: fbConnMeta } = await supabaseAdmin
+        .from('platform_connections')
+        .select('metadata, scopes')
+        .eq('workspace_id', workspaceId)
+        .eq('platform', 'facebook')
+        .eq('status', 'connected')
+        .limit(1)
+        .maybeSingle();
+      const meta = (fbConnMeta?.metadata as Record<string, unknown> | null) || {};
+      if (typeof meta.page_name === 'string' && meta.page_name.length > 0) {
+        connectedPageName = meta.page_name;
+      }
+      if (typeof meta.page_id === 'string' && meta.page_id.length > 0) {
+        connectedPageId = meta.page_id;
+      } else if (Array.isArray(fbConnMeta?.scopes)) {
+        const tag = (fbConnMeta.scopes as string[]).find((s) => typeof s === 'string' && s.startsWith('fb_page_id:'));
+        if (tag) connectedPageId = tag.slice('fb_page_id:'.length);
+      }
+    } catch {
+      // Non-fatal metadata lookup
+    }
+
     if (!configRow) {
       return NextResponse.json({
         ...DEFAULT_FACEBOOK_CONFIG,
         linkUrl: resolvedDefaultLink || null,
+        pageId: connectedPageId,
+        pageName: connectedPageName,
       });
     }
 
@@ -113,7 +141,8 @@ export async function GET(request: NextRequest) {
       dmMaxRepliesPerHour: configRow.dm_max_replies_per_hour ?? configRow.dmMaxRepliesPerHour ?? 20,
       jitterMinSeconds: configRow.jitter_min_seconds ?? configRow.jitterMinSeconds ?? 20,
       jitterMaxSeconds: configRow.jitter_max_seconds ?? configRow.jitterMaxSeconds ?? 90,
-      pageId: configRow.page_id || configRow.pageId,
+      pageId: (configRow.page_id && configRow.page_id !== 'default_page' ? configRow.page_id : undefined) || configRow.pageId || connectedPageId,
+      pageName: connectedPageName,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -302,12 +331,14 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Ensure Facebook page webhook is subscribed on Meta's servers when enabled
+    // Ensure Facebook page webhook(s) are subscribed on Meta's servers when enabled
+    let webhookSubscribed = false;
+    let webhookError: string | undefined;
     if (fullPayload.enabled) {
       try {
         const { data: conn } = await supabaseAdmin
           .from('platform_connections')
-          .select('access_token_encrypted, platform_user_id')
+          .select('access_token_encrypted, platform_user_id, scopes')
           .eq('workspace_id', workspaceId)
           .eq('platform', 'facebook')
           .eq('status', 'connected')
@@ -318,20 +349,52 @@ export async function PUT(request: NextRequest) {
           const { decryptToken } = await import('@/lib/crypto/encryption');
           const userToken = await decryptToken(conn.access_token_encrypted);
           const { facebookAdapter } = await import('@/lib/platforms/FacebookAdapter');
+
+          const connScopes = Array.isArray(conn.scopes) ? (conn.scopes as string[]) : [];
+          const taggedPageIds = connScopes
+            .filter((s) => typeof s === 'string' && s.startsWith('fb_page_id:'))
+            .map((s) => s.slice('fb_page_id:'.length))
+            .filter(Boolean);
+
           const targetPageId = String(pageId || '');
-          if (targetPageId && targetPageId !== 'default_page' && targetPageId !== conn.platform_user_id) {
-            const pageToken = await facebookAdapter.getPageAccessToken(userToken, targetPageId);
-            await facebookAdapter.subscribePageWebhook(pageToken, targetPageId);
-            logger.info('Facebook page webhook subscribed on config save', { pageId: targetPageId });
+          const pageIdsToSubscribe = Array.from(
+            new Set([
+              ...taggedPageIds,
+              ...(targetPageId && targetPageId !== 'default_page' && targetPageId !== conn.platform_user_id ? [targetPageId] : []),
+            ])
+          );
+
+          for (const pid of pageIdsToSubscribe) {
+            try {
+              const pageToken = await facebookAdapter.getPageAccessToken(userToken, pid);
+              await facebookAdapter.subscribePageWebhook(pageToken, pid);
+              webhookSubscribed = true;
+              logger.info('Facebook page webhook subscribed on config save', { pageId: pid });
+            } catch (pageSubErr) {
+              webhookError = pageSubErr instanceof Error ? pageSubErr.message : String(pageSubErr);
+              logger.warn('Failed to subscribe Facebook page webhook on config save', { error: webhookError, pageId: pid });
+            }
           }
         }
       } catch (subErr) {
+        webhookError = subErr instanceof Error ? subErr.message : String(subErr);
         logger.warn('Failed to ensure Facebook page webhook subscription on config save', { error: subErr, pageId });
       }
     }
 
-    logger.info('Facebook automation config saved successfully', { workspaceId, enabled: fullPayload.enabled, tableSaveSuccess });
-    return NextResponse.json({ success: true, data: fullPayload, savedToTable: tableSaveSuccess });
+    logger.info('Facebook automation config saved successfully', {
+      workspaceId,
+      enabled: fullPayload.enabled,
+      tableSaveSuccess,
+      webhookSubscribed,
+    });
+    return NextResponse.json({
+      success: true,
+      data: fullPayload,
+      savedToTable: tableSaveSuccess,
+      webhookSubscribed,
+      ...(webhookError ? { webhookError } : {}),
+    });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('PUT /api/facebook/automation error', { error: err });
