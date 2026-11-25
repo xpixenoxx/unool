@@ -167,6 +167,9 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
   const flagNegative = cfg.flag_negative ?? cfg.flagNegative ?? true;
   const flagSpam = cfg.flag_spam ?? cfg.flagSpam ?? true;
 
+  let pendingClassified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string; shouldFlagForReview?: boolean } | null = null;
+  let pendingFinalReply: string | null = null;
+
   try {
     // ════════════════════════════════════════════════════════════
     // COMMENT_REPLY flow
@@ -321,6 +324,8 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
 
       // Sanitize & entropy check
       const finalReply = ContentGuard.sanitizeOutput(classified.suggestedReply);
+      pendingClassified = classified;
+      pendingFinalReply = finalReply;
 
       if (lexicalEntropyGuard.isTooSimilar(finalReply, recentReplies)) {
         const errorMsg = 'Generated reply too similar to recent replies — flagged for review';
@@ -522,9 +527,35 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
     throw new Error(`Unknown jobType: ${jobType}`);
   } catch (jobErr) {
     const errorMsg = jobErr instanceof Error ? jobErr.message : String(jobErr);
-    logger.error('Facebook outbound job failed', { jobId, jobType, targetId, error: errorMsg });
-    if (currentRetry >= (existingJob?.max_retries || 3)) {
+    const isPermanentAuthOrPermissionError =
+      (jobErr instanceof Error && (jobErr.name === 'AuthenticationError' || jobErr.name === 'ValidationError')) ||
+      errorMsg.includes('OAuthException') ||
+      errorMsg.includes('Permission denied (403)');
+
+    logger.error('Facebook outbound job failed', { jobId, jobType, targetId, error: errorMsg, permanent: isPermanentAuthOrPermissionError });
+
+    if (jobType === 'comment_reply' && commentId && pendingClassified) {
+      await upsertCommentLog(
+        workspaceId,
+        commentId,
+        params,
+        {
+          ...pendingClassified,
+          shouldFlagForReview: true,
+          reasoning: `Reply delivery failed: ${errorMsg}`,
+        },
+        pendingFinalReply,
+        false,
+        false,
+        'failed'
+      );
+    }
+
+    if (isPermanentAuthOrPermissionError || currentRetry >= (existingJob?.max_retries || 3)) {
       await markDeadLetter(workspaceId, jobType, targetId, errorMsg, params);
+      if (isPermanentAuthOrPermissionError) {
+        return NextResponse.json({ error: errorMsg, deadLetter: true });
+      }
     } else {
       await supabaseAdmin.from('facebook_outbound_jobs')
         .update({ status: 'queued', last_error: errorMsg, updated_at: new Date().toISOString() })
@@ -614,7 +645,8 @@ async function upsertCommentLog(
   classified: { classification?: string; confidence?: number; reasoning?: string; suggestedReply?: string; shouldFlagForReview?: boolean },
   finalReply: string | null,
   autoReplied: boolean,
-  dmSent: boolean = false
+  dmSent: boolean = false,
+  deliveryStatusOverride?: 'sent' | 'skipped' | 'failed'
 ) {
   const now = new Date().toISOString();
   const corePayload = {
@@ -630,7 +662,7 @@ async function upsertCommentLog(
     suggested_reply: finalReply || classified.suggestedReply || null,
     reasoning: classified.reasoning || null,
     auto_replied: autoReplied,
-    delivery_status: autoReplied ? 'sent' : 'skipped',
+    delivery_status: deliveryStatusOverride || (autoReplied ? 'sent' : 'skipped'),
     flagged_for_review: classified.shouldFlagForReview ?? false,
     reply_sent_at: autoReplied ? now : null,
     created_at: now,

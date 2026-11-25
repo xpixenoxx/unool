@@ -461,6 +461,50 @@ describe('Facebook automation fixes', () => {
     expect((commentUpserts[1].data as any).comment_id).toBe('cmt_schema_1');
   });
 
+  it('logs comment as failed/flagged in facebook_comment_logs and dead-letters immediately on Meta 403 permission error', async () => {
+    mockClassifyAndGenerateReply.mockResolvedValueOnce({
+      classification: 'purchase_intent',
+      confidence: 0.99,
+      suggestedReply: 'Sending our pricing guide to your inbox now!',
+      suggestedDM: 'https://creator.unool.co/kit',
+      threadHook: null,
+      leadScore: 2,
+      shouldAutoReply: true,
+      shouldSendDM: true,
+      shouldFlagForReview: false,
+      reasoning: 'Price inquiry',
+    });
+    mockPostCommentReply.mockRejectedValueOnce(
+      Object.assign(
+        new Error('Permission denied (403): {"error":{"message":"(#200) The permission(s) pages_read_user_content are not available","type":"OAuthException","code":200}}'),
+        { name: 'AuthenticationError', statusCode: 403 }
+      )
+    );
+
+    const res = await processFacebookOutboundJob({
+      jobId: 'job_perm_403',
+      jobType: 'comment_reply',
+      workspaceId: WS_ID,
+      connectionId: 'conn_1',
+      pageId: 'page_123',
+      commentId: 'cmt_perm_403',
+      postId: 'post_perm_403',
+      commentText: 'hey price?',
+      commenterName: 'Valar Morghulis',
+    });
+
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.deadLetter).toBe(true);
+
+    const logUpsert = supabaseCalls.find((c) => c.table === 'facebook_comment_logs' && c.op === 'upsert');
+    expect(logUpsert).toBeDefined();
+    expect((logUpsert?.data as any).auto_replied).toBe(false);
+    expect((logUpsert?.data as any).delivery_status).toBe('failed');
+    expect((logUpsert?.data as any).flagged_for_review).toBe(true);
+    expect((logUpsert?.data as any).reasoning).toContain('pages_read_user_content');
+  });
+
   it('skips processing when global admin automation kill-switch is off', async () => {
     mockIsAutomationEnabledServer.mockResolvedValueOnce(false);
     const res = await processFacebookOutboundJob({

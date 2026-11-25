@@ -26,6 +26,7 @@ describe('FacebookAdapter', () => {
     expect(adapter.authConfig.clientSecret).toBe('meta_test_secret_456');
     expect(adapter.authConfig.redirectUri).toBe('http://localhost:3000/api/auth/platform/callback');
     expect(adapter.authConfig.scopes).toContain('pages_show_list');
+    expect(adapter.authConfig.scopes).toContain('pages_read_user_content');
     expect(adapter.authConfig.scopes).toContain('pages_messaging');
   });
 
