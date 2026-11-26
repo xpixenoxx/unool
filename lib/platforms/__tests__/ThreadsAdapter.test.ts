@@ -116,7 +116,7 @@ describe('ThreadsAdapter - getEngagement', () => {
 });
 
 describe('ThreadsAdapter - authConfig & getAuthUrl', () => {
-  it('includes all required Threads OAuth scopes including threads_manage_mentions', () => {
+  it('includes all required Threads OAuth scopes including threads_manage_mentions and threads_delete', () => {
     const expectedScopes = [
       'threads_basic',
       'threads_content_publish',
@@ -124,6 +124,7 @@ describe('ThreadsAdapter - authConfig & getAuthUrl', () => {
       'threads_read_replies',
       'threads_manage_mentions',
       'threads_manage_insights',
+      'threads_delete',
     ];
 
     expect(threadsAdapter.authConfig.scopes).toEqual(expectedScopes);

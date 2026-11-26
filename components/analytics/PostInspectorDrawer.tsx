@@ -23,6 +23,7 @@ import {
 import type { EnrichedSignalPost } from '@/lib/analytics/signalEngine';
 import { extractLeadHook } from '@/lib/analytics/postTelemetry';
 import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
+import { supportsRemotePostDeletion } from '@/lib/platforms/deletionSupport';
 import { getDraftRedirect } from '@/app/dashboard/signal/types';
 
 interface SnapshotRow {
@@ -38,6 +39,11 @@ interface SnapshotRow {
   totalEngagements: number;
 }
 
+export interface DeletePostOptions {
+  deleteFromPlatform?: boolean;
+  variantId?: string;
+}
+
 export function PostInspectorDrawer({
   post,
   profileSubdomain,
@@ -51,7 +57,7 @@ export function PostInspectorDrawer({
   profileSubdomain?: string | null;
   timezone: string;
   onClose: () => void;
-  onDelete: (postId: string) => Promise<void> | void;
+  onDelete: (postId: string, options?: DeletePostOptions) => Promise<boolean | void> | boolean | void;
   onRefresh: () => void;
   onShareStory?: (post: EnrichedSignalPost) => void;
 }) {
@@ -60,8 +66,13 @@ export function PostInspectorDrawer({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [retryingVariantId, setRetryingVariantId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmPostDelete, setConfirmPostDelete] = useState(false);
+  const [confirmVariantDeleteId, setConfirmVariantDeleteId] = useState<string | null>(null);
+  const [deletingVariantId, setDeletingVariantId] = useState<string | null>(null);
 
   useEffect(() => {
+    setConfirmPostDelete(false);
+    setConfirmVariantDeleteId(null);
     if (!post) return;
     let active = true;
     const handleEsc = (e: KeyboardEvent) => {
@@ -116,13 +127,35 @@ export function PostInspectorDrawer({
     }
   };
 
-  const handleDelete = async () => {
+  const hasLiveDeletableVariants = post.variants.some(
+    v => v.status === 'published' && Boolean(v.platformPostId) && supportsRemotePostDeletion(v.canonicalPlatform)
+  );
+
+  const handleDelete = async (deleteFromPlatform = false) => {
     setDeleting(true);
     try {
-      await onDelete(post.id);
-      onClose();
+      const ok = await onDelete(post.id, { deleteFromPlatform });
+      if (ok !== false) {
+        setConfirmPostDelete(false);
+        onClose();
+      }
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDeleteVariantLive = async (variantId: string) => {
+    setDeletingVariantId(variantId);
+    try {
+      const ok = await onDelete(post.id, { deleteFromPlatform: true, variantId });
+      if (ok !== false) {
+        setConfirmVariantDeleteId(null);
+        if (post.variants.length <= 1) {
+          onClose();
+        }
+      }
+    } finally {
+      setDeletingVariantId(null);
     }
   };
 
@@ -280,6 +313,37 @@ export function PostInspectorDrawer({
                     ) : v.status === 'published' ? (
                       <span className="text-[11px] text-[#78716C]">Published (permalink unavailable)</span>
                     ) : null}
+                    {v.status === 'published' && v.platformPostId && supportsRemotePostDeletion(v.canonicalPlatform) && (
+                      confirmVariantDeleteId === v.id ? (
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={deletingVariantId === v.id}
+                            onClick={() => handleDeleteVariantLive(v.id)}
+                            className="px-2 py-1 rounded-lg bg-rose-600 text-white text-[11px] font-medium hover:bg-rose-700 disabled:opacity-50"
+                          >
+                            {deletingVariantId === v.id ? 'Deleting…' : 'Confirm'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingVariantId === v.id}
+                            onClick={() => setConfirmVariantDeleteId(null)}
+                            className="px-2 py-1 rounded-lg bg-white border border-[#E8E0D4] text-[#57534E] text-[11px] font-medium hover:text-[#1A1612]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmVariantDeleteId(v.id)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-medium hover:bg-rose-100"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete from {cfg?.name || v.capability.label}</span>
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
 
@@ -439,15 +503,51 @@ export function PostInspectorDrawer({
               </button>
             )}
           </div>
-          <button
-            type="button"
-            disabled={deleting}
-            onClick={handleDelete}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium hover:bg-rose-100 disabled:opacity-50"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>{deleting ? 'Deleting…' : 'Delete Post'}</span>
-          </button>
+          {confirmPostDelete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => handleDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{deleting ? 'Deleting…' : 'Delete Live & Remove'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => handleDelete(false)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#E8E0D4] text-[#57534E] text-xs font-medium hover:text-[#1A1612] disabled:opacity-50"
+              >
+                <span>Remove from Unool Only</span>
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setConfirmPostDelete(false)}
+                className="px-2.5 py-2 rounded-xl text-xs font-medium text-[#78716C] hover:text-[#1A1612]"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => {
+                if (hasLiveDeletableVariants) {
+                  setConfirmPostDelete(true);
+                } else {
+                  handleDelete(false);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium hover:bg-rose-100 disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{deleting ? 'Deleting…' : 'Delete Post'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

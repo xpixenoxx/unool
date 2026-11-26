@@ -352,6 +352,16 @@ export default function PrivacyPolicyPage() {
                   </tr>
                   <tr>
                     <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Threads</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">threads_delete</span>
+                    </td>
+                    <td className="py-3 px-3">Published Threads post IDs and remote deletion confirmation status.</td>
+                    <td className="py-3 px-3">Delete published Threads posts directly from Threads when you explicitly trigger live post deletion in Unool.</td>
+                    <td className="py-3 pl-2">Removed from Unool and Threads immediately upon your explicit deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
                       <strong>LinkedIn (Member)</strong>
                       <br />
                       <span className="text-[11px] font-mono text-[#D4B896]">OpenID, w_member_social</span>

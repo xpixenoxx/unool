@@ -3,6 +3,7 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { requireWorkspaceRole } from '@/lib/auth/workspaceAccess';
 import { extractExtendedEngagement } from '@/lib/services/analytics/normalize';
 import { syncWorkspaceEngagement } from '@/lib/services/analytics/syncEngagement';
+import { deleteRemotePlatformPosts, type RemoteDeleteSummary } from '@/lib/services/posts/deleteRemotePlatformPosts';
 import { scheduleService } from '@/lib/services/ScheduleService';
 import { extractPostTelemetry } from '@/lib/analytics/postTelemetry';
 import { getPlatformCapability } from '@/lib/analytics/platformCapabilities';
@@ -271,13 +272,15 @@ export async function DELETE(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  let postId = searchParams.get('postId');
-  if (!postId) {
-    try {
-      const body = await request.json();
-      postId = body.postId;
-    } catch {}
-  }
+  let bodyData: { postId?: string; variantId?: string; deleteFromPlatform?: boolean } = {};
+  try {
+    bodyData = await request.json();
+  } catch {}
+
+  const postId = searchParams.get('postId') || bodyData.postId || null;
+  const variantId = searchParams.get('variantId') || bodyData.variantId || null;
+  const deleteFromPlatform =
+    searchParams.get('deleteFromPlatform') === 'true' || bodyData.deleteFromPlatform === true;
 
   if (!postId) {
     return NextResponse.json({ error: 'Missing postId' }, { status: 400 });
@@ -305,17 +308,91 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Post not found' }, { status: 404 });
   }
 
-  // Find and clean up variants, scheduled QStash timers, & platform posts
+  // Find variants for this post
   const { data: variants } = await supabaseAdmin
     .from('post_variants')
-    .select('id, qstash_message_id')
+    .select('id, platform, platform_connection_id, qstash_message_id')
     .eq('post_id', postId);
 
+  const allVariants = (variants || []) as Array<{
+    id: string;
+    platform?: string | null;
+    platform_connection_id?: string | null;
+    qstash_message_id?: string | null;
+  }>;
+
+  // Targeted single-variant deletion (e.g. "Delete from Threads" inside Post Inspector)
+  if (variantId) {
+    const targetVariant = allVariants.find((v) => v.id === variantId);
+    if (!targetVariant) {
+      return NextResponse.json({ error: 'Post variant not found' }, { status: 404 });
+    }
+
+    let remoteResults: RemoteDeleteSummary | null = null;
+    if (deleteFromPlatform) {
+      remoteResults = await deleteRemotePlatformPosts(auth.workspaceId, [targetVariant]);
+      if (remoteResults.failed.length > 0) {
+        return NextResponse.json(
+          { error: remoteResults.failed[0].error, remoteResults },
+          { status: 502 }
+        );
+      }
+      if (remoteResults.unsupported.length > 0 && remoteResults.deleted.length === 0) {
+        return NextResponse.json(
+          { error: remoteResults.unsupported[0].reason, remoteResults },
+          { status: 400 }
+        );
+      }
+      if (remoteResults.deleted.length === 0) {
+        return NextResponse.json(
+          { error: 'No published platform post found to delete remotely', remoteResults },
+          { status: 404 }
+        );
+      }
+    }
+
+    if (typeof targetVariant.qstash_message_id === 'string' && targetVariant.qstash_message_id.trim()) {
+      try {
+        const { queueService } = await import('@/lib/services/QueueService');
+        await queueService.cancelScheduledTask(targetVariant.qstash_message_id);
+      } catch {
+        // Non-fatal QStash cancellation warning
+      }
+    }
+
+    await supabaseAdmin.from('platform_posts').delete().eq('post_variant_id', variantId);
+    await supabaseAdmin.from('post_variants').delete().eq('id', variantId);
+
+    const postDeleted = allVariants.length <= 1;
+    if (postDeleted) {
+      await supabaseAdmin
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('workspace_id', auth.workspaceId);
+    }
+
+    return NextResponse.json({
+      success: true,
+      postDeleted,
+      message: deleteFromPlatform
+        ? `Deleted live post from ${targetVariant.platform || 'platform'}`
+        : 'Variant removed successfully',
+      remoteResults,
+    });
+  }
+
+  let remoteResults: RemoteDeleteSummary | null = null;
+  if (deleteFromPlatform && allVariants.length > 0) {
+    remoteResults = await deleteRemotePlatformPosts(auth.workspaceId, allVariants);
+  }
+
+  // Clean up scheduled QStash timers, variants, & platform posts
   const qstashIdsToCancel = Array.from(
     new Set(
       [
         (post as any).qstash_message_id,
-        ...(variants || []).map((v: any) => v.qstash_message_id),
+        ...allVariants.map((v) => v.qstash_message_id),
       ].filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
     )
   );
@@ -330,7 +407,7 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  const variantIds = (variants || []).map((v: any) => v.id);
+  const variantIds = allVariants.map((v) => v.id);
   if (variantIds.length > 0) {
     await supabaseAdmin.from('platform_posts').delete().in('post_variant_id', variantIds);
     await supabaseAdmin.from('post_variants').delete().in('id', variantIds);
@@ -346,5 +423,10 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, message: 'Draft removed successfully' });
+  return NextResponse.json({
+    success: true,
+    postDeleted: true,
+    message: deleteFromPlatform ? 'Post removed and live deletion processed' : 'Post removed successfully',
+    remoteResults,
+  });
 }

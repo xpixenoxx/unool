@@ -367,18 +367,55 @@ export function SignalClient() {
   }, [fetchAnalytics, analytics?.operational?.publishingPosts, loadError]);
 
   const handleDeletePost = useCallback(
-    async (postId: string) => {
-      const res = await fetch(`/api/signal/posts?postId=${encodeURIComponent(postId)}`, {
+    async (
+      postId: string,
+      options?: { deleteFromPlatform?: boolean; variantId?: string }
+    ): Promise<boolean> => {
+      const res = await fetch('/api/signal/posts', {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({
+          postId,
+          deleteFromPlatform: options?.deleteFromPlatform === true,
+          ...(options?.variantId ? { variantId: options.variantId } : {}),
+        }),
       });
+      const data = await res.json().catch(() => ({} as Record<string, any>));
       if (!res.ok) {
-        toast.error('Failed to delete post');
-        return;
+        toast.error(data.error || 'Failed to delete post');
+        return false;
       }
-      toast.success('Post removed');
-      if (inspectorPost?.id === postId) setInspectorPost(null);
+
+      const deletedPlatforms: string[] = Array.isArray(data.remoteResults?.deleted)
+        ? data.remoteResults.deleted.map((d: { platform: string }) => d.platform)
+        : [];
+      const failedPlatforms: Array<{ platform: string; error: string }> = Array.isArray(data.remoteResults?.failed)
+        ? data.remoteResults.failed
+        : [];
+
+      if (failedPlatforms.length > 0) {
+        const failedNames = failedPlatforms.map((f) => f.platform).join(', ');
+        toast.warning(`Removed from Unool, but live delete failed on: ${failedNames}`);
+      } else if (deletedPlatforms.length > 0) {
+        toast.success(`Deleted live post from ${deletedPlatforms.join(', ')}`);
+      } else {
+        toast.success('Post removed');
+      }
+
+      if (inspectorPost?.id === postId) {
+        if (options?.variantId && !data.postDeleted) {
+          setInspectorPost((prev) =>
+            prev && prev.id === postId
+              ? { ...prev, variants: prev.variants.filter((v) => v.id !== options.variantId) }
+              : prev
+          );
+        } else {
+          setInspectorPost(null);
+        }
+      }
       await fetchAnalytics({ silent: true });
+      return true;
     },
     [fetchAnalytics, inspectorPost?.id]
   );
