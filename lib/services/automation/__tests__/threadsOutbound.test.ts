@@ -14,6 +14,7 @@ const {
 } = vi.hoisted(() => {
   const dbState = {
     existingJob: null as any,
+    upsertedLogs: [] as Array<{ table: string; data: any }>,
     threadsConfig: {
       workspace_id: 'ws_1',
       threads_user_id: 'th_user_1',
@@ -116,7 +117,10 @@ vi.mock('@/lib/supabase/admin', () => ({
         limit: () => chain,
         order: () => chain,
         update: () => chain,
-        upsert: () => Promise.resolve({ error: null }),
+        upsert: (data: any) => {
+          dbState.upsertedLogs.push({ table, data });
+          return Promise.resolve({ error: null });
+        },
         maybeSingle: () => {
           if (table === 'threads_outbound_jobs') return Promise.resolve({ data: dbState.existingJob, error: null });
           if (table === 'threads_automation_config') return Promise.resolve({ data: dbState.threadsConfig, error: null });
@@ -146,7 +150,10 @@ describe('processThreadsOutboundJob', () => {
     mockGetSecondsUntilNextHourBucket.mockReturnValue(60);
     mockGetRecentReplies.mockResolvedValue([]);
     mockIsTooSimilar.mockReturnValue(false);
+    dbState.upsertedLogs = [];
     dbState.threadsConfig.auto_hide_spam = true;
+    dbState.threadsConfig.flag_negative = true;
+    dbState.threadsConfig.flag_spam = true;
   });
 
   it('calls threadsAdapter.hideReply for spam even when shouldAutoReply is false', async () => {
@@ -247,5 +254,41 @@ describe('processThreadsOutboundJob', () => {
     expect(body).toEqual({ success: true });
     expect(mockHideReply).not.toHaveBeenCalled();
     expect(mockPostReply).toHaveBeenCalledWith('th_access_token', 'th_reply_pos_1', 'Thanks so much for reading!');
+  });
+
+  it('flags negative replies for Triage Queue without auto-replying even when classifier sets shouldFlagForReview=false', async () => {
+    mockClassifyAndGenerateReply.mockResolvedValue({
+      classification: 'negative',
+      confidence: 0.94,
+      suggestedReply: "I hear you're upset—let's sort this out in DMs.",
+      suggestedDM: null,
+      threadHook: null,
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldSendDM: false,
+      shouldFlagForReview: false,
+      reasoning: 'Negative remark',
+    });
+
+    const res = await processThreadsOutboundJob({
+      jobId: 'job-neg-1',
+      jobType: 'reply',
+      workspaceId: 'ws_1',
+      connectionId: 'conn_th_1',
+      threadsUserId: 'th_user_1',
+      replyId: 'th_reply_neg_1',
+      postId: 'th_post_1',
+      replyText: 'go to hell bro',
+      replierId: 'angry_user_1',
+      eventType: 'reply',
+    });
+
+    const body = await res.json();
+    expect(body).toEqual({ success: true, action: 'skipped_by_policy' });
+    expect(mockPostReply).not.toHaveBeenCalled();
+    const replyLog = dbState.upsertedLogs.find((l) => l.table === 'threads_reply_logs');
+    expect(replyLog).toBeDefined();
+    expect(replyLog?.data.auto_replied).toBe(false);
+    expect(replyLog?.data.flagged_for_review).toBe(true);
   });
 });

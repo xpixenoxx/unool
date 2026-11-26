@@ -286,6 +286,39 @@ describe('InstagramCommentAutomation', () => {
 
       expect(result.shouldFlagForReview).toBe(true);
     });
+
+    it('forces shouldFlagForReview=true for negative comments when flagNegative is enabled even if LLM omits it', async () => {
+      mockClassifyAndGenerate.mockResolvedValue({
+        classification: 'negative',
+        confidence: 0.91,
+        suggestedReply: "I hear you're upset—let's sort this out in DMs.",
+        suggestedDM: null,
+        threadHook: null,
+        leadScore: 0,
+        shouldAutoReply: false,
+        shouldSendDM: false,
+        shouldFlagForReview: false,
+        reasoning: 'Hostile negative comment',
+      });
+
+      const flagged = await automation.classifyAndGenerateReply(
+        makeCommentEvent('go to hell bro'),
+        'Post caption',
+        { ...baseConfig, flagNegative: true },
+        []
+      );
+      expect(flagged.shouldAutoReply).toBe(false);
+      expect(flagged.shouldFlagForReview).toBe(true);
+
+      const unflagged = await automation.classifyAndGenerateReply(
+        makeCommentEvent('go to hell bro'),
+        'Post caption',
+        { ...baseConfig, flagNegative: false },
+        []
+      );
+      expect(unflagged.shouldAutoReply).toBe(false);
+      expect(unflagged.shouldFlagForReview).toBe(false);
+    });
   });
 
   // ─── DM Classification Tests ──────────────────────────────────────────────

@@ -7,6 +7,7 @@ import { InstagramCommentAutomation, type ConversationMessage } from '@/lib/serv
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
+import { resolveCommentReviewFlag } from '@/lib/services/automation/reviewPolicy';
 import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolver';
 import { queueService, type FacebookOutboundJobParams } from '@/lib/services/QueueService';
 import { facebookAdapter } from '@/lib/platforms/FacebookAdapter';
@@ -289,11 +290,11 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
         recentReplies
       );
 
-      // Respect flag_negative and flag_spam toggles
-      classified.shouldFlagForReview =
-        classified.shouldFlagForReview &&
-        !(classified.classification === 'negative' && flagNegative === false) &&
-        !(classified.classification === 'spam' && flagSpam === false);
+      // Respect flag_negative and flag_spam toggles deterministically
+      classified.shouldFlagForReview = resolveCommentReviewFlag(classified, {
+        flagNegative,
+        flagSpam,
+      });
 
       // Spam → hide and skip (must run BEFORE !shouldAutoReply early return because spam always has shouldAutoReply=false)
       if (classified.classification === 'spam' && autoHideSpam) {

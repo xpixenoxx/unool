@@ -7,6 +7,7 @@ import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutom
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
+import { resolveCommentReviewFlag } from '@/lib/services/automation/reviewPolicy';
 import { queueService, type ThreadsOutboundJobParams } from '@/lib/services/QueueService';
 import { threadsAdapter, clampThreadsText } from '@/lib/platforms/ThreadsAdapter';
 
@@ -191,10 +192,10 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
     const flagNegative = cfg?.flag_negative ?? cfg?.flagNegative ?? true;
     const flagSpam = cfg?.flag_spam ?? cfg?.flagSpam ?? true;
 
-    classified.shouldFlagForReview =
-      classified.shouldFlagForReview &&
-      !(classified.classification === 'negative' && flagNegative === false) &&
-      !(classified.classification === 'spam' && flagSpam === false);
+    classified.shouldFlagForReview = resolveCommentReviewFlag(classified, {
+      flagNegative,
+      flagSpam,
+    });
 
     // Spam → hide and skip (must run BEFORE !shouldAutoReply early return because spam always has shouldAutoReply=false)
     if (classified.classification === 'spam' && autoHideSpam) {

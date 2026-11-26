@@ -4,6 +4,7 @@ import { GroqProvider } from '@/lib/ai/providers/GroqProvider';
 import { fetchWithRetry } from '@/lib/utils/retry';
 import { API_VERSIONS, resolveInstagramApiHost } from '@/lib/platforms/apiVersions';
 import { config } from '@/lib/config/schema';
+import { resolveCommentReviewFlag } from '@/lib/services/automation/reviewPolicy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -344,7 +345,7 @@ RULE 2: Every public reply for positive/question/link_request MUST end with a SH
 
 RULE 3: NEVER start with the same opening word as any of the recent replies listed above. NEVER use the same emoji placement pattern. Vary sentence length and tone.
 
-RULE 4: For "negative" — write a professional, empathetic, non-defensive response. Acknowledge frustration, offer to resolve in DMs. Never argue. NEVER skip negative comments — a thoughtful de-escalation reply is always better than silence.
+RULE 4: For "negative" — set shouldFlagForReview to true, and write a professional, empathetic, non-defensive suggestedReply acknowledging frustration and offering to resolve in DMs. Never argue.
 
 RULE 5: PSYCHOLOGICAL ENGAGEMENT (CIALDINI PRINCIPLES):
 - Social Proof: Reference success/community ("Tons of creators are using this for exactly that—")
@@ -438,6 +439,7 @@ Return ONLY valid JSON (no markdown, no explanation):
       );
     }
     classified.shouldAutoReply = this.resolveAutoReplyFlag(classified, config);
+    classified.shouldFlagForReview = resolveCommentReviewFlag(classified, config);
     classified.shouldSendDM = classified.shouldSendDM && !!config.linkUrl;
 
     return classified;
