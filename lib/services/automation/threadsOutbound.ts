@@ -187,15 +187,17 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
       recentReplies
     );
 
-    if (!classified.shouldAutoReply || !classified.suggestedReply || classified.suggestedReply === 'SKIP') {
-      logger.info('Threads AI: reply does not need auto-reply', { replyId, classification: classified.classification });
-      await upsertReplyLog(workspaceId, params, classified, null, false);
-      await markJobSent(workspaceId, jobType, replyId);
-      return NextResponse.json({ success: true, action: 'skipped_by_policy' });
-    }
+    const autoHideSpam = cfg?.auto_hide_spam ?? cfg?.autoHideSpam ?? true;
+    const flagNegative = cfg?.flag_negative ?? cfg?.flagNegative ?? true;
+    const flagSpam = cfg?.flag_spam ?? cfg?.flagSpam ?? true;
 
-    // Spam → hide and skip
-    if (classified.classification === 'spam' && cfg?.auto_hide_spam) {
+    classified.shouldFlagForReview =
+      classified.shouldFlagForReview &&
+      !(classified.classification === 'negative' && flagNegative === false) &&
+      !(classified.classification === 'spam' && flagSpam === false);
+
+    // Spam → hide and skip (must run BEFORE !shouldAutoReply early return because spam always has shouldAutoReply=false)
+    if (classified.classification === 'spam' && autoHideSpam) {
       try {
         await threadsAdapter.hideReply(accessToken, replyId, true);
         logger.info('Threads spam reply hidden', { replyId });
@@ -205,6 +207,13 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
       await upsertReplyLog(workspaceId, params, classified, null, false);
       await markJobSent(workspaceId, jobType, replyId);
       return NextResponse.json({ success: true, action: 'spam_hidden' });
+    }
+
+    if (!classified.shouldAutoReply || !classified.suggestedReply || classified.suggestedReply === 'SKIP') {
+      logger.info('Threads AI: reply does not need auto-reply', { replyId, classification: classified.classification });
+      await upsertReplyLog(workspaceId, params, classified, null, false);
+      await markJobSent(workspaceId, jobType, replyId);
+      return NextResponse.json({ success: true, action: 'skipped_by_policy' });
     }
 
     // Clamp to 500 chars (Threads hard limit) then sanitize
