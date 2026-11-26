@@ -35,7 +35,14 @@ export class ThreadsAdapter implements PlatformAdapter {
         config.THREADS_REDIRECT_URI ||
         process.env.THREADS_REDIRECT_URI ||
         `${(config.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')}/api/auth/platform/callback`,
-      scopes: ['threads_basic', 'threads_content_publish', 'threads_manage_replies', 'threads_read_replies', 'threads_manage_insights'],
+      scopes: [
+        'threads_basic',
+        'threads_content_publish',
+        'threads_manage_replies',
+        'threads_read_replies',
+        'threads_manage_mentions',
+        'threads_manage_insights',
+      ],
     };
   }
 

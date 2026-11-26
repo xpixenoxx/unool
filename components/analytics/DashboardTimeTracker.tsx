@@ -155,8 +155,9 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
       isUserActiveRef.current = true;
       activeSecondsAccumulatorRef.current += 1;
 
-      // Flush early on initial active arrival (5 seconds), then every 10 seconds
-      const threshold = hasFlushedOnceRef.current ? 10 : 5;
+      // Flush early on initial active arrival (10 seconds), then every 60 seconds
+      // (route changes and pagehide/visibilitychange still flush immediately via sendBeacon)
+      const threshold = hasFlushedOnceRef.current ? 60 : 10;
       if (activeSecondsAccumulatorRef.current >= threshold) {
         const sec = activeSecondsAccumulatorRef.current;
         activeSecondsAccumulatorRef.current = 0;

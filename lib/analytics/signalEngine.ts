@@ -376,15 +376,50 @@ const SHORT_WEEKDAY_TO_INDEX: Record<string, number> = {
   Sat: 6,
 };
 
+const MAX_TZ_CACHE_SIZE = 64;
+const validatedTimezoneCache = new Map<string, string>();
+const zonedFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
 export function validateTimezone(tz?: string | null): string {
   const candidate = (tz || '').trim();
   if (!candidate) return 'UTC';
+
+  const cached = validatedTimezoneCache.get(candidate);
+  if (cached) return cached;
+
+  let resolved = 'UTC';
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: candidate });
-    return candidate;
+    resolved = candidate;
   } catch {
-    return 'UTC';
+    resolved = 'UTC';
   }
+
+  if (validatedTimezoneCache.size >= MAX_TZ_CACHE_SIZE) {
+    validatedTimezoneCache.clear();
+  }
+  validatedTimezoneCache.set(candidate, resolved);
+  return resolved;
+}
+
+function getZonedFormatter(safeTz: string): Intl.DateTimeFormat {
+  let fmt = zonedFormatterCache.get(safeTz);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: safeTz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short',
+      hour: '2-digit',
+      hour12: false,
+    });
+    if (zonedFormatterCache.size >= MAX_TZ_CACHE_SIZE) {
+      zonedFormatterCache.clear();
+    }
+    zonedFormatterCache.set(safeTz, fmt);
+  }
+  return fmt;
 }
 
 export function getZonedParts(isoOrDate: string | Date, timeZone: string): {
@@ -397,15 +432,7 @@ export function getZonedParts(isoOrDate: string | Date, timeZone: string): {
     return { dateKey: '1970-01-01', dayIndex: 0, hour: 0 };
   }
   const safeTz = validateTimezone(timeZone);
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: safeTz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    weekday: 'short',
-    hour: '2-digit',
-    hour12: false,
-  });
+  const fmt = getZonedFormatter(safeTz);
   const parts = fmt.formatToParts(d);
   let year = '1970';
   let month = '01';

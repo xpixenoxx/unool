@@ -294,11 +294,61 @@ export default function PrivacyPolicyPage() {
                     <td className="py-3 pr-2 font-medium text-white/90">
                       <strong>Threads</strong>
                       <br />
-                      <span className="text-[11px] font-mono text-[#D4B896]">threads_basic, threads_content_publish</span>
+                      <span className="text-[11px] font-mono text-[#D4B896]">threads_basic</span>
                     </td>
-                    <td className="py-3 px-3">Threads profile ID, username, approved post drafts, and publish state.</td>
-                    <td className="py-3 px-3">Connect your Threads identity and publish scheduled micro-posts approved by you.</td>
+                    <td className="py-3 px-3">Threads user ID, username, display name, profile picture, bio, and recent public posts.</td>
+                    <td className="py-3 px-3">Connect your Threads identity, display your profile in Unool, and calibrate your brand voice profile.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon account disconnect or user deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Threads</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">threads_content_publish</span>
+                    </td>
+                    <td className="py-3 px-3">Approved post drafts, media attachments, scheduled publish times, and reply containers.</td>
+                    <td className="py-3 px-3">Publish scheduled micro-posts, media, carousels, and creator-approved thread replies to your Threads account.</td>
                     <td className="py-3 pl-2">Retained during active connection; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Threads</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">threads_read_replies</span>
+                    </td>
+                    <td className="py-3 px-3">Inbound public replies to your Threads posts, reply IDs, author handles, and timestamps.</td>
+                    <td className="py-3 px-3">Display reply threads in your Dispatch Ledger and Triage Queue and classify inbound replies you choose to automate.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Threads</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">threads_manage_replies</span>
+                    </td>
+                    <td className="py-3 px-3">Moderation state of replies on your Threads posts (hidden/unhidden status).</td>
+                    <td className="py-3 px-3">Automatically hide spam or abusive replies when you enable Spam Auto-Hide in SignalThreads.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Threads</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">threads_manage_mentions</span>
+                    </td>
+                    <td className="py-3 px-3">Public Threads posts that @mention your connected handle, mention IDs, text, and timestamps.</td>
+                    <td className="py-3 px-3">Log audience @mentions in your Dispatch Ledger and dispatch automated replies when Mention Dispatch is enabled.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Threads</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">threads_manage_insights</span>
+                    </td>
+                    <td className="py-3 px-3">Aggregated post views, likes, replies, reposts, quotes, and share counts.</td>
+                    <td className="py-3 px-3">Populate Threads performance charts and engagement analytics in your Unool Signal dashboard.</td>
+                    <td className="py-3 pl-2">Maintained within your plan window; purged upon disconnect or deletion request.</td>
                   </tr>
                   <tr>
                     <td className="py-3 pr-2 font-medium text-white/90">

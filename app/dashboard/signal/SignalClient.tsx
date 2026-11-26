@@ -261,12 +261,13 @@ export function SignalClient() {
       if (sync) {
         setIsSyncing(true);
         setSyncNotice(null);
-      } else {
+      } else if (!silent) {
         setLoadError(null);
       }
 
       try {
-        const url = `/api/signal/analytics?${queryString}${sync ? '&sync=true' : ''}`;
+        const extraParams = `${sync ? '&sync=true' : ''}${silent && !sync ? '&poll=1' : ''}`;
+        const url = `/api/signal/analytics?${queryString}${extraParams}`;
         const res = await fetch(url, { credentials: 'include' });
 
         if (!res.ok) {
@@ -340,7 +341,9 @@ export function SignalClient() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  // Listen to Studio / SignalStrip broadcast events + gently poll while publishing is active
+  // Listen to Studio / SignalStrip broadcast events + gently poll while publishing is active.
+  // When idle (no posts publishing), poll every 5 minutes instead of every 30s and pause
+  // background polling after an error until a manual retry/refresh succeeds.
   useEffect(() => {
     const handleSignalEvent = () => {
       fetchAnalytics({ silent: true });
@@ -349,9 +352,9 @@ export function SignalClient() {
     window.addEventListener('signal-strip-publish', handleSignalEvent);
 
     const hasPublishing = (analytics?.operational?.publishingPosts ?? 0) > 0;
-    const intervalMs = hasPublishing ? 3000 : 30000;
+    const intervalMs = hasPublishing ? 5_000 : 300_000;
     const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !loadError) {
         fetchAnalytics({ silent: true });
       }
     }, intervalMs);
@@ -361,7 +364,7 @@ export function SignalClient() {
       window.removeEventListener('signal-strip-publish', handleSignalEvent);
       clearInterval(timer);
     };
-  }, [fetchAnalytics, analytics?.operational?.publishingPosts]);
+  }, [fetchAnalytics, analytics?.operational?.publishingPosts, loadError]);
 
   const handleDeletePost = useCallback(
     async (postId: string) => {

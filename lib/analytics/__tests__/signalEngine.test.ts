@@ -211,10 +211,19 @@ describe('Canonical Signal Engine (Formulas, TZ, Multi-Account, Denominators, CS
     expect(ist.hour).toBe(6);
     expect(ist.dayIndex).toBe(1); // Monday
 
+    // Repeated call hits cached formatter and returns identical result
+    const istCached = getZonedParts('2026-11-16T01:00:00.000Z', 'Asia/Kolkata');
+    expect(istCached).toEqual(ist);
+
     const ny = getZonedParts('2026-11-16T01:00:00.000Z', 'America/New_York');
     expect(ny.dateKey).toBe('2026-11-15');
     expect(ny.hour).toBe(20);
     expect(ny.dayIndex).toBe(0); // Sunday
+
+    // Invalid timezone safely falls back to UTC
+    const invalidTz = getZonedParts('2026-11-16T01:00:00.000Z', 'Invalid/Timezone');
+    expect(invalidTz.dateKey).toBe('2026-11-16');
+    expect(invalidTz.hour).toBe(1);
   });
 
   it('clamps range transparently to workspace plan analytics_retention_days', () => {

@@ -275,8 +275,12 @@ function DashboardSidebar({
     window.addEventListener('signal-pending-count-updated', handlePendingDirectUpdate);
     window.addEventListener('focus', fetchLatestDrafts);
 
-    // Periodic poll every 30 seconds so time-decay automatically drops drafts past 24h
-    const interval = setInterval(fetchLatestDrafts, 30000);
+    // Periodic fallback poll every 3 minutes while visible (Supabase Realtime + focus handle immediate updates)
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchLatestDrafts();
+      }
+    }, 180_000);
 
     return () => {
       window.removeEventListener('signal-strip-publish', handlePublishEvent);

@@ -114,3 +114,24 @@ describe('ThreadsAdapter - getEngagement', () => {
     expect(result.totalInteractions).toBe(0);
   });
 });
+
+describe('ThreadsAdapter - authConfig & getAuthUrl', () => {
+  it('includes all required Threads OAuth scopes including threads_manage_mentions', () => {
+    const expectedScopes = [
+      'threads_basic',
+      'threads_content_publish',
+      'threads_manage_replies',
+      'threads_read_replies',
+      'threads_manage_mentions',
+      'threads_manage_insights',
+    ];
+
+    expect(threadsAdapter.authConfig.scopes).toEqual(expectedScopes);
+
+    const authUrl = threadsAdapter.getAuthUrl('test_state', 'https://example.com/api/auth/platform/callback');
+    const parsed = new URL(authUrl);
+    expect(parsed.origin + parsed.pathname).toBe('https://threads.net/oauth/authorize');
+    expect(parsed.searchParams.get('scope')).toBe(expectedScopes.join(','));
+    expect(parsed.searchParams.get('state')).toBe('test_state');
+  });
+});

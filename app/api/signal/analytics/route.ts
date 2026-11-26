@@ -8,8 +8,13 @@ import {
   parseSignalFilterSearchParams,
 } from '@/lib/analytics/signalDataLoader';
 import { logger } from '@/lib/logger';
+import { isEdgeWorkerRuntime } from '@/lib/auth/password';
 
 export const dynamic = 'force-dynamic';
+
+// Prevent passive background self-heal from firing on every read poll (10-minute cooldown per workspace)
+const PASSIVE_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
+const lastPassiveSyncByWorkspace = new Map<string, number>();
 
 export async function GET(request: NextRequest) {
   const auth = await getCurrentAuth(request);
@@ -29,26 +34,34 @@ export async function GET(request: NextRequest) {
   }
 
   const shouldSync = request.nextUrl.searchParams.get('sync') === 'true';
+  const isBackgroundPoll = request.nextUrl.searchParams.get('poll') === '1';
   let syncSummary = null;
 
-  // Non-blocking background self-heal & passive sync on standard view load
-  if (!shouldSync) {
-    try {
-      const { after } = await import('next/server');
-      if (typeof after === 'function') {
-        after(async () => {
-          try {
-            await scheduleService.processDueScheduledPosts(workspaceId);
-            await syncWorkspaceEngagement(workspaceId, { maxPosts: 35, forceRefresh: false });
-          } catch {
-            // Non-blocking background refresh
-          }
-        });
+  // Non-blocking background self-heal & passive sync on standard view load.
+  // Skip on silent polls and inside Cloudflare Workers (where `after()` shares the 10ms CPU limit
+  // and cron/QStash + explicit "Sync Live Metrics" already handle syncing cleanly).
+  if (!shouldSync && !isBackgroundPoll && !isEdgeWorkerRuntime()) {
+    const now = Date.now();
+    const lastPassiveAt = lastPassiveSyncByWorkspace.get(workspaceId) ?? 0;
+    if (now - lastPassiveAt >= PASSIVE_SYNC_COOLDOWN_MS) {
+      lastPassiveSyncByWorkspace.set(workspaceId, now);
+      try {
+        const { after } = await import('next/server');
+        if (typeof after === 'function') {
+          after(async () => {
+            try {
+              await scheduleService.processDueScheduledPosts(workspaceId);
+              await syncWorkspaceEngagement(workspaceId, { maxPosts: 35, forceRefresh: false });
+            } catch {
+              // Non-blocking background refresh
+            }
+          });
+        }
+      } catch {
+        // Ignored outside Next request lifecycle (e.g. direct unit tests)
       }
-    } catch {
-      // Ignored outside Next request lifecycle (e.g. direct unit tests)
     }
-  } else {
+  } else if (shouldSync) {
     try {
       syncSummary = await syncWorkspaceEngagement(workspaceId, {
         maxPosts: 50,
