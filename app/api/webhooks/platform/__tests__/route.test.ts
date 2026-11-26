@@ -432,6 +432,60 @@ describe('Platform Webhooks Route (/api/webhooks/platform)', () => {
         eventType: 'reply',
       }));
     });
+
+    it('routes Threads mentions on third-party threads using target_id instead of root_post.owner_id', async () => {
+      const payloadObj = {
+        app_id: '1669649600933861',
+        topic: 'interaction',
+        target_id: 'threads_owner_999',
+        time: 1794651608,
+        subscription_id: 'sub_456',
+        values: {
+          field: 'mentions',
+          value: {
+            id: 'mention_reply_888',
+            username: 'alice',
+            text: 'Hey @creator_handle check this out!',
+            root_post: { id: 'alice_post_1', owner_id: 'third_party_alice_111', username: 'alice' },
+          },
+        },
+      };
+
+      const payloadStr = JSON.stringify(payloadObj);
+      const digest = await hmacSha256Hex(payloadStr, mockConfig.THREADS_WEBHOOK_SECRET!);
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'threads_reply_logs') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const req = new NextRequest('https://unool.co/api/webhooks/platform?platform=threads', {
+        method: 'POST',
+        headers: {
+          'x-hub-signature-256': `sha256=${digest}`,
+          'Content-Type': 'application/json',
+        },
+        body: payloadStr,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      expect(mockResolveThreadsTarget).toHaveBeenCalledWith('threads_owner_999', undefined);
+      expect(mockThreadsEnqueue).toHaveBeenCalledWith(expect.objectContaining({
+        replyId: 'mention_reply_888',
+        threadsUserId: 'threads_owner_999',
+        replyText: 'Hey @creator_handle check this out!',
+        eventType: 'mention',
+      }));
+    });
   });
 });
 

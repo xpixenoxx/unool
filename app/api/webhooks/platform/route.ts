@@ -289,10 +289,9 @@ async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void
         const rootPost = value.root_post as Record<string, unknown> | undefined;
         // For replies, root_post.owner_id is the Threads user ID; for mentions, target_id is the mentioned user's ID
         const threadsUserId =
-          (rootPost?.owner_id as string | undefined) ||
-          (field === 'mentions' ? targetId : undefined) ||
-          targetId ||
-          '';
+          field === 'mentions'
+            ? (targetId || (rootPost?.owner_id as string | undefined) || '')
+            : ((rootPost?.owner_id as string | undefined) || targetId || '');
         await processThreadsReplyEvent(threadsUserId, value, field, targetId);
       } else if (field === 'messages' || field === 'dm') {
         logger.warn('Threads webhook: DM/messaging event received but Threads has no messaging API â€” discarding', { field });
@@ -345,7 +344,7 @@ async function processThreadsReplyEvent(
   const repliedTo = value?.replied_to as Record<string, unknown> | undefined;
   const replierId = (fromObj?.id as string | undefined) || (value?.username as string | undefined);
   const replierUsername = (value?.username as string | undefined) || (fromObj?.username as string | undefined);
-  const rootOwnerUsername = rootPost?.username as string | undefined;
+  const rootOwnerUsername = field === 'replies' ? (rootPost?.username as string | undefined) : undefined;
   const postId =
     (value?.media as Record<string, unknown> | undefined)?.id as string | undefined ||
     (rootPost?.id as string | undefined) ||
