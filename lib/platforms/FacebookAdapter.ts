@@ -46,7 +46,6 @@ export class FacebookAdapter implements PlatformAdapter {
       redirectUri,
       scopes: [
         'public_profile',
-        'email',
         'pages_show_list',
         'pages_read_engagement',
         'pages_read_user_content',
@@ -54,6 +53,7 @@ export class FacebookAdapter implements PlatformAdapter {
         'pages_manage_engagement',
         'pages_messaging',
         'pages_manage_metadata',
+        'read_insights',
       ],
     };
   }
@@ -173,7 +173,7 @@ export class FacebookAdapter implements PlatformAdapter {
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('facebook', async () => {
       const response = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/me?fields=id,name,email,picture&access_token=${accessToken}`,
+        `${FACEBOOK_API_BASE}/me?fields=id,name,picture&access_token=${accessToken}`,
         {}
       );
 
@@ -190,7 +190,7 @@ export class FacebookAdapter implements PlatformAdapter {
       const data = await response.json();
       return {
         platformUserId: data.id,
-        username: data.email || data.id,
+        username: data.email || data.name || data.id,
         displayName: data.name,
         profileUrl: `https://www.facebook.com/${data.id}`,
         avatarUrl: data.picture?.data?.url,

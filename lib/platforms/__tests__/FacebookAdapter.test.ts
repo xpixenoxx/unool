@@ -25,9 +25,18 @@ describe('FacebookAdapter', () => {
     expect(adapter.authConfig.clientId).toBe('meta_test_id_123');
     expect(adapter.authConfig.clientSecret).toBe('meta_test_secret_456');
     expect(adapter.authConfig.redirectUri).toBe('http://localhost:3000/api/auth/platform/callback');
-    expect(adapter.authConfig.scopes).toContain('pages_show_list');
-    expect(adapter.authConfig.scopes).toContain('pages_read_user_content');
-    expect(adapter.authConfig.scopes).toContain('pages_messaging');
+    expect(adapter.authConfig.scopes).toEqual([
+      'public_profile',
+      'pages_show_list',
+      'pages_read_engagement',
+      'pages_read_user_content',
+      'pages_manage_posts',
+      'pages_manage_engagement',
+      'pages_messaging',
+      'pages_manage_metadata',
+      'read_insights',
+    ]);
+    expect(adapter.authConfig.scopes).not.toContain('email');
   });
 
   it('builds getAuthUrl with state and effective redirectUri', () => {
@@ -44,6 +53,8 @@ describe('FacebookAdapter', () => {
     expect(parsed.searchParams.get('state')).toBe('test_state_123');
     expect(parsed.searchParams.get('redirect_uri')).toBe('http://localhost:3000/api/auth/platform/callback');
     expect(parsed.searchParams.get('scope')).toContain('pages_show_list');
+    expect(parsed.searchParams.get('scope')).toContain('read_insights');
+    expect(parsed.searchParams.get('scope')).not.toContain('email');
   });
 
   it('exchanges code for short-lived and long-lived tokens using effective redirectUri', async () => {
@@ -99,7 +110,6 @@ describe('FacebookAdapter', () => {
       json: async () => ({
         id: 'fb_user_1001',
         name: 'Jane Doe',
-        email: 'jane@example.com',
         picture: { data: { url: 'https://cdn.facebook.com/avatar.png' } },
       }),
       headers: new Headers(),
@@ -110,7 +120,7 @@ describe('FacebookAdapter', () => {
 
     expect(profile.platformUserId).toBe('fb_user_1001');
     expect(profile.displayName).toBe('Jane Doe');
-    expect(profile.username).toBe('jane@example.com');
+    expect(profile.username).toBe('Jane Doe');
     expect(profile.avatarUrl).toBe('https://cdn.facebook.com/avatar.png');
   });
 

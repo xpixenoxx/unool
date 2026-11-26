@@ -362,6 +362,86 @@ export default function PrivacyPolicyPage() {
                   </tr>
                   <tr>
                     <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">public_profile, pages_show_list</span>
+                    </td>
+                    <td className="py-3 px-3">Basic Facebook profile ID and display name, plus the list of Facebook Pages you manage (Page IDs, names, categories, and Page tasks).</td>
+                    <td className="py-3 px-3">Authenticate your Facebook identity and let you select which managed Facebook Page to connect to Unool.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon account disconnect or user deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">pages_manage_posts</span>
+                    </td>
+                    <td className="py-3 px-3">Approved post copy, media URLs, scheduled publish timestamps, and published Facebook Page post IDs and permalinks.</td>
+                    <td className="py-3 px-3">Publish and manage scheduled posts, media, and explicit live post deletions on your connected Facebook Page.</td>
+                    <td className="py-3 pl-2">Retained while account remains active; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">pages_read_engagement</span>
+                    </td>
+                    <td className="py-3 px-3">Published Page post metadata, reactions, share counts, and comment counts on your connected Facebook Page.</td>
+                    <td className="py-3 px-3">Sync your published Facebook Page posts and display post-level engagement counts in Unool Signal.</td>
+                    <td className="py-3 pl-2">Maintained within your plan window; purged upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">read_insights</span>
+                    </td>
+                    <td className="py-3 px-3">Aggregated Facebook Page post insights, including impressions, engaged users, post clicks, and reaction totals.</td>
+                    <td className="py-3 px-3">Populate Facebook reach, click, and engagement performance charts in your Unool Signal analytics dashboard.</td>
+                    <td className="py-3 pl-2">Maintained within your plan window; purged upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">pages_read_user_content</span>
+                    </td>
+                    <td className="py-3 px-3">Inbound public comments on your Facebook Page posts, comment IDs, commenter names/IDs, timestamps, and feed context.</td>
+                    <td className="py-3 px-3">Display inbound Facebook Page comments in your Dispatch Ledger and Triage Queue and classify comments for moderation or replies.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">pages_manage_engagement</span>
+                    </td>
+                    <td className="py-3 px-3">Comment reply text, comment moderation status (hidden/unhidden), and AI or human reply audit logs on your Page posts.</td>
+                    <td className="py-3 px-3">Publish automated or manual comment replies you configure and hide spam or abusive comments on your Facebook Page.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">pages_messaging</span>
+                    </td>
+                    <td className="py-3 px-3">Messenger conversation messages, commenter-triggered private reply payloads, Page-scoped sender IDs, and reply logs.</td>
+                    <td className="py-3 px-3">Deliver approved comment-to-DM private replies and respond to inbound Facebook Page Messenger inquiries in Unool.</td>
+                    <td className="py-3 pl-2">Retained during active connection; deleted upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
+                      <strong>Facebook</strong>
+                      <br />
+                      <span className="text-[11px] font-mono text-[#D4B896]">pages_manage_metadata</span>
+                    </td>
+                    <td className="py-3 px-3">Facebook Page webhook subscription settings and real-time feed and Messenger webhook event notifications.</td>
+                    <td className="py-3 px-3">Subscribe your connected Facebook Page to real-time comment and Messenger webhooks so automations run immediately.</td>
+                    <td className="py-3 pl-2">Maintained while Page webhook sync is active; cleared upon disconnect or deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-2 font-medium text-white/90">
                       <strong>LinkedIn (Member)</strong>
                       <br />
                       <span className="text-[11px] font-mono text-[#D4B896]">OpenID, w_member_social</span>
