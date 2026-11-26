@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
-import { uploadToR2 } from '@/lib/storage/r2';
+import { getBucketName, getR2Client } from '@/lib/storage/r2';
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_INLINE_DATA_URL_BYTES = 1.5 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +20,13 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: 'File is too large. Maximum supported size is 10 MB.' },
+        { status: 413 }
+      );
     }
 
     const safeFilename = `${user.id}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
@@ -35,12 +46,16 @@ export async function POST(request: NextRequest) {
     if (r2Configured) {
       try {
         const key = `materials/${safeFilename}`;
-        await uploadToR2({
-          bucket: 'post-media',
-          key,
-          body: buffer,
-          contentType,
-        });
+        const client = getR2Client();
+        const bucketName = getBucketName('post-media');
+        await client.send(
+          new PutObjectCommand({
+            Bucket: bucketName,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+          })
+        );
         // Completely mask Cloudflare R2 URL behind internal proxy route
         publicUrl = `/api/media/${key}`;
       } catch (r2Error) {
@@ -48,8 +63,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fallback if R2 not configured or errored: provide inline base64 Data URL
+    // Fallback if R2 not configured or errored: provide inline base64 Data URL only within safe payload size
     if (!publicUrl) {
+      if (buffer.length > MAX_INLINE_DATA_URL_BYTES) {
+        return NextResponse.json(
+          {
+            error:
+              'File is too large for inline upload while cloud storage is unavailable. Please use a file under 1.5 MB or paste an asset URL.',
+          },
+          { status: 413 }
+        );
+      }
       const base64 = buffer.toString('base64');
       publicUrl = `data:${contentType};base64,${base64}`;
     }

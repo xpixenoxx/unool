@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
@@ -18,10 +17,22 @@ function maskCloudflareUrl(url: string): string {
 }
 
 function sanitizeMaterial(item: any): any {
+  const url = maskCloudflareUrl(item.url);
+  const rawThumb = item.thumbnailUrl ? maskCloudflareUrl(item.thumbnailUrl) : undefined;
+  // Avoid duplicating large inline data URLs across both url and thumbnailUrl
+  const thumbnailUrl = rawThumb && url && rawThumb === url && url.startsWith('data:') ? undefined : rawThumb;
   return {
     ...item,
-    url: maskCloudflareUrl(item.url),
-    thumbnailUrl: item.thumbnailUrl ? maskCloudflareUrl(item.thumbnailUrl) : undefined,
+    url,
+    thumbnailUrl,
+  };
+}
+
+function normalizePageRecord(page: any): any {
+  return {
+    ...page,
+    linked_posts: page.linked_posts || page.theme?.linked_posts || [],
+    materials: (page.materials || []).map(sanitizeMaterial),
   };
 }
 
@@ -41,6 +52,7 @@ export async function GET(request: NextRequest) {
         .select('id, workspace_id, name, subdomain, avatar_url, role, company, bio, theme')
         .eq('subdomain', subdomainParam)
         .is('deleted_at', null)
+        .limit(1)
         .maybeSingle();
 
       if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -132,6 +144,8 @@ export async function GET(request: NextRequest) {
       .from('profiles')
       .select('subdomain, name, avatar_url, role, company, theme')
       .eq('workspace_id', workspaceId)
+      .is('deleted_at', null)
+      .limit(1)
       .maybeSingle();
 
     const subdomain = profile?.subdomain || 'user';
@@ -144,11 +158,7 @@ export async function GET(request: NextRequest) {
       .eq('workspace_id', workspaceId)
       .order('updated_at', { ascending: false });
 
-    const sanitizedPages = (allPages || []).map((p: any) => ({
-      ...p,
-      linked_posts: p.linked_posts || p.theme?.linked_posts || [],
-      materials: (p.materials || []).map(sanitizeMaterial),
-    }));
+    const sanitizedPages = (allPages || []).map(normalizePageRecord);
 
     let pageData = null;
     if (slug && slug !== 'page') {
@@ -226,7 +236,12 @@ export async function PUT(request: NextRequest) {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json();
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
+    }
     const {
       workspaceId,
       slug = 'page',
@@ -256,12 +271,17 @@ export async function PUT(request: NextRequest) {
     const sanitizedSlug = (slug || 'page').toLowerCase().replace(/[^a-z0-9-_]/g, '').trim() || 'page';
 
     // Check whether this updates an existing page or creates a new brand voice slot
-    const { data: existingPage } = await supabaseAdmin
+    const { data: existingPage, error: existingPageError } = await supabaseAdmin
       .from('brand_materials_pages')
       .select('id')
       .eq('workspace_id', workspaceId)
       .eq('slug', sanitizedSlug)
       .maybeSingle();
+
+    if (existingPageError) {
+      logger.error('Failed to look up existing brand materials page', { error: existingPageError, workspaceId, sanitizedSlug });
+      return NextResponse.json({ error: 'Failed to verify existing brand materials page' }, { status: 500 });
+    }
 
     if (!existingPage) {
       const planCheck = await enforcePlanLimits(workspaceId, 'brand_voice');
@@ -284,6 +304,7 @@ export async function PUT(request: NextRequest) {
       .select('subdomain, name, theme')
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
+      .limit(1)
       .maybeSingle();
 
     const subdomain = profile?.subdomain || 'user';
@@ -405,10 +426,7 @@ export async function PUT(request: NextRequest) {
       .eq('workspace_id', workspaceId)
       .order('updated_at', { ascending: false });
 
-    const sanitizedUpdatedPages = (updatedPages || []).map((p: any) => ({
-      ...p,
-      materials: (p.materials || []).map(sanitizeMaterial),
-    }));
+    const sanitizedUpdatedPages = (updatedPages || []).map(normalizePageRecord);
 
     return NextResponse.json({
       success: true,
@@ -475,10 +493,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      pages: (remainingPages || []).map((p: any) => ({
-        ...p,
-        materials: (p.materials || []).map(sanitizeMaterial),
-      })),
+      pages: (remainingPages || []).map(normalizePageRecord),
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

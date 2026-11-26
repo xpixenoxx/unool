@@ -162,6 +162,7 @@ export default function BrandMaterialsSection({
   const [manualPostUrl, setManualPostUrl] = useState<string>('');
   const [savingPostLinks, setSavingPostLinks] = useState<boolean>(false);
   const [postLinkSavedToast, setPostLinkSavedToast] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<{ message: string; code?: string } | null>(null);
 
   // Inline Add Material Box (replaces modal popup)
   const [addBoxOpen, setAddBoxOpen] = useState(false);
@@ -206,6 +207,10 @@ export default function BrandMaterialsSection({
 
   // Fetch page data on mount
   useEffect(() => {
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     async function loadData() {
       setLoading(true);
@@ -235,7 +240,7 @@ export default function BrandMaterialsSection({
               }));
               setMaterials(sanitized);
 
-              // Initialize linked Instagram post IDs
+              // Initialize linked platform post IDs
               const rawLinked = data.page.linked_posts || data.page.theme?.linked_posts || [];
               const parsedIds = Array.isArray(rawLinked)
                 ? rawLinked.map((item: any) => (typeof item === 'string' ? item : (item.id || item.media_id)))
@@ -253,7 +258,7 @@ export default function BrandMaterialsSection({
     loadData();
     loadInstagramPosts();
     return () => { cancelled = true; };
-  }, [workspaceId]);
+  }, [workspaceId, platform]);
 
   // Read URL search params for quick entry from post composer
   useEffect(() => {
@@ -287,6 +292,7 @@ export default function BrandMaterialsSection({
       : [];
     setLinkedPostIds(parsedIds);
     setSuccessBanner(null);
+    setSaveError(null);
   };
 
   // Start drafting a new brand page for a new post
@@ -305,6 +311,7 @@ export default function BrandMaterialsSection({
     setMaterials([]);
     setLinkedPostIds([]);
     setSuccessBanner(null);
+    setSaveError(null);
     setAddBoxOpen(false);
   };
 
@@ -366,16 +373,96 @@ export default function BrandMaterialsSection({
     setManualPostUrl('');
   };
 
-  // Save linked post connections instantly
-  const handleSavePostLinksOnly = async () => {
-    setSavingPostLinks(true);
-    try {
-      const slugToUse = isCreatingNewPage
-        ? (title.trim()
-            ? title.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
-            : `post-${Date.now().toString(36)}`)
-        : (internalSlug || activePageSlug || 'showcase');
+  const resolveTargetSlug = (): string => {
+    if (isCreatingNewPage) {
+      const fromTitle = title
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 30);
+      return fromTitle || internalSlug || activePageSlug || `post-${Date.now().toString(36)}`;
+    }
+    return internalSlug || activePageSlug || 'showcase';
+  };
 
+  const resetMaterialDraftForm = () => {
+    setMatTitle('');
+    setMatUrl('');
+    setMatDesc('');
+    setMatContent('');
+    setMatCategory('');
+    setMatSize('');
+    setMatThumbnail('');
+    setAddBoxOpen(false);
+  };
+
+  const buildMaterialItemFromDraft = (effectiveTitle: string): MaterialItem => {
+    const cleanUrl = maskCloudflareUrl(matUrl.trim());
+    const rawThumb = matThumbnail.trim()
+      ? maskCloudflareUrl(matThumbnail.trim())
+      : matType === 'image' && !cleanUrl.startsWith('data:')
+      ? cleanUrl
+      : undefined;
+    const cleanThumb =
+      rawThumb && cleanUrl && rawThumb === cleanUrl && cleanUrl.startsWith('data:') ? undefined : rawThumb;
+
+    return {
+      id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      type: matType,
+      title: effectiveTitle,
+      url: cleanUrl || undefined,
+      content: matType === 'text' ? matContent.trim() : undefined,
+      description: matDesc.trim() || undefined,
+      category: matCategory.trim() || undefined,
+      size:
+        matSize.trim() ||
+        (matType === 'text' ? `${matContent.trim().split(/\s+/).filter(Boolean).length} words` : undefined),
+      thumbnailUrl: cleanThumb,
+      order: materials.length,
+    };
+  };
+
+  // Auto-commit an uploaded/drafted item in the open Add Material form if user clicked Save directly
+  const commitPendingMaterialIfReady = (): MaterialItem[] => {
+    if (!addBoxOpen) return materials;
+    if (matType === 'text') {
+      if (!matContent.trim()) return materials;
+    } else if (!matUrl.trim()) {
+      return materials;
+    }
+
+    const effectiveTitle =
+      matTitle.trim() ||
+      (matType === 'text' ? deriveTitleFromText(matContent.trim()) : `Brand ${matType.toUpperCase()}`);
+    const newItem = buildMaterialItemFromDraft(effectiveTitle);
+    const nextMaterials = [newItem, ...materials];
+    setMaterials(nextMaterials);
+    resetMaterialDraftForm();
+    return nextMaterials;
+  };
+
+  const persistBrandPage = async (mode: 'connections' | 'full') => {
+    if (!workspaceId) {
+      const msg = 'Workspace not loaded yet. Please refresh and try again.';
+      setSaveError({ message: msg });
+      alert(msg);
+      return;
+    }
+
+    const materialsToSave = commitPendingMaterialIfReady();
+    const slugToUse = resolveTargetSlug();
+
+    setSaveError(null);
+    if (mode === 'connections') {
+      setSavingPostLinks(true);
+    } else {
+      setSaving(true);
+      setSuccessBanner(null);
+    }
+
+    try {
       const res = await fetch('/api/brand-materials', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -386,7 +473,7 @@ export default function BrandMaterialsSection({
           title: title.trim() || 'Brand Materials',
           tagline: tagline.trim(),
           description: description.trim(),
-          materials,
+          materials: materialsToSave,
           linked_posts: linkedPostIds,
           theme: {
             ...(selectedTemplate && selectedTemplate !== 'auto' ? { template: selectedTemplate } : {}),
@@ -396,20 +483,66 @@ export default function BrandMaterialsSection({
         }),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (res.ok) {
-        const data = await res.json();
-        if (data.pages) setPages(data.pages);
-        setPostLinkSavedToast(`✓ Saved: ${linkedPostIds.length} ${platformLabel} post(s) linked to this page!`);
-        setTimeout(() => setPostLinkSavedToast(null), 3500);
+        setIsCreatingNewPage(false);
+        if (data?.slug) {
+          setInternalSlug(data.slug);
+          setActivePageSlug(data.slug);
+        }
+        if (data?.pages) {
+          setPages(data.pages);
+        }
+        const publishedUrl = data?.pageUrl || livePageUrl;
+        if (onLinkCreated) {
+          onLinkCreated(publishedUrl);
+        }
+
+        if (mode === 'connections') {
+          setPostLinkSavedToast(`✓ Saved: ${linkedPostIds.length} ${platformLabel} post(s) linked to this page!`);
+          setTimeout(() => setPostLinkSavedToast(null), 3500);
+        } else {
+          setSuccessBanner(publishedUrl);
+          try {
+            if (typeof window !== 'undefined') {
+              window.open(publishedUrl, '_blank');
+            }
+          } catch {
+            // If popup is blocked by browser, user clicks View Created Page
+          }
+        }
       } else {
-        alert(`Failed to save ${platformLabel} post connections.`);
+        const fallbackMsg =
+          res.status === 413
+            ? 'Uploaded media is too large to save in one request. Please use a smaller image (under 1.5 MB) or paste an image URL.'
+            : mode === 'connections'
+            ? `Failed to save ${platformLabel} post connections.`
+            : 'Failed to save brand materials page.';
+        const serverMsg = data?.error || fallbackMsg;
+        setSaveError({ message: serverMsg, code: data?.code });
+        alert(serverMsg);
       }
     } catch (err) {
-      console.error('Error saving post links:', err);
-      alert('Error saving post links.');
+      console.error('Error saving brand materials:', err);
+      const errMsg =
+        mode === 'connections'
+          ? `Error saving ${platformLabel} post connections.`
+          : 'An error occurred while saving.';
+      setSaveError({ message: errMsg });
+      alert(errMsg);
     } finally {
-      setSavingPostLinks(false);
+      if (mode === 'connections') {
+        setSavingPostLinks(false);
+      } else {
+        setSaving(false);
+      }
     }
+  };
+
+  // Save linked post connections instantly
+  const handleSavePostLinksOnly = async () => {
+    await persistBrandPage('connections');
   };
 
   // Delete a brand page
@@ -465,6 +598,7 @@ export default function BrandMaterialsSection({
     if (!file) return;
 
     setUploading(true);
+    setSaveError(null);
     try {
       // If it's a plain text file, we can also extract its text
       if (file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
@@ -472,6 +606,7 @@ export default function BrandMaterialsSection({
         setMatContent(text);
         if (!matTitle) setMatTitle(file.name.replace(/\.[^/.]+$/, ''));
         setMatType('text');
+        setAddBoxOpen(true);
         setUploading(false);
         return;
       }
@@ -484,8 +619,9 @@ export default function BrandMaterialsSection({
         body: formData,
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.url) {
         const cleanUrl = maskCloudflareUrl(data.url);
         setMatUrl(cleanUrl);
         if (!matTitle) {
@@ -493,19 +629,24 @@ export default function BrandMaterialsSection({
         }
         setMatSize(data.size || '');
         if (data.type === 'image') {
-          setMatThumbnail(cleanUrl);
+          setMatThumbnail(cleanUrl.startsWith('data:') ? '' : cleanUrl);
           setMatType('image');
         } else if (data.type === 'pdf') {
           setMatType('pdf');
         } else {
           setMatType('doc');
         }
+        setAddBoxOpen(true);
       } else {
-        alert('File upload failed. You can also paste an asset link.');
+        const uploadErr = data?.error || 'File upload failed. You can also paste an asset link.';
+        setSaveError({ message: uploadErr });
+        alert(uploadErr);
       }
     } catch (err) {
       console.error('Upload error:', err);
-      alert('Error uploading file.');
+      const errMsg = 'Error uploading file.';
+      setSaveError({ message: errMsg });
+      alert(errMsg);
     } finally {
       setUploading(false);
     }
@@ -670,33 +811,12 @@ export default function BrandMaterialsSection({
       }
     }
 
-    const cleanUrl = maskCloudflareUrl(matUrl.trim());
-    const cleanThumb = matThumbnail.trim() ? maskCloudflareUrl(matThumbnail.trim()) : (matType === 'image' ? cleanUrl : undefined);
-
-    const newItem: MaterialItem = {
-      id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      type: matType,
-      title: effectiveTitle,
-      url: cleanUrl || undefined,
-      content: matType === 'text' ? matContent.trim() : undefined,
-      description: matDesc.trim() || undefined,
-      category: matCategory.trim() || undefined,
-      size: matSize.trim() || (matType === 'text' ? `${matContent.trim().split(/\s+/).filter(Boolean).length} words` : undefined),
-      thumbnailUrl: cleanThumb,
-      order: materials.length,
-    };
+    const newItem = buildMaterialItemFromDraft(effectiveTitle);
 
     setMaterials([newItem, ...materials]);
-    
+
     // Reset form
-    setMatTitle('');
-    setMatUrl('');
-    setMatDesc('');
-    setMatContent('');
-    setMatCategory('');
-    setMatSize('');
-    setMatThumbnail('');
-    setAddBoxOpen(false);
+    resetMaterialDraftForm();
   };
 
   // Delete material
@@ -706,65 +826,7 @@ export default function BrandMaterialsSection({
 
   // Save all & publish page
   const handleSavePage = async () => {
-    setSaving(true);
-    setSuccessBanner(null);
-    try {
-      const slugToUse = isCreatingNewPage
-        ? (title.trim()
-            ? title.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
-            : `post-${Date.now().toString(36)}`)
-        : (internalSlug || 'showcase');
-
-      const res = await fetch('/api/brand-materials', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workspaceId,
-          platform,
-          slug: slugToUse,
-          title: title.trim() || 'Brand Materials',
-          tagline: tagline.trim(),
-          description: description.trim(),
-          materials,
-          linked_posts: linkedPostIds,
-          theme: {
-            ...(selectedTemplate && selectedTemplate !== 'auto' ? { template: selectedTemplate } : {}),
-            linked_posts: linkedPostIds,
-          },
-          updateAutomationLink: true,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const publishedUrl = data.pageUrl || livePageUrl;
-        setSuccessBanner(publishedUrl);
-        setIsCreatingNewPage(false);
-        setInternalSlug(data.slug);
-        setActivePageSlug(data.slug);
-        if (data.pages) {
-          setPages(data.pages);
-        }
-        if (onLinkCreated) {
-          onLinkCreated(publishedUrl);
-        }
-        // Automatically open the created page in a new window so user sees it right away!
-        try {
-          if (typeof window !== 'undefined') {
-            window.open(publishedUrl, '_blank');
-          }
-        } catch {
-          // If popup is blocked by browser, user clicks View Created Page
-        }
-      } else {
-        alert('Failed to save brand materials page.');
-      }
-    } catch (err) {
-      console.error('Error saving brand page:', err);
-      alert('An error occurred while saving.');
-    } finally {
-      setSaving(false);
-    }
+    await persistBrandPage('full');
   };
 
   if (loading) {
@@ -1526,8 +1588,8 @@ export default function BrandMaterialsSection({
                         flexShrink: 0,
                         overflow: 'hidden'
                       }}>
-                        {item.type === 'image' && item.thumbnailUrl ? (
-                          <img src={item.thumbnailUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {(item.type === 'image' && (item.thumbnailUrl || item.url)) ? (
+                          <img src={item.thumbnailUrl || item.url} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : item.type === 'image' ? (
                           <ImageIcon size={18} />
                         ) : item.type === 'text' ? (
@@ -1712,6 +1774,57 @@ export default function BrandMaterialsSection({
           </code>
           ) instead of a generic link.
         </p>
+
+        {/* ── Save Error Notice ── */}
+        {saveError && (
+          <div
+            role="alert"
+            style={{
+              background: '#FEF2F2',
+              border: '1.5px solid #FECACA',
+              borderRadius: 12,
+              padding: '12px 16px',
+              fontSize: 13,
+              color: '#991B1B',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontWeight: 700 }}>{saveError.message}</div>
+              {saveError.code === 'PLAN_LIMIT_EXCEEDED' && (
+                <div style={{ fontSize: 12, marginTop: 4, color: '#7F1D1D' }}>
+                  {pages.length > 0
+                    ? 'You can select an existing brand page above to edit or link posts, or upgrade your plan to add more pages.'
+                    : 'Upgrade your plan to unlock brand materials pages.'}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {saveError.code === 'PLAN_LIMIT_EXCEEDED' && (
+                <a
+                  href="/dashboard/billing"
+                  className="un-btn un-btn-primary"
+                  style={{ fontSize: 12, padding: '5px 12px', textDecoration: 'none' }}
+                >
+                  Upgrade Plan
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setSaveError(null)}
+                aria-label="Dismiss error"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#991B1B', padding: 4 }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Saved Toast Notice ── */}
         {postLinkSavedToast && (
@@ -1994,9 +2107,9 @@ export default function BrandMaterialsSection({
                             fontSize: 11.5,
                             padding: '6px 10px',
                             fontWeight: 700,
-                            background: isLinked ? '#E1306C' : '#FFFFFF',
+                            background: isLinked ? accentHex : '#FFFFFF',
                             color: isLinked ? '#FFFFFF' : '#3D2B1F',
-                            borderColor: isLinked ? '#E1306C' : '#E8E0D4',
+                            borderColor: isLinked ? accentHex : '#E8E0D4',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
