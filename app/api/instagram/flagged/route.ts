@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
@@ -24,6 +24,8 @@ interface UnifiedFlaggedItem {
   priority: string;
   owner_reply?: string;
   created_at: string;
+  window_status?: 'open' | 'expiring_soon' | 'expired';
+  window_hours_left?: number;
 }
 
 // GET /api/instagram/flagged?workspaceId=xxx&status=pending&type=all|comments|dms
@@ -172,6 +174,10 @@ export async function GET(request: NextRequest) {
         if (!dmErr && dms) {
           for (const row of dms) {
             const normalizedStatus = row.status === 'dismissed' ? 'rejected' : row.status;
+            const ageHours = (Date.now() - Date.parse(row.created_at)) / (1000 * 60 * 60);
+            const hoursLeft = Math.max(0, Math.round((24 - ageHours) * 10) / 10);
+            const windowStatus: 'open' | 'expiring_soon' | 'expired' =
+              hoursLeft <= 0 ? 'expired' : hoursLeft <= 6 ? 'expiring_soon' : 'open';
             items.push({
               id: row.id,
               item_type: 'dm',
@@ -186,6 +192,8 @@ export async function GET(request: NextRequest) {
               priority: row.lead_score >= 2 ? 'high' : 'normal',
               owner_reply: row.owner_reply,
               created_at: row.created_at,
+              window_status: windowStatus,
+              window_hours_left: hoursLeft,
             });
           }
         }

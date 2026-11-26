@@ -46,6 +46,9 @@ export interface PlanFeatures {
   api_access: boolean;
   approval_workflows: boolean;
   priority_support: boolean;
+  campaigns_engine?: boolean;
+  audience_vault?: boolean;
+  adaptive_ai_voice?: boolean;
 }
 
 export interface PlanDefinition {

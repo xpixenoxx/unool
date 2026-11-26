@@ -11,7 +11,7 @@ import type {
   CheckFollowResult,
 } from './types';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { API_VERSIONS } from '@/lib/platforms/apiVersions';
+import { API_VERSIONS, resolveInstagramApiHost } from '@/lib/platforms/apiVersions';
 
 
 
@@ -263,62 +263,40 @@ export async function markSessionVerified(
 // ── Instagram Follow Check via Graph API ───────────────────────────────────────
 
 /**
- * Check if visitorIgUserId follows the gate's creatorIgUserId.
- * Uses the IG Graph API with the creator's access token (Long-lived token from platform_connections).
+ * Check if visitorIgUserId (IGSID) follows the creator's Instagram account.
  *
- * Meta limitation: The IG Basic Display API does NOT expose follower lists.
- * The only reliable way to check follows is:
- *   1. The creator's Business/Creator account via Graph API (followers endpoint)
- *   2. Webhook follow events (when the user follows, Meta sends a webhook)
+ * Uses Meta's official Instagram Messaging User Profile endpoint:
+ *   GET /{visitorIgUserId}?fields=id,username,is_user_follow_business
  *
- * This function uses approach #1: check the creator's followers list.
- * Rate limit: 200 calls per hour per token.
+ * Note: Meta Graph API does NOT expose a /{igUserId}/followers list endpoint.
+ * `is_user_follow_business` is only available for consented users who have interacted
+ * with the creator's Instagram account via messaging.
  */
 export async function checkFollowViaApi(
-  creatorIgUserId: string,
+  _creatorIgUserId: string,
   visitorIgUserId: string,
   creatorAccessToken: string
 ): Promise<CheckFollowResult> {
   const checkedAt = new Date().toISOString();
 
+  if (!visitorIgUserId || !creatorAccessToken) {
+    return { isFollowing: false, source: 'api', checkedAt };
+  }
+
   try {
-    // Fetch followers of the creator's account
-    // This requires the creator to have a professional IG account with instagram_manage_insights permission
+    const apiHost = resolveInstagramApiHost(creatorAccessToken);
     const res = await fetch(
-      `https://graph.instagram.com/${API_VERSIONS.instagram}/${creatorIgUserId}/followers?fields=id&limit=50&access_token=${creatorAccessToken}`
+      `${apiHost}/${API_VERSIONS.instagram}/${encodeURIComponent(visitorIgUserId)}?fields=id,username,is_user_follow_business&access_token=${encodeURIComponent(creatorAccessToken)}`
     );
 
     if (!res.ok) {
       const errorBody = await res.text();
-      logger.warn('IG follower check API error', { status: res.status, body: errorBody });
+      logger.warn('IG follower check API error', { status: res.status, body: errorBody.substring(0, 300) });
       return { isFollowing: false, source: 'api', checkedAt };
     }
 
-    const json = await res.json() as { data?: Array<{ id: string }>; paging?: { next?: string } };
-    const followers = json.data ?? [];
-
-    // Check immediate result (up to 50 recent followers)
-    const found = followers.some((f) => f.id === visitorIgUserId);
-    if (found) {
-      return { isFollowing: true, source: 'api', checkedAt };
-    }
-
-    // Paginate up to 3 pages (150 followers) to handle recently followed
-    let nextCursor = json.paging?.next;
-    let page = 1;
-    while (nextCursor && page < 3) {
-      const pageRes = await fetch(nextCursor);
-      if (!pageRes.ok) break;
-      const pageJson = await pageRes.json() as { data?: Array<{ id: string }>; paging?: { next?: string } };
-      const pageFollowers = pageJson.data ?? [];
-      if (pageFollowers.some((f) => f.id === visitorIgUserId)) {
-        return { isFollowing: true, source: 'api', checkedAt };
-      }
-      nextCursor = pageJson.paging?.next;
-      page++;
-    }
-
-    return { isFollowing: false, source: 'api', checkedAt };
+    const json = (await res.json()) as { id?: string; username?: string; is_user_follow_business?: boolean };
+    return { isFollowing: json.is_user_follow_business === true, source: 'api', checkedAt };
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error('checkFollowViaApi exception', { error });

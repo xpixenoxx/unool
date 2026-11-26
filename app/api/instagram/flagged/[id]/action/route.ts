@@ -6,6 +6,7 @@ import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutom
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { recordAiReplyFeedback } from '@/lib/services/automation/voiceContextLoader';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,6 +88,13 @@ export async function POST(
           .update({ status: 'rejected', resolved_at: new Date().toISOString() })
           .eq('id', id);
       }
+      void recordAiReplyFeedback({
+        workspaceId,
+        channel: isDm ? 'dm' : 'comment',
+        inboundText: isDm ? item.message_text : item.comment_text,
+        aiDraft: isDm ? item.ai_suggested_reply : item.suggested_reply,
+        action: 'rejected',
+      });
       return NextResponse.json({ success: true, status: isDm ? 'dismissed' : 'rejected' });
     }
 
@@ -122,13 +130,37 @@ export async function POST(
     const automation = new InstagramCommentAutomation(groqApiKey || '');
 
     if (isDm) {
-      // Send DM reply
-      const dmResult = await automation.sendPrivateMessage(
-        accessToken,
-        connection.platform_user_id,
-        item.sender_id,
-        replyText
-      );
+      // Check optional HUMAN_AGENT approval flag before sending outside 24h window
+      let useHumanAgentTag = false;
+      try {
+        const { data: wsCfg } = await supabaseAdmin
+          .from('instagram_automation_config')
+          .select('human_agent_tag_approved')
+          .eq('workspace_id', workspaceId)
+          .maybeSingle();
+
+        const dmAgeHours = (Date.now() - Date.parse(item.created_at)) / (1000 * 60 * 60);
+        useHumanAgentTag = Boolean(wsCfg?.human_agent_tag_approved && dmAgeHours >= 23);
+      } catch {
+        useHumanAgentTag = false;
+      }
+
+      // Send DM reply (use HUMAN_AGENT tag ONLY when explicitly approved & >23h old)
+      const dmResult =
+        useHumanAgentTag && typeof automation.sendPrivateMessageWithTag === 'function'
+          ? await automation.sendPrivateMessageWithTag(
+              accessToken,
+              connection.platform_user_id,
+              item.sender_id,
+              replyText,
+              { useHumanAgentTag: true }
+            )
+          : await automation.sendPrivateMessage(
+              accessToken,
+              connection.platform_user_id,
+              item.sender_id,
+              replyText
+            );
 
       if (!dmResult) {
         await supabaseAdmin
@@ -160,6 +192,16 @@ export async function POST(
         })
         .eq('workspace_id', workspaceId)
         .eq('message_id', item.message_id || item.comment_id);
+
+      // Teach Adaptive AI from creator's real edit/approval
+      void recordAiReplyFeedback({
+        workspaceId,
+        channel: 'dm',
+        inboundText: item.message_text || '',
+        aiDraft: item.ai_suggested_reply || null,
+        creatorFinalReply: replyText,
+        action: action === 'reply' ? 'edited' : 'approved',
+      });
 
       logger.info('Flagged DM resolved', { id, action, workspaceId });
       return NextResponse.json({ success: true, status: 'replied', messageId: dmResult.messageId });
@@ -203,6 +245,16 @@ export async function POST(
         })
         .eq('workspace_id', workspaceId)
         .eq('comment_id', item.comment_id);
+
+      // Teach Adaptive AI from creator's real edit/approval
+      void recordAiReplyFeedback({
+        workspaceId,
+        channel: 'comment',
+        inboundText: item.comment_text || '',
+        aiDraft: item.suggested_reply || null,
+        creatorFinalReply: replyText,
+        action: action === 'reply' ? 'edited' : 'approved',
+      });
 
       logger.info('Flagged comment resolved', { id, action, workspaceId });
       return NextResponse.json({ success: true, status: 'replied', replyId: result.replyId });

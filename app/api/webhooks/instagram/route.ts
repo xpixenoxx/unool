@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_VERSIONS } from '@/lib/platforms/apiVersions';
+import { API_VERSIONS, resolveInstagramApiHost } from '@/lib/platforms/apiVersions';
 import { logger } from '@/lib/logger';
 import { verifyMetaSignature } from '@/lib/webhooks/verify';
 import { config } from '@/lib/config/schema';
@@ -32,6 +32,32 @@ import {
   formatFollowGatePublicAsk,
   checkFollowGateDmEligibility,
 } from '@/lib/services/automation/followGatePolicy';
+import {
+  loadActiveWorkspaceCampaigns,
+  matchCampaignWaterfall,
+  isWithinActiveHours,
+  type CampaignTriggerSurface,
+} from '@/lib/services/automation/campaignMatcher';
+import { executeMatchedCampaign } from '@/lib/services/automation/campaignExecutor';
+import {
+  upsertWorkspaceContact,
+  getContactAutomationStatus,
+  evaluateLeadCaptureTurn,
+  sendLeadDeliveryEmail,
+} from '@/lib/services/automation/leadCapture';
+import {
+  detectConversationStopSignal,
+  isOptInResumeSignal,
+} from '@/lib/services/automation/aiReplyQuality';
+import {
+  loadAdaptiveAiContext,
+  recordAiReplyFeedback,
+} from '@/lib/services/automation/voiceContextLoader';
+import { appendDmToBurstBuffer } from '@/lib/services/automation/dmDebouncer';
+import { transcribeInstagramVoiceNote } from '@/lib/services/automation/voiceTranscriber';
+import { computeContactIntentScore } from '@/lib/services/automation/intentScore';
+import { dispatchWorkspaceWebhooks } from '@/lib/services/automation/leadSync';
+import { recordBudgetedNotification } from '@/lib/services/automation/notificationBudget';
 
 
 
@@ -125,13 +151,16 @@ export async function POST(request: NextRequest) {
       // Handle comment events (both 'comments' field and 'feed' comments)
       if (changes && Array.isArray(changes)) {
         for (const change of changes) {
-          if (change.field === 'comments') {
+          if (change.field === 'comments' || change.field === 'live_comments') {
             const value = change.value as Record<string, unknown>;
             if (value) {
+              const surface: CampaignTriggerSurface =
+                change.field === 'live_comments' ? 'live_comment' : 'comment';
               tasks.push(
-                processCommentEvent(igUserId, value).catch((err) => {
+                processCommentEvent(igUserId, value, surface).catch((err) => {
                   logger.error('Error processing Instagram comment event', {
                     igUserId,
+                    surface,
                     error: err instanceof Error ? err : new Error(String(err)),
                   });
                 })
@@ -265,7 +294,11 @@ async function getOrRefreshAccessToken(connection: any): Promise<string | null> 
 
 // ─── Comment Processing Logic ─────────────────────────────────────────────────
 
-async function processCommentEvent(igUserId: string, value: Record<string, unknown>): Promise<void> {
+async function processCommentEvent(
+  igUserId: string,
+  value: Record<string, unknown>,
+  triggerSurface: CampaignTriggerSurface = 'comment'
+): Promise<void> {
   const commentEvent: CommentEvent = {
     commentId: (value.id || value.comment_id) as string,
     mediaId: ((value.media as any)?.id || value.media_id || value.post_id || '') as string,
@@ -442,6 +475,96 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
+  // ── Active Hours Guard (opt-in; default OFF so untouched workspaces run 24/7) ──
+  if (!isWithinActiveHours(automationConfig)) {
+    logger.info('Outside configured active hours — logging comment without auto-reply', {
+      workspaceId: connection.workspace_id,
+      commentId: commentEvent.commentId,
+    });
+    return;
+  }
+
+  // ── Hybrid Deterministic Keyword Campaign Engine (Priority Waterfall) ─────
+  // Runs before QStash/AI fallback when the workspace has active matching campaigns.
+  const activeCommentCampaigns = await loadActiveWorkspaceCampaigns(
+    connection.workspace_id,
+    triggerSurface
+  );
+  if (activeCommentCampaigns.length > 0) {
+    const matched = matchCampaignWaterfall(activeCommentCampaigns, {
+      surface: triggerSurface,
+      text: commentEvent.text,
+      mediaId: commentEvent.mediaId,
+      parentId: commentEvent.parentId,
+    });
+    if (matched) {
+      const recentCampaignReplies = await lexicalEntropyGuard.getRecentReplies(
+        connection.workspace_id,
+        10,
+        commentEvent.mediaId
+      );
+      const campaignAutomation = new InstagramCommentAutomation(groqApiKey);
+      const execRes = await executeMatchedCampaign({
+        workspaceId: connection.workspace_id,
+        connectionId: connection.id,
+        igUserId: connection.platform_user_id,
+        brandUsername: connection.username || 'creator',
+        accessToken,
+        automation: campaignAutomation,
+        campaign: matched.campaign,
+        surface: triggerSurface,
+        triggerEventId: commentEvent.commentId,
+        mediaId: commentEvent.mediaId,
+        platformUserId: commenterFromId || null,
+        username: commentEvent.username,
+        inboundText: commentEvent.text,
+        recentPublicReplies: recentCampaignReplies,
+        vipFollowerThreshold: automationConfig.vipFollowerThreshold,
+      });
+
+      if (execRes.executed && (execRes.publicReplySent || execRes.dmSent)) {
+        await supabaseAdmin.from('instagram_comment_logs').upsert(
+          {
+            workspace_id: connection.workspace_id,
+            comment_id: commentEvent.commentId,
+            media_id: commentEvent.mediaId,
+            comment_text: commentEvent.text,
+            commenter_username: commentEvent.username,
+            classification: 'link_request',
+            confidence: 1.0,
+            suggested_reply: execRes.publicReplyText || '',
+            auto_replied: execRes.publicReplySent,
+            dm_sent: execRes.dmSent,
+            dm_message: execRes.dmText || null,
+            flagged_for_review: false,
+            lead_score: 2,
+            campaign_id: matched.campaign.id,
+            trigger_surface: triggerSurface,
+            reasoning: `Matched campaign "${matched.campaign.name}" (${matched.matchType}${matched.matchedKeyword ? `: ${matched.matchedKeyword}` : ''})`,
+          },
+          { onConflict: 'comment_id', ignoreDuplicates: false }
+        );
+        if (execRes.publicReplySent && execRes.publicReplyText) {
+          await velocityThrottle.recordReply(connection.workspace_id);
+          lexicalEntropyGuard.recordReply(
+            connection.workspace_id,
+            execRes.publicReplyText,
+            commentEvent.mediaId
+          );
+        }
+        return;
+      }
+      if (execRes.skippedReason === 'dedup_window_active' || execRes.skippedReason === 'contact_opted_out') {
+        logger.debug('Campaign execution skipped cleanly', {
+          reason: execRes.skippedReason,
+          campaignId: matched.campaign.id,
+          commentId: commentEvent.commentId,
+        });
+        return;
+      }
+    }
+  }
+
   // ── Phase 4: Durable Outbound Queue Dispatch via QStash ──────────────────
   if (queueService.isAvailable()) {
     try {
@@ -597,6 +720,15 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   // ── Fetch recent replies for thread-scoped anti-duplication ─────────────
   const recentReplies = await lexicalEntropyGuard.getRecentReplies(connection.workspace_id, 15, commentEvent.mediaId);
 
+  // ── Load Adaptive Creator Voice & Brand Materials Context (opt-in) ──────
+  if (automationConfig.adaptiveVoiceEnabled) {
+    const adaptiveCtx = await loadAdaptiveAiContext(connection.workspace_id, 'comment');
+    if (adaptiveCtx.combinedPromptBlock) {
+      automationConfig.creatorVoiceContext = adaptiveCtx.combinedPromptBlock;
+      automationConfig.allowedFactsText = adaptiveCtx.allowedFactsText;
+    }
+  }
+
   // ── Classify and generate reply ─────────────────────────────────────────
   const automation = new InstagramCommentAutomation(groqApiKey);
   let result: ClassifiedComment;
@@ -621,6 +753,38 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
   // Log the comment and classification immediately
   await logCommentEvent(connection.workspace_id, commentEvent, result);
+
+  // Record quality-stop telemetry into adaptive learning memory
+  if (result.stoppedByQualityGate) {
+    void recordAiReplyFeedback({
+      workspaceId: connection.workspace_id,
+      channel: 'comment',
+      inboundText: commentEvent.text,
+      aiDraft: result.suggestedReply,
+      action: 'quality_stopped',
+      qualityScore: result.qualityScore ?? null,
+      stopReason: result.stopReason || 'Quality threshold not met',
+    });
+  }
+
+  // Enrich Audience Vault CRM contact (non-blocking)
+  if (commenterFromId || commentEvent.username) {
+    const contactIntent = computeContactIntentScore({
+      leadScoreLegacy: result.leadScore,
+      classification: result.classification,
+      inboundText: commentEvent.text,
+      lastInteractionAt: new Date().toISOString(),
+    });
+    void upsertWorkspaceContact({
+      workspaceId: connection.workspace_id,
+      platform: 'instagram',
+      platformUserId: commenterFromId || commentEvent.username,
+      username: commentEvent.username,
+      incrementComments: true,
+      intentScore: contactIntent.score,
+      vipFollowerThreshold: automationConfig.vipFollowerThreshold,
+    });
+  }
 
   // Act on the classification
   if (result.shouldAutoReply && result.suggestedReply && result.suggestedReply !== 'SKIP') {
@@ -753,9 +917,10 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     !commentEvent.commentId.startsWith('test_')
   ) {
     try {
+      const hideHost = resolveInstagramApiHost(accessToken);
       const hideParams = new URLSearchParams({ hide: 'true', access_token: accessToken });
       const hideRes = await fetch(
-        `https://graph.facebook.com/${API_VERSIONS.facebook}/${commentEvent.commentId}`,
+        `${hideHost}/${API_VERSIONS.instagram}/${commentEvent.commentId}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -780,12 +945,57 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   const message = messaging.message as Record<string, unknown> | undefined;
   const postback = messaging.postback as Record<string, unknown> | undefined;
   const sender = messaging.sender as Record<string, unknown> | undefined;
+  const recipient = messaging.recipient as Record<string, unknown> | undefined;
+  const reaction = messaging.reaction as Record<string, unknown> | undefined;
+  const messageEdit = messaging.message_edit as Record<string, unknown> | undefined;
+  const referral = (messaging.referral || (postback as any)?.referral) as Record<string, unknown> | undefined;
+
+  // Handle lightweight non-text lifecycle events (reactions, edits, unsends) without triggering AI replies
+  if (reaction) {
+    logger.debug('Instagram DM reaction received', { igUserId, reactionAction: String(reaction.action || ''), emoji: String(reaction.emoji || '') });
+    return;
+  }
+  if (messageEdit) {
+    logger.debug('Instagram DM edit received', { igUserId, mid: messageEdit.mid });
+    return;
+  }
+  if ((message as any)?.is_deleted === true) {
+    logger.debug('Instagram DM unsend received', { igUserId, mid: message?.mid });
+    return;
+  }
 
   if ((!message && !postback) || !sender) return;
 
-  // Don't process our own outbound messages (echo)
+  // Human Takeover + Phone-Reply Voice Learning on echo/outbound messages from the creator's phone
   if ((message as any)?.is_echo === true || sender.id === igUserId) {
-    logger.debug('Skipping echo/outbound DM', {
+    const recipientId = recipient?.id as string | undefined;
+    const echoText = typeof message?.text === 'string' ? message.text.trim() : '';
+    if (recipientId && recipientId !== igUserId) {
+      try {
+        const echoConn = await resolveInstagramConnection(igUserId);
+        if (echoConn?.workspace_id) {
+          const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          await upsertWorkspaceContact({
+            workspaceId: echoConn.workspace_id,
+            platform: 'instagram',
+            platformUserId: recipientId,
+            aiPausedUntil: pauseUntil,
+          });
+          if (echoText.length >= 8) {
+            await recordAiReplyFeedback({
+              workspaceId: echoConn.workspace_id,
+              channel: 'dm',
+              inboundText: '(creator manual phone reply)',
+              creatorFinalReply: echoText,
+              action: 'phone_echo',
+            });
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+    logger.debug('Handled echo/outbound DM (24h Human Takeover active)', {
       senderId: sender.id,
       igUserId,
       isEcho: (message as any)?.is_echo,
@@ -794,12 +1004,33 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   }
 
   const quickReply = (message as any)?.quick_reply as Record<string, unknown> | undefined;
-  const resolvedText =
+  const attachments = Array.isArray((message as any)?.attachments)
+    ? ((message as any).attachments as Array<Record<string, any>>)
+    : [];
+  const firstAttachment = attachments[0];
+  const attachmentType = typeof firstAttachment?.type === 'string' ? firstAttachment.type : undefined;
+  const attachmentUrl = typeof firstAttachment?.payload?.url === 'string' ? firstAttachment.payload.url : undefined;
+  const replyToStory = (message as any)?.reply_to?.story as Record<string, unknown> | undefined;
+  const adId = typeof referral?.ad_id === 'string' ? referral.ad_id : undefined;
+
+  let triggerSurface: CampaignTriggerSurface = 'dm_keyword';
+  if (adId) triggerSurface = 'ad_referral';
+  else if (replyToStory) triggerSurface = 'story_reply';
+  else if (attachmentType === 'story_mention') triggerSurface = 'story_mention';
+  else if (attachmentType === 'ig_reel' || attachmentType === 'share') triggerSurface = 'reel_share';
+
+  let resolvedText =
     (message?.text as string | undefined) ||
     (quickReply?.payload as string | undefined) ||
-    (postback?.title as string | undefined) ||
     (postback?.payload as string | undefined) ||
+    (postback?.title as string | undefined) ||
     '';
+
+  if (!resolvedText && attachmentType === 'story_mention') {
+    resolvedText = '[Story Mention]';
+  } else if (!resolvedText && (attachmentType === 'ig_reel' || attachmentType === 'share')) {
+    resolvedText = '[Shared Reel]';
+  }
 
   const dmEvent: DmEvent = {
     messageId:
@@ -813,7 +1044,10 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     timestamp: (messaging.timestamp as string) || new Date().toISOString(),
   };
 
-  if (!dmEvent.text || !dmEvent.senderId) {
+  const hasAudioAttachment = attachmentType === 'audio' && Boolean(attachmentUrl);
+  const hasImageAttachment = attachmentType === 'image';
+
+  if ((!dmEvent.text && !hasAudioAttachment && !hasImageAttachment) || !dmEvent.senderId) {
     logger.debug('Skipping empty DM event');
     return;
   }
@@ -829,11 +1063,13 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     return;
   }
 
-  // ContentGuard check on DM text
-  const guardResult = ContentGuard.validateComment(dmEvent.text);
-  if (!guardResult.safe && guardResult.violation.level === 'blocked') {
-    logger.info('ContentGuard blocked incoming DM', { code: guardResult.violation.code });
-    return;
+  // ContentGuard check on DM text (skip when empty so audio/image attachments reach multimodal handlers)
+  if (dmEvent.text) {
+    const guardResult = ContentGuard.validateComment(dmEvent.text);
+    if (!guardResult.safe && guardResult.violation.level === 'blocked') {
+      logger.info('ContentGuard blocked incoming DM', { code: guardResult.violation.code });
+      return;
+    }
   }
 
   // Find the platform connection with multi-tenant isolation
@@ -1034,9 +1270,363 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     return;
   }
 
-  // ── Phase 4: Durable Outbound Queue Dispatch via QStash ──────────────────
+  // ── Multimodal DM Handling: Voice Notes (Groq Whisper) & Image Screenshots ──
+  if (hasAudioAttachment && attachmentUrl) {
+    if (automationConfig.voiceNoteTranscriptionEnabled && groqApiKey) {
+      const transcribed = await transcribeInstagramVoiceNote(attachmentUrl, groqApiKey);
+      if (transcribed.ok && transcribed.transcript) {
+        dmEvent.text = `[Voice Note]: ${transcribed.transcript}`;
+      }
+    }
+    if (!dmEvent.text) {
+      dmEvent.text = '[Voice Note attached]';
+      await logDmEvent(connection.workspace_id, dmEvent, {
+        classification: 'question',
+        confidence: 1,
+        suggestedReply: '',
+        leadScore: 1,
+        shouldAutoReply: false,
+        shouldEscalate: true,
+        reasoning: 'Inbound Voice Note — routed to Triage Queue for review',
+      });
+      await supabaseAdmin.from('instagram_flagged_dms').upsert(
+        {
+          workspace_id: connection.workspace_id,
+          message_id: dmEvent.messageId,
+          sender_id: dmEvent.senderId,
+          sender_username: dmEvent.senderUsername,
+          message_text: dmEvent.text,
+          classification: 'question',
+          ai_suggested_reply: null,
+          lead_score: 1,
+          reasoning: 'Inbound Voice Note received — enable Voice Note Transcription in settings or reply manually',
+          status: 'pending',
+        },
+        { onConflict: 'workspace_id,message_id', ignoreDuplicates: false }
+      );
+      return;
+    }
+  } else if (hasImageAttachment && !dmEvent.text) {
+    dmEvent.text = '[Image / Screenshot attached]';
+    await logDmEvent(connection.workspace_id, dmEvent, {
+      classification: 'support',
+      confidence: 1,
+      suggestedReply: '',
+      leadScore: 2,
+      shouldAutoReply: false,
+      shouldEscalate: true,
+      reasoning: 'Inbound image/screenshot attachment — routed to Triage Queue for human inspection',
+    });
+    await supabaseAdmin.from('instagram_flagged_dms').upsert(
+      {
+        workspace_id: connection.workspace_id,
+        message_id: dmEvent.messageId,
+        sender_id: dmEvent.senderId,
+        sender_username: dmEvent.senderUsername,
+        message_text: dmEvent.text,
+        classification: 'support',
+        ai_suggested_reply: null,
+        lead_score: 2,
+        reasoning: 'Image/screenshot received — routed to creator Triage Queue',
+        status: 'pending',
+      },
+      { onConflict: 'workspace_id,message_id', ignoreDuplicates: false }
+    );
+    return;
+  }
+
+  // ── Contact Opt-Out ("STOP"/"START") & 24h Human Takeover Pause Guard ────
+  const contactStatus = await getContactAutomationStatus(
+    connection.workspace_id,
+    dmEvent.senderId,
+    'instagram'
+  );
+
+  if (isOptInResumeSignal(dmEvent.text)) {
+    await upsertWorkspaceContact({
+      workspaceId: connection.workspace_id,
+      platform: 'instagram',
+      platformUserId: dmEvent.senderId,
+      username: dmEvent.senderUsername,
+      optedOut: false,
+    });
+  } else {
+    const earlyStop = detectConversationStopSignal(dmEvent.text, { channel: 'dm', priorAssistantTurns: 0 });
+    if (earlyStop.shouldStop && earlyStop.optOut) {
+      await upsertWorkspaceContact({
+        workspaceId: connection.workspace_id,
+        platform: 'instagram',
+        platformUserId: dmEvent.senderId,
+        username: dmEvent.senderUsername,
+        optedOut: true,
+      });
+      await logDmEvent(connection.workspace_id, dmEvent, {
+        classification: 'unrelated',
+        confidence: 1,
+        suggestedReply: 'SKIP',
+        leadScore: 0,
+        shouldAutoReply: false,
+        shouldEscalate: false,
+        reasoning: earlyStop.explanation || 'User opted out ("STOP")',
+      });
+      return;
+    }
+    if (contactStatus.optedOut || contactStatus.aiPaused) {
+      await logDmEvent(connection.workspace_id, dmEvent, {
+        classification: 'unrelated',
+        confidence: 1,
+        suggestedReply: 'SKIP',
+        leadScore: 0,
+        shouldAutoReply: false,
+        shouldEscalate: false,
+        reasoning: contactStatus.optedOut
+          ? 'Contact previously opted out — automation suppressed'
+          : `AI paused until ${contactStatus.aiPausedUntil} (Human Takeover active)`,
+      });
+      return;
+    }
+  }
+
+  // ── Active Conversational Lead Capture Turn (Email / Phone Extraction) ────
+  if (contactStatus.contact?.lead_capture_state) {
+    const captureAccessToken = await getOrRefreshAccessToken(connection);
+    if (captureAccessToken) {
+      const captureEval = evaluateLeadCaptureTurn(dmEvent.text, contactStatus.contact.lead_capture_state);
+      const captureAutomation = new InstagramCommentAutomation(groqApiKey || '');
+      if (captureEval.status === 'captured') {
+        const nextIntent = computeContactIntentScore({
+          hasEmail: Boolean(captureEval.email || contactStatus.contact.email),
+          hasPhone: Boolean(captureEval.phone || contactStatus.contact.phone),
+          isFollowing: contactStatus.contact.is_following_business,
+          isVip: contactStatus.contact.is_vip,
+          totalDms: (contactStatus.contact.total_dms || 0) + 1,
+          lastInteractionAt: new Date().toISOString(),
+        });
+        await upsertWorkspaceContact({
+          workspaceId: connection.workspace_id,
+          platform: 'instagram',
+          platformUserId: dmEvent.senderId,
+          username: dmEvent.senderUsername,
+          email: captureEval.email,
+          phone: captureEval.phone,
+          consentSource: 'instagram_dm_opt_in',
+          clearLeadCaptureState: true,
+          incrementDms: true,
+          intentScore: nextIntent.score,
+        });
+        await captureAutomation.sendPrivateMessage(
+          captureAccessToken,
+          igUserId,
+          dmEvent.senderId,
+          captureEval.replyText
+        );
+        if (captureEval.email && contactStatus.contact.lead_capture_state.sendEmailDelivery) {
+          void sendLeadDeliveryEmail({
+            toEmail: captureEval.email,
+            recipientName: contactStatus.contact.full_name || dmEvent.senderUsername,
+            brandName: connection.username ? `@${connection.username}` : 'Unool Creator',
+            subject: contactStatus.contact.lead_capture_state.emailSubject,
+            body: contactStatus.contact.lead_capture_state.emailBody,
+            resourceUrl: contactStatus.contact.lead_capture_state.ctaUrl,
+          });
+        }
+        void dispatchWorkspaceWebhooks(connection.workspace_id, 'lead.captured', {
+          contactId: contactStatus.contact.id,
+          username: dmEvent.senderUsername || contactStatus.contact.username,
+          email: captureEval.email,
+          phone: captureEval.phone,
+          campaignId: contactStatus.contact.lead_capture_state.campaignId,
+          intentScore: nextIntent.score,
+        });
+        void recordBudgetedNotification({
+          workspaceId: connection.workspace_id,
+          type: 'hot_lead',
+          title: `New lead captured: ${captureEval.email || captureEval.phone}`,
+          body: `From @${dmEvent.senderUsername || contactStatus.contact.username || dmEvent.senderId}`,
+          dedupKey: `lead:${contactStatus.contact.id}:${captureEval.email || captureEval.phone}`,
+        });
+        await logDmEvent(connection.workspace_id, dmEvent, {
+          classification: 'purchase_intent',
+          confidence: 1,
+          suggestedReply: captureEval.replyText,
+          leadScore: 3,
+          shouldAutoReply: true,
+          shouldEscalate: false,
+          reasoning: `Captured consented lead (${captureEval.email || captureEval.phone})`,
+        });
+        await supabaseAdmin
+          .from('instagram_dm_logs')
+          .update({ auto_replied: true, reply_sent_at: new Date().toISOString() })
+          .eq('workspace_id', connection.workspace_id)
+          .eq('message_id', dmEvent.messageId);
+        return;
+      } else if (captureEval.status === 'declined') {
+        await upsertWorkspaceContact({
+          workspaceId: connection.workspace_id,
+          platform: 'instagram',
+          platformUserId: dmEvent.senderId,
+          clearLeadCaptureState: true,
+          incrementDms: true,
+        });
+        await captureAutomation.sendPrivateMessage(
+          captureAccessToken,
+          igUserId,
+          dmEvent.senderId,
+          captureEval.replyText
+        );
+        return;
+      } else if (captureEval.status === 'reprompt') {
+        await upsertWorkspaceContact({
+          workspaceId: connection.workspace_id,
+          platform: 'instagram',
+          platformUserId: dmEvent.senderId,
+          leadCaptureState: captureEval.nextState,
+          incrementDms: true,
+        });
+        await captureAutomation.sendPrivateMessage(
+          captureAccessToken,
+          igUserId,
+          dmEvent.senderId,
+          captureEval.replyText
+        );
+        return;
+      } else {
+        await upsertWorkspaceContact({
+          workspaceId: connection.workspace_id,
+          platform: 'instagram',
+          platformUserId: dmEvent.senderId,
+          clearLeadCaptureState: true,
+        });
+      }
+    }
+  }
+
+  // ── Opening DM Postback Button / Campaign Follow Confirmation ─────────────
+  const postbackPayload =
+    (postback?.payload as string | undefined) ||
+    (quickReply?.payload as string | undefined) ||
+    '';
+  if (
+    postbackPayload.startsWith('OPEN_CAMPAIGN:') ||
+    postbackPayload.startsWith('CONFIRM_CAMPAIGN_FOLLOW:')
+  ) {
+    const [, targetCampaignId] = postbackPayload.split(':');
+    if (targetCampaignId) {
+      const { data: targetCamp } = await supabaseAdmin
+        .from('instagram_campaigns')
+        .select('*')
+        .eq('id', targetCampaignId)
+        .eq('workspace_id', connection.workspace_id)
+        .maybeSingle();
+      const postbackToken = await getOrRefreshAccessToken(connection);
+      if (targetCamp && postbackToken) {
+        const pbAutomation = new InstagramCommentAutomation(groqApiKey || '');
+        const execRes = await executeMatchedCampaign({
+          workspaceId: connection.workspace_id,
+          connectionId: connection.id,
+          igUserId: connection.platform_user_id,
+          brandUsername: connection.username || 'creator',
+          accessToken: postbackToken,
+          automation: pbAutomation,
+          campaign: { ...targetCamp, dedup_user_post_hours: 0 },
+          surface: 'dm_keyword',
+          triggerEventId: dmEvent.messageId,
+          platformUserId: dmEvent.senderId,
+          username: dmEvent.senderUsername,
+          inboundText: dmEvent.text,
+          vipFollowerThreshold: automationConfig.vipFollowerThreshold,
+        });
+        if (execRes.executed && execRes.dmSent) {
+          await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
+          return;
+        }
+      }
+    }
+  }
+
+  // ── Hybrid Deterministic DM / Story / Mention / Ad / Reel-Share Campaigns ──
+  const activeDmCampaigns = await loadActiveWorkspaceCampaigns(
+    connection.workspace_id,
+    triggerSurface
+  );
+  if (activeDmCampaigns.length > 0) {
+    const matchedDmCamp = matchCampaignWaterfall(activeDmCampaigns, {
+      surface: triggerSurface,
+      text: dmEvent.text,
+      adId,
+    });
+    if (matchedDmCamp) {
+      const dmCampToken = await getOrRefreshAccessToken(connection);
+      if (dmCampToken) {
+        const dmCampAutomation = new InstagramCommentAutomation(groqApiKey || '');
+        const execRes = await executeMatchedCampaign({
+          workspaceId: connection.workspace_id,
+          connectionId: connection.id,
+          igUserId: connection.platform_user_id,
+          brandUsername: connection.username || 'creator',
+          accessToken: dmCampToken,
+          automation: dmCampAutomation,
+          campaign: matchedDmCamp.campaign,
+          surface: triggerSurface,
+          triggerEventId: dmEvent.messageId,
+          platformUserId: dmEvent.senderId,
+          username: dmEvent.senderUsername,
+          inboundText: dmEvent.text,
+          vipFollowerThreshold: automationConfig.vipFollowerThreshold,
+        });
+        if (execRes.executed && execRes.dmSent) {
+          await supabaseAdmin.from('instagram_dm_logs').upsert(
+            {
+              workspace_id: connection.workspace_id,
+              message_id: dmEvent.messageId,
+              sender_id: dmEvent.senderId,
+              sender_username: dmEvent.senderUsername,
+              message_text: dmEvent.text,
+              classification: 'link_request',
+              confidence: 1.0,
+              ai_reply: execRes.dmText || '',
+              auto_replied: true,
+              escalated: false,
+              lead_score: 2,
+              campaign_id: matchedDmCamp.campaign.id,
+              trigger_surface: triggerSurface,
+              attachment_type: attachmentType || null,
+              reply_sent_at: new Date().toISOString(),
+              reasoning: `Matched ${triggerSurface} campaign "${matchedDmCamp.campaign.name}"`,
+            },
+            { onConflict: 'message_id', ignoreDuplicates: false }
+          );
+          await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
+          return;
+        }
+      }
+    }
+  }
+
+  // ── Active Hours Guard for AI DM Replies (opt-in; default OFF) ────────────
+  if (!isWithinActiveHours(automationConfig)) {
+    logger.info('Outside active hours — logging DM without auto-reply', {
+      workspaceId: connection.workspace_id,
+      messageId: dmEvent.messageId,
+    });
+    return;
+  }
+
+  // ── Phase 4: Durable Outbound Queue Dispatch via QStash (with optional Burst Debounce) ──
   if (queueService.isAvailable()) {
     try {
+      const debounceSec = Math.max(0, Math.min(15, automationConfig.dmDebounceSeconds || 0));
+      let isDebounced = false;
+      if (debounceSec > 0) {
+        const buf = await appendDmToBurstBuffer(
+          connection.workspace_id,
+          dmEvent.senderId,
+          dmEvent.messageId,
+          dmEvent.text
+        );
+        isDebounced = buf.buffered;
+      }
+
       const jobId = `job_dm_${dmEvent.messageId}`;
       await supabaseAdmin.from('instagram_outbound_jobs').upsert({
         workspace_id: connection.workspace_id,
@@ -1062,7 +1652,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
         auto_replied: false,
         delivery_status: 'queued',
         escalated: false,
-        reasoning: 'Enqueued for durable background dispatch',
+        reasoning: isDebounced ? `Buffered for ${debounceSec}s burst coalescing` : 'Enqueued for durable background dispatch',
       }, { onConflict: 'message_id', ignoreDuplicates: true });
 
       const msgId = await queueService.enqueueInstagramOutboundTask({
@@ -1074,10 +1664,14 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
         senderId: dmEvent.senderId,
         senderUsername: dmEvent.senderUsername,
         dmText: dmEvent.text,
+        triggerSurface,
+        attachmentType,
+        debounced: isDebounced || undefined,
+        delaySeconds: isDebounced ? debounceSec : undefined,
       });
 
       if (msgId) {
-        logger.info('Dispatched Instagram DM to QStash queue', { messageId: dmEvent.messageId, msgId });
+        logger.info('Dispatched Instagram DM to QStash queue', { messageId: dmEvent.messageId, msgId, isDebounced });
         return; // Webhook acknowledged, processing continues asynchronously in worker
       }
     } catch (queueErr) {
@@ -1244,6 +1838,52 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   const currentTurn = conversationTurnCount + 1;
   const brandName = connection.username ? `@${connection.username}` : 'our product';
 
+  // Intelligent Conversation Stopper on synchronous DM path (when enabled)
+  if (automationConfig.autoStopOnLowQuality) {
+    const syncStop = detectConversationStopSignal(dmEvent.text, {
+      channel: 'dm',
+      priorAssistantTurns: conversationTurnCount,
+    });
+    if (syncStop.shouldStop) {
+      await logDmEvent(connection.workspace_id, dmEvent, {
+        classification: syncStop.escalate ? 'negative' : 'unrelated',
+        confidence: 1,
+        suggestedReply: 'SKIP',
+        leadScore: syncStop.escalate ? 2 : 0,
+        shouldAutoReply: false,
+        shouldEscalate: syncStop.escalate,
+        reasoning: syncStop.explanation || 'Stopped by intelligent conversation stopper',
+      });
+      if (syncStop.escalate) {
+        await supabaseAdmin.from('instagram_flagged_dms').upsert(
+          {
+            workspace_id: connection.workspace_id,
+            message_id: dmEvent.messageId,
+            sender_id: dmEvent.senderId,
+            sender_username: dmEvent.senderUsername,
+            message_text: dmEvent.text,
+            classification: 'negative',
+            ai_suggested_reply: null,
+            lead_score: 2,
+            reasoning: syncStop.explanation || 'Escalated for human handling',
+            status: 'pending',
+          },
+          { onConflict: 'workspace_id,message_id', ignoreDuplicates: false }
+        );
+      }
+      return;
+    }
+  }
+
+  // Load Adaptive Creator Voice + Learned Exemplars + Brand Materials context (opt-in)
+  if (automationConfig.adaptiveVoiceEnabled) {
+    const adaptiveDmCtx = await loadAdaptiveAiContext(connection.workspace_id, 'dm');
+    if (adaptiveDmCtx.combinedPromptBlock) {
+      automationConfig.creatorVoiceContext = adaptiveDmCtx.combinedPromptBlock;
+      automationConfig.allowedFactsText = adaptiveDmCtx.allowedFactsText;
+    }
+  }
+
   const result = await automation.classifyAndReplyDM(
     dmEvent,
     automationConfig,
@@ -1253,8 +1893,39 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
     true
   );
 
+  // Record quality-stop telemetry into adaptive learning memory
+  if (result.stoppedByQualityGate) {
+    void recordAiReplyFeedback({
+      workspaceId: connection.workspace_id,
+      channel: 'dm',
+      inboundText: dmEvent.text,
+      aiDraft: result.suggestedReply,
+      action: 'quality_stopped',
+      qualityScore: result.qualityScore ?? null,
+      stopReason: result.stopReason || 'Quality threshold not met',
+    });
+  }
+
   // Log the DM (auto_replied starts as false, updated to true only after confirmed send)
   await logDmEvent(connection.workspace_id, dmEvent, result);
+
+  // Upsert Audience Vault contact for DM sender (non-blocking)
+  const dmContactIntent = computeContactIntentScore({
+    leadScoreLegacy: result.leadScore,
+    classification: result.classification,
+    inboundText: dmEvent.text,
+    totalDms: conversationTurnCount + 1,
+    lastInteractionAt: new Date().toISOString(),
+  });
+  void upsertWorkspaceContact({
+    workspaceId: connection.workspace_id,
+    platform: 'instagram',
+    platformUserId: dmEvent.senderId,
+    username: dmEvent.senderUsername,
+    incrementDms: true,
+    intentScore: dmContactIntent.score,
+    vipFollowerThreshold: automationConfig.vipFollowerThreshold,
+  });
 
   if (result.shouldAutoReply && result.suggestedReply && result.suggestedReply !== 'SKIP') {
     // Humanize the reply
@@ -1437,6 +2108,18 @@ async function loadAutomationConfig(
         requireFollowForDm: data.require_follow_for_dm ?? false,
         followAskMessage: data.follow_ask_message || undefined,
         followVerifiedMessage: data.follow_verified_message || undefined,
+        aiConfidenceThreshold: data.ai_confidence_threshold ?? 0,
+        adaptiveVoiceEnabled: data.adaptive_voice_enabled ?? false,
+        autoStopOnLowQuality: data.auto_stop_on_low_quality ?? false,
+        activeHoursEnabled: data.active_hours_enabled ?? false,
+        activeHoursStart: data.active_hours_start || '09:00',
+        activeHoursEnd: data.active_hours_end || '22:00',
+        activeHoursTimezone: data.active_hours_timezone || 'UTC',
+        humanTakeoverHours: data.human_takeover_hours ?? 24,
+        humanAgentTagApproved: data.human_agent_tag_approved ?? false,
+        dmDebounceSeconds: data.dm_debounce_seconds ?? 0,
+        voiceNoteTranscriptionEnabled: data.voice_note_transcription_enabled ?? false,
+        vipFollowerThreshold: data.vip_follower_threshold ?? 10000,
       };
     }
   } catch {

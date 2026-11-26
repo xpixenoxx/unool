@@ -11,6 +11,7 @@ import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
+import { TodayCommandCenter } from '@/components/dashboard/TodayCommandCenter';
 import { getHourlyGreetingForDate } from '@/lib/utils/hourlyGreetings';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { toast } from 'sonner';
@@ -1265,6 +1266,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             )}
           </section>
         </div>
+
+        {/* ═══ SECTION 1.5: Today Command Center (Live Pulse, Next Best Actions, Demand Radar) ═══ */}
+        {featureFlags.automationEnabled && data.workspaceId && (
+          <TodayCommandCenter workspaceId={data.workspaceId} />
+        )}
 
         {/* ═══ SECTION 2: Broadcast Network ═══ */}
         <section className="card con">

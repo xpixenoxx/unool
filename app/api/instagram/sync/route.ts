@@ -18,7 +18,7 @@ import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolv
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { API_VERSIONS } from '@/lib/platforms/apiVersions';
+import { API_VERSIONS, resolveInstagramApiHost } from '@/lib/platforms/apiVersions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -736,9 +736,10 @@ export async function POST(request: NextRequest) {
           !commentId.startsWith('test_')
         ) {
           try {
+            const hideHost = resolveInstagramApiHost(accessToken);
             const hideParams = new URLSearchParams({ hide: 'true', access_token: accessToken });
             const hideRes = await fetch(
-              `https://graph.facebook.com/${API_VERSIONS.facebook}/${commentId}`,
+              `${hideHost}/${API_VERSIONS.instagram}/${commentId}`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

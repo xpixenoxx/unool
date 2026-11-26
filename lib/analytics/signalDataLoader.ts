@@ -92,8 +92,8 @@ export async function loadWorkspaceSignalAnalytics(
   const lookbackDays = retentionDays > 0 ? Math.min(365, retentionDays) : 90;
   const sinceIso = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
-  // Fetch variants + analytics_events + automation logs in parallel
-  const [variantsRes, eventsRes, commentLogsRes, dmLogsRes, flaggedRes] = await Promise.all([
+  // Fetch variants + analytics_events + automation logs + tracked clicks + contacts in parallel
+  const [variantsRes, eventsRes, commentLogsRes, dmLogsRes, flaggedRes, trackedClicksRes, vaultLeadsRes] = await Promise.all([
     postIds.length > 0
       ? supabaseAdmin
           .from('post_variants')
@@ -110,13 +110,13 @@ export async function loadWorkspaceSignalAnalytics(
       .limit(5000),
     supabaseAdmin
       .from('instagram_comment_logs')
-      .select('id, dm_sent, lead_score, follow_verified')
+      .select('id, media_id, dm_sent, lead_score, auto_replied')
       .eq('workspace_id', workspaceId)
       .gte('created_at', sinceIso)
       .limit(2000),
     supabaseAdmin
       .from('instagram_dm_logs')
-      .select('id, auto_replied, lead_score')
+      .select('id, auto_replied, lead_score, follow_verified, follow_status')
       .eq('workspace_id', workspaceId)
       .gte('created_at', sinceIso)
       .limit(2000),
@@ -124,6 +124,19 @@ export async function loadWorkspaceSignalAnalytics(
       .from('instagram_flagged_comments')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId),
+    supabaseAdmin
+      .from('tracked_link_clicks')
+      .select('id, campaign_id')
+      .eq('workspace_id', workspaceId)
+      .gte('clicked_at', sinceIso)
+      .limit(2000)
+      .then((r) => r, () => ({ data: [], error: null })),
+    supabaseAdmin
+      .from('workspace_contacts')
+      .select('id, email, phone, intent_score')
+      .eq('workspace_id', workspaceId)
+      .limit(2000)
+      .then((r) => r, () => ({ data: [], error: null })),
   ]);
 
   if (variantsRes.error) {
@@ -301,14 +314,43 @@ export async function loadWorkspaceSignalAnalytics(
   // Automation conversion summary (separated cleanly from post engagement)
   const commentLogs = !commentLogsRes.error && commentLogsRes.data ? commentLogsRes.data : [];
   const dmLogs = !dmLogsRes.error && dmLogsRes.data ? dmLogsRes.data : [];
+  const trackedClicks = !trackedClicksRes.error && Array.isArray(trackedClicksRes.data) ? trackedClicksRes.data : [];
+  const vaultContacts = !vaultLeadsRes.error && Array.isArray(vaultLeadsRes.data) ? vaultLeadsRes.data : [];
+
+  // Closed-Loop Hook-to-Lead attribution: map Instagram media_id -> post hookType
+  const hookByMediaId = new Map<string, string>();
+  for (const post of postInputs) {
+    for (const v of post.variants) {
+      if (v.platform === 'instagram' && v.platformPostId) {
+        hookByMediaId.set(v.platformPostId, post.hookType || 'direct');
+      }
+    }
+  }
+  const hookConversionMap = new Map<string, { hookType: string; dmsSent: number; clicks: number; highIntentLeads: number }>();
+  for (const c of commentLogs as any[]) {
+    if (!c.media_id) continue;
+    const hType = hookByMediaId.get(String(c.media_id));
+    if (!hType) continue;
+    const bucket = hookConversionMap.get(hType) || { hookType: hType, dmsSent: 0, clicks: 0, highIntentLeads: 0 };
+    if (c.dm_sent) bucket.dmsSent += 1;
+    if (Number(c.lead_score || 0) >= 2) bucket.highIntentLeads += 1;
+    hookConversionMap.set(hType, bucket);
+  }
+  const topConvertingHooks = Array.from(hookConversionMap.values())
+    .sort((a, b) => b.highIntentLeads + b.dmsSent - (a.highIntentLeads + a.dmsSent))
+    .slice(0, 4);
+
   const automationSummary: SignalAutomationSummaryInput = {
     commentReplies: commentLogs.length,
     dmSent: commentLogs.filter((c: any) => c.dm_sent).length + dmLogs.filter((d: any) => d.auto_replied).length,
-    followGateUnlocked: commentLogs.filter((c: any) => c.follow_verified).length,
+    followGateUnlocked: dmLogs.filter((d: any) => d.follow_verified === true).length,
     highIntentLeads:
-      commentLogs.filter((c: any) => Number(c.lead_score || 0) >= 70).length +
-      dmLogs.filter((d: any) => Number(d.lead_score || 0) >= 70).length,
+      commentLogs.filter((c: any) => Number(c.lead_score || 0) >= 2).length +
+      dmLogs.filter((d: any) => Number(d.lead_score || 0) >= 2).length,
     flaggedCount: typeof flaggedRes.count === 'number' ? flaggedRes.count : 0,
+    trackedClicks: trackedClicks.length,
+    leadsCaptured: vaultContacts.filter((v: any) => Boolean(v.email || v.phone)).length,
+    topConvertingHooks,
   };
 
   const analytics = computeSignalAnalytics({

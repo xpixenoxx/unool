@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutomation';
+import { classifyMetaError } from '@/lib/services/automation/metaErrors';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
@@ -16,6 +17,9 @@ import {
   formatFollowGatePublicAsk,
   checkFollowGateDmEligibility,
 } from '@/lib/services/automation/followGatePolicy';
+import { drainDmBurstBufferIfLatest } from '@/lib/services/automation/dmDebouncer';
+import { loadAdaptiveAiContext, recordAiReplyFeedback } from '@/lib/services/automation/voiceContextLoader';
+import { detectConversationStopSignal } from '@/lib/services/automation/aiReplyQuality';
 
 export const maxDuration = 60;
 
@@ -173,6 +177,39 @@ async function handleJob(params: InstagramOutboundJobParams) {
 
   // ── Execute Outbound Job by Type ──
   try {
+    if (jobType === 'campaign_nudge') {
+      if (!senderId || !dmText) {
+        await markJobSent(workspaceId, jobType, targetId);
+        return NextResponse.json({ success: true, skipped: true, reason: 'missing_nudge_fields' }, { status: 200 });
+      }
+      // If user already clicked the link or completed the enrollment, cancel nudge silently
+      if (params.enrollmentId) {
+        const { data: enroll } = await supabaseAdmin
+          .from('campaign_enrollments')
+          .select('stage, link_clicked_at, nudge_sent_at')
+          .eq('id', params.enrollmentId)
+          .maybeSingle();
+        if (enroll?.link_clicked_at || enroll?.stage === 'clicked' || enroll?.nudge_sent_at) {
+          await markJobSent(workspaceId, jobType, targetId);
+          return NextResponse.json({ success: true, skipped: true, reason: 'already_clicked' }, { status: 200 });
+        }
+      }
+      const nudgeRes = await automation.sendPrivateMessage(
+        accessToken,
+        connection.platform_user_id,
+        senderId,
+        dmText
+      );
+      if (nudgeRes && params.enrollmentId) {
+        await supabaseAdmin
+          .from('campaign_enrollments')
+          .update({ nudge_sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq('id', params.enrollmentId);
+      }
+      await markJobSent(workspaceId, jobType, targetId);
+      return NextResponse.json({ success: true, nudged: Boolean(nudgeRes) }, { status: 200 });
+    }
+
     if (jobType === 'comment_reply') {
       if (!commentId || !commentText) {
         throw new Error('Missing commentId or commentText for comment_reply');
@@ -277,6 +314,12 @@ async function handleJob(params: InstagramOutboundJobParams) {
         mediaId,
       });
 
+      // Optional Adaptive Creator Voice & Brand Materials Context
+      let adaptiveCommentCtx: { combinedPromptBlock: string; allowedFactsText: string } | null = null;
+      if (cfg?.adaptive_voice_enabled) {
+        adaptiveCommentCtx = await loadAdaptiveAiContext(workspaceId, 'comment');
+      }
+
       // Generate AI response with thread-scoped anti-duplication
       const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15, mediaId);
       const classified = await automation.classifyAndGenerateReply(
@@ -304,9 +347,26 @@ async function handleJob(params: InstagramOutboundJobParams) {
           jitterMaxSeconds: cfg?.jitter_max_seconds ?? 120,
           threadChainingEnabled: cfg?.thread_chaining_enabled ?? true,
           requireFollowForDm: cfg?.require_follow_for_dm ?? false,
+          aiConfidenceThreshold: cfg?.ai_confidence_threshold ?? 0,
+          adaptiveVoiceEnabled: cfg?.adaptive_voice_enabled ?? false,
+          autoStopOnLowQuality: cfg?.auto_stop_on_low_quality ?? false,
+          creatorVoiceContext: adaptiveCommentCtx?.combinedPromptBlock || undefined,
+          allowedFactsText: adaptiveCommentCtx?.allowedFactsText || undefined,
         },
         recentReplies
       );
+
+      if (classified.stoppedByQualityGate) {
+        void recordAiReplyFeedback({
+          workspaceId,
+          channel: 'comment',
+          inboundText: commentText,
+          aiDraft: classified.suggestedReply,
+          action: 'quality_stopped',
+          qualityScore: classified.qualityScore ?? null,
+          stopReason: classified.stopReason || 'Quality gate stopped weak reply',
+        });
+      }
 
       if (!classified.shouldAutoReply || !classified.suggestedReply || classified.suggestedReply === 'SKIP') {
         logger.info('AI classified comment as not needing auto-reply', { commentId, classification: classified.classification });
@@ -435,6 +495,19 @@ async function handleJob(params: InstagramOutboundJobParams) {
     if (jobType === 'dm_reply') {
       if (!messageId || !senderId || !dmText) {
         throw new Error('Missing messageId, senderId, or dmText for dm_reply');
+      }
+
+      // If this DM job was debounced across rapid-fire messages, drain the Redis burst buffer
+      // only if this messageId is still the latest message from this sender.
+      let effectiveDmText = dmText;
+      if (params.debounced) {
+        const burst = await drainDmBurstBufferIfLatest(workspaceId, senderId, messageId, dmText);
+        if (!burst.shouldProcess) {
+          logger.info('DM burst superseded by newer message — exiting cleanly', { messageId, senderId });
+          await markJobSent(workspaceId, jobType, targetId);
+          return NextResponse.json({ success: true, coalesced: true }, { status: 200 });
+        }
+        effectiveDmText = burst.mergedText;
       }
 
       // Check if DM was already replied in logs
@@ -567,7 +640,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
         messageId,
         senderId,
         senderUsername: params.senderUsername,
-        text: dmText,
+        text: effectiveDmText,
         timestamp: new Date().toISOString(),
       };
 
@@ -664,6 +737,36 @@ async function handleJob(params: InstagramOutboundJobParams) {
         return NextResponse.json({ success: true, action: 'queued_for_human_review' }, { status: 200 });
       }
 
+      // Intelligent Conversation Stopper (natural closing / human handoff / frustration)
+      if (cfg?.auto_stop_on_low_quality) {
+        const stopSig = detectConversationStopSignal(effectiveDmText, {
+          channel: 'dm',
+          priorAssistantTurns: priorTurnCount,
+        });
+        if (stopSig.shouldStop) {
+          if (stopSig.escalate) {
+            await flagDmForDeadLetter(workspaceId, params, stopSig.explanation || 'Escalated by AI stop gate');
+          }
+          await supabaseAdmin
+            .from('instagram_dm_logs')
+            .update({
+              auto_replied: false,
+              delivery_status: stopSig.escalate ? 'needs_review' : 'sent',
+              escalated: stopSig.escalate,
+              ai_reply: 'SKIP',
+              reasoning: stopSig.explanation || 'Stopped by conversation stop gate',
+            })
+            .eq('message_id', messageId);
+          await markJobSent(workspaceId, jobType, targetId);
+          return NextResponse.json({ success: true, stopped: true, reason: stopSig.reason }, { status: 200 });
+        }
+      }
+
+      let adaptiveDmCtx: { combinedPromptBlock: string; allowedFactsText: string } | null = null;
+      if (cfg?.adaptive_voice_enabled) {
+        adaptiveDmCtx = await loadAdaptiveAiContext(workspaceId, 'dm');
+      }
+
       const classified = await automation.classifyAndReplyDM(
         dmEventObj,
         {
@@ -688,12 +791,29 @@ async function handleJob(params: InstagramOutboundJobParams) {
           requireFollowForDm: cfg?.require_follow_for_dm ?? false,
           followAskMessage: cfg?.follow_ask_message || undefined,
           followVerifiedMessage: cfg?.follow_verified_message || undefined,
+          aiConfidenceThreshold: cfg?.ai_confidence_threshold ?? 0,
+          adaptiveVoiceEnabled: cfg?.adaptive_voice_enabled ?? false,
+          autoStopOnLowQuality: cfg?.auto_stop_on_low_quality ?? false,
+          creatorVoiceContext: adaptiveDmCtx?.combinedPromptBlock || undefined,
+          allowedFactsText: adaptiveDmCtx?.allowedFactsText || undefined,
         },
         conversationHistory,
         priorTurnCount + 1,
         connection.username ? `@${connection.username}` : 'our product',
         true
       );
+
+      if (classified.stoppedByQualityGate) {
+        void recordAiReplyFeedback({
+          workspaceId,
+          channel: 'dm',
+          inboundText: effectiveDmText,
+          aiDraft: classified.suggestedReply,
+          action: 'quality_stopped',
+          qualityScore: classified.qualityScore ?? null,
+          stopReason: classified.stopReason || 'Quality gate stopped weak DM reply',
+        });
+      }
 
       if (!classified.shouldAutoReply || !classified.suggestedReply || classified.suggestedReply === 'SKIP') {
         logger.info('AI classified DM as not needing auto-reply', { messageId, classification: classified.classification, alreadyEscalated });
@@ -830,19 +950,7 @@ async function handleJob(params: InstagramOutboundJobParams) {
 }
 
 function isPermanentMetaError(msg: string): boolean {
-  const lower = msg.toLowerCase();
-  return (
-    lower.includes('token') ||
-    lower.includes('expired') ||
-    lower.includes('permission') ||
-    lower.includes('window') ||
-    lower.includes('policy') ||
-    lower.includes('invalid recipient') ||
-    lower.includes('user not found') ||
-    lower.includes('190') || // OAuthException
-    lower.includes('200') || // Permissions error
-    lower.includes('10')     // Application does not have permission
-  );
+  return classifyMetaError(msg).permanent;
 }
 
 async function markJobSent(workspaceId: string, jobType: string, targetId: string) {

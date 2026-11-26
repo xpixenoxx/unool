@@ -28,6 +28,22 @@ export interface AutomationConfig {
   requireFollowForDm?: boolean;
   followAskMessage?: string | null;
   followVerifiedMessage?: string | null;
+  aiConfidenceThreshold?: number;
+  adaptiveVoiceEnabled?: boolean;
+  autoStopOnLowQuality?: boolean;
+  activeHoursEnabled?: boolean;
+  activeHoursStart?: string | null;
+  activeHoursEnd?: string | null;
+  activeHoursTimezone?: string | null;
+  humanTakeoverHours?: number;
+  humanAgentTagApproved?: boolean;
+  dmDebounceSeconds?: number;
+  voiceNoteTranscriptionEnabled?: boolean;
+  vipFollowerThreshold?: number;
+  dailyDigestEnabled?: boolean;
+  dailyDigestHour?: number;
+  quietHoursStart?: string | null;
+  quietHoursEnd?: string | null;
 }
 
 export interface CommentLog {
@@ -76,6 +92,8 @@ export interface FlaggedComment {
   priority: string;
   owner_reply?: string;
   created_at: string;
+  window_status?: 'open' | 'expiring_soon' | 'expired';
+  window_hours_left?: number;
 }
 
 export interface SimulateResult {
@@ -93,5 +111,11 @@ export interface SimulateResult {
   reasoning: string;
   blocked?: boolean;
   reason?: string;
+  qualityScore?: number;
+  qualityIssues?: string[];
+  stoppedByQualityGate?: boolean;
+  stopReason?: string | null;
+  adaptiveExemplarsUsed?: number;
+  matchedCampaign?: { id: string; name: string; matchType: string } | null;
 }
 

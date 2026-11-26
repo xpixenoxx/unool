@@ -17,7 +17,7 @@ export interface SchedulePublishParams {
 
 export interface InstagramOutboundJobParams {
   jobId: string;
-  jobType: 'comment_reply' | 'dm_reply';
+  jobType: 'comment_reply' | 'dm_reply' | 'campaign_nudge';
   workspaceId: string;
   connectionId: string;
   // Comment fields
@@ -26,12 +26,21 @@ export interface InstagramOutboundJobParams {
   commentText?: string;
   commenterUsername?: string;
   commentTimestamp?: string;
+  commenterId?: string;
+  parentId?: string;
   // DM fields
   messageId?: string;
   senderId?: string;
   senderUsername?: string;
   dmText?: string;
-  // Optional delay in seconds (used when deferring velocity-throttled jobs to next hour bucket)
+  // Trigger surface, debounce & campaign metadata
+  triggerSurface?: string;
+  attachmentType?: string;
+  debounced?: boolean;
+  campaignId?: string;
+  enrollmentId?: string;
+  adId?: string;
+  // Optional delay in seconds (used when deferring velocity-throttled jobs, debounce, or 3h nudges)
   delaySeconds?: number;
 }
 

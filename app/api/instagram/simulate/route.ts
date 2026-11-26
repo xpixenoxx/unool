@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
   InstagramCommentAutomation,
@@ -11,6 +11,12 @@ import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { loadAdaptiveAiContext } from '@/lib/services/automation/voiceContextLoader';
+import {
+  loadActiveWorkspaceCampaigns,
+  matchCampaignWaterfall,
+} from '@/lib/services/automation/campaignMatcher';
+import { detectConversationStopSignal } from '@/lib/services/automation/aiReplyQuality';
 
 
 
@@ -96,6 +102,9 @@ export async function POST(request: NextRequest) {
           requireFollowForDm: data.require_follow_for_dm ?? false,
           followAskMessage: data.follow_ask_message || undefined,
           followVerifiedMessage: data.follow_verified_message || undefined,
+          aiConfidenceThreshold: data.ai_confidence_threshold ?? 0,
+          adaptiveVoiceEnabled: data.adaptive_voice_enabled ?? false,
+          autoStopOnLowQuality: data.auto_stop_on_low_quality ?? false,
         };
       } else {
         automationConfig = {
@@ -109,9 +118,52 @@ export async function POST(request: NextRequest) {
       // Use defaults
     }
 
+    // Load Adaptive Creator Voice & Learned Exemplars context for simulator transparency
+    const adaptiveCtx = await loadAdaptiveAiContext(
+      workspaceId,
+      isDmSimulation ? 'dm' : 'comment'
+    );
+    if (adaptiveCtx.combinedPromptBlock) {
+      automationConfig.creatorVoiceContext = adaptiveCtx.combinedPromptBlock;
+      automationConfig.allowedFactsText = adaptiveCtx.allowedFactsText;
+    }
+
+    // Check deterministic campaign waterfall match first
+    const activeCampaigns = await loadActiveWorkspaceCampaigns(
+      workspaceId,
+      isDmSimulation ? 'dm_keyword' : 'comment'
+    );
+    const matchedCampaign = matchCampaignWaterfall(activeCampaigns, {
+      surface: isDmSimulation ? 'dm_keyword' : 'comment',
+      text: inputText,
+    });
+
     const automation = new InstagramCommentAutomation(groqApiKey);
 
     if (isDmSimulation) {
+      const stopSignal = detectConversationStopSignal(dmText!, {
+        channel: 'dm',
+        priorAssistantTurns: (conversationHistory || []).filter((m) => m.role === 'assistant').length,
+      });
+      if (stopSignal.shouldStop && (stopSignal.optOut || automationConfig.autoStopOnLowQuality)) {
+        return NextResponse.json({
+          type: 'dm',
+          classification: stopSignal.escalate ? 'negative' : 'unrelated',
+          confidence: 1,
+          suggestedReply: 'SKIP',
+          leadScore: 0,
+          wouldAutoReply: false,
+          wouldEscalate: stopSignal.escalate,
+          stoppedByQualityGate: true,
+          stopReason: stopSignal.explanation,
+          qualityScore: 100,
+          reasoning: stopSignal.explanation || 'Stopped by intelligent conversation stopper',
+          adaptiveExemplarsUsed: adaptiveCtx.exemplarCount,
+          matchedCampaign: matchedCampaign ? { id: matchedCampaign.campaign.id, name: matchedCampaign.campaign.name, matchType: matchedCampaign.matchType } : null,
+          _simulated: true,
+        });
+      }
+
       // Simulate inbound DM classification
       const dmEvent = {
         messageId: 'sim_' + Date.now(),
@@ -139,6 +191,12 @@ export async function POST(request: NextRequest) {
         leadScore: result.leadScore,
         wouldAutoReply: result.shouldAutoReply,
         wouldEscalate: result.shouldEscalate,
+        qualityScore: result.qualityScore,
+        qualityIssues: result.qualityIssues,
+        stoppedByQualityGate: result.stoppedByQualityGate,
+        stopReason: result.stopReason,
+        adaptiveExemplarsUsed: adaptiveCtx.exemplarCount,
+        matchedCampaign: matchedCampaign ? { id: matchedCampaign.campaign.id, name: matchedCampaign.campaign.name, matchType: matchedCampaign.matchType } : null,
         reasoning: result.reasoning,
         _simulated: true,
       });
@@ -171,6 +229,12 @@ export async function POST(request: NextRequest) {
       wouldAutoReply: result.shouldAutoReply,
       wouldSendDM: result.shouldSendDM,
       wouldFlag: result.shouldFlagForReview,
+      qualityScore: result.qualityScore,
+      qualityIssues: result.qualityIssues,
+      stoppedByQualityGate: result.stoppedByQualityGate,
+      stopReason: result.stopReason,
+      adaptiveExemplarsUsed: adaptiveCtx.exemplarCount,
+      matchedCampaign: matchedCampaign ? { id: matchedCampaign.campaign.id, name: matchedCampaign.campaign.name, matchType: matchedCampaign.matchType } : null,
       reasoning: result.reasoning,
       _simulated: true,
     });

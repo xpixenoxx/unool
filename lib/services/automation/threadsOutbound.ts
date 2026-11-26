@@ -238,6 +238,21 @@ export async function processThreadsOutboundJob(params: ThreadsOutboundJobParams
     await velocityThrottle.recordReply(`threads:${workspaceId}`);
     lexicalEntropyGuard.recordReply(`threads:${workspaceId}`, finalReply);
 
+    // Non-blocking Audience Vault CRM ingestion for Threads participants
+    if (params.replierId) {
+      void import('@/lib/services/automation/leadCapture')
+        .then(({ upsertWorkspaceContact }) =>
+          upsertWorkspaceContact({
+            workspaceId,
+            platform: 'threads',
+            platformUserId: params.replierId!,
+            incrementComments: true,
+            intentScore: classified.leadScore >= 2 ? 65 : 25,
+          })
+        )
+        .catch(() => {});
+    }
+
     logger.info('Threads reply sent', { replyId, eventType });
     return NextResponse.json({ success: true });
   } catch (jobErr) {

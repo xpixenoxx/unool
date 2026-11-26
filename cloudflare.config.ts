@@ -11,6 +11,24 @@ export default defineConfig({
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-11-20",
     compatibilityFlags: ["nodejs_compat"],
+    placement: {
+      mode: "smart",
+    },
+    observability: {
+      enabled: true,
+      headSamplingRate: 1,
+      logs: {
+        enabled: true,
+        headSamplingRate: 1,
+        invocationLogs: true,
+        persist: true,
+      },
+      traces: {
+        enabled: true,
+        headSamplingRate: 0.2,
+        persist: true,
+      },
+    },
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
@@ -19,6 +37,10 @@ export default defineConfig({
     env: {
       ...cache.env,
       ASSETS: bindings.assets(),
+      UNOOL_EDGE_KV: bindings.kv({ id: "8c835d0ac38f4e11af7b1010329119b6" }),
+      AI: bindings.ai(),
+      AVATARS_BUCKET: bindings.r2({ name: "avatars" }),
+      POST_MEDIA_BUCKET: bindings.r2({ name: "post-media" }),
     },
   }),
 });

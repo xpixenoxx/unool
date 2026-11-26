@@ -12,6 +12,7 @@ import { resolveCreatorDeliveryLink } from '@/lib/services/automation/linkResolv
 import { queueService, type FacebookOutboundJobParams } from '@/lib/services/QueueService';
 import { facebookAdapter } from '@/lib/platforms/FacebookAdapter';
 import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
+import { upsertWorkspaceContact } from '@/lib/services/automation/leadCapture';
 
 async function loadFacebookConfig(workspaceId: string): Promise<Record<string, any> | null> {
   const { data: tableCfg, error: tableErr } = await supabaseAdmin
@@ -383,6 +384,22 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
       await velocityThrottle.recordReply(`fb:${workspaceId}`);
       lexicalEntropyGuard.recordReply(`fb:${workspaceId}`, finalReply, params.postId);
 
+      // Non-blocking Audience Vault CRM ingestion for Facebook commenters
+      if (params.senderId || params.senderName) {
+        try {
+          await upsertWorkspaceContact({
+            workspaceId,
+            platform: 'facebook',
+            platformUserId: params.senderId || `fb-commenter:${params.senderName || commentId}`,
+            fullName: params.senderName || null,
+            incrementComments: true,
+            intentScore: classified.leadScore >= 2 ? 65 : 25,
+          });
+        } catch {
+          // Non-fatal CRM ingestion
+        }
+      }
+
       logger.info('Facebook comment reply sent', { commentId, replyId: replyResult.id });
       return NextResponse.json({ success: true, replyId: replyResult.id });
     }
@@ -540,6 +557,20 @@ export async function processFacebookOutboundJob(params: FacebookOutboundJobPara
 
       await markJobSent(workspaceId, jobType, targetId);
       await velocityThrottle.recordReply(`fb-dm:${workspaceId}`);
+
+      // Non-blocking Audience Vault CRM ingestion for Facebook Messenger senders
+      try {
+        await upsertWorkspaceContact({
+          workspaceId,
+          platform: 'facebook',
+          platformUserId: senderId,
+          fullName: params.senderName || null,
+          incrementDms: true,
+          intentScore: classified.leadScore >= 2 ? 70 : 30,
+        });
+      } catch {
+        // Non-fatal CRM ingestion
+      }
 
       logger.info('Facebook Messenger reply sent', { messageId });
       return NextResponse.json({ success: true });

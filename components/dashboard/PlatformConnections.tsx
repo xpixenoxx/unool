@@ -1062,16 +1062,29 @@ export function PlatformConnections({
                           className="flex items-center justify-between gap-2 rounded-xl border border-[#E4D9C8] dark:border-[#382F27] px-3 py-2.5 bg-[#FAF7F2] dark:bg-[#28211C]"
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  'h-2 w-2 rounded-full flex-shrink-0',
-                                  acctActive ? 'bg-emerald-500' : 'bg-amber-500'
-                                )}
-                              />
-                              <span className="text-sm font-medium truncate text-[#3D2B1F] dark:text-[#F5EFE6]">
-                                {label}
-                              </span>
+                                <div className="flex items-center gap-2">
+                                  {acct.avatarUrl ? (
+                                    <img
+                                      src={acct.avatarUrl}
+                                      alt=""
+                                      width={24}
+                                      height={24}
+                                      loading="lazy"
+                                      decoding="async"
+                                      referrerPolicy="no-referrer"
+                                      className="h-6 w-6 rounded-full object-cover flex-shrink-0 border border-[#E4D9C8] dark:border-[#382F27]"
+                                    />
+                                  ) : (
+                                    <span
+                                      className={cn(
+                                        'h-2 w-2 rounded-full flex-shrink-0',
+                                        acctActive ? 'bg-emerald-500' : 'bg-amber-500'
+                                      )}
+                                    />
+                                  )}
+                                  <span className="text-sm font-medium truncate text-[#3D2B1F] dark:text-[#F5EFE6]">
+                                    {label}
+                                  </span>
                               <Badge
                                 variant={acctActive ? 'secondary' : 'outline'}
                                 className={cn(
@@ -1494,7 +1507,18 @@ export function PlatformConnections({
                               )}
                             >
                               <div className="flex items-center gap-1.5 min-w-0">
-                                {acctConnected ? (
+                                {acct.avatarUrl ? (
+                                  <img
+                                    src={acct.avatarUrl}
+                                    alt=""
+                                    width={20}
+                                    height={20}
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerPolicy="no-referrer"
+                                    className="w-5 h-5 rounded-full object-cover flex-shrink-0 border border-white/30"
+                                  />
+                                ) : acctConnected ? (
                                   <span className="w-2 h-2 rounded-full bg-[#7dffb0] shadow-[0_0_6px_#7dffb0] flex-shrink-0" />
                                 ) : (
                                   <AlertCircle className="h-3 w-3 text-amber-500 flex-shrink-0" />

@@ -97,6 +97,14 @@ export interface SignalAutomationSummaryInput {
   followGateUnlocked: number;
   highIntentLeads: number;
   flaggedCount: number;
+  trackedClicks?: number;
+  leadsCaptured?: number;
+  topConvertingHooks?: Array<{
+    hookType: string;
+    dmsSent: number;
+    clicks: number;
+    highIntentLeads: number;
+  }>;
 }
 
 export interface SignalPlanContextInput {

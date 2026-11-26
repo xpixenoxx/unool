@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       const { userId, workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems, selectedPlatforms, selectedTargets, studioProfile: clientStudioProfile, postId: incomingPostId } = body;
+      const { content, profileId, mediaItems, selectedPlatforms, selectedTargets, studioProfile: clientStudioProfile, postId: incomingPostId, automationRule } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -155,6 +155,29 @@ export async function POST(request: NextRequest) {
           adaptationPromptVersion: 'direct-broadcast', // Special marker indicating no AI
         });
         await postRepository.updateStatus(post.id, 'publishing');
+      }
+
+      // Optional Studio Auto-Attach SignalDM Rule (saved before publish, bound live when IG publishes)
+      if (automationRule && typeof automationRule === 'object' && automationRule.enabled && automationRule.dmMessage) {
+        try {
+          const { saveStudioAutomationRule } = await import('@/lib/services/automation/studioAutoAttach');
+          await saveStudioAutomationRule({
+            workspaceId,
+            postId: post.id,
+            keywords: Array.isArray(automationRule.keywords)
+              ? automationRule.keywords
+              : String(automationRule.keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+            dmMessage: String(automationRule.dmMessage),
+            dmCtaUrl: automationRule.dmCtaUrl || null,
+            dmCtaTitle: automationRule.dmCtaTitle || null,
+            publicReplies: Array.isArray(automationRule.publicReplies) ? automationRule.publicReplies : [],
+            requireFollow: Boolean(automationRule.requireFollow),
+            captureEmail: Boolean(automationRule.captureEmail),
+            capturePhone: Boolean(automationRule.capturePhone),
+          });
+        } catch (ruleErr) {
+          logger.warn('Failed to persist Studio automation rule on broadcast (non-blocking)', { postId: post.id, error: ruleErr });
+        }
       }
 
       // Create identical variants for each selected target account with 'publishing' status

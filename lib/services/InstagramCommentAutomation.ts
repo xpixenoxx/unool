@@ -5,6 +5,10 @@ import { fetchWithRetry } from '@/lib/utils/retry';
 import { API_VERSIONS, resolveInstagramApiHost } from '@/lib/platforms/apiVersions';
 import { config } from '@/lib/config/schema';
 import { resolveCommentReviewFlag } from '@/lib/services/automation/reviewPolicy';
+import {
+  detectMessageLanguageHint,
+  evaluateAiReplyQuality,
+} from '@/lib/services/automation/aiReplyQuality';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -53,6 +57,10 @@ export interface ClassifiedComment {
   shouldSendDM: boolean;
   shouldFlagForReview: boolean;
   reasoning: string;
+  qualityScore?: number;
+  qualityIssues?: string[];
+  stoppedByQualityGate?: boolean;
+  stopReason?: string | null;
 }
 
 export interface ClassifiedDM {
@@ -63,6 +71,10 @@ export interface ClassifiedDM {
   shouldAutoReply: boolean;
   shouldEscalate: boolean;
   reasoning: string;
+  qualityScore?: number;
+  qualityIssues?: string[];
+  stoppedByQualityGate?: boolean;
+  stopReason?: string | null;
 }
 
 export interface CommentEvent {
@@ -110,7 +122,54 @@ export interface AutomationConfig {
   requireFollowForDm?: boolean;
   followAskMessage?: string;
   followVerifiedMessage?: string;
+  maxFollowReminders?: number;
+  // Intelligent Adaptive AI & Quality-Stop Gate
+  aiConfidenceThreshold?: number; // 0-100 (0 = disabled)
+  adaptiveVoiceEnabled?: boolean;
+  autoStopOnLowQuality?: boolean;
+  creatorVoiceContext?: string;
+  allowedFactsText?: string;
+  // Active hours & Human Takeover & Compliance
+  activeHoursEnabled?: boolean;
+  activeHoursStart?: string;
+  activeHoursEnd?: string;
+  activeHoursTimezone?: string;
+  humanTakeoverHours?: number;
+  humanAgentTagApproved?: boolean;
+  dmDebounceSeconds?: number;
+  voiceNoteTranscriptionEnabled?: boolean;
+  vipFollowerThreshold?: number;
 }
+
+export interface MessagingUserProfile {
+  id: string;
+  name?: string;
+  username?: string;
+  profilePic?: string;
+  followerCount?: number;
+  isVerifiedUser?: boolean;
+  isUserFollowBusiness?: boolean;
+  isBusinessFollowUser?: boolean;
+}
+
+export interface GenericTemplateButton {
+  type: 'web_url' | 'postback';
+  title: string;
+  url?: string;
+  payload?: string;
+}
+
+export interface GenericTemplateElement {
+  title: string;
+  subtitle?: string;
+  image_url?: string;
+  buttons?: GenericTemplateButton[];
+}
+
+export {
+  classifyMetaError,
+  type MetaErrorClassification,
+} from '@/lib/services/automation/metaErrors';
 
 export interface DmFollowGateInput {
   dmEvent: DmEvent;
@@ -308,6 +367,10 @@ export class InstagramCommentAutomation {
     const linkInstruction = config.linkUrl
       ? `The link/resource URL to DM is: ${config.linkUrl}`
       : 'No link URL configured — do not promise to send a link.';
+    const languageHint = detectMessageLanguageHint(comment.text);
+    const adaptiveContextBlock = config.creatorVoiceContext?.trim()
+      ? `\n${config.creatorVoiceContext.trim()}\n`
+      : '';
 
     const prompt = `You are an autonomous Instagram engagement engine for a brand account.
 
@@ -318,7 +381,8 @@ Post caption: "${postCaption}"
 Comment by @${comment.username}: "${comment.text}"
 ${config.brandPersona ? `Brand voice: "${config.brandPersona}"` : ''}
 ${config.customInstructions ? `Custom rules: "${config.customInstructions}"` : ''}
-${linkInstruction}
+${languageHint ? `Language & Register Mirror: ${languageHint}` : ''}
+${linkInstruction}${adaptiveContextBlock}
 Recent replies already sent (DO NOT repeat these patterns):
 ${recentReplies.slice(-10).map((r, i) => `  ${i + 1}. "${r}"`).join('\n') || '  (none yet)'}
 
@@ -419,7 +483,7 @@ Return ONLY valid JSON (no markdown, no explanation):
     }
 
     // Apply auto-reply flags based on automation config
-    const classified = result.value;
+    const classified: ClassifiedComment = { ...result.value };
     const allowedSources = [
       config.linkUrl,
       config.customInstructions,
@@ -441,6 +505,38 @@ Return ONLY valid JSON (no markdown, no explanation):
     classified.shouldAutoReply = this.resolveAutoReplyFlag(classified, config);
     classified.shouldFlagForReview = resolveCommentReviewFlag(classified, config);
     classified.shouldSendDM = classified.shouldSendDM && !!config.linkUrl;
+
+    // Intelligent Quality-Stop Gate: score every candidate reply & stop if not good enough
+    if (classified.suggestedReply && classified.suggestedReply !== 'SKIP') {
+      const qualityEval = evaluateAiReplyQuality({
+        replyText: classified.suggestedReply,
+        inboundText: comment.text,
+        channel: 'comment',
+        modelConfidence: classified.confidence,
+        allowedFactsText: [
+          postCaption,
+          config.allowedFactsText,
+          config.dmKnowledgeBase,
+          config.customInstructions,
+          config.linkUrl,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        recentReplies,
+        minConfidencePct: config.aiConfidenceThreshold ?? 0,
+        enforceStopOnLowQuality: Boolean(config.autoStopOnLowQuality),
+      });
+      classified.qualityScore = qualityEval.score;
+      classified.qualityIssues = qualityEval.issues;
+      classified.suggestedReply = qualityEval.cleanedReply;
+      if (qualityEval.shouldStop && classified.shouldAutoReply) {
+        classified.shouldAutoReply = false;
+        classified.shouldFlagForReview = true;
+        classified.stoppedByQualityGate = true;
+        classified.stopReason = qualityEval.stopReason;
+        classified.reasoning = `${classified.reasoning} [AI Quality Gate Stopped: ${qualityEval.stopReason}]`;
+      }
+    }
 
     return classified;
   }
@@ -492,9 +588,19 @@ Return ONLY valid JSON (no markdown, no explanation):
       ? config.dmKnowledgeBase
       : '(No product knowledge configured by the account owner. Do NOT invent products or links. Ask clarifying questions to understand what the follower is looking for.)';
 
-    // dmTemplate: inject into prompt for Turn 1 or whenever set by workspace owner
-    const dmTemplateInstruction = (config.dmTemplate && config.dmTemplate.trim())
-      ? `TEMPLATE FOR FIRST MESSAGE (Turn 1): If this is the very first message (Turn 1), you MUST start your reply with this exact template text then continue naturally: "${config.dmTemplate.trim()}"`
+    // dmWelcomeMessage & dmTemplate: inject into prompt for Turn 1
+    const welcomeText = config.dmWelcomeMessage?.trim();
+    const templateText = config.dmTemplate?.trim();
+    const dmWelcomeInstruction =
+      currentTurn === 1 && welcomeText
+        ? `WELCOME MESSAGE (Turn 1): Naturally weave this welcome message into your opening Turn 1 reply (keep it warm and authentic): "${welcomeText}"`
+        : '';
+    const dmTemplateInstruction = templateText
+      ? `TEMPLATE FOR FIRST MESSAGE (Turn 1): If this is the very first message (Turn 1), you MUST start your reply with this exact template text then continue naturally: "${templateText}"`
+      : '';
+    const dmLanguageHint = detectMessageLanguageHint(dm.text);
+    const adaptiveDmContext = config.creatorVoiceContext?.trim()
+      ? `\n${config.creatorVoiceContext.trim()}\n`
       : '';
 
     const prompt = `You are ${brandName} — the real person behind this Instagram account — responding directly to a DM.
@@ -510,7 +616,9 @@ Brand / Account: ${brandName}
 Follower Relationship: ${isFollowing ? 'Confirmed Follower (follows our account)' : 'Visitor (not yet following)'}
 ${hasLink ? `Creator's product link (share this when asked): ${targetLink}` : 'NO PRODUCT LINK CONFIGURED — do NOT share any URL. If asked for a link, ask a clarifying question instead (e.g. "which one are you looking for?" or "tell me more about what you need!").'}
 ${config.customInstructions ? `Owner's personal instructions: "${config.customInstructions}"` : ''}
-${dmTemplateInstruction ? dmTemplateInstruction : ''}
+${dmLanguageHint ? `Language & Register Mirror: ${dmLanguageHint}` : ''}
+${dmWelcomeInstruction ? dmWelcomeInstruction : ''}
+${dmTemplateInstruction ? dmTemplateInstruction : ''}${adaptiveDmContext}
 
 Recent Conversation History:
 ${formattedHistory}
@@ -629,19 +737,57 @@ Return ONLY valid JSON:
       };
     }
 
-    const classifiedDm = result.value;
+    const classifiedDm: ClassifiedDM = { ...result.value };
     const allowedDmSources = [
       targetLink,
       config.customInstructions,
       config.dmTemplate,
       config.dmKnowledgeBase,
-      config. dmWelcomeMessage,
+      config.dmWelcomeMessage,
+      config.allowedFactsText,
     ];
     classifiedDm.suggestedReply = sanitizeOutboundLinks(
       classifiedDm.suggestedReply,
       allowedDmSources,
       targetLink
     );
+
+    // Intelligent Quality-Stop Gate for DMs
+    if (classifiedDm.suggestedReply && classifiedDm.suggestedReply !== 'SKIP') {
+      const priorAiReplies = conversationHistory
+        .filter((m) => m.role === 'assistant')
+        .map((m) => m.text);
+      const dmQuality = evaluateAiReplyQuality({
+        replyText: classifiedDm.suggestedReply,
+        inboundText: dm.text,
+        channel: 'dm',
+        modelConfidence: classifiedDm.confidence,
+        allowedFactsText: [
+          config.dmKnowledgeBase,
+          config.allowedFactsText,
+          config.customInstructions,
+          config.dmWelcomeMessage,
+          config.dmTemplate,
+          targetLink,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        recentReplies: priorAiReplies,
+        minConfidencePct: config.aiConfidenceThreshold ?? 0,
+        enforceStopOnLowQuality: Boolean(config.autoStopOnLowQuality),
+      });
+      classifiedDm.qualityScore = dmQuality.score;
+      classifiedDm.qualityIssues = dmQuality.issues;
+      classifiedDm.suggestedReply = dmQuality.cleanedReply;
+      if (dmQuality.shouldStop && classifiedDm.shouldAutoReply) {
+        classifiedDm.shouldAutoReply = false;
+        classifiedDm.shouldEscalate = config.dmEscalationEnabled ?? true;
+        classifiedDm.stoppedByQualityGate = true;
+        classifiedDm.stopReason = dmQuality.stopReason;
+        classifiedDm.reasoning = `${classifiedDm.reasoning} [AI Quality Gate Stopped: ${dmQuality.stopReason}]`;
+      }
+    }
+
     return classifiedDm;
   }
 
@@ -1092,6 +1238,21 @@ Return ONLY valid JSON:
     // ── Case 1: User has NOT followed yet ──────────────────────────────────
     if (!isFollowing) {
       if (isConfirmationText || wasAwaitingFollow) {
+        // Respect maxFollowReminders cap when configured so we never spam a non-follower
+        const maxReminders = config.maxFollowReminders;
+        if (typeof maxReminders === 'number' && maxReminders > 0) {
+          const priorRemindCount = logs.filter((l) =>
+            l.reasoning?.includes('Follow gate remind_follow')
+          ).length;
+          if (priorRemindCount >= maxReminders) {
+            return {
+              handled: false,
+              isFollowing: false,
+              resolvedUsername,
+            };
+          }
+        }
+
         // User claimed they followed or clicked confirmation, or sent another DM while still not following
         const remindText =
           `We couldn't verify your follow yet! 🧐 Make sure you hit "Follow" on ${cleanBrand}, then tap "I Followed! ✅" below!`;
@@ -1294,63 +1455,407 @@ Return ONLY valid JSON:
   }
 
   /**
+   * Fetches the consented Instagram Messaging User Profile for an IGSID.
+   * Official Meta fields only: name, username, profile_pic, follower_count,
+   * is_verified_user, is_user_follow_business, is_business_follow_user.
+   * Never scrapes public profiles or bios.
+   */
+  async fetchMessagingUserProfile(
+    accessToken: string,
+    igScopedUserId: string
+  ): Promise<MessagingUserProfile | null> {
+    if (!accessToken || !igScopedUserId) return null;
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+    const fields =
+      'name,username,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user';
+    try {
+      const res = await fetch(
+        `${apiHost}/${apiVersion}/${encodeURIComponent(igScopedUserId)}?fields=${fields}&access_token=${encodeURIComponent(accessToken)}`
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      const username =
+        typeof data?.username === 'string' ? data.username.replace(/^@/, '').trim() : undefined;
+      if (username) {
+        this.fetchedUsernames.set(igScopedUserId, username);
+      }
+      return {
+        id: igScopedUserId,
+        name: typeof data?.name === 'string' ? data.name : undefined,
+        username,
+        profilePic: typeof data?.profile_pic === 'string' ? data.profile_pic : undefined,
+        followerCount: typeof data?.follower_count === 'number' ? data.follower_count : undefined,
+        isVerifiedUser: Boolean(data?.is_verified_user),
+        isUserFollowBusiness:
+          typeof data?.is_user_follow_business === 'boolean' ? data.is_user_follow_business : undefined,
+        isBusinessFollowUser:
+          typeof data?.is_business_follow_user === 'boolean' ? data.is_business_follow_user : undefined,
+      };
+    } catch (err) {
+      logger.debug('fetchMessagingUserProfile failed (non-blocking)', {
+        igScopedUserId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Sends a standalone Instagram sender_action (`mark_seen`, `typing_on`, `typing_off`).
+   * Per Meta docs, `sender_action` MUST be sent as its own request without a `message` body.
+   */
+  async sendSenderAction(
+    accessToken: string,
+    igUserId: string,
+    recipientIgScopedId: string,
+    action: 'mark_seen' | 'typing_on' | 'typing_off'
+  ): Promise<boolean> {
+    if (!accessToken || !recipientIgScopedId) return false;
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+    try {
+      const res = await fetch(`${apiHost}/${apiVersion}/${igUserId || 'me'}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: recipientIgScopedId },
+          sender_action: action,
+          access_token: accessToken,
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Sends a Private Message with optional HUMAN_AGENT tag (7-day human support window).
+   * HUMAN_AGENT is ONLY sent when `options.useHumanAgentTag === true` (workspace has Meta approval).
+   */
+  async sendPrivateMessageWithTag(
+    accessToken: string,
+    igUserId: string,
+    recipientIgScopedId: string,
+    message: string,
+    options?: { useHumanAgentTag?: boolean }
+  ): Promise<{ messageId: string } | null> {
+    if (!options?.useHumanAgentTag) {
+      return this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, message);
+    }
+
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+    try {
+      const data = await (
+        await fetchWithRetry(`${apiHost}/${apiVersion}/${igUserId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipient: { id: recipientIgScopedId },
+            message: { text: message },
+            messaging_type: 'MESSAGE_TAG',
+            tag: 'HUMAN_AGENT',
+            access_token: accessToken,
+          }),
+        })
+      ).json();
+      return { messageId: data.message_id || 'sent' };
+    } catch (error) {
+      logger.warn('HUMAN_AGENT tagged DM failed — falling back to standard DM', {
+        recipientIgScopedId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, message);
+    }
+  }
+
+  /**
+   * Sends a Meta Instagram Generic Template CTA card or carousel (up to 10 cards, 3 buttons/card).
+   * Supports both 24h DM (`recipient: { id }`) and Comment Private Reply (`recipient: { comment_id }`).
+   * Automatically falls back to plain text DM/Private Reply if template delivery is rejected.
+   */
+  async sendGenericTemplateCard(
+    accessToken: string,
+    igUserId: string,
+    recipient: { id?: string; commentId?: string },
+    elements: GenericTemplateElement[],
+    fallbackPlainText: string
+  ): Promise<{ messageId: string; usedFallback?: boolean } | null> {
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+    const recipientObj = recipient.commentId
+      ? { comment_id: recipient.commentId }
+      : recipient.id
+        ? { id: recipient.id }
+        : null;
+
+    if (!recipientObj) return null;
+
+    const cleanElements = elements.slice(0, 10).map((el) => ({
+      title: el.title.slice(0, 80),
+      ...(el.subtitle ? { subtitle: el.subtitle.slice(0, 80) } : {}),
+      ...(el.image_url ? { image_url: el.image_url } : {}),
+      ...(el.buttons && el.buttons.length > 0
+        ? {
+            buttons: el.buttons.slice(0, 3).map((b) =>
+              b.type === 'web_url'
+                ? { type: 'web_url', title: b.title.slice(0, 20), url: b.url }
+                : { type: 'postback', title: b.title.slice(0, 20), payload: b.payload }
+            ),
+          }
+        : {}),
+    }));
+
+    try {
+      const data = await (
+        await fetchWithRetry(`${apiHost}/${apiVersion}/${igUserId || 'me'}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipient: recipientObj,
+            message: {
+              attachment: {
+                type: 'template',
+                payload: {
+                  template_type: 'generic',
+                  elements: cleanElements,
+                },
+              },
+            },
+            access_token: accessToken,
+          }),
+        })
+      ).json();
+
+      return { messageId: data.message_id || data.id || 'sent', usedFallback: false };
+    } catch (err) {
+      logger.warn('Generic template card rejected — falling back to plain text', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (recipient.commentId) {
+        const res = await this.sendPrivateReplyToComment(
+          accessToken,
+          recipient.commentId,
+          fallbackPlainText,
+          igUserId
+        );
+        return res ? { ...res, usedFallback: true } : null;
+      }
+      if (recipient.id) {
+        const res = await this.sendPrivateMessage(accessToken, igUserId, recipient.id, fallbackPlainText);
+        return res ? { ...res, usedFallback: true } : null;
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Sends a Comment Private Reply with an Opening DM Postback Button (`Send it to me`).
+   * Tapping the button opens the full 24h multi-turn messaging window so Follow-Gate,
+   * Email/Phone Lead Capture, and CTA cards can run without violating the 1-shot Private Reply limit.
+   */
+  async sendOpeningDmButton(
+    accessToken: string,
+    igUserId: string,
+    commentId: string,
+    promptText: string,
+    buttonTitle: string,
+    buttonPayload: string
+  ): Promise<{ messageId: string; usedFallback?: boolean } | null> {
+    if (!commentId || commentId.startsWith('test_')) return null;
+    return this.sendGenericTemplateCard(
+      accessToken,
+      igUserId,
+      { commentId },
+      [
+        {
+          title: promptText.slice(0, 80),
+          subtitle: promptText.length > 80 ? promptText.slice(80, 160) : undefined,
+          buttons: [
+            {
+              type: 'postback',
+              title: (buttonTitle || 'Send it to me').slice(0, 20),
+              payload: buttonPayload,
+            },
+          ],
+        },
+      ],
+      `${promptText}\n\nReply "YES" to get instant access!`
+    );
+  }
+
+  /**
+   * Syncs Instagram DM Ice Breakers (max 4 starter questions) via Meta Messenger Profile API.
+   */
+  async syncIceBreakers(
+    accessToken: string,
+    igUserId: string,
+    iceBreakers: Array<{ question: string; payload: string }>
+  ): Promise<{ ok: boolean; error?: string }> {
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+    const cleaned = iceBreakers
+      .filter((ib) => ib.question?.trim())
+      .slice(0, 4)
+      .map((ib) => ({
+        question: ib.question.trim().slice(0, 80),
+        payload: (ib.payload || ib.question).trim().slice(0, 100),
+      }));
+
+    try {
+      const target = apiHost.includes('graph.instagram.com') ? 'me' : igUserId || 'me';
+      const url = `${apiHost}/${apiVersion}/${target}/messenger_profile?platform=instagram`;
+      const res = await fetch(url, {
+        method: cleaned.length > 0 ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          cleaned.length > 0
+            ? {
+                platform: 'instagram',
+                ice_breakers: [{ call_to_actions: cleaned, locale: 'default' }],
+                access_token: accessToken,
+              }
+            : {
+                platform: 'instagram',
+                fields: ['ice_breakers'],
+                access_token: accessToken,
+              }
+        ),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        return { ok: false, error: txt.slice(0, 300) };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /**
+   * Syncs Instagram Persistent Menu via Meta Messenger Profile API.
+   * Explicitly omits `composer_input_disabled` and `webview_height_ratio` (unsupported on IG).
+   */
+  async syncPersistentMenu(
+    accessToken: string,
+    igUserId: string,
+    menuItems: Array<{ type: 'web_url' | 'postback'; title: string; url?: string; payload?: string }>
+  ): Promise<{ ok: boolean; error?: string }> {
+    const apiHost = resolveInstagramApiHost(accessToken);
+    const apiVersion = API_VERSIONS.instagram;
+    const cleaned = menuItems
+      .filter((m) => m.title?.trim())
+      .slice(0, 5)
+      .map((m) =>
+        m.type === 'web_url'
+          ? { type: 'web_url', title: m.title.trim().slice(0, 30), url: m.url }
+          : { type: 'postback', title: m.title.trim().slice(0, 30), payload: m.payload || m.title.trim() }
+      );
+
+    try {
+      const target = apiHost.includes('graph.instagram.com') ? 'me' : igUserId || 'me';
+      const url = `${apiHost}/${apiVersion}/${target}/messenger_profile?platform=instagram`;
+      const res = await fetch(url, {
+        method: cleaned.length > 0 ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          cleaned.length > 0
+            ? {
+                platform: 'instagram',
+                persistent_menu: [{ locale: 'default', call_to_actions: cleaned }],
+                access_token: accessToken,
+              }
+            : {
+                platform: 'instagram',
+                fields: ['persistent_menu'],
+                access_token: accessToken,
+              }
+        ),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        return { ok: false, error: txt.slice(0, 300) };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /**
    * Subscribes a user's Instagram account to the app's webhook fields.
-   * Must be called after OAuth to ensure comments AND messages arrive.
+   * Attempts the full modern surface set first (comments, messages, live_comments,
+   * messaging_postbacks, messaging_referral, messaging_reactions, message_edit),
+   * and gracefully falls back to core (`comments,messages`) if an app has not yet
+   * enabled the extended fields in Meta Developer Portal.
    */
   static async subscribeAccountToWebhook(
     accessToken: string,
     igUserId: string
   ): Promise<boolean> {
     try {
-      const params = new URLSearchParams({
-        subscribed_fields: 'comments,messages',
-        access_token: accessToken,
-      });
-
-      // Priority list of subscription endpoints — ordered by token type likelihood.
-      // Instagram Login tokens (IGqx…) work on graph.instagram.com.
-      // Facebook Business Login tokens (EAA…) work on graph.facebook.com.
       const apiVersion = API_VERSIONS.instagram;
-      const endpointsToTry = [
-        `https://graph.instagram.com/${apiVersion}/me/subscribed_apps?${params.toString()}`,
-        `https://graph.instagram.com/${apiVersion}/${igUserId}/subscribed_apps?${params.toString()}`,
-        `https://graph.facebook.com/${apiVersion}/${igUserId}/subscribed_apps?${params.toString()}`,
-        `https://graph.facebook.com/${apiVersion}/me/subscribed_apps?${params.toString()}`,
+      const fieldSets = [
+        'comments,messages,live_comments,messaging_postbacks,messaging_referral,messaging_reactions,message_edit',
+        'comments,messages',
       ];
 
-      for (const endpoint of endpointsToTry) {
-        try {
-          const response = await fetchWithRetry(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params.toString(),
-          });
+      // Priority list of subscription hosts — ordered by token type likelihood.
+      // Instagram Login tokens (IGqx…) work on graph.instagram.com.
+      // Facebook Business Login tokens (EAA…) work on graph.facebook.com.
+      const baseEndpoints = [
+        `https://graph.instagram.com/${apiVersion}/me/subscribed_apps`,
+        `https://graph.instagram.com/${apiVersion}/${igUserId}/subscribed_apps`,
+        `https://graph.facebook.com/${apiVersion}/${igUserId}/subscribed_apps`,
+        `https://graph.facebook.com/${apiVersion}/me/subscribed_apps`,
+      ];
 
-          const respText = await response.text();
-          let data: any = null;
-          try { data = JSON.parse(respText); } catch {}
+      for (const subscribedFields of fieldSets) {
+        const params = new URLSearchParams({
+          subscribed_fields: subscribedFields,
+          access_token: accessToken,
+        });
 
-          if (response.ok && (data?.success === true || respText.includes('"success":true'))) {
-            logger.info('Instagram account subscribed to webhook successfully', {
-              igUserId,
-              endpoint: endpoint.split('?')[0],
-              success: true,
+        for (const baseEndpoint of baseEndpoints) {
+          const endpoint = `${baseEndpoint}?${params.toString()}`;
+          try {
+            const response = await fetchWithRetry(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: params.toString(),
             });
-            return true;
-          } else {
-            logger.warn('Webhook subscription attempt returned non-success', {
+
+            const respText = await response.text();
+            let data: any = null;
+            try { data = JSON.parse(respText); } catch {}
+
+            if (response.ok && (data?.success === true || respText.includes('"success":true'))) {
+              logger.info('Instagram account subscribed to webhook successfully', {
+                igUserId,
+                endpoint: baseEndpoint,
+                subscribedFields,
+                success: true,
+              });
+              return true;
+            } else {
+              logger.warn('Webhook subscription attempt returned non-success', {
+                igUserId,
+                endpoint: baseEndpoint,
+                subscribedFields,
+                status: response.status,
+                body: respText.substring(0, 300),
+              });
+            }
+          } catch (attemptErr) {
+            logger.warn('Webhook subscription attempt failed with network error', {
               igUserId,
-              endpoint: endpoint.split('?')[0],
-              status: response.status,
-              body: respText.substring(0, 300),
+              endpoint: baseEndpoint,
+              subscribedFields,
+              error: attemptErr instanceof Error ? attemptErr.message : String(attemptErr),
             });
           }
-        } catch (attemptErr) {
-          logger.warn('Webhook subscription attempt failed with network error', {
-            igUserId,
-            endpoint: endpoint.split('?')[0],
-            error: attemptErr instanceof Error ? attemptErr.message : String(attemptErr),
-          });
         }
       }
 

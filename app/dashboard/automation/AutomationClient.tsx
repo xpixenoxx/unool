@@ -8,6 +8,8 @@ import LinkedInAutomationClient from './LinkedInAutomationClient';
 import FacebookAutomationClient from './FacebookAutomationClient';
 import ThreadsAutomationClient from './ThreadsAutomationClient';
 import BrandMaterialsSection from './BrandMaterialsSection';
+import CampaignsPanel from './CampaignsPanel';
+import LeadsVaultPanel from './LeadsVaultPanel';
 import './automation.css';
 import type { AutomationConfig, CommentLog, DmLog, FlaggedComment, SimulateResult } from './types';
 
@@ -91,7 +93,7 @@ export default function AutomationClient({
         setPlatform(p);
       }
       const t = params.get('tab');
-      if (t && ['control', 'materials', 'simulator', 'feed', 'inbox', 'dms'].includes(t)) {
+      if (t && ['control', 'campaigns', 'leads', 'materials', 'simulator', 'feed', 'inbox', 'dms'].includes(t)) {
         setActiveTab(t as any);
       }
     }
@@ -106,7 +108,8 @@ export default function AutomationClient({
     }
   };
 
-  const handleTabChange = (tabId: 'control' | 'materials' | 'simulator' | 'feed' | 'inbox' | 'dms') => {
+  type AutomationTabId = 'control' | 'campaigns' | 'leads' | 'materials' | 'simulator' | 'feed' | 'inbox' | 'dms';
+  const handleTabChange = (tabId: AutomationTabId) => {
     setActiveTab(tabId);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -115,7 +118,7 @@ export default function AutomationClient({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'control' | 'materials' | 'simulator' | 'feed' | 'inbox' | 'dms'>('control');
+  const [activeTab, setActiveTab] = useState<AutomationTabId>('control');
   const [config, setConfig] = useState<AutomationConfig | null>(() => memoryAutomationConfig);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(() => !memoryAutomationConfig);
@@ -555,20 +558,48 @@ export default function AutomationClient({
               </div>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="un-tabs-bar">
+            {/* Tab Navigation (Accessible roving tablist) */}
+            <div
+              className="un-tabs-bar"
+              role="tablist"
+              aria-label="SignalDM Workspace Sections"
+              onKeyDown={(e) => {
+                const order: AutomationTabId[] = ['control', 'campaigns', 'leads', 'materials', 'simulator', 'feed', 'inbox', 'dms'];
+                const idx = order.indexOf(activeTab);
+                if (e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  handleTabChange(order[(idx + 1) % order.length]);
+                } else if (e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  handleTabChange(order[(idx - 1 + order.length) % order.length]);
+                } else if (e.key === 'Home') {
+                  e.preventDefault();
+                  handleTabChange(order[0]);
+                } else if (e.key === 'End') {
+                  e.preventDefault();
+                  handleTabChange(order[order.length - 1]);
+                }
+              }}
+            >
               {[
-                { id: 'control',   label: 'Engine Controls',     icon: <SvgGrid /> },
-                { id: 'materials', label: 'Brand & Materials',   icon: <SvgSparkle /> },
-                { id: 'simulator', label: 'Intent Lab',           icon: <SvgPlay /> },
-                { id: 'feed',      label: 'Dispatch Ledger',      icon: <SvgMessage />, badge: commentStats?.total },
-                { id: 'inbox',     label: 'Triage Queue',        icon: <SvgStar />,    badge: pendingCount || undefined },
-                { id: 'dms',       label: 'DM Concierge',        icon: <SvgMail />,    badge: dmStats?.total },
+                { id: 'control' as const,   label: 'Engine Controls',     icon: <SvgGrid /> },
+                { id: 'campaigns' as const, label: 'Campaigns',           icon: <SvgSignal /> },
+                { id: 'leads' as const,     label: 'Leads CRM',           icon: <SvgStar /> },
+                { id: 'materials' as const, label: 'Brand & Materials',   icon: <SvgSparkle /> },
+                { id: 'simulator' as const, label: 'Intent Lab',           icon: <SvgPlay /> },
+                { id: 'feed' as const,      label: 'Dispatch Ledger',      icon: <SvgMessage />, badge: commentStats?.total },
+                { id: 'inbox' as const,     label: 'Triage Queue',        icon: <SvgStar />,    badge: pendingCount || undefined },
+                { id: 'dms' as const,       label: 'DM Concierge',        icon: <SvgMail />,    badge: dmStats?.total },
               ].map(tab => (
                 <button
                   key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`un-tab-${tab.id}`}
+                  aria-selected={activeTab === tab.id}
+                  tabIndex={activeTab === tab.id ? 0 : -1}
                   className={`un-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                  onClick={() => handleTabChange(tab.id as any)}
+                  onClick={() => handleTabChange(tab.id)}
                 >
                   {tab.icon}
                   <span>{tab.label}</span>
@@ -580,7 +611,7 @@ export default function AutomationClient({
         </div>
 
         {/* ── Main Workspace Body ── */}
-        <div className="un-body">
+        <div className="un-body" role="tabpanel" aria-labelledby={`un-tab-${activeTab}`}>
 
           {/* ════ TAB 1: ENGINE CONTROLS ════ */}
           {activeTab === 'control' && (
@@ -726,6 +757,176 @@ export default function AutomationClient({
                         Introduces randomized delay between detection and posting, preserving natural creator timing profiles.
                       </div>
                     </div>
+                  </div>
+
+                  {/* Intelligent Adaptive AI & Quality-Stop Gate */}
+                  <div className="un-card">
+                    <div className="un-card-header">
+                      <div className="un-card-title">
+                        <div className="un-card-title-icon" style={{ background: '#F5F3FF', color: '#6D28D9' }}><SvgSparkle /></div>
+                        <span>Intelligent Adaptive AI &amp; Quality-Stop Gate</span>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#6D28D9', background: '#F5F3FF', padding: '2px 8px', borderRadius: 6 }}>Zero AI Slop</span>
+                    </div>
+
+                    {[
+                      {
+                        key: 'adaptiveVoiceEnabled',
+                        color: 'color-amethyst',
+                        label: 'Adaptive Creator Voice Learning',
+                        desc: 'Learns directly from your Voice DNA, Brand Materials, Triage edits, and manual phone replies',
+                      },
+                      {
+                        key: 'autoStopOnLowQuality',
+                        color: 'color-emerald',
+                        label: 'Quality-Stop & Hallucination Gate',
+                        desc: 'Automatically stops sending and escalates to Triage if a draft sounds generic, invents prices/codes, or lacks confidence',
+                      },
+                      {
+                        key: 'voiceNoteTranscriptionEnabled',
+                        color: 'color-sapphire',
+                        label: 'DM Voice Note Transcription (Whisper)',
+                        desc: 'Transcribes incoming Instagram audio messages into text before classifying and replying',
+                      },
+                      {
+                        key: 'dailyDigestEnabled',
+                        color: 'color-gold',
+                        label: 'Morning "While You Slept" Wins Digest',
+                        desc: 'Daily email summary of DMs handled, leads captured, clicks, and expiring 24h buyers',
+                      },
+                      {
+                        key: 'humanAgentTagApproved',
+                        color: 'color-amber',
+                        label: 'Meta HUMAN_AGENT 7-Day Triage Tag',
+                        desc: 'Enable ONLY if Meta App Review approved HUMAN_AGENT for your app to reply in Triage after 24h',
+                      },
+                    ].map(({ key, color, label, desc }) => (
+                      <div className="un-rule-row" key={key}>
+                        <div style={{ paddingRight: 16 }}>
+                          <div className="un-rule-name">{label}</div>
+                          <div className="un-rule-desc">{desc}</div>
+                        </div>
+                        <label className={`un-capsule-toggle ${color}`}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean((config as any)[key])}
+                            onChange={e => updateConfig({ [key]: e.target.checked } as any)}
+                          />
+                          <div className="un-capsule-track" />
+                          <div className="un-capsule-thumb" />
+                        </label>
+                      </div>
+                    ))}
+
+                    <div className="un-field" style={{ marginTop: 14 }}>
+                      <label className="un-label">Minimum AI Confidence Threshold (0% = Off, pauses &amp; escalates below threshold)</label>
+                      <div className="un-slider-container">
+                        <input
+                          type="range"
+                          className="un-slider"
+                          min={0}
+                          max={90}
+                          step={5}
+                          value={Math.round((config.aiConfidenceThreshold ?? 0) * 100)}
+                          onChange={e => updateConfig({ aiConfidenceThreshold: parseInt(e.target.value, 10) / 100 })}
+                        />
+                        <span className="un-slider-pill">
+                          {Math.round((config.aiConfidenceThreshold ?? 0) * 100) === 0
+                            ? 'Off'
+                            : `${Math.round((config.aiConfidenceThreshold ?? 0) * 100)}%`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="un-field">
+                      <label className="un-label">DM Rapid-Burst Coalesce Window (Combines rapid multi-bubble messages)</label>
+                      <div className="un-slider-container">
+                        <input
+                          type="range"
+                          className="un-slider"
+                          min={0}
+                          max={8}
+                          step={1}
+                          value={config.dmDebounceSeconds ?? 0}
+                          onChange={e => updateConfig({ dmDebounceSeconds: parseInt(e.target.value, 10) })}
+                        />
+                        <span className="un-slider-pill">{(config.dmDebounceSeconds ?? 0) === 0 ? 'Instant' : `${config.dmDebounceSeconds}s`}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Human Takeover Pause (hrs)</label>
+                        <input
+                          type="number"
+                          className="un-input"
+                          min={1}
+                          max={72}
+                          value={config.humanTakeoverHours ?? 24}
+                          onChange={e => updateConfig({ humanTakeoverHours: Math.max(1, Math.min(72, Number(e.target.value) || 24)) })}
+                        />
+                      </div>
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">VIP Auto-Alert Follower Floor</label>
+                        <input
+                          type="number"
+                          className="un-input"
+                          min={0}
+                          step={1000}
+                          value={config.vipFollowerThreshold ?? 10000}
+                          onChange={e => updateConfig({ vipFollowerThreshold: Math.max(0, Number(e.target.value) || 0) })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="un-rule-row" style={{ marginTop: 12 }}>
+                      <div style={{ paddingRight: 16 }}>
+                        <div className="un-rule-name">Active Hours Schedule</div>
+                        <div className="un-rule-desc">Only auto-dispatch during your configured business hours</div>
+                      </div>
+                      <label className="un-capsule-toggle color-sapphire">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(config.activeHoursEnabled)}
+                          onChange={e => updateConfig({ activeHoursEnabled: e.target.checked })}
+                        />
+                        <div className="un-capsule-track" />
+                        <div className="un-capsule-thumb" />
+                      </label>
+                    </div>
+
+                    {config.activeHoursEnabled && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 10, padding: '10px 12px', borderRadius: 10, background: '#FAF6EE', border: '1px solid #E8DFCE', marginTop: 8 }}>
+                        <div>
+                          <label className="un-label">Start Time</label>
+                          <input
+                            type="time"
+                            className="un-input"
+                            value={config.activeHoursStart || '09:00'}
+                            onChange={e => updateConfig({ activeHoursStart: e.target.value || '09:00' })}
+                          />
+                        </div>
+                        <div>
+                          <label className="un-label">End Time</label>
+                          <input
+                            type="time"
+                            className="un-input"
+                            value={config.activeHoursEnd || '21:00'}
+                            onChange={e => updateConfig({ activeHoursEnd: e.target.value || '21:00' })}
+                          />
+                        </div>
+                        <div>
+                          <label className="un-label">IANA Timezone</label>
+                          <input
+                            type="text"
+                            className="un-input"
+                            placeholder="UTC or Asia/Kolkata"
+                            value={config.activeHoursTimezone || 'UTC'}
+                            onChange={e => updateConfig({ activeHoursTimezone: e.target.value || 'UTC' })}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -939,6 +1140,23 @@ export default function AutomationClient({
             </div>
           )}
 
+          {/* ════ TAB: KEYWORD CAMPAIGNS & PLAYBOOKS ════ */}
+          {activeTab === 'campaigns' && (
+            <CampaignsPanel
+              workspaceId={workspaceId}
+              defaultLinkUrl={config.linkUrl}
+              onToast={showToast}
+            />
+          )}
+
+          {/* ════ TAB: AUDIENCE VAULT LEADS CRM ════ */}
+          {activeTab === 'leads' && (
+            <LeadsVaultPanel
+              workspaceId={workspaceId}
+              onToast={showToast}
+            />
+          )}
+
           {/* ════ TAB: BRAND & PRODUCT MATERIALS HUB ════ */}
           {activeTab === 'materials' && (
             <BrandMaterialsSection
@@ -1135,7 +1353,33 @@ export default function AutomationClient({
                                 ⚠ Flagged for Human Review
                               </span>
                             )}
+                            {typeof simResult.qualityScore === 'number' && (
+                              <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 10px', borderRadius: 14, background: simResult.qualityScore >= 75 ? '#ECFDF5' : simResult.qualityScore >= 55 ? '#FFFBEB' : '#FEF2F2', color: simResult.qualityScore >= 75 ? '#047857' : simResult.qualityScore >= 55 ? '#B45309' : '#B91C1C', border: `1px solid ${simResult.qualityScore >= 75 ? '#A7F3D0' : simResult.qualityScore >= 55 ? '#FDE68A' : '#FECACA'}` }}>
+                                Quality {simResult.qualityScore}/100
+                              </span>
+                            )}
+                            {simResult.matchedCampaign && (
+                              <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 10px', borderRadius: 14, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
+                                Campaign: {simResult.matchedCampaign.name} ({simResult.matchedCampaign.matchType})
+                              </span>
+                            )}
+                            {typeof simResult.adaptiveExemplarsUsed === 'number' && simResult.adaptiveExemplarsUsed > 0 && (
+                              <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 10px', borderRadius: 14, background: '#FAF6EE', color: '#8B7355', border: '1px solid #E8DFCE' }}>
+                                Voice-Adapted ({simResult.adaptiveExemplarsUsed} edits)
+                              </span>
+                            )}
                           </div>
+
+                          {simResult.stoppedByQualityGate && (
+                            <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', fontSize: 12.5 }}>
+                              <strong>AI Stopped Automatically:</strong> {simResult.stopReason || 'Draft failed quality gate — escalated to Triage instead of sending a generic or risky reply.'}
+                              {Array.isArray(simResult.qualityIssues) && simResult.qualityIssues.length > 0 && (
+                                <div style={{ marginTop: 4, fontSize: 11.5, opacity: 0.9 }}>
+                                  Checks flagged: {simResult.qualityIssues.join(' • ')}
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Response Previews */}
                           {simResult.suggestedReply && (
@@ -1577,6 +1821,23 @@ export default function AutomationClient({
                             {item.priority === 'high' && (
                               <span style={{ fontSize: 10, background: '#DC2626', color: '#FFF', borderRadius: 6, padding: '2px 6px', fontWeight: 800 }}>
                                 PRIORITY
+                              </span>
+                            )}
+                            {item.item_type === 'dm' && item.window_status && (
+                              <span style={{
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                borderRadius: 10,
+                                padding: '1px 7px',
+                                background: item.window_status === 'expired' ? '#FEF2F2' : item.window_status === 'expiring_soon' ? '#FFF7ED' : '#ECFDF5',
+                                color: item.window_status === 'expired' ? '#B91C1C' : item.window_status === 'expiring_soon' ? '#C2410C' : '#047857',
+                                border: `1px solid ${item.window_status === 'expired' ? '#FECACA' : item.window_status === 'expiring_soon' ? '#FED7AA' : '#A7F3D0'}`,
+                              }}>
+                                {item.window_status === 'expired'
+                                  ? '24h Meta Window Expired'
+                                  : item.window_status === 'expiring_soon'
+                                    ? `24h Window: ${Math.max(1, Math.round(item.window_hours_left || 1))}h left`
+                                    : `24h Window Open (${Math.round(item.window_hours_left || 24)}h)`}
                               </span>
                             )}
                           </div>

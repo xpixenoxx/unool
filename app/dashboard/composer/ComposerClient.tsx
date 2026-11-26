@@ -114,6 +114,11 @@ import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
 import PostBrandMaterialsCard from '@/components/dashboard/PostBrandMaterialsCard';
+import {
+  StudioAutoDmCard,
+  DEFAULT_STUDIO_AUTO_DM_RULE,
+  type StudioAutoDmRuleState,
+} from '@/components/composer/StudioAutoDmCard';
 import type { PlatformType, ConnectedAccount, PlatformDraft, AdaptedPost, AdaptResponse, Profile, ComposerClientProps } from './types';
 import { PLATFORM_CONFIG } from '@/lib/config/platformConfig';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
@@ -158,8 +163,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const hookStyleParam = searchParams?.get('hookStyle') || null;
   const winningHookParam = searchParams?.get('winningHook') || null;
   const followUpPostId = searchParams?.get('followUpPostId') || null;
+  const demandPromptParam = searchParams?.get('prompt') || null;
+  const demandKeywordParam = searchParams?.get('keyword') || null;
   const hasLoadedTargetPost = useRef<string | null>(null);
   const hasAppliedSeed = useRef(false);
+  const [studioAutoDmRule, setStudioAutoDmRule] = useState<StudioAutoDmRuleState>(DEFAULT_STUDIO_AUTO_DM_RULE);
   const [activeHookInspiration, setActiveHookInspiration] = useState<{
     hookLabel: string;
     hookColor: string;
@@ -437,8 +445,25 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       } else if (hookMeta) {
         studioToast.info(`Pre-populated "${hookMeta.label}" hook structure from Signal`);
       }
+      return;
     }
-  }, [targetPostId, repurposePostId, suggestedHook, hookStyleParam, winningHookParam, followUpPostId]);
+
+    if (demandPromptParam || demandKeywordParam) {
+      hasAppliedSeed.current = true;
+      setMode('ai');
+      if (demandPromptParam) {
+        setSourceContent(demandPromptParam);
+      }
+      if (demandKeywordParam) {
+        setStudioAutoDmRule((prev) => ({
+          ...prev,
+          enabled: true,
+          keywords: demandKeywordParam.toUpperCase(),
+        }));
+      }
+      studioToast.info('Pre-loaded Demand Radar hook and attached Auto-DM keyword');
+    }
+  }, [targetPostId, repurposePostId, suggestedHook, hookStyleParam, winningHookParam, followUpPostId, demandPromptParam, demandKeywordParam]);
   
 
   // ── Save post as draft in Signal and clear composer to start fresh ─────────
@@ -926,17 +951,19 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     hasAttemptedAutoVoiceClone.current = true;
     setIsAutoCloningVoice(true);
 
-    fetch('/api/studio/voice-clone', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        platform: voiceCapableAccount.platform,
-        connectionId: voiceCapableAccount.id,
-        forceOverwrite: false,
-      }),
-    })
-      .then((r) => (r.ok ? (r.json() as Promise<Record<string, any>>) : null))
+    Promise.resolve(
+      fetch('/api/studio/voice-clone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          platform: voiceCapableAccount.platform,
+          connectionId: voiceCapableAccount.id,
+          forceOverwrite: false,
+        }),
+      })
+    )
+      .then((r) => (r && r.ok ? (r.json() as Promise<Record<string, any>>) : null))
       .then((data) => {
         if (data?.profile) {
           setProfile((prev) => {
@@ -1277,6 +1304,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           postId,
           workspaceId,
           mediaItems: media,
+          automationRule: studioAutoDmRule.enabled ? studioAutoDmRule : undefined,
           drafts: readyDrafts.map(d => ({
             platform: d.platform,
             platformConnectionId: d.platformConnectionId ?? undefined,
@@ -1335,6 +1363,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       setDrafts([]);
       setSourceContent('');
       setPostId(null);
+      setStudioAutoDmRule(DEFAULT_STUDIO_AUTO_DM_RULE);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Publish failed';
       studioToast.error(errorMsg);
@@ -1460,6 +1489,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           selectedTargets: accountsToUse.map(a => ({ platform: a.platform, platformConnectionId: a.id })),
           studioProfile: profile?.studioProfile || null,
           postId: postId || undefined,
+          automationRule: studioAutoDmRule.enabled ? studioAutoDmRule : undefined,
         }),
       });
 
@@ -2196,7 +2226,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
               {/* Brand Materials Page Card for Quick Broadcast (Image 2) */}
               {featureFlags.automationEnabled && (
-                <div className="pt-2">
+                <div className="pt-2 space-y-2.5">
                   <PostBrandMaterialsCard
                     workspaceId={workspaceId}
                     subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
@@ -2211,6 +2241,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       toast.success('Brand page link added to post draft!');
                     }}
                   />
+                  <StudioAutoDmCard value={studioAutoDmRule} onChange={setStudioAutoDmRule} />
                 </div>
               )}
             </div>
@@ -2437,7 +2468,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
             {/* Brand Materials Page for this Post (Image 4) */}
             {featureFlags.automationEnabled && (
-              <div className="pt-1">
+              <div className="pt-1 space-y-2.5">
                 <PostBrandMaterialsCard
                   workspaceId={workspaceId}
                   subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
@@ -2452,6 +2483,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     toast.success('Brand page link added to post draft!');
                   }}
                 />
+                <StudioAutoDmCard value={studioAutoDmRule} onChange={setStudioAutoDmRule} />
               </div>
             )}
 

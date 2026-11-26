@@ -1799,7 +1799,39 @@ export function SignalClient() {
                     {analytics.funnels.automation.highIntentLeads}
                   </div>
                 </div>
+                {typeof analytics.funnels.automation.leadsCaptured === 'number' && (
+                  <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                    <div className="text-[10px] text-[#78716C]">Emails &amp; Phones</div>
+                    <div className="text-base font-bold text-[#047857] tabular-nums">
+                      {analytics.funnels.automation.leadsCaptured}
+                    </div>
+                  </div>
+                )}
+                {typeof analytics.funnels.automation.trackedClicks === 'number' && (
+                  <div className="p-2.5 rounded-xl bg-[#FAF7F2]">
+                    <div className="text-[10px] text-[#78716C]">Tracked DM Clicks</div>
+                    <div className="text-base font-bold text-[#C8613D] tabular-nums">
+                      {analytics.funnels.automation.trackedClicks}
+                    </div>
+                  </div>
+                )}
               </div>
+              {Array.isArray(analytics.funnels.automation.topConvertingHooks) &&
+                analytics.funnels.automation.topConvertingHooks.length > 0 && (
+                  <div className="pt-2 border-t border-[#E8E0D4] space-y-1.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-[#78716C]">
+                      Closed-Loop Hook → Lead Attribution
+                    </div>
+                    {analytics.funnels.automation.topConvertingHooks.map((h) => (
+                      <div key={h.hookType} className="flex items-center justify-between text-xs text-[#3D2B1F]">
+                        <span className="capitalize font-medium">{h.hookType.replace(/_/g, ' ')}</span>
+                        <span className="tabular-nums text-[#78716C]">
+                          {h.dmsSent} DMs · {h.highIntentLeads} hot leads
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
 
             {/* Deep LinkedIn & Platform API Disclosure Card */}

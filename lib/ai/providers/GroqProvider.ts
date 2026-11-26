@@ -1,6 +1,7 @@
 import { AIProvider, AIResponse, AIError, GenerationOptions } from '../types';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
+import { resolveAiGatewayEndpoint } from '@/lib/cloudflare/edgeBindings';
 import { z } from 'zod';
 
 /**
@@ -60,13 +61,19 @@ export class GroqProvider implements AIProvider {
     const MAX_RETRIES = 3;
     let lastError: AIError | null = null;
 
+    const gatewayProvider = this.baseUrl.includes('api.openai.com') ? 'openai' : 'groq';
+    const gatewayTarget = resolveAiGatewayEndpoint(gatewayProvider, this.baseUrl, {
+      cacheTtlSeconds: options?.responseFormatJson ? 180 : 300,
+    });
+
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        const response = await fetch(`${gatewayTarget.baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${this.apiKey}`,
+            ...gatewayTarget.extraHeaders,
           },
           body: JSON.stringify(requestBody),
         });

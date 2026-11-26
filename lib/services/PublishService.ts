@@ -246,6 +246,26 @@ export class PublishService {
           platformPostId: result.platformPostId,
         });
 
+        // Non-blocking Studio Auto-Attach: if creator attached a SignalDM keyword rule to this post, bind it live now!
+        if (input.platform === 'instagram' && result.platformPostId && variant.postId) {
+          try {
+            const { bindStudioAutomationRuleOnPublish } = await import(
+              '@/lib/services/automation/studioAutoAttach'
+            );
+            await bindStudioAutomationRuleOnPublish({
+              workspaceId: input.workspaceId,
+              postId: variant.postId,
+              platformPostId: result.platformPostId,
+            });
+          } catch (attachErr) {
+            logger.warn('Studio SignalDM auto-attach failed (non-blocking)', {
+              postId: variant.postId,
+              platformPostId: result.platformPostId,
+              error: attachErr,
+            });
+          }
+        }
+
         // Fallback immediate first-comment for Instagram & LinkedIn when QStash is not configured
         // (X and Threads handle direct publishInput.firstComment inside their adapters when QStash is off)
         if (

@@ -160,6 +160,12 @@ const configSchema = z.object({
   CLOUDFLARE_API_TOKEN: z.string().optional(),
   CUSTOM_DOMAIN_CNAME_TARGET: z.string().optional().default('cname.unool.co'),
 
+  // Cloudflare AI Gateway & Edge KV (`unool-ai-gateway` / `unool-edge-kv`)
+  CLOUDFLARE_AI_GATEWAY_URL: z.union([z.string().url(), z.literal('')]).optional(),
+  CLOUDFLARE_AI_GATEWAY_TOKEN: z.string().optional(),
+  CLOUDFLARE_AI_GATEWAY_ID: z.string().optional().default('unool-ai-gateway'),
+  CLOUDFLARE_EDGE_KV_ID: z.string().optional().default('8c835d0ac38f4e11af7b1010329119b6'),
+
   // -------------------------------------------------------------------
   // Cashfree Payment Gateway
   // Sandbox: https://sandbox.cashfree.com/pg

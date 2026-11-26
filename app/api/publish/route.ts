@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       }
 
       const body = await request.json();
-      const { postId, workspaceId, drafts, mediaItems } = body;
+      const { postId, workspaceId, drafts, mediaItems, automationRule } = body;
 
       if (!postId) {
         return NextResponse.json(
@@ -95,6 +95,29 @@ export async function POST(request: NextRequest) {
       // Transition post status to 'publishing' immediately and refresh timestamps so it appears at top
       const primaryDraftContent = Array.isArray(drafts) && drafts.length > 0 ? drafts[0]?.content : null;
       await postRepository.updateStatus(postId, 'publishing');
+
+      // Optional Studio Auto-Attach SignalDM Rule (saved before publish, bound on IG platformPostId)
+      if (automationRule && typeof automationRule === 'object' && automationRule.enabled && automationRule.dmMessage) {
+        try {
+          const { saveStudioAutomationRule } = await import('@/lib/services/automation/studioAutoAttach');
+          await saveStudioAutomationRule({
+            workspaceId: resolvedWorkspaceId,
+            postId,
+            keywords: Array.isArray(automationRule.keywords)
+              ? automationRule.keywords
+              : String(automationRule.keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+            dmMessage: String(automationRule.dmMessage),
+            dmCtaUrl: automationRule.dmCtaUrl || null,
+            dmCtaTitle: automationRule.dmCtaTitle || null,
+            publicReplies: Array.isArray(automationRule.publicReplies) ? automationRule.publicReplies : [],
+            requireFollow: Boolean(automationRule.requireFollow),
+            captureEmail: Boolean(automationRule.captureEmail),
+            capturePhone: Boolean(automationRule.capturePhone),
+          });
+        } catch (ruleErr) {
+          logger.warn('Failed to persist Studio automation rule on publish (non-blocking)', { postId, error: ruleErr });
+        }
+      }
       if (primaryDraftContent) {
         try {
           await postRepository.update(postId, { content: primaryDraftContent });

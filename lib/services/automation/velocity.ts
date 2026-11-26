@@ -57,13 +57,27 @@ export class VelocityThrottle {
 
   /**
    * Record a reply action in the velocity tracker.
+   * Uses atomic Postgres RPC `increment_reply_velocity` when available to prevent
+   * read-modify-write race conditions under concurrent viral bursts, with a clean
+   * fallback to SELECT/UPDATE/INSERT for pre-migration environments and unit test mocks.
    */
   async recordReply(key: string, channel?: 'comment' | 'dm'): Promise<void> {
     const { workspaceId, channel: ch } = this.parseKey(key, channel);
     const hourBucket = this.getCurrentHourBucket();
 
     try {
-      // Upsert: increment if exists, create if not
+      if (typeof (this.supabase as any)?.rpc === 'function') {
+        const rpcRes = await (this.supabase as any).rpc('increment_reply_velocity', {
+          p_workspace_id: workspaceId,
+          p_channel: ch,
+          p_hour_bucket: hourBucket,
+        });
+        if (!rpcRes?.error) {
+          return;
+        }
+      }
+
+      // Fallback: upsert via SELECT then UPDATE/INSERT
       const { data: existing } = await this.supabase
         .from('instagram_reply_velocity')
         .select('reply_count')
