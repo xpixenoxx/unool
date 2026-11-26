@@ -135,6 +135,111 @@ describe('Multi-Platform Engagement Normalization & Adapters', () => {
       expect(res.impressions).toBe(350);
       expect(res.hasRealData).toBe(true);
     });
+
+    it('uses post_media_view and post_total_media_view_unique even when legacy metrics fail with #100', async () => {
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('fields=shares,reactions.summary')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              reactions: { summary: { total_count: 2 } },
+              comments: { summary: { total_count: 0 } },
+              shares: { count: 0 },
+            }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        if (url.includes('metric=post_media_view')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ name: 'post_media_view', values: [{ value: 420 }] }],
+            }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        if (url.includes('metric=post_total_media_view_unique')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ name: 'post_total_media_view_unique', values: [{ value: 310 }] }],
+            }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        if (url.includes('/insights')) {
+          return {
+            ok: false,
+            status: 400,
+            text: async () => '{"error":{"message":"(#100) The value must be a valid insights metric","code":100}}',
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        return { ok: false, status: 404, headers: new Headers() } as unknown as Response;
+      });
+
+      const res = await facebookAdapter.getEngagement('token_xyz', 'page_123_456');
+
+      expect(res.likes).toBe(2);
+      expect(res.views).toBe(420);
+      expect(res.impressions).toBe(420);
+      expect(res.reach).toBe(310);
+      expect(res.hasRealData).toBe(true);
+    });
+
+    it('falls back to post_total_media_view_unique when post_media_view is zero and resolves numeric video Page token', async () => {
+      let seenInsightsToken = '';
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/me/accounts')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ id: '999888', name: 'Page', category: 'Brand', access_token: 'page_tok_video', tasks: ['ANALYZE'] }],
+            }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        if (url.includes('fields=shares,reactions.summary')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ reactions: { summary: { total_count: 1 } } }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        if (url.includes('metric=post_total_media_view_unique')) {
+          seenInsightsToken = new URL(url).searchParams.get('access_token') || '';
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              data: [{ name: 'post_total_media_view_unique', values: [{ value: 95 }] }],
+            }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        if (url.includes('/insights')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [] }),
+            headers: new Headers(),
+          } as unknown as Response;
+        }
+        return { ok: false, status: 404, headers: new Headers() } as unknown as Response;
+      });
+
+      const res = await facebookAdapter.getEngagement('user_tok_123', '555666777');
+
+      expect(seenInsightsToken).toBe('page_tok_video');
+      expect(res.views).toBe(95);
+      expect(res.impressions).toBe(95);
+      expect(res.reach).toBe(95);
+    });
   });
 
   describe('LinkedInAdapter - getEngagement', () => {

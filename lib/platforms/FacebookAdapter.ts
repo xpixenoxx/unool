@@ -568,13 +568,33 @@ export class FacebookAdapter implements PlatformAdapter {
 
   private async resolveTokenForPost(accessToken: string, platformPostId: string): Promise<string> {
     const match = platformPostId.match(/^(\d+)_/);
-    if (!match) return accessToken;
     try {
-      const pageToken = await this.getPageAccessToken(accessToken, match[1]);
-      return pageToken || accessToken;
+      if (match) {
+        const pageToken = await this.getPageAccessToken(accessToken, match[1]);
+        return pageToken || accessToken;
+      }
+      // Video/photo posts may use a bare numeric ID without `{pageId}_`; resolve the Page token.
+      if (/^\d+$/.test(platformPostId)) {
+        const pages = await this.getUserPages(accessToken);
+        return pages.find((p) => p.accessToken)?.accessToken || accessToken;
+      }
     } catch {
-      return accessToken;
+      // Fall through to original token when Page lookup fails or token is already a Page token.
     }
+    return accessToken;
+  }
+
+  private parseInsightValue(rawValue: unknown): number {
+    if (typeof rawValue === 'number') {
+      return Number.isFinite(rawValue) && rawValue > 0 ? rawValue : 0;
+    }
+    if (rawValue && typeof rawValue === 'object') {
+      return Object.values(rawValue as Record<string, unknown>).reduce<number>((sum, v) => {
+        return sum + (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
+      }, 0);
+    }
+    const num = Number(rawValue ?? 0);
+    return Number.isFinite(num) && num > 0 ? num : 0;
   }
 
   async deletePost(accessToken: string, platformPostId: string): Promise<void> {
@@ -599,66 +619,97 @@ export class FacebookAdapter implements PlatformAdapter {
       let likes = 0;
       let comments = 0;
       let shares = 0;
-      let impressions = 0;
+      let mediaViews = 0;
+      let uniqueMediaViews = 0;
+      let legacyImpressions = 0;
       let engagedUsers = 0;
       let clicks = 0;
-      let videoViews = 0;
+      const videoViews = 0;
 
-      // Step 1: Query standard Graph API post object fields (reactions, comments, shares)
-      // This is supported on all Facebook Page posts without requiring read_insights permission.
-      try {
-        const basicRes = await fetchWithRetry(
-          `${FACEBOOK_API_BASE}/${platformPostId}?fields=shares,reactions.summary(total_count),comments.summary(total_count)&access_token=${token}`,
-          { method: 'GET' },
-          { maxRetries: 1 }
-        );
+      // Step 1: Standard Graph API post fields (reactions, comments, shares) — no read_insights required.
+      const basicPromise = fetchWithRetry(
+        `${FACEBOOK_API_BASE}/${platformPostId}?fields=shares,reactions.summary(total_count),comments.summary(total_count)&access_token=${token}`,
+        { method: 'GET' },
+        { maxRetries: 1 }
+      )
+        .then(async (basicRes) => {
+          if (basicRes.ok) {
+            const basicData = await basicRes.json().catch(() => ({}));
+            likes = Number(basicData.reactions?.summary?.total_count ?? 0);
+            comments = Number(basicData.comments?.summary?.total_count ?? 0);
+            shares = Number(basicData.shares?.count ?? 0);
+          } else {
+            const errText = await basicRes.text().catch(() => '');
+            logger.warn('Facebook basic post engagement fetch returned non-OK', {
+              platformPostId,
+              status: basicRes.status,
+              errorMessage: errText.slice(0, 300),
+            });
+          }
+        })
+        .catch((basicErr) => {
+          logger.warn('Facebook basic post engagement fetch threw', { platformPostId, error: basicErr });
+        });
 
-        if (basicRes.ok) {
-          const basicData = await basicRes.json().catch(() => ({}));
-          likes = Number(basicData.reactions?.summary?.total_count ?? 0);
-          comments = Number(basicData.comments?.summary?.total_count ?? 0);
-          shares = Number(basicData.shares?.count ?? 0);
-        }
-      } catch (basicErr) {
-        logger.warn('Facebook basic post engagement fetch threw', { platformPostId, error: basicErr });
-      }
+      // Step 2: Query each Insights metric independently so one deprecated or unsupported metric
+      // (e.g. Meta retiring post_impressions / post_engaged_users with #100) does not fail the batch.
+      const insightMetrics = [
+        'post_media_view',
+        'post_total_media_view_unique',
+        'post_impressions',
+        'post_clicks',
+        'post_reactions_like_total',
+      ] as const;
 
-      // Step 2: Query Page Post Insights for reach/impressions and engaged users.
-      // Metrics are separated so that an unsupported video metric on a text/image post
-      // does not cause Meta API #100 error and fail the entire request.
-      try {
-        const insightRes = await fetchWithRetry(
-          `${FACEBOOK_API_BASE}/${platformPostId}/insights?metric=post_impressions,post_engaged_users,post_clicks_total,post_reactions_like_total&access_token=${token}`,
-          { method: 'GET' },
-          { maxRetries: 1 }
-        );
+      const insightsPromise = Promise.allSettled(
+        insightMetrics.map(async (metricName) => {
+          const insightRes = await fetchWithRetry(
+            `${FACEBOOK_API_BASE}/${platformPostId}/insights?metric=${metricName}&access_token=${token}`,
+            { method: 'GET' },
+            { maxRetries: 0 }
+          );
 
-        if (insightRes.ok) {
+          if (!insightRes.ok) {
+            const errText = await insightRes.text().catch(() => '');
+            logger.warn('Facebook insights metric request failed', {
+              platformPostId,
+              metric: metricName,
+              status: insightRes.status,
+              errorMessage: errText.slice(0, 300),
+            });
+            return;
+          }
+
           const insightData = await insightRes.json().catch(() => ({}));
           for (const metric of insightData.data || []) {
             const values = metric.values || [];
             const latest = values[values.length - 1];
-            const val = Number(latest?.value ?? 0);
-            if (metric.name === 'post_impressions' && val > 0) impressions = val;
+            const val = this.parseInsightValue(latest?.value);
+            if (metric.name === 'post_media_view' && val > 0) mediaViews = val;
+            if (metric.name === 'post_total_media_view_unique' && val > 0) uniqueMediaViews = val;
+            if (metric.name === 'post_impressions' && val > 0) legacyImpressions = val;
             if (metric.name === 'post_engaged_users' && val > 0) engagedUsers = val;
-            if (metric.name === 'post_clicks_total' && val > 0) clicks = val;
+            if ((metric.name === 'post_clicks' || metric.name === 'post_clicks_total') && val > 0) clicks = val;
             if (metric.name === 'post_reactions_like_total' && val > 0 && likes === 0) likes = val;
           }
-        }
-      } catch (insightErr) {
-        logger.warn('Facebook insights fetch threw (non-critical)', { platformPostId, error: insightErr });
-      }
+        })
+      );
+
+      await Promise.all([basicPromise, insightsPromise]);
+
+      const resolvedViews = mediaViews || uniqueMediaViews || legacyImpressions;
 
       return {
-        impressions,
-        views: impressions,
+        impressions: resolvedViews,
+        views: resolvedViews,
+        reach: uniqueMediaViews,
         engagedUsers,
         likes,
         comments,
         clicks,
         shares,
         videoViews,
-        hasRealData: (likes + comments + shares + impressions) > 0,
+        hasRealData: (likes + comments + shares + resolvedViews) > 0,
       };
     });
   }
