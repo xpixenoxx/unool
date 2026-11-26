@@ -232,10 +232,14 @@ export function PostInspectorDrawer({
         </div>
 
         {/* Summary KPI Strip for Scoped Post */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {[
+        {(() => {
+          const showPostReactions =
+            post.variants.length === 0 || post.variants.some(v => v.capability.supportedMetrics.likes);
+          const summaryMetrics = [
             { label: 'Views', val: post.scopedEngagement.views !== null ? String(post.scopedEngagement.views) : 'N/A' },
-            { label: 'Reactions', val: String(post.scopedEngagement.likes) },
+            ...(showPostReactions
+              ? [{ label: 'Reactions', val: String(post.scopedEngagement.likes) }]
+              : []),
             { label: 'Comments', val: String(post.scopedEngagement.comments) },
             { label: 'Shares', val: String(post.scopedEngagement.shares) },
             { label: 'Saves/Clicks', val: String(post.scopedEngagement.saves + post.scopedEngagement.clicks) },
@@ -243,13 +247,19 @@ export function PostInspectorDrawer({
               label: 'Eng. Rate',
               val: post.scopedEngagement.engagementRate !== null ? `${post.scopedEngagement.engagementRate}%` : 'N/A',
             },
-          ].map(m => (
-            <div key={m.label} className="bg-white border border-[#E8E0D4] rounded-xl p-2.5 text-center">
-              <div className="text-[10px] font-medium text-[#78716C] uppercase">{m.label}</div>
-              <div className="text-sm font-bold text-[#1A1612] mt-0.5 tabular-nums">{m.val}</div>
+          ];
+
+          return (
+            <div className={`grid grid-cols-3 ${showPostReactions ? 'sm:grid-cols-6' : 'sm:grid-cols-5'} gap-2`}>
+              {summaryMetrics.map(m => (
+                <div key={m.label} className="bg-white border border-[#E8E0D4] rounded-xl p-2.5 text-center">
+                  <div className="text-[10px] font-medium text-[#78716C] uppercase">{m.label}</div>
+                  <div className="text-sm font-bold text-[#1A1612] mt-0.5 tabular-nums">{m.val}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()}
 
         {/* Master Copy */}
         <div className="bg-white border border-[#E8E0D4] rounded-2xl p-4 space-y-2">
@@ -372,19 +382,21 @@ export function PostInspectorDrawer({
                   </div>
                 )}
 
-                <div className="grid grid-cols-5 gap-2 text-center bg-[#FAF7F2] rounded-xl p-2 text-xs">
+                <div className={`grid ${v.capability.supportedMetrics.likes ? 'grid-cols-5' : 'grid-cols-4'} gap-2 text-center bg-[#FAF7F2] rounded-xl p-2 text-xs`}>
                   <div>
                     <div className="text-[10px] text-[#78716C]">{v.capability.viewsLabel}</div>
                     <div className="font-semibold text-[#1A1612] tabular-nums">
                       {v.views !== null ? v.views : 'N/A'}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-[10px] text-[#78716C]">{v.capability.likesLabel}</div>
-                    <div className="font-semibold text-[#1A1612] tabular-nums">
-                      {v.capability.supportedMetrics.likes ? v.likes : 'N/A'}
+                  {v.capability.supportedMetrics.likes && (
+                    <div>
+                      <div className="text-[10px] text-[#78716C]">{v.capability.likesLabel}</div>
+                      <div className="font-semibold text-[#1A1612] tabular-nums">
+                        {v.likes}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div>
                     <div className="text-[10px] text-[#78716C]">{v.capability.commentsLabel}</div>
                     <div className="font-semibold text-[#1A1612] tabular-nums">

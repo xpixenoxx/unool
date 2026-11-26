@@ -308,4 +308,39 @@ describe('Canonical Signal Engine (Formulas, TZ, Multi-Account, Denominators, CS
       'Instagram requires an image to be uploaded.'
     );
   });
+
+  it('omits likes from Threads capability and keeps views, replies, and reposts/quotes', () => {
+    const thCap = getPlatformCapability('threads');
+    expect(thCap.supportedMetrics.likes).toBe(false);
+
+    const res = computeSignalAnalytics({
+      posts: [
+        {
+          id: 'th-1',
+          content: 'All GenZ connect here',
+          status: 'published',
+          createdAt: '2026-11-15T10:00:00.000Z',
+          publishedAt: '2026-11-15T10:05:00.000Z',
+          variants: [
+            {
+              id: 'v-th',
+              platform: 'threads',
+              status: 'published',
+              rawEngagement: { views: 89, likes: 1, replies: 3, comments: 3, reposts: 1, quotes: 0, shares: 1 },
+            },
+          ],
+        },
+      ],
+      connectedAccounts: [
+        { id: 'conn-th-1', platform: 'threads', platformAccountId: 'conn-th-1', accountLabel: '@avadika_senakkay', status: 'connected' },
+      ],
+      options: { range: '30d', timezone: 'UTC', now: baseNow },
+    });
+
+    expect(res.posts[0].scopedEngagement.likes).toBe(0);
+    expect(res.posts[0].scopedEngagement.comments).toBe(3);
+    expect(res.posts[0].scopedEngagement.shares).toBe(1);
+    expect(res.posts[0].scopedEngagement.views).toBe(89);
+    expect(res.posts[0].variants[0].capability.supportedMetrics.likes).toBe(false);
+  });
 });
