@@ -2801,18 +2801,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       console.warn('[getReferralMetrics] Query referral_codes failed:', err);
     }
 
-    if (activeCodes === 0) {
-      try {
-        const { count: wsCount } = await supabaseAdmin
-          .from('workspaces')
-          .select('id', { count: 'exact', head: true });
-        activeCodes = Math.max(activeCodes, refCodesFromEvents.size, wsCount || 0);
-      } catch {
-        activeCodes = Math.max(activeCodes, refCodesFromEvents.size);
-      }
-    } else {
-      activeCodes = Math.max(activeCodes, refCodesFromEvents.size);
-    }
+    activeCodes = Math.max(activeCodes, refCodesFromEvents.size);
 
     return {
       activeCodes,
@@ -2891,8 +2880,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         createdAt: ref.created_at,
       };
       current.signups++;
-      const referredPlan = userWorkspacePlanMap.get(ref.referred_user_id) || '';
-      const isPaid = referredPlan === 'creator' || referredPlan === 'pro' || referredPlan === 'studio' || ref.status === 'converted' || ref.status === 'rewarded';
+      const isPaid = ref.status === 'converted' || ref.status === 'rewarded';
       if (isPaid) {
         current.conversions++;
       }
@@ -3035,7 +3023,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       .order('created_at', { ascending: false });
 
     if (referralCode) {
-      query = query.eq('referral_code', referralCode);
+      query = query.eq('referral_code', referralCode.trim().toUpperCase());
     }
 
     query = query.range(from, to);
@@ -3043,20 +3031,48 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    // Fetch user emails from auth for referrer and referred user
+    // Fetch user emails via targeted public.users lookup (scales beyond 1000 users)
     const emailMap = new Map<string, string>();
-    try {
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-      if (usersData?.users && Array.isArray(usersData.users)) {
-        for (const u of usersData.users) {
-          if (u.id && u.email) {
-            emailMap.set(u.id, u.email);
+    const rows = data || [];
+    const userIds = Array.from(
+      new Set(
+        rows
+          .flatMap((row: any) => [row.referrer_user_id, row.referred_user_id])
+          .filter(Boolean)
+      )
+    ) as string[];
+
+    if (userIds.length > 0) {
+      try {
+        const { data: usersData } = await supabaseAdmin
+          .from('users')
+          .select('id, email')
+          .in('id', userIds);
+        if (Array.isArray(usersData)) {
+          for (const u of usersData) {
+            if (u.id && u.email) {
+              emailMap.set(u.id, u.email);
+            }
           }
         }
-      }
-    } catch {}
+      } catch {}
 
-    const referrals: ReferralAdminView[] = (data || []).map((row: any) => ({
+      const missingIds = userIds.filter((uid) => !emailMap.has(uid));
+      if (missingIds.length > 0) {
+        try {
+          const { data: authUsersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          if (authUsersData?.users && Array.isArray(authUsersData.users)) {
+            for (const u of authUsersData.users) {
+              if (u.id && u.email && !emailMap.has(u.id)) {
+                emailMap.set(u.id, u.email);
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    const referrals: ReferralAdminView[] = rows.map((row: any) => ({
       id: row.id,
       referrerUserId: row.referrer_user_id,
       referrerEmail: emailMap.get(row.referrer_user_id),

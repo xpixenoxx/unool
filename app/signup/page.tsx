@@ -67,7 +67,18 @@ function SignUpComponent() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: effectiveRef }),
-          }).catch(() => {});
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d: { code?: string } | null) => {
+              if (d?.code && d.code !== effectiveRef) {
+                setRefCode(d.code);
+                try {
+                  sessionStorage.setItem('unool_ref', d.code);
+                  document.cookie = `unool_ref=${encodeURIComponent(d.code)}; path=/; max-age=2592000; SameSite=Lax`;
+                } catch {}
+              }
+            })
+            .catch(() => {});
         }
       }
     } catch {}
@@ -209,10 +220,15 @@ function SignUpComponent() {
       setEmailError('');
       setPasswordError('');
       const supabase = getSupabaseBrowserClient();
+      const callbackUrl = new URL('/auth/callback', window.location.origin);
+      callbackUrl.searchParams.set('redirect', '/dashboard');
+      if (refCode.trim()) {
+        callbackUrl.searchParams.set('ref', refCode.trim());
+      }
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`
+          redirectTo: callbackUrl.toString()
         }
       });
     } catch {
@@ -346,6 +362,9 @@ function SignUpComponent() {
             });
           } catch {}
         }
+        try {
+          sessionStorage.removeItem('unool_ref');
+        } catch {}
         setStage('completed');
         setTimeout(() => {
           router.push(data.redirectTo || (data.session ? '/onboarding/start' : '/signin'));
@@ -387,7 +406,8 @@ function SignUpComponent() {
             Unool
           </Link>
           <p>
-            Already have an account? <Link href="/signin">Sign in</Link>
+            Already have an account?{' '}
+            <Link href={refCode ? `/signin?ref=${encodeURIComponent(refCode)}` : '/signin'}>Sign in</Link>
           </p>
         </header>
 

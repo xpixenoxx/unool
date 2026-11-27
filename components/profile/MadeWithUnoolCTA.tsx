@@ -48,6 +48,18 @@ export function MadeWithUnoolCTA({ className, subdomain, referralCode, hideBadge
   const referralQuery = attributionCode ? `?ref=${encodeURIComponent(attributionCode)}` : '';
   const unoolHomeUrl = `https://unool.co${referralQuery}`;
 
+  // Always route signup CTAs to the canonical app origin when rendered on a creator subdomain or custom domain
+  const getCanonicalAppBase = (): string => {
+    if (typeof window === 'undefined') return 'https://unool.co';
+    const host = window.location.hostname.toLowerCase();
+    if (host === 'unool.co' || host === 'www.unool.co' || host === 'localhost' || host === '127.0.0.1') {
+      return '';
+    }
+    return 'https://unool.co';
+  };
+
+  const signupHref = `${getCanonicalAppBase()}/signup${referralQuery}`;
+
   const handleMouseEnter = () => {
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
@@ -84,7 +96,12 @@ export function MadeWithUnoolCTA({ className, subdomain, referralCode, hideBadge
     if (attributionCode) queryParts.push(`ref=${encodeURIComponent(attributionCode)}`);
 
     const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
-    router.push(`/signup${queryString}`);
+    const appBase = getCanonicalAppBase();
+    if (appBase) {
+      window.location.href = `${appBase}/signup${queryString}`;
+    } else {
+      router.push(`/signup${queryString}`);
+    }
   };
 
   return (
@@ -251,7 +268,7 @@ export function MadeWithUnoolCTA({ className, subdomain, referralCode, hideBadge
                   <ExternalLink className="w-2.5 h-2.5 opacity-60" aria-hidden="true" />
                 </Link>
                 <Link
-                  href={referralQuery ? `/signup${referralQuery}` : '/signup'}
+                  href={signupHref}
                   className="text-stone-400 hover:text-white transition-colors no-underline font-sans text-[10px]"
                 >
                   Sign up free

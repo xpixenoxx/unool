@@ -293,7 +293,7 @@ export interface ReferralAdminView {
   referredUserId: string;
   referredEmail?: string;
   referralCode: string;
-  status: 'signed_up' | 'converted' | 'rewarded';
+  status: 'signed_up' | 'converted' | 'rewarded' | 'refunded';
   rewardType: string | null;
   rewardAppliedAt: string | null;
   createdAt: string;

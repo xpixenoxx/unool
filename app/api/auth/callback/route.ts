@@ -119,6 +119,39 @@ export async function POST(request: NextRequest) {
           logger.info('Created workspace for new user', { userId: user.id, workspaceId: newWorkspace.id, traceId });
         }
       }
+
+      // Attribute referral + generate referral code for fresh OAuth/magiclink signups
+      const refFromBody = typeof body?.ref === 'string' ? body.ref.trim() : '';
+      const refFromCookie = cookieStore.get('unool_ref')?.value?.trim() || '';
+      const refCode = refFromCookie || refFromBody;
+      const nowMs = Date.now();
+      const createdMs = user.created_at ? new Date(user.created_at).getTime() : 0;
+      const lastSignInMs = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+      const isFirstSession =
+        createdMs > 0 &&
+        nowMs - createdMs < 15 * 60 * 1000 &&
+        ((!existingMember && !existingOwnedWs) || !lastSignInMs || Math.abs(lastSignInMs - createdMs) < 60 * 1000);
+
+      if (isFirstSession) {
+        if (refCode) {
+          try {
+            const { recordReferralSignup } = await import('@/lib/referrals/service');
+            await recordReferralSignup(user.id, refCode);
+            cookieStore.set('unool_ref', '', { path: '/', maxAge: 0, sameSite: 'lax' });
+          } catch (refErr) {
+            logger.warn('POST /api/auth/callback referral attribution failed', { error: refErr, traceId });
+          }
+        }
+        try {
+          const { getOrCreateReferralCode } = await import('@/lib/referrals/service');
+          const resolvedWsId = existingMember?.workspace_id || existingOwnedWs?.id || user.id;
+          await getOrCreateReferralCode(
+            user.id,
+            resolvedWsId,
+            String(user.user_metadata?.full_name || user.email?.split('@')[0] || 'USER')
+          );
+        } catch {}
+      }
     }
 
     logger.info('Auth callback success', { traceId, userId: user?.id });

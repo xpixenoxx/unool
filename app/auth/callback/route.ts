@@ -142,22 +142,58 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Attribute referral ONLY for newly registered accounts (not returning logins)
-        const refCode = cookieStore.get('unool_ref')?.value;
-        const createdMs = user.created_at ? new Date(user.created_at).getTime() : 0;
-        const isFreshSignup =
-          !existingUserRow &&
-          !existingMember &&
-          !existingOwnedWs &&
-          createdMs > 0 &&
-          Date.now() - createdMs < 15 * 60 * 1000;
+        // Attribute referral ONLY for newly registered accounts (not returning logins).
+        // NOTE: In production Supabase, the `public.handle_new_user()` trigger on `auth.users`
+        // inserts `public.users`, `public.workspaces`, and `public.workspace_members` synchronously
+        // during `exchangeCodeForSession(code)` BEFORE the queries above run — so we must NOT
+        // require `!existingUserRow` alone; instead compare `created_at` with `last_sign_in_at` and `now`.
+        const refFromQuery = searchParams.get('ref')?.trim();
+        const refFromCookie = cookieStore.get('unool_ref')?.value?.trim();
+        const refFromMeta =
+          typeof user.user_metadata?.referral_code === 'string'
+            ? user.user_metadata.referral_code.trim()
+            : '';
+        const refCode = refFromCookie || refFromQuery || refFromMeta;
 
-        if (refCode && isFreshSignup) {
+        const nowMs = Date.now();
+        const createdMs = user.created_at ? new Date(user.created_at).getTime() : 0;
+        const lastSignInMs = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+        const noPreTriggerRows = !existingUserRow && !existingMember && !existingOwnedWs;
+        const isFirstOAuthSession =
+          createdMs > 0 &&
+          nowMs - createdMs < 15 * 60 * 1000 &&
+          (noPreTriggerRows || !lastSignInMs || Math.abs(lastSignInMs - createdMs) < 60 * 1000);
+
+        if (refCode && isFirstOAuthSession) {
           try {
             const { recordReferralSignup } = await import('@/lib/referrals/service');
             await recordReferralSignup(user.id, refCode);
+            cookiesToSetOnResponse.push({
+              name: 'unool_ref',
+              value: '',
+              options: { path: '/', maxAge: 0, sameSite: 'lax' },
+            });
           } catch (refErr) {
             console.error('[auth/callback] Referral attribution error:', refErr);
+          }
+        }
+
+        // Ensure every new OAuth user immediately receives their own unique referral code
+        if (isFirstOAuthSession) {
+          try {
+            const { getOrCreateReferralCode } = await import('@/lib/referrals/service');
+            const displayName =
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              user.email?.split('@')[0] ||
+              'USER';
+            await getOrCreateReferralCode(
+              user.id,
+              resolvedWorkspaceId || user.id,
+              String(displayName)
+            );
+          } catch {
+            // Non-fatal — created lazily on /api/referrals if skipped
           }
         }
       } catch (profileError) {

@@ -21,6 +21,45 @@ export default function HomePage() {
 
   const [activeSection, setActiveSection] = useState('overview');
 
+  // Capture ?ref=CODE on homepage visits (records deduplicated click + stores first-touch attribution)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRef = params.get('ref')?.trim().toUpperCase() || '';
+      const fromSession = sessionStorage.getItem('unool_ref')?.trim().toUpperCase() || '';
+      const fromCookie = document.cookie.match(/(?:^|;\s*)unool_ref=([^;]+)/)?.[1]?.trim() || '';
+      const decodedCookieRef = fromCookie ? decodeURIComponent(fromCookie).trim().toUpperCase() : '';
+      const effectiveRef = fromSession || decodedCookieRef || urlRef;
+      if (!effectiveRef) return;
+
+      if (!fromSession) sessionStorage.setItem('unool_ref', effectiveRef);
+      if (!decodedCookieRef) {
+        document.cookie = `unool_ref=${encodeURIComponent(effectiveRef)}; path=/; max-age=2592000; SameSite=Lax`;
+      }
+
+      const clickedCookie = document.cookie.match(/(?:^|;\s*)unool_ref_clicked=([^;]+)/)?.[1] || '';
+      const decodedClicked = clickedCookie ? decodeURIComponent(clickedCookie).trim().toUpperCase() : '';
+      const sessionClicked = sessionStorage.getItem('unool_ref_click_recorded');
+
+      if (sessionClicked !== effectiveRef && decodedClicked !== effectiveRef) {
+        sessionStorage.setItem('unool_ref_click_recorded', effectiveRef);
+        fetch('/api/referrals/click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: effectiveRef }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d: { code?: string } | null) => {
+            if (d?.code && d.code !== effectiveRef) {
+              sessionStorage.setItem('unool_ref', d.code);
+              document.cookie = `unool_ref=${encodeURIComponent(d.code)}; path=/; max-age=2592000; SameSite=Lax`;
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {}
+  }, []);
+
   // DB-backed pricing (falls back to hardcoded if API unavailable)
   const homepagePrices = useHomepagePricing();
   const getPriceById = (id: string) => homepagePrices.find(p => p.id === id);

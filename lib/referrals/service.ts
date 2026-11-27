@@ -133,11 +133,86 @@ export async function getOrCreateReferralCode(
   return rowToCode(data as Record<string, unknown>);
 }
 
+export function sanitizeReferralCodeInput(raw: string | null | undefined): string {
+  const cleaned = (raw || '').trim();
+  if (!cleaned || cleaned.length < 3 || cleaned.length > 32) return '';
+  if (!/^[A-Za-z0-9_-]+$/.test(cleaned)) return '';
+  return cleaned.toUpperCase();
+}
+
+/**
+ * Resolve a referral code row by exact `code` OR fallback creator `profiles.subdomain`
+ * (used when MadeWithUnoolCTA falls back to `?ref=<subdomain>`).
+ */
+async function resolveReferralCodeRecord(rawCode: string): Promise<Record<string, unknown> | null> {
+  const cleanCode = sanitizeReferralCodeInput(rawCode);
+  if (!cleanCode) return null;
+
+  const { data: directRow, error: directErr } = await supabaseAdmin
+    .from('referral_codes')
+    .select('*')
+    .eq('code', cleanCode)
+    .limit(1)
+    .maybeSingle();
+
+  if (!directErr && directRow) {
+    return directRow as Record<string, unknown>;
+  }
+
+  // Fallback: check if the code matches an active creator profile subdomain
+  try {
+    const subdomainCandidate = cleanCode.toLowerCase();
+    const { data: profileRow } = await supabaseAdmin
+      .from('profiles')
+      .select('user_id, workspace_id, name, subdomain')
+      .eq('subdomain', subdomainCandidate)
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle();
+
+    const prof = profileRow as Record<string, unknown> | null;
+    if (prof?.user_id) {
+      const created = await getOrCreateReferralCode(
+        prof.user_id as string,
+        (prof.workspace_id as string) || (prof.user_id as string),
+        (prof.name as string) || (prof.subdomain as string) || 'USER'
+      );
+      const { data: resolvedRow } = await supabaseAdmin
+        .from('referral_codes')
+        .select('*')
+        .eq('code', created.code)
+        .limit(1)
+        .maybeSingle();
+      if (resolvedRow) {
+        return resolvedRow as Record<string, unknown>;
+      }
+      return {
+        id: created.id,
+        user_id: created.userId,
+        workspace_id: created.workspaceId,
+        code: created.code,
+        click_count: created.clickCount,
+        signup_count: created.signupCount,
+        conversion_count: created.conversionCount,
+        rewards_earned: created.rewardsEarned,
+        credits_used: created.creditsUsed,
+        months_earned: created.monthsEarned,
+        created_at: created.createdAt,
+        updated_at: created.updatedAt,
+      };
+    }
+  } catch {
+    // Non-fatal if profiles table is mocked or unavailable
+  }
+
+  return null;
+}
+
 /**
  * Atomically record a referral click.
  */
 export async function recordReferralClick(code: string): Promise<ReferralCode | null> {
-  const cleanCode = (code || '').trim().toUpperCase();
+  const cleanCode = sanitizeReferralCodeInput(code);
   if (!cleanCode) return null;
 
   try {
@@ -148,28 +223,38 @@ export async function recordReferralClick(code: string): Promise<ReferralCode | 
       return rowToCode(rpcRows[0] as Record<string, unknown>);
     }
   } catch {
-    // Fallback below if RPC is unavailable or mocked
+    // Fallback below if RPC is unavailable, mocked, or code is a subdomain alias
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('referral_codes')
-    .select('*')
-    .eq('code', cleanCode)
-    .limit(1)
-    .maybeSingle();
+  const data = await resolveReferralCodeRecord(cleanCode);
+  if (!data) return null;
 
-  if (error || !data) return null;
+  const canonicalCode = ((data.code as string) || cleanCode).trim().toUpperCase();
 
-  const nextCount = (Number((data as Record<string, unknown>).click_count) || 0) + 1;
+  // If cleanCode was a subdomain alias, try atomic RPC on the resolved canonical code first
+  if (canonicalCode !== cleanCode) {
+    try {
+      const { data: aliasRpcRows, error: aliasRpcErr } = await supabaseAdmin.rpc('increment_referral_click', {
+        target_code: canonicalCode,
+      });
+      if (!aliasRpcErr && Array.isArray(aliasRpcRows) && aliasRpcRows.length > 0) {
+        return rowToCode(aliasRpcRows[0] as Record<string, unknown>);
+      }
+    } catch {
+      // Fallback update below
+    }
+  }
+
+  const nextCount = (Number(data.click_count) || 0) + 1;
   await supabaseAdmin
     .from('referral_codes')
     .update({
       click_count: nextCount,
       updated_at: new Date().toISOString(),
     })
-    .eq('code', cleanCode);
+    .eq('code', canonicalCode);
 
-  return rowToCode({ ...(data as Record<string, unknown>), click_count: nextCount });
+  return rowToCode({ ...data, click_count: nextCount });
 }
 
 /**
@@ -179,24 +264,19 @@ export async function recordReferralSignup(
   referredUserId: string,
   referralCode: string
 ): Promise<void> {
-  const cleanCode = (referralCode || '').trim().toUpperCase();
-  if (!cleanCode) return;
+  const cleanInput = sanitizeReferralCodeInput(referralCode);
+  if (!cleanInput || !referredUserId) return;
 
-  const { data: codeRow, error: codeErr } = await supabaseAdmin
-    .from('referral_codes')
-    .select('*')
-    .eq('code', cleanCode)
-    .limit(1)
-    .maybeSingle();
-
-  if (codeErr || !codeRow) {
-    logger.warn('recordReferralSignup: code not found', { referralCode: cleanCode });
+  const codeRow = await resolveReferralCodeRecord(cleanInput);
+  if (!codeRow) {
+    logger.warn('recordReferralSignup: code not found', { referralCode: cleanInput });
     return;
   }
 
-  const code = codeRow as Record<string, unknown>;
+  const code = codeRow;
+  const cleanCode = ((code.code as string) || cleanInput).trim().toUpperCase();
   const referrerUserId = code.user_id as string;
-  if (referrerUserId === referredUserId) return;
+  if (!referrerUserId || referrerUserId === referredUserId) return;
 
   const { data: existing } = await supabaseAdmin
     .from('referrals')
@@ -246,6 +326,10 @@ export async function recordReferralSignup(
         updated_at: new Date().toISOString(),
       })
       .eq('code', cleanCode);
+  }
+
+  if (typeof code.workspace_id === 'string' && code.workspace_id) {
+    clearPlanCache(code.workspace_id);
   }
 
   await logReferralLedger(referrerUserId, REWARD_FREE_SIGNUP_CREDITS, 'referral_signup');
@@ -403,6 +487,28 @@ export async function recordReferralConversion(referredUserId: string): Promise<
           referrerUserId,
           workspaceId: ownedWs.id,
           expiresAt: creatorEndIso,
+        });
+      } else {
+        // Paid workspace without an active subscriptions row or current_period_end:
+        // still extend workspaces.plan_expires_at by 30 days so paid referrers never miss their reward.
+        const existingExpiresMs = ownedWs.plan_expires_at ? new Date(ownedWs.plan_expires_at as string).getTime() : 0;
+        const baseMs = Number.isFinite(existingExpiresMs) && existingExpiresMs > nowMs ? existingExpiresMs : nowMs;
+        const newEndIso = new Date(baseMs + THIRTY_DAYS_MS).toISOString();
+
+        await supabaseAdmin
+          .from('workspaces')
+          .update({
+            plan_status: 'active',
+            plan_expires_at: newEndIso,
+            updated_at: new Date(nowMs).toISOString(),
+          })
+          .eq('id', ownedWs.id);
+
+        clearPlanCache(ownedWs.id);
+        logger.info('Extended referrer workspace plan_expires_at by 30 days', {
+          referrerUserId,
+          workspaceId: ownedWs.id,
+          newEnd: newEndIso,
         });
       }
     }

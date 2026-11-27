@@ -75,11 +75,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ── OTP verified! Now create the Supabase user for the first time ─────────
-    const { name, password_hash, referral_code } = result.metadata as {
+    const { name, password_hash, referral_code: challengeReferralCode } = result.metadata as {
       name: string;
       password_hash: string;
       referral_code?: string;
     };
+    const referral_code =
+      (challengeReferralCode || request.cookies.get('unool_ref')?.value || '').trim().toUpperCase() || undefined;
 
     if (!name || !password_hash) {
       logger.error('Missing metadata in verified OTP challenge', { email: emailLower });
@@ -128,20 +130,38 @@ export async function POST(request: NextRequest) {
         // Try to update the existing user instead
         const existingUser = await findUserByEmail(emailLower);
         if (existingUser) {
+          const wasUnverified = !existingUser.email_confirmed_at;
           // Update their metadata and confirm their email
           await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
             email_confirm: true,
             user_metadata: {
               ...(existingUser.user_metadata || {}),
               full_name: name,
+              referral_code: referral_code || existingUser.user_metadata?.referral_code || undefined,
             },
           });
           await saveUserPasswordHash(existingUser.id, password_hash, {
             ...(existingUser.user_metadata || {}),
             full_name: name,
           });
+          if (wasUnverified && referral_code) {
+            try {
+              const { recordReferralSignup } = await import('@/lib/referrals/service');
+              await recordReferralSignup(existingUser.id, referral_code);
+            } catch {}
+          }
+          if (wasUnverified) {
+            try {
+              const [{ getOrCreateReferralCode }, { resolvePrimaryWorkspaceId }] = await Promise.all([
+                import('@/lib/referrals/service'),
+                import('@/lib/auth/workspaceAccess'),
+              ]);
+              const realWorkspaceId = (await resolvePrimaryWorkspaceId(existingUser.id)) || existingUser.id;
+              await getOrCreateReferralCode(existingUser.id, realWorkspaceId, name);
+            } catch {}
+          }
           logger.info('Signup: updated existing unverified user', { userId: existingUser.id, email: emailLower });
-          return await logUserInAndRedirect(existingUser.id, emailLower);
+          return await logUserInAndRedirect(existingUser.id, emailLower, Boolean(referral_code));
         }
         // If they already existed and were verified: just tell them to sign in
         return NextResponse.json({ success: true, message: 'Account already verified. You can sign in.' }, { status: 200 });
@@ -193,7 +213,7 @@ export async function POST(request: NextRequest) {
       email:  emailLower,
     });
 
-    return await logUserInAndRedirect(userData.user.id, emailLower);
+    return await logUserInAndRedirect(userData.user.id, emailLower, Boolean(referral_code));
 
   } catch (err) {
     logger.error('Signup verify-otp error', { error: err instanceof Error ? err : new Error(String(err)) });
@@ -203,7 +223,7 @@ export async function POST(request: NextRequest) {
 
 // Helper to log the user in using a temporary password and set the session cookies
 // before scrambling the password again.
-async function logUserInAndRedirect(userId: string, email: string) {
+async function logUserInAndRedirect(userId: string, email: string, clearReferralCookie = false) {
   try {
     const crypto = await import('crypto');
     const tempPassword = crypto.randomBytes(32).toString('base64');
@@ -217,6 +237,12 @@ async function logUserInAndRedirect(userId: string, email: string) {
     }, { status: 200 });
 
     const cookieStore = await cookies();
+    if (clearReferralCookie) {
+      try {
+        cookieStore.set('unool_ref', '', { path: '/', maxAge: 0, sameSite: 'lax' });
+        response.cookies.set('unool_ref', '', { path: '/', maxAge: 0, sameSite: 'lax' });
+      } catch {}
+    }
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
         getAll() { return cookieStore.getAll(); },

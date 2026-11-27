@@ -31,6 +31,55 @@ function SignInComponent() {
 
   // Auth States
   const isAddAccountFlow = searchParams.get('addAccount') === 'true';
+  const [refCode, setRefCode] = useState('');
+
+  useEffect(() => {
+    const urlRef = searchParams?.get('ref')?.trim().toUpperCase() || '';
+    try {
+      const fromSession = sessionStorage.getItem('unool_ref')?.trim().toUpperCase() || '';
+      const fromCookie =
+        document.cookie.match(/(?:^|;\s*)unool_ref=([^;]+)/)?.[1]?.trim() || '';
+      const decodedCookieRef = fromCookie ? decodeURIComponent(fromCookie).trim().toUpperCase() : '';
+
+      const effectiveRef = fromSession || decodedCookieRef || urlRef;
+      if (effectiveRef) {
+        setRefCode(effectiveRef);
+        if (!fromSession) {
+          sessionStorage.setItem('unool_ref', effectiveRef);
+        }
+        if (!decodedCookieRef) {
+          document.cookie = `unool_ref=${encodeURIComponent(effectiveRef)}; path=/; max-age=2592000; SameSite=Lax`;
+        }
+
+        const alreadyClickedCookie =
+          document.cookie.match(/(?:^|;\s*)unool_ref_clicked=([^;]+)/)?.[1] || '';
+        const decodedClicked = alreadyClickedCookie
+          ? decodeURIComponent(alreadyClickedCookie).trim().toUpperCase()
+          : '';
+        const sessionClicked = sessionStorage.getItem('unool_ref_click_recorded');
+
+        if (sessionClicked !== effectiveRef && decodedClicked !== effectiveRef) {
+          sessionStorage.setItem('unool_ref_click_recorded', effectiveRef);
+          fetch('/api/referrals/click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: effectiveRef }),
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d: { code?: string } | null) => {
+              if (d?.code && d.code !== effectiveRef) {
+                setRefCode(d.code);
+                try {
+                  sessionStorage.setItem('unool_ref', d.code);
+                  document.cookie = `unool_ref=${encodeURIComponent(d.code)}; path=/; max-age=2592000; SameSite=Lax`;
+                } catch {}
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } catch {}
+  }, [searchParams]);
   const [email, setEmail] = useState(() => searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -103,10 +152,15 @@ function SignInComponent() {
       setEmailError('');
       setPasswordError('');
       const supabase = getSupabaseBrowserClient();
+      const callbackUrl = new URL('/auth/callback', window.location.origin);
+      callbackUrl.searchParams.set('redirect', '/dashboard');
+      if (refCode.trim()) {
+        callbackUrl.searchParams.set('ref', refCode.trim());
+      }
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
+          redirectTo: callbackUrl.toString(),
         },
       });
     } catch {
@@ -384,7 +438,10 @@ function SignInComponent() {
             Unool
           </Link>
           <p>
-            New to Unool? <Link href="/signup">Create an account</Link>
+            New to Unool?{' '}
+            <Link href={refCode ? `/signup?ref=${encodeURIComponent(refCode)}` : '/signup'}>
+              Create an account
+            </Link>
           </p>
         </header>
 

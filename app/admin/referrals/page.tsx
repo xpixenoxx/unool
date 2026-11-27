@@ -52,7 +52,7 @@ interface ReferralItem {
   referredUserId: string;
   referredEmail?: string;
   referralCode: string;
-  status: 'signed_up' | 'converted' | 'rewarded';
+  status: 'signed_up' | 'converted' | 'rewarded' | 'refunded';
   rewardType: string | null;
   rewardAppliedAt: string | null;
   createdAt: string;
@@ -69,6 +69,7 @@ const statusColors: Record<string, string> = {
   signed_up: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
   converted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
   rewarded: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  refunded: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
 export default function ReferralsAdminPage() {

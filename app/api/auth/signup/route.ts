@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
 
     const { name, email, password, ref } = parsed.data;
     const emailLower = email.toLowerCase().trim();
+    const effectiveRef =
+      (ref || request.cookies.get('unool_ref')?.value || '').trim().toUpperCase() || undefined;
 
     // Rate-limit by IP + email
     const { allowed, retryAfterMs } = await checkOtpGenerateLimit(`${ip}:${emailLower}`);
@@ -126,7 +128,7 @@ export async function POST(request: NextRequest) {
       email:        emailLower,
       name:         name.trim(),
       passwordHash,
-      referralCode: ref,
+      referralCode: effectiveRef,
     });
 
     // Send OTP email

@@ -299,17 +299,32 @@ export interface ReferralCreditBalance {
 }
 
 async function resolveWorkspaceOwnerId(workspaceId: string, fallbackUserId?: string): Promise<string | null> {
+  if (workspaceId && workspaceId !== fallbackUserId) {
+    try {
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .limit(1)
+        .maybeSingle();
+      if (ws?.owner_id) return ws.owner_id as string;
+    } catch {
+      // Ignore and fall back below
+    }
+  }
   if (fallbackUserId) return fallbackUserId;
-  try {
-    const { data: ws } = await supabaseAdmin
-      .from('workspaces')
-      .select('owner_id')
-      .eq('id', workspaceId)
-      .limit(1)
-      .maybeSingle();
-    if (ws?.owner_id) return ws.owner_id as string;
-  } catch {
-    // Ignore
+  if (workspaceId) {
+    try {
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .limit(1)
+        .maybeSingle();
+      if (ws?.owner_id) return ws.owner_id as string;
+    } catch {
+      // Ignore
+    }
   }
   return null;
 }

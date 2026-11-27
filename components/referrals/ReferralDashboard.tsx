@@ -105,6 +105,18 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
           {
             event: '*',
             schema: 'public',
+            table: 'referral_codes',
+            filter: `user_id=eq.${referrerUserId}`,
+          },
+          () => {
+            fetchStats();
+          }
+        );
+        ch.on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
             table: 'referrals',
             filter: `referrer_user_id=eq.${referrerUserId}`,
           },
@@ -135,18 +147,35 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
 
   const handleCopy = async () => {
     if (!referralUrl) return;
-    await navigator.clipboard.writeText(referralUrl);
+    try {
+      await navigator.clipboard.writeText(referralUrl);
+    } catch {
+      try {
+        const el = document.createElement('textarea');
+        el.value = referralUrl;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      } catch {
+        return;
+      }
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleShare = () => {
     if (typeof navigator.share !== 'undefined' && referralUrl) {
-      navigator.share({
-        title: 'Join me on Unool',
-        text: 'Build your creator brand with Unool — the all-in-one creator platform.',
-        url: referralUrl,
-      });
+      navigator
+        .share({
+          title: 'Join me on Unool',
+          text: 'Build your creator brand with Unool — the all-in-one creator platform.',
+          url: referralUrl,
+        })
+        .catch(() => {});
     }
   };
 
@@ -250,6 +279,12 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
       {/* Stats */}
       <div className="ref-stats-grid">
         <StatCard
+          icon={<ExternalLink className="h-5 w-5" />}
+          label="Link Clicks"
+          value={stats?.code?.clickCount ?? 0}
+          sub="visits to your referral link"
+        />
+        <StatCard
           icon={<Users className="h-5 w-5" />}
           label="Signups"
           value={stats?.code?.signupCount ?? 0}
@@ -292,7 +327,13 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
                   <span className="ref-list-date">{new Date(ref.createdAt).toLocaleDateString()}</span>
                 </div>
                 <span className={`ref-status-badge ref-status-badge--${ref.status}`}>
-                  {ref.status === 'signed_up' ? 'Signed up' : ref.status === 'converted' ? 'Upgraded' : 'Rewarded ✓'}
+                  {ref.status === 'signed_up'
+                    ? 'Signed up'
+                    : ref.status === 'converted'
+                    ? 'Upgraded'
+                    : ref.status === 'refunded'
+                    ? 'Refunded'
+                    : 'Rewarded ✓'}
                 </span>
               </div>
             ))}

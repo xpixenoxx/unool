@@ -191,7 +191,7 @@
 /* Stats grid */
 .ref-stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.75rem;
 }
 
@@ -268,6 +268,7 @@
 .ref-list-dot[data-status="signed_up"] { background: #C4A265; }
 .ref-list-dot[data-status="converted"] { background: #3B82F6; }
 .ref-list-dot[data-status="rewarded"]  { background: #10B981; }
+.ref-list-dot[data-status="refunded"]  { background: #EF4444; }
 
 .ref-list-info {
   flex: 1;
@@ -298,6 +299,7 @@
 .ref-status-badge--signed_up  { background: #FEF3C7; color: #92400E; }
 .ref-status-badge--converted  { background: #DBEAFE; color: #1E40AF; }
 .ref-status-badge--rewarded   { background: #D1FAE5; color: #065F46; }
+.ref-status-badge--refunded   { background: #FEE2E2; color: #991B1B; }
 
 /* Skeleton */
 .ref-skeleton-block {

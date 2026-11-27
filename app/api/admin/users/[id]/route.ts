@@ -161,7 +161,8 @@ export async function GET(
     const enrichedReferrals = referralsList.map((ref) => {
       const uInfo = referredUserMap.get(ref.referred_user_id);
       const plan = uInfo?.plan || 'spark';
-      const isPaid = plan === 'creator' || plan === 'pro' || plan === 'studio' || ref.status === 'converted' || ref.status === 'rewarded';
+      const isRefunded = ref.status === 'refunded';
+      const isPaid = !isRefunded && (ref.status === 'converted' || ref.status === 'rewarded');
       if (isPaid) paidConversionsCount++;
 
       return {
@@ -170,11 +171,11 @@ export async function GET(
         referredEmail: uInfo?.email || null,
         referredName: uInfo?.name || (uInfo?.email ? uInfo.email.split('@')[0] : null),
         referralCode: ref.referral_code,
-        status: (isPaid && ref.status === 'signed_up' ? 'converted' : ref.status) as 'signed_up' | 'converted' | 'rewarded' | 'refunded',
+        status: ref.status as 'signed_up' | 'converted' | 'rewarded' | 'refunded',
         currentPlan: plan,
         planStatus: uInfo?.planStatus || 'active',
         isPaid,
-        rewardType: ref.reward_type || (isPaid ? 'free_month_credits' : 'signup_credits'),
+        rewardType: ref.reward_type || (isPaid ? 'creator_30d_and_credits' : 'signup_credits'),
         rewardAppliedAt: ref.reward_applied_at || null,
         createdAt: ref.created_at,
       };

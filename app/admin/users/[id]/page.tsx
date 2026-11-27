@@ -76,7 +76,7 @@ interface ReferredUser {
   referredEmail: string | null;
   referredName: string | null;
   referralCode: string;
-  status: 'signed_up' | 'converted' | 'rewarded';
+  status: 'signed_up' | 'converted' | 'rewarded' | 'refunded';
   currentPlan: string;
   planStatus: string;
   isPaid: boolean;
@@ -480,7 +480,7 @@ export default function UserDetailPage() {
                       <Box className="p-4 rounded-lg bg-muted/50 border">
                         <Text size="xs" color="muted">Referral Code</Text>
                         <Text size="lg" weight="bold" className="font-mono mt-1 text-primary">{user.referralCode.code}</Text>
-                        <Text size="xs" color="muted" className="mt-1 truncate">/signup?ref={user.referralCode.code}</Text>
+                        <Text size="xs" color="muted" className="mt-1 truncate">/r/{user.referralCode.code}</Text>
                       </Box>
                       <Box className="p-4 rounded-lg bg-muted/50 border">
                         <Text size="xs" color="muted">Total Clicks</Text>
@@ -551,7 +551,11 @@ export default function UserDetailPage() {
                                     </Badge>
                                   </td>
                                   <td className="py-3 px-3">
-                                    {ref.isPaid ? (
+                                    {ref.status === 'refunded' ? (
+                                      <Badge variant="destructive" className="text-xs">
+                                        Refunded
+                                      </Badge>
+                                    ) : ref.isPaid ? (
                                       <Badge variant="success" className="text-xs">
                                         Converted ({ref.currentPlan.toUpperCase()})
                                       </Badge>

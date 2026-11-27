@@ -343,11 +343,11 @@ export async function middleware(request: NextRequest) {
   // ── Referral cookie: capture ?ref=CODE on any page ───────────────────────────
   // Set server-side so it's available immediately (before JS hydration).
   // Only set if not already set to avoid overwriting an existing referrer.
-  const refParam = request.nextUrl.searchParams.get('ref');
-  const existingRefCookie = request.cookies.get('unool_ref')?.value;
+  const refParam = request.nextUrl.searchParams.get('ref')?.trim();
+  const existingRefCookie = request.cookies.get('unool_ref')?.value?.trim();
   let refResponse: NextResponse | null = null;
 
-  if (refParam && refParam.length >= 4 && refParam.length <= 20 && /^[A-Z0-9]+$/i.test(refParam) && !existingRefCookie) {
+  if (refParam && refParam.length >= 3 && refParam.length <= 32 && /^[A-Z0-9_-]+$/i.test(refParam) && !existingRefCookie) {
     // We'll apply this cookie to whatever response we return below
     refResponse = NextResponse.next();
     refResponse.cookies.set('unool_ref', refParam.toUpperCase(), {
@@ -357,6 +357,15 @@ export async function middleware(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 30, // 30 days
     });
   }
+
+  const copyRefCookies = (res: NextResponse) => {
+    if (refResponse) {
+      refResponse.cookies.getAll().forEach(({ name, value, ...opts }) =>
+        res.cookies.set(name, value, opts)
+      );
+    }
+    return res;
+  };
 
   // Admin auth check - BEFORE other checks
   if (pathname.startsWith('/admin')) {
@@ -368,7 +377,7 @@ export async function middleware(request: NextRequest) {
     if (!isAdminAuthed) {
       const loginUrl = new URL('/admin/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
+      return copyRefCookies(NextResponse.redirect(loginUrl));
     }
 
     return refResponse ?? NextResponse.next();
@@ -383,9 +392,11 @@ export async function middleware(request: NextRequest) {
     (request.method === 'GET' || request.method === 'HEAD') &&
     !pathname.startsWith('/api/webhooks')
   ) {
-    return NextResponse.redirect(
-      new URL(`https://unool.co${pathname}${request.nextUrl.search}`),
-      308
+    return copyRefCookies(
+      NextResponse.redirect(
+        new URL(`https://unool.co${pathname}${request.nextUrl.search}`),
+        308
+      )
     );
   }
 
@@ -491,10 +502,14 @@ export async function middleware(request: NextRequest) {
 
     if (!hasAuthCookie) {
       const signinUrl = new URL('/signin', request.url);
-      // Only carry the pathname (not query params) to the redirect target so that OAuth
+      // Only carry the pathname (plus safe referral param if present) so that OAuth
       // error params like ?error=unauthorized never resurface on the login page.
       signinUrl.searchParams.set('redirect', pathname);
-      const redirectResponse = NextResponse.redirect(signinUrl);
+      const effectiveRef = existingRefCookie || (refParam && /^[A-Z0-9_-]{3,32}$/i.test(refParam) ? refParam.toUpperCase() : '');
+      if (effectiveRef) {
+        signinUrl.searchParams.set('ref', effectiveRef);
+      }
+      const redirectResponse = copyRefCookies(NextResponse.redirect(signinUrl));
       redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
       redirectResponse.headers.set('Pragma', 'no-cache');
       redirectResponse.headers.set('Expires', '0');
@@ -528,7 +543,7 @@ export async function middleware(request: NextRequest) {
 
     return applyApiCorsHeaders(
       request,
-      NextResponse.next({ request: { headers: sanitizedHeaders } })
+      attachRefCookie(NextResponse.next({ request: { headers: sanitizedHeaders } }))
     );
   }
 
