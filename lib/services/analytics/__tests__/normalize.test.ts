@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractNormalizedEngagement } from '../normalize';
+import { extractExtendedEngagement, extractNormalizedEngagement } from '../normalize';
 
 describe('Universal Social Engagement Normalizer', () => {
   it('returns default zeroed engagement for null, undefined, or empty input', () => {
@@ -137,5 +137,20 @@ describe('Universal Social Engagement Normalizer', () => {
     const preserved = failedNormalized.hasRealData ? failedNormalized : prevNormalized;
     expect(preserved.totalInteractions).toBe(11);
     expect(preserved.hasRealData).toBe(true);
+  });
+
+  it('extracts Instagram saved metric into saves in extractExtendedEngagement', () => {
+    const ext = extractExtendedEngagement({
+      likes: 4,
+      comments: 2,
+      shares: 1,
+      saved: 5,
+      views: 100,
+    });
+
+    expect(ext.saves).toBe(5);
+    expect(ext.shares).toBe(1);
+    expect(ext.total).toBe(12);
+    expect(ext.hasRealData).toBe(true);
   });
 });

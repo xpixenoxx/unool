@@ -293,4 +293,77 @@ describe('Signal API Authorization, Isolation & Export Enforcement', () => {
     expect(okJson.postDeleted).toBe(false);
     expect(deletedTables).toEqual(['platform_posts', 'post_variants']);
   });
+
+  it('auto-syncs unsynced published post when inspecting /api/signal/posts/[postId] and supports ?sync=true', async () => {
+    mockGetCurrentAuth.mockResolvedValue({ userId: 'user-1', workspaceId: 'ws-1' });
+    const { syncWorkspaceEngagement } = await import('@/lib/services/analytics/syncEngagement');
+    const { GET: getPostDetail } = await import('@/app/api/signal/posts/[postId]/route');
+    vi.mocked(syncWorkspaceEngagement).mockResolvedValue({
+      syncedCount: 1,
+      failedCount: 0,
+      skippedCount: 0,
+      unsupportedCount: 0,
+      expiredTokenCount: 0,
+      rateLimitedCount: 0,
+      postsEngagement: {},
+      errors: [],
+    });
+
+    const unsyncedPost = {
+      id: 'p-ig-1',
+      effectiveStatus: 'published',
+      variants: [
+        {
+          id: 'v-ig-1',
+          status: 'published',
+          platformPostId: '17999',
+          lastSyncedAt: null,
+          capability: { telemetryTier: 'full' },
+        },
+      ],
+    };
+    const syncedPost = {
+      ...unsyncedPost,
+      variants: [
+        {
+          ...unsyncedPost.variants[0],
+          lastSyncedAt: '2026-11-27T10:00:00Z',
+          views: 150,
+          likes: 12,
+        },
+      ],
+    };
+
+    mockLoadWorkspaceSignalAnalytics
+      .mockResolvedValueOnce({ analytics: { posts: [unsyncedPost] }, rawPosts: [], rawVariantsByPost: {} })
+      .mockResolvedValueOnce({ analytics: { posts: [syncedPost] }, rawPosts: [], rawVariantsByPost: {} });
+
+    const resAuto = await getPostDetail(new NextRequest('http://localhost:3000/api/signal/posts/p-ig-1'), {
+      params: Promise.resolve({ postId: 'p-ig-1' }),
+    });
+    expect(resAuto.status).toBe(200);
+    expect(syncWorkspaceEngagement).toHaveBeenCalledWith('ws-1', {
+      postIds: ['p-ig-1'],
+      forceRefresh: true,
+    });
+    const jsonAuto = await resAuto.json();
+    expect(jsonAuto.post.variants[0].views).toBe(150);
+
+    vi.mocked(syncWorkspaceEngagement).mockClear();
+    mockLoadWorkspaceSignalAnalytics.mockResolvedValueOnce({
+      analytics: { posts: [syncedPost] },
+      rawPosts: [],
+      rawVariantsByPost: {},
+    });
+
+    const resExplicit = await getPostDetail(
+      new NextRequest('http://localhost:3000/api/signal/posts/p-ig-1?sync=true'),
+      { params: Promise.resolve({ postId: 'p-ig-1' }) }
+    );
+    expect(resExplicit.status).toBe(200);
+    expect(syncWorkspaceEngagement).toHaveBeenCalledWith('ws-1', {
+      postIds: ['p-ig-1'],
+      forceRefresh: true,
+    });
+  });
 });

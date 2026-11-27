@@ -1,11 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-
+export const dynamic = 'force-dynamic';
 
 // GET /api/instagram/comments?workspaceId=xxx&page=1&limit=20&classification=positive
 export async function GET(request: NextRequest) {
@@ -42,8 +42,13 @@ export async function GET(request: NextRequest) {
       query = query.eq('classification', classification);
     }
 
-    if (search) {
-      query = query.ilike('comment_text', `%${search}%`);
+    if (search && search.trim()) {
+      const sanitizedSearch = search.trim().replace(/[%_,()]/g, ' ').trim();
+      if (sanitizedSearch) {
+        query = query.or(
+          `comment_text.ilike.%${sanitizedSearch}%,commenter_username.ilike.%${sanitizedSearch}%,suggested_reply.ilike.%${sanitizedSearch}%`
+        );
+      }
     }
 
     const { data: comments, error, count } = await query;
@@ -86,16 +91,23 @@ export async function GET(request: NextRequest) {
       if (row.flagged_for_review) stats.flagged++;
     }
 
-    return NextResponse.json({
-      comments: comments || [],
-      stats,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+    return NextResponse.json(
+      {
+        comments: comments || [],
+        stats,
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit),
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      }
+    );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('GET /api/instagram/comments error', { error: err });

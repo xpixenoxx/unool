@@ -32,7 +32,16 @@ export function extractExtendedEngagement(raw: any): ExtendedEngagement {
   }
   const saves = Math.max(
     0,
-    Number(raw.saves ?? raw.save_count ?? raw.saves_count ?? raw.bookmarks ?? raw.SAVE ?? raw.SAVES ?? 0) || 0
+    Number(
+      raw.saves ??
+        raw.saved ??
+        raw.save_count ??
+        raw.saves_count ??
+        raw.bookmarks ??
+        raw.SAVE ??
+        raw.SAVES ??
+        0
+    ) || 0
   );
   const explicitClicks = raw.clicks ?? raw.click_count;
   const pinAndOutbound =

@@ -61,8 +61,10 @@ export function PostInspectorDrawer({
   onRefresh: () => void;
   onShareStory?: (post: EnrichedSignalPost) => void;
 }) {
+  const [livePost, setLivePost] = useState<EnrichedSignalPost | null>(post);
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
   const [loadingSnapshots, setLoadingSnapshots] = useState(false);
+  const [syncingLive, setSyncingLive] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [retryingVariantId, setRetryingVariantId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -73,6 +75,7 @@ export function PostInspectorDrawer({
   useEffect(() => {
     setConfirmPostDelete(false);
     setConfirmVariantDeleteId(null);
+    setLivePost(post);
     if (!post) return;
     let active = true;
     const handleEsc = (e: KeyboardEvent) => {
@@ -81,11 +84,18 @@ export function PostInspectorDrawer({
     window.addEventListener('keydown', handleEsc);
 
     setLoadingSnapshots(true);
-    fetch(`/api/signal/posts/${post.id}?tz=${encodeURIComponent(timezone)}`, { credentials: 'include' })
+    fetch(`/api/signal/posts/${post.id}?tz=${encodeURIComponent(timezone)}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
       .then(async res => {
         if (!res.ok) return;
         const data = await res.json();
-        if (active && Array.isArray(data.snapshots)) {
+        if (!active) return;
+        if (data.post) {
+          setLivePost(data.post);
+        }
+        if (Array.isArray(data.snapshots)) {
           setSnapshots(data.snapshots);
         }
       })
@@ -100,7 +110,26 @@ export function PostInspectorDrawer({
     };
   }, [post, timezone, onClose]);
 
-  if (!post) return null;
+  const activePost = livePost ?? post;
+  if (!activePost) return null;
+
+  const handleRefreshLive = async () => {
+    setSyncingLive(true);
+    try {
+      const res = await fetch(
+        `/api/signal/posts/${activePost.id}?sync=true&tz=${encodeURIComponent(timezone)}`,
+        { credentials: 'include', cache: 'no-store' }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.post) setLivePost(data.post);
+        if (Array.isArray(data.snapshots)) setSnapshots(data.snapshots);
+        onRefresh();
+      }
+    } finally {
+      setSyncingLive(false);
+    }
+  };
 
   const copyText = async (id: string, text: string) => {
     try {
@@ -127,14 +156,14 @@ export function PostInspectorDrawer({
     }
   };
 
-  const hasLiveDeletableVariants = post.variants.some(
+  const hasLiveDeletableVariants = activePost.variants.some(
     v => v.status === 'published' && Boolean(v.platformPostId) && supportsRemotePostDeletion(v.canonicalPlatform)
   );
 
   const handleDelete = async (deleteFromPlatform = false) => {
     setDeleting(true);
     try {
-      const ok = await onDelete(post.id, { deleteFromPlatform });
+      const ok = await onDelete(activePost.id, { deleteFromPlatform });
       if (ok !== false) {
         setConfirmPostDelete(false);
         onClose();
@@ -147,10 +176,10 @@ export function PostInspectorDrawer({
   const handleDeleteVariantLive = async (variantId: string) => {
     setDeletingVariantId(variantId);
     try {
-      const ok = await onDelete(post.id, { deleteFromPlatform: true, variantId });
+      const ok = await onDelete(activePost.id, { deleteFromPlatform: true, variantId });
       if (ok !== false) {
         setConfirmVariantDeleteId(null);
-        if (post.variants.length <= 1) {
+        if (activePost.variants.length <= 1) {
           onClose();
         }
       }
@@ -160,22 +189,22 @@ export function PostInspectorDrawer({
   };
 
   const draftNav = getDraftRedirect({
-    id: post.id,
-    content: post.content,
-    status: post.status,
-    hookType: post.hookType,
-    wordCount: post.wordCount,
-    hasMedia: post.hasMedia,
-    createdAt: post.createdAt,
-    updatedAt: post.createdAt,
-    publishedAt: post.publishedAt,
-    adaptationPromptVersion: post.aiOrigin === 'flightplan' ? 'schedule-engine-v1' : null,
-    origin: post.originKind === 'flightplan' ? 'flightplan' : 'ai-composer',
-    arcId: post.arcId,
+    id: activePost.id,
+    content: activePost.content,
+    status: activePost.status,
+    hookType: activePost.hookType,
+    wordCount: activePost.wordCount,
+    hasMedia: activePost.hasMedia,
+    createdAt: activePost.createdAt,
+    updatedAt: activePost.createdAt,
+    publishedAt: activePost.publishedAt,
+    adaptationPromptVersion: activePost.aiOrigin === 'flightplan' ? 'schedule-engine-v1' : null,
+    origin: activePost.originKind === 'flightplan' ? 'flightplan' : 'ai-composer',
+    arcId: activePost.arcId,
     variants: [],
   });
 
-  const tsDisplay = post.publishedAt || post.scheduledAt || post.createdAt;
+  const tsDisplay = activePost.publishedAt || activePost.scheduledAt || activePost.createdAt;
   const formattedTs = tsDisplay ? format(new Date(tsDisplay), 'MMM d, yyyy · h:mm a') : '';
 
   return (
@@ -196,56 +225,69 @@ export function PostInspectorDrawer({
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: post.hookColor }}
+                style={{ backgroundColor: activePost.hookColor }}
               >
-                {post.hookLabel}
+                {activePost.hookLabel}
               </span>
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white border border-[#E8E0D4] text-[#57534E]">
-                {post.wordCount} words · {post.contentFormat}
+                {activePost.wordCount} words · {activePost.contentFormat}
               </span>
-              {post.hookScore > 0 && (
+              {activePost.hookScore > 0 && (
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800">
-                  Hook Score: {post.hookScore}/100
+                  Hook Score: {activePost.hookScore}/100
                 </span>
               )}
-              {post.isGoldenHour && (
+              {activePost.isGoldenHour && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                  <Flame className="w-3 h-3" /> Golden Hour ({post.goldenHourRemainingMin}m left)
+                  <Flame className="w-3 h-3" /> Golden Hour ({activePost.goldenHourRemainingMin}m left)
                 </span>
               )}
             </div>
             <p className="text-xs text-[#78716C] flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
               <span>
-                {post.effectiveStatus.toUpperCase()} · {formattedTs}
+                {activePost.effectiveStatus.toUpperCase()} · {formattedTs}
               </span>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close Post Inspector"
-            className="p-2 rounded-xl bg-white border border-[#E8E0D4] text-[#57534E] hover:text-[#1A1612]"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {activePost.effectiveStatus === 'published' && (
+              <button
+                type="button"
+                onClick={handleRefreshLive}
+                disabled={syncingLive}
+                className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white border border-[#E8E0D4] text-xs font-medium text-[#1A1612] hover:border-[#C8613D] disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-[#C8613D] ${syncingLive ? 'animate-spin' : ''}`} />
+                <span>{syncingLive ? 'Syncing…' : 'Sync Live'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close Post Inspector"
+              className="p-2 rounded-xl bg-white border border-[#E8E0D4] text-[#57534E] hover:text-[#1A1612]"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Summary KPI Strip for Scoped Post */}
         {(() => {
           const showPostReactions =
-            post.variants.length === 0 || post.variants.some(v => v.capability.supportedMetrics.likes);
+            activePost.variants.length === 0 || activePost.variants.some(v => v.capability.supportedMetrics.likes);
           const summaryMetrics = [
-            { label: 'Views', val: post.scopedEngagement.views !== null ? String(post.scopedEngagement.views) : 'N/A' },
+            { label: 'Views', val: activePost.scopedEngagement.views !== null ? String(activePost.scopedEngagement.views) : 'N/A' },
             ...(showPostReactions
-              ? [{ label: 'Reactions', val: String(post.scopedEngagement.likes) }]
+              ? [{ label: 'Reactions', val: String(activePost.scopedEngagement.likes) }]
               : []),
-            { label: 'Comments', val: String(post.scopedEngagement.comments) },
-            { label: 'Shares', val: String(post.scopedEngagement.shares) },
-            { label: 'Saves/Clicks', val: String(post.scopedEngagement.saves + post.scopedEngagement.clicks) },
+            { label: 'Comments', val: String(activePost.scopedEngagement.comments) },
+            { label: 'Shares', val: String(activePost.scopedEngagement.shares) },
+            { label: 'Saves/Clicks', val: String(activePost.scopedEngagement.saves + activePost.scopedEngagement.clicks) },
             {
               label: 'Eng. Rate',
-              val: post.scopedEngagement.engagementRate !== null ? `${post.scopedEngagement.engagementRate}%` : 'N/A',
+              val: activePost.scopedEngagement.engagementRate !== null ? `${activePost.scopedEngagement.engagementRate}%` : 'N/A',
             },
           ];
 
@@ -267,22 +309,22 @@ export function PostInspectorDrawer({
             <h4 className="text-xs font-semibold text-[#57534E] uppercase tracking-wide">Master Post Copy</h4>
             <button
               type="button"
-              onClick={() => copyText('master', post.content)}
+              onClick={() => copyText('master', activePost.content)}
               className="inline-flex items-center gap-1 text-xs text-[#C8613D] font-medium hover:underline"
             >
               {copiedId === 'master' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedId === 'master' ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
-          <p className="text-sm text-[#1A1612] whitespace-pre-wrap leading-relaxed">{post.content}</p>
+          <p className="text-sm text-[#1A1612] whitespace-pre-wrap leading-relaxed">{activePost.content}</p>
         </div>
 
         {/* Per-Variant Breakdown (All Accounts, Keyed by variant.id) */}
         <div className="space-y-2.5">
           <h4 className="text-xs font-semibold text-[#57534E] uppercase tracking-wide">
-            Channel & Account Variants ({post.variants.length})
+            Channel & Account Variants ({activePost.variants.length})
           </h4>
-          {post.variants.map(v => {
+          {activePost.variants.map(v => {
             const cfg = getPlatformConfig(v.canonicalPlatform);
             return (
               <div key={v.id} className="bg-white border border-[#E8E0D4] rounded-2xl p-4 space-y-3">
@@ -478,9 +520,9 @@ export function PostInspectorDrawer({
         {/* Cross-Module Actions Footer */}
         <div className="mt-auto pt-4 border-t border-[#E8E0D4] flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            {post.effectiveStatus === 'published' && (
+            {activePost.effectiveStatus === 'published' && (
               <Link
-                href={`/dashboard/studio?hookStyle=${encodeURIComponent(post.hookType)}&winningHook=${encodeURIComponent(extractLeadHook(post.content))}&followUpPostId=${encodeURIComponent(post.id)}`}
+                href={`/dashboard/studio?hookStyle=${encodeURIComponent(activePost.hookType)}&winningHook=${encodeURIComponent(extractLeadHook(activePost.content))}&followUpPostId=${encodeURIComponent(activePost.id)}`}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#C8613D] text-white text-xs font-semibold hover:bg-[#B25332]"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -488,13 +530,13 @@ export function PostInspectorDrawer({
               </Link>
             )}
             <Link
-              href={`/dashboard/composer?repurposePostId=${post.id}`}
+              href={`/dashboard/composer?repurposePostId=${activePost.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1A1612] text-white text-xs font-medium hover:bg-[#332C25]"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Repurpose in Studio</span>
             </Link>
-            {post.effectiveStatus === 'draft' || post.effectiveStatus === 'scheduled' ? (
+            {activePost.effectiveStatus === 'draft' || activePost.effectiveStatus === 'scheduled' ? (
               <Link
                 href={draftNav.href}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#E8E0D4] text-[#1A1612] text-xs font-medium hover:border-[#C8613D]"
@@ -504,10 +546,10 @@ export function PostInspectorDrawer({
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             ) : null}
-            {profileSubdomain && post.effectiveStatus === 'published' && (
+            {profileSubdomain && activePost.effectiveStatus === 'published' && (
               <button
                 type="button"
-                onClick={() => onShareStory?.(post)}
+                onClick={() => onShareStory?.(activePost)}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#E8E0D4] text-[#1A1612] text-xs font-medium hover:border-[#C8613D]"
               >
                 <Share2 className="w-3.5 h-3.5" />

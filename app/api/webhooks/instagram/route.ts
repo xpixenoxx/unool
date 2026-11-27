@@ -356,11 +356,24 @@ async function processCommentEvent(
       code: guardResult.violation.code,
       commentId: commentEvent.commentId,
     });
+    const blockedReasoning = guardResult.violation.internal || guardResult.violation.message;
+    await logCommentEvent(connection.workspace_id, commentEvent, {
+      classification: 'harmful',
+      confidence: 1,
+      suggestedReply: 'SKIP',
+      suggestedDM: null,
+      threadHook: null,
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldSendDM: false,
+      shouldFlagForReview: true,
+      reasoning: blockedReasoning,
+    });
     // Flag internally without engaging
     await flagCommentForReview(
       connection.workspace_id,
       commentEvent,
-      { classification: 'harmful', suggestedReply: 'SKIP', reasoning: guardResult.violation.internal || guardResult.violation.message },
+      { classification: 'harmful', suggestedReply: 'SKIP', reasoning: blockedReasoning },
       0
     );
     return;
@@ -403,13 +416,26 @@ async function processCommentEvent(
         recentCommentCount,
         workspaceId: connection.workspace_id,
       });
+      const rateLimitReasoning = `Commenter @${commentEvent.username} exceeded ${COMMENTER_HOURLY_CAP} comments/hour — flagged for human review`;
+      await logCommentEvent(connection.workspace_id, commentEvent, {
+        classification: 'spam',
+        confidence: 1,
+        suggestedReply: 'SKIP',
+        suggestedDM: null,
+        threadHook: null,
+        leadScore: 0,
+        shouldAutoReply: false,
+        shouldSendDM: false,
+        shouldFlagForReview: true,
+        reasoning: rateLimitReasoning,
+      });
       await flagCommentForReview(
         connection.workspace_id,
         commentEvent,
         {
           classification: 'spam',
           suggestedReply: 'SKIP',
-          reasoning: `Commenter @${commentEvent.username} exceeded ${COMMENTER_HOURLY_CAP} comments/hour — flagged for human review`,
+          reasoning: rateLimitReasoning,
         },
         0
       );
@@ -481,6 +507,18 @@ async function processCommentEvent(
       workspaceId: connection.workspace_id,
       commentId: commentEvent.commentId,
     });
+    await logCommentEvent(connection.workspace_id, commentEvent, {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      suggestedDM: null,
+      threadHook: null,
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldSendDM: false,
+      shouldFlagForReview: false,
+      reasoning: 'Outside configured active hours — logged without auto-reply',
+    });
     return;
   }
 
@@ -523,27 +561,43 @@ async function processCommentEvent(
       });
 
       if (execRes.executed && (execRes.publicReplySent || execRes.dmSent)) {
-        await supabaseAdmin.from('instagram_comment_logs').upsert(
-          {
-            workspace_id: connection.workspace_id,
-            comment_id: commentEvent.commentId,
-            media_id: commentEvent.mediaId,
-            comment_text: commentEvent.text,
-            commenter_username: commentEvent.username,
-            classification: 'link_request',
-            confidence: 1.0,
-            suggested_reply: execRes.publicReplyText || '',
-            auto_replied: execRes.publicReplySent,
-            dm_sent: execRes.dmSent,
-            dm_message: execRes.dmText || null,
-            flagged_for_review: false,
-            lead_score: 2,
-            campaign_id: matched.campaign.id,
-            trigger_surface: triggerSurface,
-            reasoning: `Matched campaign "${matched.campaign.name}" (${matched.matchType}${matched.matchedKeyword ? `: ${matched.matchedKeyword}` : ''})`,
-          },
-          { onConflict: 'comment_id', ignoreDuplicates: false }
-        );
+        const campaignLogRow = {
+          workspace_id: connection.workspace_id,
+          comment_id: commentEvent.commentId,
+          media_id: commentEvent.mediaId,
+          comment_text: commentEvent.text,
+          commenter_username: commentEvent.username,
+          classification: 'link_request',
+          confidence: 1.0,
+          suggested_reply: execRes.publicReplyText || '',
+          auto_replied: execRes.publicReplySent,
+          dm_sent: execRes.dmSent,
+          dm_message: execRes.dmText || null,
+          flagged_for_review: false,
+          lead_score: 2,
+          campaign_id: matched.campaign.id,
+          trigger_surface: triggerSurface,
+          reasoning: `Matched campaign "${matched.campaign.name}" (${matched.matchType}${matched.matchedKeyword ? `: ${matched.matchedKeyword}` : ''})`,
+        };
+        const { error: campLogErr } = await supabaseAdmin
+          .from('instagram_comment_logs')
+          .upsert(campaignLogRow, { onConflict: 'comment_id', ignoreDuplicates: false });
+        if (campLogErr) {
+          logger.warn('Failed to upsert campaign comment log with extended columns — retrying base columns', {
+            commentId: commentEvent.commentId,
+            error: campLogErr.message,
+          });
+          const { campaign_id: _cid, trigger_surface: _ts, ...baseCampaignRow } = campaignLogRow;
+          const { error: fallbackCampErr } = await supabaseAdmin
+            .from('instagram_comment_logs')
+            .upsert(baseCampaignRow, { onConflict: 'comment_id', ignoreDuplicates: false });
+          if (fallbackCampErr) {
+            logger.error('Failed to persist campaign comment log', {
+              commentId: commentEvent.commentId,
+              error: fallbackCampErr.message,
+            });
+          }
+        }
         if (execRes.publicReplySent && execRes.publicReplyText) {
           await velocityThrottle.recordReply(connection.workspace_id);
           lexicalEntropyGuard.recordReply(
@@ -581,7 +635,7 @@ async function processCommentEvent(
       }, { onConflict: 'workspace_id,job_type,target_id', ignoreDuplicates: true });
 
       // Persist comment in logs before dispatch
-      await supabaseAdmin.from('instagram_comment_logs').upsert({
+      const { error: preQueueLogErr } = await supabaseAdmin.from('instagram_comment_logs').upsert({
         workspace_id: connection.workspace_id,
         comment_id: commentEvent.commentId,
         media_id: commentEvent.mediaId,
@@ -595,6 +649,12 @@ async function processCommentEvent(
         flagged_for_review: false,
         reasoning: 'Enqueued for durable background dispatch',
       }, { onConflict: 'comment_id', ignoreDuplicates: true });
+      if (preQueueLogErr) {
+        logger.warn('Failed to pre-persist queued comment log', {
+          commentId: commentEvent.commentId,
+          error: preQueueLogErr.message,
+        });
+      }
 
       const msgId = await queueService.enqueueInstagramOutboundTask({
         jobId,
@@ -641,6 +701,18 @@ async function processCommentEvent(
           monthlyIgLimit,
           plan: planCtx?.plan,
         });
+        await logCommentEvent(connection.workspace_id, commentEvent, {
+          classification: 'unrelated',
+          confidence: 0,
+          suggestedReply: '',
+          suggestedDM: null,
+          threadHook: null,
+          leadScore: 0,
+          shouldAutoReply: false,
+          shouldSendDM: false,
+          shouldFlagForReview: true,
+          reasoning: `Monthly Instagram comment automation quota reached (${monthlyUsed}/${monthlyIgLimit})`,
+        });
         return;
       }
     }
@@ -682,6 +754,27 @@ async function processCommentEvent(
       last_error: `Deferred to next hour window (+${delaySeconds}s) due to velocity cap`,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'workspace_id,job_type,target_id' });
+
+    const { error: velocityLogErr } = await supabaseAdmin.from('instagram_comment_logs').upsert({
+      workspace_id: connection.workspace_id,
+      comment_id: commentEvent.commentId,
+      media_id: commentEvent.mediaId,
+      comment_text: commentEvent.text,
+      commenter_username: commentEvent.username,
+      classification: 'pending',
+      confidence: 0,
+      suggested_reply: '',
+      auto_replied: false,
+      delivery_status: 'queued',
+      flagged_for_review: false,
+      reasoning: `Deferred to next hour window (+${delaySeconds}s) due to velocity cap`,
+    }, { onConflict: 'comment_id', ignoreDuplicates: true });
+    if (velocityLogErr) {
+      logger.warn('Failed to log velocity-deferred comment', {
+        commentId: commentEvent.commentId,
+        error: velocityLogErr.message,
+      });
+    }
 
     if (queueService.isAvailable()) {
       await queueService.enqueueInstagramOutboundTask({
@@ -2142,7 +2235,7 @@ async function logCommentEvent(
   classification: ClassifiedComment
 ): Promise<void> {
   try {
-    await supabaseAdmin.from('instagram_comment_logs').upsert(
+    const { error } = await supabaseAdmin.from('instagram_comment_logs').upsert(
       {
         workspace_id: workspaceId,
         comment_id: comment.commentId,
@@ -2163,6 +2256,13 @@ async function logCommentEvent(
       },
       { onConflict: 'comment_id', ignoreDuplicates: true }
     );
+    if (error) {
+      logger.error('Failed to log Instagram comment event to DB', {
+        commentId: comment.commentId,
+        workspaceId,
+        error: error.message,
+      });
+    }
   } catch (error) {
     logger.warn('Failed to log Instagram comment event', { error });
   }

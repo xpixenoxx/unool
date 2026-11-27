@@ -32,6 +32,7 @@ const {
     retryCount: 0,
     maxRetries: 3,
     commentLogsAutoReplied: false,
+    commentLogsExist: true,
     dmLogsAutoReplied: false,
     dmHistoryLogs: [] as any[],
     dmEscalationEnabled: true,
@@ -194,7 +195,9 @@ vi.mock('@supabase/supabase-js', () => ({
 
       if (table === 'instagram_comment_logs') {
         return makeChain({
-          data: [{ auto_replied: jobControlState.commentLogsAutoReplied }],
+          data: jobControlState.commentLogsExist
+            ? [{ auto_replied: jobControlState.commentLogsAutoReplied }]
+            : [],
           error: null,
         });
       }
@@ -256,6 +259,7 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
     jobControlState.retryCount = 0;
     jobControlState.maxRetries = 3;
     jobControlState.commentLogsAutoReplied = false;
+    jobControlState.commentLogsExist = true;
     jobControlState.dmLogsAutoReplied = false;
     jobControlState.dmHistoryLogs = [];
     jobControlState.dmEscalationEnabled = true;
@@ -755,6 +759,46 @@ describe('/api/webhooks/qstash/instagram-outbound route', () => {
     expect(flagged).toBeDefined();
     const logUpdate = supabaseCalls.find(c => c.table === 'instagram_dm_logs' && c.op === 'update');
     expect((logUpdate?.data as any)?.delivery_status).toBe('needs_review');
+  });
+
+  it('falls back to upsert into instagram_comment_logs when no pre-existing row matches update', async () => {
+    jobControlState.commentLogsExist = false;
+    mockClassifyAndGenerateReply.mockResolvedValueOnce({
+      classification: 'link_request',
+      confidence: 0.95,
+      suggestedReply: "Sounds like you're ready to grab it!",
+      suggestedDM: 'https://unool.co/link',
+      threadHook: 'Which part are you excited to try?',
+      leadScore: 2,
+      shouldAutoReply: true,
+      shouldSendDM: false,
+      shouldFlagForReview: false,
+      reasoning: 'User asked for link',
+    });
+
+    const res = await POST(makeRequest({
+      jobId: 'job_missing_row',
+      jobType: 'comment_reply',
+      workspaceId: 'ws_test_1',
+      connectionId: 'conn_test_1',
+      commentId: 'cmt_missing_preinsert',
+      mediaId: 'media_99',
+      commentText: 'hey i want it',
+      commenterUsername: 'swiha_sri',
+    }));
+
+    expect(res.status).toBe(200);
+    const upserts = supabaseCalls.filter(c => c.table === 'instagram_comment_logs' && c.op === 'upsert');
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0].data).toMatchObject({
+      workspace_id: 'ws_test_1',
+      comment_id: 'cmt_missing_preinsert',
+      comment_text: 'hey i want it',
+      commenter_username: 'swiha_sri',
+      auto_replied: true,
+      lead_score: 2,
+      thread_hook: 'Which part are you excited to try?',
+    });
   });
 });
 

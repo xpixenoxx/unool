@@ -135,4 +135,116 @@ describe('InstagramAdapter OAuth fallbacks and error handling', () => {
     );
     await expect(adapter.getUserProfile('IG_ACCESS_TOKEN')).rejects.not.toThrow(/IGApiException/);
   });
+
+  it('fetches Instagram engagement and queries individual insights metrics cleanly when plays/shares fail with #100', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('fields=like_count,comments_count,media_type')) {
+        expect(url.startsWith('https://graph.instagram.com/')).toBe(true);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            like_count: 14,
+            comments_count: 3,
+            media_type: 'REELS',
+          }),
+          headers: new Headers(),
+        };
+      }
+      if (url.includes('metric=views')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [{ name: 'views', values: [{ value: 410 }] }] }),
+          headers: new Headers(),
+        };
+      }
+      if (url.includes('metric=reach')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [{ name: 'reach', values: [{ value: 320 }] }] }),
+          headers: new Headers(),
+        };
+      }
+      if (url.includes('metric=saved')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [{ name: 'saved', values: [{ value: 7 }] }] }),
+          headers: new Headers(),
+        };
+      }
+      if (url.includes('metric=shares') || url.includes('metric=plays')) {
+        return {
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          text: async () => '{"error":{"message":"(#100) Unsupported metric","code":100}}',
+          headers: new Headers(),
+        };
+      }
+      return { ok: false, status: 404, headers: new Headers() };
+    });
+    globalThis.fetch = fetchMock as any;
+
+    const adapter = new InstagramAdapter();
+    const engagement = await adapter.getEngagement('IGAA_TEST_TOKEN', '1799999999999');
+
+    expect(engagement).toMatchObject({
+      likes: 14,
+      comments: 3,
+      shares: 0,
+      saves: 7,
+      saved: 7,
+      views: 410,
+      reach: 320,
+      hasRealData: true,
+    });
+  });
+
+  it('routes Facebook Login EAA Instagram tokens to graph.facebook.com for engagement', async () => {
+    const calledUrls: string[] = [];
+    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calledUrls.push(url);
+      if (url.includes('fields=like_count,comments_count,media_type')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ like_count: 5, comments_count: 1, media_type: 'IMAGE' }),
+          headers: new Headers(),
+        };
+      }
+      if (url.includes('metric=reach')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [{ name: 'reach', values: [{ value: 88 }] }] }),
+          headers: new Headers(),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [] }),
+        headers: new Headers(),
+      };
+    });
+    globalThis.fetch = fetchMock as any;
+
+    const adapter = new InstagramAdapter();
+    const engagement = await adapter.getEngagement('EAA_FB_PAGE_TOKEN', '1788888888888');
+
+    expect(calledUrls.length).toBeGreaterThan(0);
+    expect(calledUrls.every(u => u.startsWith('https://graph.facebook.com/'))).toBe(true);
+    expect(engagement).toMatchObject({
+      likes: 5,
+      comments: 1,
+      views: 88,
+      reach: 88,
+      hasRealData: true,
+    });
+  });
 });

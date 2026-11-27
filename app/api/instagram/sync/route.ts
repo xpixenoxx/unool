@@ -251,16 +251,21 @@ export async function POST(request: NextRequest) {
         .catch((subErr) => logger.warn('Background webhook subscribe failed in sync', { error: subErr }));
     }
 
-    // 4. Fetch recent media from Instagram with robust multi-endpoint fallbacks and pagination
-    let mediaItems: Array<{ id: string; caption?: string; timestamp?: string; comments_count?: number; comments?: { data?: any[] } }> = [];
-    const fetchLimit = 100;
-    let mediaSource = '';
+    // 4. Fetch recent media from Instagram with bounded time budget and endpoint fallbacks
+    const SYNC_START_MS = Date.now();
+    const SYNC_BUDGET_MS = 38_000;
+    const hasTimeBudget = () => Date.now() - SYNC_START_MS < SYNC_BUDGET_MS;
 
-    // Endpoint A: graph.instagram.com/{version}/me/media (request comments directly in bulk)
+    let mediaItems: Array<{ id: string; caption?: string; timestamp?: string; comments_count?: number; comments?: { data?: any[] } }> = [];
+    const fetchLimit = 50;
+    let mediaSource = '';
+    const primaryHost = resolveInstagramApiHost(accessToken);
+
+    // Endpoint A: graph.instagram.com/{version}/me/media (request comments + replies + from in bulk)
     try {
-      let nextUrl: string | null = `https://graph.instagram.com/${API_VERSIONS.instagram}/me/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp}&limit=${fetchLimit}&access_token=${accessToken}`;
+      let nextUrl: string | null = `https://graph.instagram.com/${API_VERSIONS.instagram}/me/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}}&limit=${fetchLimit}&access_token=${accessToken}`;
       let pageCount = 0;
-      while (nextUrl && pageCount < 3) {
+      while (nextUrl && pageCount < 2 && hasTimeBudget()) {
         pageCount++;
         const mediaRes: Response = await fetch(nextUrl);
         if (mediaRes.ok) {
@@ -406,48 +411,62 @@ export async function POST(request: NextRequest) {
     let totalCommentsExamined = 0;
     let newCommentsProcessed = 0;
     let repliesPosted = 0;
+    let partialSync = false;
     const processedComments: any[] = [];
 
     // 5. For each media item, fetch and process comments
     for (const media of mediaItems) {
-      let rawComments: any[] = [];
+      if (!hasTimeBudget()) {
+        partialSync = true;
+        diagnostics.push({
+          step: 'time_budget',
+          status: 'warning',
+          detail: 'Stopped scanning older posts early to stay within serverless execution budget.',
+        });
+        break;
+      }
+
+      const rawComments: any[] = [];
       const commentsCount = media.comments_count ?? 0;
-      const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15, media.id);
 
       // Source 1: Check if comments were already retrieved in bulk me/media call
       if (media.comments?.data && Array.isArray(media.comments.data) && media.comments.data.length > 0) {
-        rawComments = [...media.comments.data];
+        for (const item of media.comments.data) {
+          rawComments.push(item);
+          if (item.replies?.data && Array.isArray(item.replies.data)) {
+            for (const reply of item.replies.data) {
+              rawComments.push({ ...reply, parent_id: item.id });
+            }
+          }
+        }
       }
 
-      // Optimization: If media explicitly reports 0 comments and no nested comments found, skip making 9 API calls
+      // Optimization: If media explicitly reports 0 comments and no nested comments found, skip extra API calls
       if (rawComments.length === 0 && commentsCount === 0 && media.comments_count !== undefined) {
         continue;
       }
 
-      // Source 2: Multi-pattern queries across both Graph domains and field variations
-      if (rawComments.length === 0) {
+      // Source 2: Focused Graph API queries using resolved token host first (avoids 9-request fan-out)
+      if (rawComments.length === 0 && hasTimeBudget()) {
+        const alternateHost = primaryHost.includes('graph.instagram.com')
+          ? 'https://graph.facebook.com'
+          : 'https://graph.instagram.com';
+        const primaryVersion = primaryHost.includes('graph.instagram.com')
+          ? API_VERSIONS.instagram
+          : API_VERSIONS.facebook;
+        const altVersion = alternateHost.includes('graph.instagram.com')
+          ? API_VERSIONS.instagram
+          : API_VERSIONS.facebook;
+
         const queryCandidates = [
-          // Pattern A: Standard Instagram Graph API with from{id,username}
-          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
-          // Pattern B: graph.facebook.com with from{id,username}
-          `https://graph.facebook.com/${API_VERSIONS.facebook}/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
-          // Pattern C: graph.instagram.com with root username
-          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
-          // Pattern D: graph.facebook.com with root username
-          `https://graph.facebook.com/${API_VERSIONS.facebook}/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
-          // Pattern E: Minimal id,text on graph.instagram.com (guaranteed fields)
-          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp&access_token=${accessToken}`,
-          // Pattern F: Pure parameterless call on graph.instagram.com (cannot fail on nonexistent fields)
-          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?access_token=${accessToken}`,
-          // Pattern G: Pure parameterless call on graph.facebook.com
-          `https://graph.facebook.com/${API_VERSIONS.facebook}/${media.id}/comments?access_token=${accessToken}`,
-          // Pattern H: Media node expansion with comments
-          `https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}?fields=id,comments{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
-          // Pattern I: Versionless fallback
-          `https://graph.instagram.com/${media.id}/comments?access_token=${accessToken}`,
+          `${primaryHost}/${primaryVersion}/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&limit=50&access_token=${accessToken}`,
+          `${primaryHost}/${primaryVersion}/${media.id}/comments?fields=id,text,timestamp,username&limit=50&access_token=${accessToken}`,
+          `${alternateHost}/${altVersion}/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&limit=50&access_token=${accessToken}`,
+          `${primaryHost}/${primaryVersion}/${media.id}?fields=id,comments{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
         ];
 
         for (const endpoint of queryCandidates) {
+          if (!hasTimeBudget()) break;
           try {
             const res = await fetch(endpoint);
             const resText = await res.text();
@@ -490,9 +509,9 @@ export async function POST(request: NextRequest) {
         }
 
         // If post has comments according to Instagram but Meta returned empty array across all endpoints
-        if (commentsCount > 0 && rawComments.length === 0) {
+        if (commentsCount > 0 && rawComments.length === 0 && hasTimeBudget()) {
           const sampleCount = diagnostics.filter(d => d.step.startsWith('withheld_sample')).length;
-          if (sampleCount < 4) {
+          if (sampleCount < 2) {
             try {
               const sampleRes = await fetch(`https://graph.instagram.com/${API_VERSIONS.instagram}/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`);
               const sampleBody = await sampleRes.text();
@@ -524,19 +543,27 @@ export async function POST(request: NextRequest) {
 
       totalCommentsExamined += rawComments.length;
 
-      const mediaLinkUrl = rawComments.length > 0
-        ? await resolveCreatorDeliveryLink(workspaceId, {
-            configuredLinkUrl: rawConfig?.link_url,
-            brandUsername,
-            mediaId: media.id,
-          })
-        : automationConfig.linkUrl;
+      if (rawComments.length === 0) {
+        continue;
+      }
+
+      const recentReplies = await lexicalEntropyGuard.getRecentReplies(workspaceId, 15, media.id);
+      const mediaLinkUrl = await resolveCreatorDeliveryLink(workspaceId, {
+        configuredLinkUrl: rawConfig?.link_url,
+        brandUsername,
+        mediaId: media.id,
+      });
       const effectiveMediaConfig: AutomationConfig = {
         ...automationConfig,
         linkUrl: mediaLinkUrl,
       };
 
       for (const item of rawComments) {
+        if (!hasTimeBudget()) {
+          partialSync = true;
+          break;
+        }
+
         const commentId = item.id;
         const commentText = item.text || item.message || '';
         let rawUsername = item.from?.username || item.username || item.user?.username || '';
@@ -569,21 +596,36 @@ export async function POST(request: NextRequest) {
         // Skip reply-to-reply comments only if thread chaining is disabled
         if (item.parent_id && !automationConfig.threadChainingEnabled) continue;
 
-        // Check deduplication guard in database
+        // Check deduplication guard in database — only skip comments already completed
         const { data: existing } = await supabaseAdmin
           .from('instagram_comment_logs')
-          .select('id')
+          .select('id, workspace_id, auto_replied, classification, delivery_status')
           .eq('comment_id', commentId)
           .limit(1);
 
         if (existing && existing.length > 0) {
-          continue; // Already processed
+          const row = existing[0];
+          if (row.workspace_id && row.workspace_id !== workspaceId) {
+            logger.warn('Comment ID already logged under another workspace — skipping cross-workspace duplicate', {
+              commentId,
+              existingWorkspaceId: row.workspace_id,
+              workspaceId,
+            });
+            continue;
+          }
+          const isPendingOrRetryable =
+            row.classification === 'pending' ||
+            row.delivery_status === 'queued' ||
+            row.delivery_status === 'failed';
+          if (row.auto_replied === true || !isPendingOrRetryable) {
+            continue; // Already processed and logged
+          }
         }
 
         // Validate with ContentGuard
         const guardResult = ContentGuard.validateComment(commentText);
         if (!guardResult.safe && guardResult.violation.level === 'blocked') {
-          await supabaseAdmin.from('instagram_comment_logs').upsert({
+          const { error: guardLogErr } = await supabaseAdmin.from('instagram_comment_logs').upsert({
             workspace_id: workspaceId,
             comment_id: commentId,
             media_id: media.id,
@@ -593,11 +635,16 @@ export async function POST(request: NextRequest) {
             confidence: 1,
             suggested_reply: 'SKIP',
             auto_replied: false,
+            delivery_status: 'needs_review',
             flagged_for_review: true,
             reasoning: guardResult.violation.internal || guardResult.violation.message,
             lead_score: 0,
             dm_sent: false,
-          }, { onConflict: 'comment_id', ignoreDuplicates: true });
+          }, { onConflict: 'comment_id', ignoreDuplicates: false });
+          if (guardLogErr) {
+            logger.warn('Failed to log ContentGuard-blocked comment in sync', { commentId, error: guardLogErr.message });
+          }
+          newCommentsProcessed++;
           continue;
         }
 
@@ -622,11 +669,43 @@ export async function POST(request: NextRequest) {
           try {
             finalReply = ContentHumanizer.humanize(finalReply, 'instagram').humanized || finalReply;
           } catch {}
+          finalReply = ContentGuard.sanitizeOutput(finalReply);
+        }
+
+        const activeLinkUrl = mediaLinkUrl;
+        const willPostFollowGate = Boolean(
+          result.shouldSendDM && activeLinkUrl && automationConfig.requireFollowForDm
+        );
+        const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
+        const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
+        const plannedReplyText = willPostFollowGate ? followAskPublic : finalReply;
+
+        // Log classified comment BEFORE outbound API calls so it always appears in Dispatch Ledger even on timeout/blip
+        const { error: logErr } = await supabaseAdmin.from('instagram_comment_logs').upsert({
+          workspace_id: workspaceId,
+          comment_id: commentId,
+          media_id: media.id,
+          comment_text: commentText,
+          commenter_username: rawUsername || commenterUsername || 'instagram_user',
+          classification: result.classification,
+          confidence: result.confidence,
+          suggested_reply: plannedReplyText,
+          auto_replied: false,
+          delivery_status: result.shouldAutoReply || willPostFollowGate ? 'processing' : (result.shouldFlagForReview ? 'needs_review' : 'sent'),
+          flagged_for_review: result.shouldFlagForReview,
+          reasoning: result.reasoning + ' (Live sync)',
+          lead_score: result.leadScore,
+          dm_sent: false,
+          dm_message: result.suggestedDM,
+          thread_hook: result.threadHook,
+        }, { onConflict: 'comment_id', ignoreDuplicates: false });
+        if (logErr) {
+          logger.error('Failed to upsert comment log in sync route', { commentId, workspaceId, error: logErr.message });
         }
 
         let didReply = false;
-        // Post reply if automation allows
-        if (result.shouldAutoReply && finalReply && finalReply !== 'SKIP') {
+        // Post standard public reply only when follow-gate is not taking over the public reply slot
+        if (!willPostFollowGate && result.shouldAutoReply && finalReply && finalReply !== 'SKIP') {
           const replyResult = await automation.postPublicReply(
             accessToken,
             media.id,
@@ -644,7 +723,9 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const shouldFlag = result.shouldFlagForReview || (!didReply && result.shouldAutoReply && finalReply !== 'SKIP');
+        const shouldFlag =
+          result.shouldFlagForReview ||
+          (!willPostFollowGate && !didReply && result.shouldAutoReply && finalReply !== 'SKIP');
         if (shouldFlag) {
           try {
             await supabaseAdmin.from('instagram_flagged_comments').upsert({
@@ -654,7 +735,7 @@ export async function POST(request: NextRequest) {
               comment_text: commentText,
               commenter_username: rawUsername || commenterUsername || 'instagram_user',
               classification: result.classification,
-              suggested_reply: finalReply || '',
+              suggested_reply: plannedReplyText || '',
               reasoning: result.reasoning + (didReply ? '' : ' (Auto-reply failed/pending review)'),
               status: 'pending',
               priority: result.leadScore > 0 ? 'high' : 'normal',
@@ -665,34 +746,23 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Log comment into database
-        await supabaseAdmin.from('instagram_comment_logs').upsert({
-          workspace_id: workspaceId,
-          comment_id: commentId,
-          media_id: media.id,
-          comment_text: commentText,
-          commenter_username: rawUsername || commenterUsername || 'instagram_user',
-          classification: result.classification,
-          confidence: result.confidence,
-          suggested_reply: finalReply,
-          auto_replied: didReply,
-          delivery_status: didReply ? 'sent' : (shouldFlag ? 'needs_review' : 'sent'),
-          flagged_for_review: shouldFlag,
-          reasoning: result.reasoning + ' (Live sync)',
-          lead_score: result.leadScore,
-          dm_sent: false,
-          dm_message: result.suggestedDM,
-          thread_hook: result.threadHook,
-        }, { onConflict: 'comment_id', ignoreDuplicates: true });
+        // Update delivery status after public reply attempt
+        const { error: statusUpdateErr } = await supabaseAdmin
+          .from('instagram_comment_logs')
+          .update({
+            auto_replied: didReply,
+            delivery_status: didReply ? 'sent' : (shouldFlag ? 'needs_review' : (willPostFollowGate ? 'processing' : 'sent')),
+            flagged_for_review: shouldFlag,
+            ...(didReply ? { reply_sent_at: new Date().toISOString() } : {}),
+          })
+          .eq('comment_id', commentId);
+        if (statusUpdateErr) {
+          logger.warn('Failed to update comment log status in sync route', { commentId, error: statusUpdateErr.message });
+        }
 
-        // Resolved link for this media post (post-linked brand materials page → configured link → subdomain/slug)
-        const activeLinkUrl = mediaLinkUrl;
-
-        // Optional DM sending for link requests — uses Private Replies API (or public follow-gate prompt)
+        // Optional DM sending for link requests — uses Private Replies API (or single public follow-gate prompt)
         if (result.shouldSendDM && activeLinkUrl) {
-          if (automationConfig.requireFollowForDm) {
-            const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
-            const followAskPublic = `👋 Follow ${brandHandle} then DM us "link" to unlock your access! 🚀`;
+          if (willPostFollowGate) {
             const pubGateRes = await automation.postPublicReply(
               accessToken,
               media.id,
@@ -701,14 +771,21 @@ export async function POST(request: NextRequest) {
               rawUsername || commenterUsername
             );
             if (pubGateRes) {
+              didReply = true;
+              repliesPosted++;
+              await velocityThrottle.recordReply(workspaceId);
               await supabaseAdmin
                 .from('instagram_comment_logs')
-                .update({ auto_replied: true })
+                .update({
+                  auto_replied: true,
+                  delivery_status: 'sent',
+                  reply_sent_at: new Date().toISOString(),
+                })
                 .eq('comment_id', commentId);
             }
           } else {
-            const dmText = result.suggestedDM 
-              ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl 
+            const dmText = result.suggestedDM
+              ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl
                   ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
                   : result.suggestedDM)
               : `Hey @${commentEvent.username}! Here's the link: ${activeLinkUrl}`;
@@ -722,7 +799,7 @@ export async function POST(request: NextRequest) {
             if (dmRes) {
               await supabaseAdmin
                 .from('instagram_comment_logs')
-                .update({ dm_sent: true })
+                .update({ dm_sent: true, dm_message: dmText })
                 .eq('comment_id', commentId);
             }
           }
@@ -795,6 +872,7 @@ export async function POST(request: NextRequest) {
       totalCommentsExamined,
       newCommentsProcessed,
       repliesPosted,
+      partialSync,
       processedComments,
       metaWithheld: isMetaWithheld,
       diagnostics,

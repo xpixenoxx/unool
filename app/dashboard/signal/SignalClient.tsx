@@ -287,6 +287,11 @@ export function SignalClient() {
         memoryAnalyticsKey = cacheKey;
         hasLoadedOnce.current = true;
         setAnalytics(data);
+        if (Array.isArray(data.posts)) {
+          setInspectorPost(prev =>
+            prev ? data.posts.find((p: EnrichedSignalPost) => p.id === prev.id) ?? prev : null
+          );
+        }
         setLoadError(null);
 
         // Notify sidebar badge of current 24h drafts cleanly

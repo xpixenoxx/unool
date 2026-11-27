@@ -373,17 +373,24 @@ async function handleJob(params: InstagramOutboundJobParams) {
         if (classified.shouldFlagForReview) {
           await flagCommentForDeadLetter(workspaceId, params, classified.reasoning, classified.suggestedReply);
         }
-        await supabaseAdmin
-          .from('instagram_comment_logs')
-          .update({
+        await persistCommentLog({
+          workspaceId,
+          commentId,
+          mediaId,
+          commentText,
+          commenterUsername,
+          fields: {
             classification: classified.classification,
             confidence: classified.confidence,
+            auto_replied: false,
             delivery_status: classified.shouldFlagForReview ? 'needs_review' : 'sent',
             flagged_for_review: classified.shouldFlagForReview,
             suggested_reply: classified.suggestedReply || '',
             reasoning: classified.reasoning,
-          })
-          .eq('comment_id', commentId);
+            lead_score: classified.leadScore ?? 0,
+            thread_hook: classified.threadHook ?? null,
+          },
+        });
         await markJobSent(workspaceId, jobType, targetId);
         return NextResponse.json({ success: true, action: 'skipped_by_policy' }, { status: 200 });
       }
@@ -470,9 +477,13 @@ async function handleJob(params: InstagramOutboundJobParams) {
         }
       }
 
-      await supabaseAdmin
-        .from('instagram_comment_logs')
-        .update({
+      await persistCommentLog({
+        workspaceId,
+        commentId,
+        mediaId,
+        commentText,
+        commenterUsername,
+        fields: {
           classification: classified.classification,
           confidence: classified.confidence,
           auto_replied: true,
@@ -480,10 +491,12 @@ async function handleJob(params: InstagramOutboundJobParams) {
           reply_sent_at: new Date().toISOString(),
           suggested_reply: finalReply,
           reasoning: classified.reasoning,
+          lead_score: classified.leadScore ?? 0,
+          thread_hook: classified.threadHook ?? null,
           dm_sent: didSendDm,
           dm_message: didSendDm ? sentDmText : null,
-        })
-        .eq('comment_id', commentId);
+        },
+      });
 
       await velocityThrottle.recordReply(workspaceId);
       lexicalEntropyGuard.recordReply(workspaceId, finalReply, mediaId);
@@ -966,12 +979,61 @@ async function markJobSent(workspaceId: string, jobType: string, targetId: strin
     .eq('target_id', targetId);
 }
 
+async function persistCommentLog(input: {
+  workspaceId: string;
+  commentId: string;
+  mediaId?: string;
+  commentText?: string;
+  commenterUsername?: string;
+  fields: Record<string, unknown>;
+}) {
+  const { workspaceId, commentId, mediaId, commentText, commenterUsername, fields } = input;
+  const { data: updatedRows, error: updateErr } = await supabaseAdmin
+    .from('instagram_comment_logs')
+    .update(fields)
+    .eq('comment_id', commentId)
+    .select('id');
+
+  if (!updateErr && Array.isArray(updatedRows) && updatedRows.length > 0) {
+    return;
+  }
+
+  if (updateErr) {
+    logger.warn('Failed to update instagram_comment_logs — falling back to upsert', {
+      commentId,
+      error: updateErr.message,
+    });
+  }
+
+  const { error: upsertErr } = await supabaseAdmin
+    .from('instagram_comment_logs')
+    .upsert(
+      {
+        workspace_id: workspaceId,
+        comment_id: commentId,
+        media_id: mediaId || '',
+        comment_text: commentText || '',
+        commenter_username: commenterUsername || 'instagram_user',
+        ...fields,
+      },
+      { onConflict: 'comment_id', ignoreDuplicates: false }
+    );
+
+  if (upsertErr) {
+    logger.error('Failed to persist instagram_comment_logs in outbound worker', {
+      commentId,
+      workspaceId,
+      error: upsertErr.message,
+    });
+  }
+}
+
 async function markDeadLetter(
   workspaceId: string,
   jobType: string,
   targetId: string,
   lastError: string,
-  _params: InstagramOutboundJobParams
+  params: InstagramOutboundJobParams
 ) {
   await supabaseAdmin
     .from('instagram_outbound_jobs')
@@ -984,16 +1046,25 @@ async function markDeadLetter(
     .eq('job_type', jobType)
     .eq('target_id', targetId);
 
-  // Update underlying logs table to needs_review/failed
+  // Update underlying logs table to needs_review/failed (insert if missing)
   if (jobType === 'comment_reply') {
-    await supabaseAdmin
-      .from('instagram_comment_logs')
-      .update({
+    await persistCommentLog({
+      workspaceId,
+      commentId: targetId,
+      mediaId: params.mediaId,
+      commentText: params.commentText,
+      commenterUsername: params.commenterUsername,
+      fields: {
+        classification: 'question',
+        confidence: 0,
+        suggested_reply: '',
+        auto_replied: false,
         delivery_status: 'needs_review',
         flagged_for_review: true,
         last_error: lastError,
-      })
-      .eq('comment_id', targetId);
+        reasoning: lastError,
+      },
+    });
   } else {
     await supabaseAdmin
       .from('instagram_dm_logs')

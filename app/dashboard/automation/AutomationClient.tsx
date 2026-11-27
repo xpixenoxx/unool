@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
@@ -163,11 +163,14 @@ export default function AutomationClient({
   const syncLiveComments = async () => {
     if (!workspaceId) return;
     setSyncingComments(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
     try {
       const res = await fetch('/api/instagram/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspaceId }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (data.ok) {
@@ -196,9 +199,14 @@ export default function AutomationClient({
       } else {
         showToast(data.message || data.error || 'Failed to sync comments', 'error');
       }
-    } catch {
-      showToast('Error syncing comments with Instagram', 'error');
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        showToast('Instagram sync timed out — refreshing ledger with any synced comments.', 'error');
+      } else {
+        showToast('Error syncing comments with Instagram', 'error');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setSyncingComments(false);
       loadComments();
     }
@@ -251,11 +259,27 @@ export default function AutomationClient({
       .catch(() => { setLoading(false); showToast('Failed to load automation config', 'error'); });
   }, [workspaceId]);
 
+  const commentSearchRef = useRef(commentSearch);
+  commentSearchRef.current = commentSearch;
+
   const loadComments = useCallback(async () => {
     if (!workspaceId) return;
     setFeedLoading(true);
     try {
-      const res = await fetch(`/api/instagram/comments?workspaceId=${workspaceId}&page=${commentPage}&limit=25&classification=${commentFilter}`);
+      const params = new URLSearchParams({
+        workspaceId,
+        page: String(commentPage),
+        limit: '25',
+        classification: commentFilter,
+      });
+      const q = commentSearchRef.current.trim();
+      if (q) {
+        params.set('search', q);
+      }
+      const res = await fetch(`/api/instagram/comments?${params.toString()}`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) return;
       const data = await res.json();
       setComments(data.comments || []);
       setCommentStats(data.stats || null);
@@ -290,7 +314,21 @@ export default function AutomationClient({
     }
   }, [workspaceId]);
 
+  const loadCommentsRef = useRef(loadComments);
+  const loadFlaggedRef = useRef(loadFlagged);
+  const loadDmsRef = useRef(loadDms);
+  loadCommentsRef.current = loadComments;
+  loadFlaggedRef.current = loadFlagged;
+  loadDmsRef.current = loadDms;
+
   useEffect(() => { if (activeTab === 'feed') loadComments(); }, [activeTab, loadComments]);
+  useEffect(() => {
+    if (activeTab !== 'feed') return;
+    const timer = setTimeout(() => {
+      loadCommentsRef.current();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [commentSearch, activeTab]);
   useEffect(() => { if (activeTab === 'inbox') loadFlagged(); }, [activeTab, loadFlagged]);
   useEffect(() => { if (activeTab === 'dms') loadDms(); }, [activeTab, loadDms]);
 
@@ -302,10 +340,10 @@ export default function AutomationClient({
         const { getSupabaseBrowserClient } = await import('@/lib/supabase/browser');
         const supabase = getSupabaseBrowserClient();
         channel = supabase.channel(`signaldm-live-${workspaceId}`)
-          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_comment_logs', filter: `workspace_id=eq.${workspaceId}` }, () => { loadComments(); })
-          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_flagged_comments', filter: `workspace_id=eq.${workspaceId}` }, () => { loadFlagged(); })
-          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_dm_logs', filter: `workspace_id=eq.${workspaceId}` }, () => { loadDms(); })
-          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_flagged_dms', filter: `workspace_id=eq.${workspaceId}` }, () => { loadFlagged(); })
+          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_comment_logs', filter: `workspace_id=eq.${workspaceId}` }, () => { loadCommentsRef.current(); })
+          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_flagged_comments', filter: `workspace_id=eq.${workspaceId}` }, () => { loadFlaggedRef.current(); })
+          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_dm_logs', filter: `workspace_id=eq.${workspaceId}` }, () => { loadDmsRef.current(); })
+          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_flagged_dms', filter: `workspace_id=eq.${workspaceId}` }, () => { loadFlaggedRef.current(); })
           .subscribe((status: string) => { if (status === 'SUBSCRIBED') console.log('[SignalDM] Realtime connected'); });
       } catch (err) {
         console.warn('[SignalDM] Realtime subscription notice', err);
@@ -318,7 +356,7 @@ export default function AutomationClient({
         }).catch(() => {});
       }
     };
-  }, [workspaceId, loadComments, loadFlagged, loadDms]);
+  }, [workspaceId]);
 
   const saveConfig = async () => {
     if (!workspaceId || !config) return;
