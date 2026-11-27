@@ -62,7 +62,7 @@ export default function PrivacyPolicyPage() {
           </Link>
           <div className="text-xs text-white/50 hidden sm:flex items-center gap-2">
             <span>Operating Entity:</span>
-            <span className="text-white font-medium">Pixenox Solutions</span>
+            <span className="text-white font-medium">Pixenox Solutions Private Limited</span>
           </div>
         </div>
       </nav>
@@ -85,13 +85,13 @@ export default function PrivacyPolicyPage() {
               </span>
             </h1>
             <p className="text-sm text-white/60 leading-relaxed">
-              Effective Date: October 31, 2026. This comprehensive Privacy Policy sets out how Pixenox Solutions collects,
+              Effective Date: October 31, 2026. This comprehensive Privacy Policy sets out how Pixenox Solutions Private Limited collects,
               uses, secures, retains, and deletes personal and connected platform data across Unool.
             </p>
 
             <div className="mt-6 p-4 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-white/70 space-y-2">
               <p className="font-semibold text-white/90">Entity Coordinates</p>
-              <p>Pixenox Solutions</p>
+              <p>Pixenox Solutions Private Limited</p>
               <p className="text-white/50">
                 Official Corporate Portal:{' '}
                 <a
@@ -136,7 +136,7 @@ export default function PrivacyPolicyPage() {
             </div>
             <div className="text-sm text-white/70 leading-relaxed space-y-3">
               <p>
-                Pixenox Solutions (&ldquo;Pixenox&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;)
+                Pixenox Solutions Private Limited (&ldquo;Pixenox&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;)
                 operates the Unool platform (<strong>unool.co</strong> and its related web applications, API endpoints,
                 and subdomains). Our primary corporate portal is located at{' '}
                 <a
@@ -152,13 +152,13 @@ export default function PrivacyPolicyPage() {
               <p>
                 <strong>Data Controller (Data Fiduciary):</strong> For personal data we collect and process to maintain
                 your Unool user account, manage subscriptions, process card payments, deliver security logs, and administer
-                workspace access, Pixenox Solutions acts as the Data Controller (and Data Fiduciary under the Digital
+                workspace access, Pixenox Solutions Private Limited acts as the Data Controller (and Data Fiduciary under the Digital
                 Personal Data Protection Act, 2023 of India).
               </p>
               <p>
                 <strong>Data Processor:</strong> For audience personal data that you direct us to process on your behalf
                 through connected social channels (such as comments, direct message threads, and public mentions on your
-                Instagram, Threads, or LinkedIn accounts), you act as the Data Controller, and Pixenox Solutions acts strictly
+                Instagram, Threads, or LinkedIn accounts), you act as the Data Controller, and Pixenox Solutions Private Limited acts strictly
                 as your Data Processor.
               </p>
             </div>
@@ -692,7 +692,7 @@ export default function PrivacyPolicyPage() {
                 <li><strong>Encryption in Transit:</strong> All communication between user browsers, Unool application servers, and external APIs is strictly enforced via Transport Layer Security (TLS 1.3).</li>
                 <li><strong>Encryption at Rest:</strong> Database records and sensitive OAuth tokens are encrypted at rest using AES-256-GCM symmetric authenticated encryption.</li>
                 <li><strong>Access Governance:</strong> Production environment access is strictly restricted to designated engineering personnel via multi-factor authentication (MFA) and least-privilege role-based access controls.</li>
-                <li><strong>Breach Notification Commitment:</strong> In the event of a verified security incident affecting personal data, Pixenox Solutions will notify impacted users and statutory authorities promptly in accordance with applicable laws.</li>
+                <li><strong>Breach Notification Commitment:</strong> In the event of a verified security incident affecting personal data, Pixenox Solutions Private Limited will notify impacted users and statutory authorities promptly in accordance with applicable laws.</li>
               </ul>
               <p className="text-xs text-white/50">
                 Security vulnerability disclosures may be submitted directly to <a href="mailto:connect@pixenox.com" className="text-[#C84B31] hover:underline">connect@pixenox.com</a>.
@@ -746,7 +746,7 @@ export default function PrivacyPolicyPage() {
               <p>
                 If you interact with social media accounts operated by our customers (for instance, by commenting on a customer&apos;s
                 Instagram post or sending a direct message), the customer is the Data Controller responsible for that information,
-                and Pixenox Solutions processes the data solely on the customer&apos;s instructions to facilitate comment moderation,
+                and Pixenox Solutions Private Limited processes the data solely on the customer&apos;s instructions to facilitate comment moderation,
                 inbox management, or automated concierge replies.
               </p>
               <p>
@@ -821,7 +821,7 @@ export default function PrivacyPolicyPage() {
                 In accordance with the Information Technology Act, 2000, the Consumer Protection (E-Commerce) Rules, 2020, and the Digital Personal Data Protection Act, 2023, our appointed Data Protection and Grievance Officer details are:
               </p>
               <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs text-white/80 space-y-2">
-                <p><strong>Operating Entity:</strong> Pixenox Solutions</p>
+                <p><strong>Operating Entity:</strong> Pixenox Solutions Private Limited</p>
                 <p><strong>Designation:</strong> Data Protection &amp; Grievance Officer</p>
                 <p>
                   <strong>Email:</strong>{' '}
