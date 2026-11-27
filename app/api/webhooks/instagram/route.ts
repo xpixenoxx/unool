@@ -58,6 +58,10 @@ import { transcribeInstagramVoiceNote } from '@/lib/services/automation/voiceTra
 import { computeContactIntentScore } from '@/lib/services/automation/intentScore';
 import { dispatchWorkspaceWebhooks } from '@/lib/services/automation/leadSync';
 import { recordBudgetedNotification } from '@/lib/services/automation/notificationBudget';
+import {
+  isAutomatedDmEcho,
+  isAutomatedOutboundMid,
+} from '@/lib/services/automation/echoTracker';
 
 
 
@@ -978,8 +982,8 @@ async function processCommentEvent(
         // No follow gate: send via private reply (DM) as usual
         const dmText = result.suggestedDM
           ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl
-              ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
-              : result.suggestedDM)
+            ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
+            : result.suggestedDM)
           : `Hey @${commentEvent.username}! Here's the link you asked for: ${activeLinkUrl}`;
         const dmRes = await automation.sendDmForComment(
           accessToken,
@@ -1059,21 +1063,57 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
 
   if ((!message && !postback) || !sender) return;
 
-  // Human Takeover + Phone-Reply Voice Learning on echo/outbound messages from the creator's phone
+  // Human Takeover + Phone-Reply Voice Learning on manual outbound replies from the creator's phone
   if ((message as any)?.is_echo === true || sender.id === igUserId) {
     const recipientId = recipient?.id as string | undefined;
     const echoText = typeof message?.text === 'string' ? message.text.trim() : '';
+    const echoMid = (message?.mid as string | undefined) || (messaging.mid as string | undefined);
+    const echoAppId = (message as any)?.app_id;
+
+    if (
+      (echoAppId !== undefined && echoAppId !== null && String(echoAppId).trim().length > 0) ||
+      (await isAutomatedOutboundMid(echoMid))
+    ) {
+      logger.debug('Ignored API-originated outbound DM echo (no Human Takeover pause)', {
+        senderId: sender.id,
+        igUserId,
+        messageId: echoMid,
+        hasAppId: Boolean(echoAppId),
+      });
+      return;
+    }
+
     if (recipientId && recipientId !== igUserId) {
       try {
         const echoConn = await resolveInstagramConnection(igUserId);
         if (echoConn?.workspace_id) {
-          const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-          await upsertWorkspaceContact({
+          const isAutomated = await isAutomatedDmEcho({
             workspaceId: echoConn.workspace_id,
-            platform: 'instagram',
-            platformUserId: recipientId,
-            aiPausedUntil: pauseUntil,
+            recipientId,
+            messageId: echoMid,
+            appId: echoAppId,
+            echoText,
           });
+          if (isAutomated) {
+            logger.debug('Ignored automated outbound DM echo (no Human Takeover pause)', {
+              workspaceId: echoConn.workspace_id,
+              recipientId,
+              messageId: echoMid,
+            });
+            return;
+          }
+
+          const echoConfig = await loadAutomationConfig(echoConn.workspace_id);
+          const takeoverHours = Math.max(0, Number(echoConfig.humanTakeoverHours ?? 24) || 0);
+          if (takeoverHours > 0) {
+            const pauseUntil = new Date(Date.now() + takeoverHours * 60 * 60 * 1000).toISOString();
+            await upsertWorkspaceContact({
+              workspaceId: echoConn.workspace_id,
+              platform: 'instagram',
+              platformUserId: recipientId,
+              aiPausedUntil: pauseUntil,
+            });
+          }
           if (echoText.length >= 8) {
             await recordAiReplyFeedback({
               workspaceId: echoConn.workspace_id,
@@ -1088,7 +1128,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
         // Non-blocking
       }
     }
-    logger.debug('Handled echo/outbound DM (24h Human Takeover active)', {
+    logger.debug('Handled manual creator phone echo DM (Human Takeover updated)', {
       senderId: sender.id,
       igUserId,
       isEcho: (message as any)?.is_echo,
@@ -2279,7 +2319,7 @@ async function logDmEvent(
     // Use upsert with ignoreDuplicates to prevent duplicate rows from webhook re-delivery.
     // auto_replied is always inserted as false here; it is updated to true only after a
     // confirmed successful send.  This prevents counting a generated reply as a sent reply.
-    await supabaseAdmin.from('instagram_dm_logs').upsert(
+    const { error } = await supabaseAdmin.from('instagram_dm_logs').upsert(
       {
         workspace_id: workspaceId,
         message_id: dm.messageId,
@@ -2296,6 +2336,13 @@ async function logDmEvent(
       },
       { onConflict: 'message_id', ignoreDuplicates: true }
     );
+    if (error) {
+      logger.error('Failed to log Instagram DM event to DB', {
+        messageId: dm.messageId,
+        workspaceId,
+        error: error.message,
+      });
+    }
   } catch (error) {
     logger.warn('Failed to log Instagram DM event', { error });
   }

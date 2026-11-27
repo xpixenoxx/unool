@@ -9,6 +9,7 @@ import {
   detectMessageLanguageHint,
   evaluateAiReplyQuality,
 } from '@/lib/services/automation/aiReplyQuality';
+import { recordAutomatedOutboundMid } from '@/lib/services/automation/echoTracker';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -988,6 +989,7 @@ Return ONLY valid JSON:
         }
       )).json();
 
+      await recordAutomatedOutboundMid(data.message_id);
       logger.info('Instagram DM sent via Messaging API', {
         recipientIgScopedId,
         messageId: data.message_id,
@@ -1101,6 +1103,7 @@ Return ONLY valid JSON:
         }
       )).json();
 
+      await recordAutomatedOutboundMid(data.message_id);
       logger.info('Instagram Quick Reply DM sent successfully', {
         recipientIgScopedId,
         messageId: data.message_id,
@@ -1402,6 +1405,7 @@ Return ONLY valid JSON:
       )).json();
 
       const messageId = data.message_id || data.id || 'sent';
+      await recordAutomatedOutboundMid(messageId);
       logger.info('Private reply sent to comment via Instagram Messaging API', {
         commentId,
         messageId,
@@ -1629,7 +1633,9 @@ Return ONLY valid JSON:
         })
       ).json();
 
-      return { messageId: data.message_id || data.id || 'sent', usedFallback: false };
+      const templateMessageId = data.message_id || data.id || 'sent';
+      await recordAutomatedOutboundMid(templateMessageId);
+      return { messageId: templateMessageId, usedFallback: false };
     } catch (err) {
       logger.warn('Generic template card rejected — falling back to plain text', {
         error: err instanceof Error ? err.message : String(err),

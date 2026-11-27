@@ -11,6 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { recordAutomatedOutboundMid } from '@/lib/services/automation/echoTracker';
 
 const {
   mockVerifyMetaSignature,
@@ -322,7 +323,9 @@ describe('Instagram Webhook New Surfaces & Safeguards', () => {
     });
   });
 
-  it('pauses AI for 24h and learns creator voice on manual phone reply (is_echo)', async () => {
+  it('pauses AI for configured humanTakeoverHours and learns creator voice on manual phone reply (is_echo)', async () => {
+    cfgState.humanTakeoverHours = 12;
+    const beforeMs = Date.now();
     const req = buildWebhookRequest({
       object: 'instagram',
       entry: [
@@ -355,6 +358,10 @@ describe('Instagram Webhook New Surfaces & Safeguards', () => {
         aiPausedUntil: expect.any(String),
       })
     );
+    const pauseIso = mockUpsertWorkspaceContact.mock.calls[0]?.[0]?.aiPausedUntil as string;
+    const pauseDiffHours = (Date.parse(pauseIso) - beforeMs) / (60 * 60 * 1000);
+    expect(pauseDiffHours).toBeGreaterThan(11.9);
+    expect(pauseDiffHours).toBeLessThan(12.2);
     expect(mockRecordAiReplyFeedback).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: 'ws_1',
@@ -363,6 +370,129 @@ describe('Instagram Webhook New Surfaces & Safeguards', () => {
       })
     );
     expect(mockClassifyAndReplyDM).not.toHaveBeenCalled();
+  });
+
+  it('does NOT pause AI on automated outbound DM echoes and allows normal follow-up DMs ("hey hi")', async () => {
+    await recordAutomatedOutboundMid('mid_bot_recorded_1');
+
+    // 1. Echo with Meta app_id (Graph API automated send)
+    const apiEchoReq = buildWebhookRequest({
+      object: 'instagram',
+      entry: [
+        {
+          id: 'ig_biz_999',
+          time: Date.now(),
+          messaging: [
+            {
+              sender: { id: 'ig_biz_999' },
+              recipient: { id: 'fan_swiha' },
+              timestamp: Date.now(),
+              message: {
+                mid: 'mid_bot_app_echo',
+                app_id: '1669649600933861',
+                text: 'Hey! Tap below and I will send it right over 👇',
+                is_echo: true,
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect((await POST(apiEchoReq)).status).toBe(200);
+
+    // 2. Echo matching recorded outbound mid (even without app_id)
+    const recordedMidEchoReq = buildWebhookRequest({
+      object: 'instagram',
+      entry: [
+        {
+          id: 'ig_biz_999',
+          time: Date.now(),
+          messaging: [
+            {
+              sender: { id: 'ig_biz_999' },
+              recipient: { id: 'fan_swiha' },
+              timestamp: Date.now(),
+              message: {
+                mid: 'mid_bot_recorded_1',
+                text: 'Here is your custom AI reply.',
+                is_echo: true,
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect((await POST(recordedMidEchoReq)).status).toBe(200);
+
+    // 3. Echo matching Follow-Gate unlock signature (even if cold isolate / missing app_id)
+    const templateEchoReq = buildWebhookRequest({
+      object: 'instagram',
+      entry: [
+        {
+          id: 'ig_biz_999',
+          time: Date.now(),
+          messaging: [
+            {
+              sender: { id: 'ig_biz_999' },
+              recipient: { id: 'fan_swiha' },
+              timestamp: Date.now(),
+              message: {
+                mid: 'mid_bot_follow_unlock',
+                text: "Thanks for following @avadika_senakkay! 🎉 You're all set! Here is your exclusive access: https://example.unool.co/kit ✨ Let me know if you need anything else!",
+                is_echo: true,
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect((await POST(templateEchoReq)).status).toBe(200);
+
+    expect(mockUpsertWorkspaceContact).not.toHaveBeenCalled();
+    expect(mockRecordAiReplyFeedback).not.toHaveBeenCalled();
+
+    // 4. Subsequent normal DM ("hey hi") from end user receives normal AI DM reply
+    const normalDmReq = buildWebhookRequest({
+      object: 'instagram',
+      entry: [
+        {
+          id: 'ig_biz_999',
+          time: Date.now(),
+          messaging: [
+            {
+              sender: { id: 'fan_swiha', username: 'swiha_sri' },
+              recipient: { id: 'ig_biz_999' },
+              timestamp: Date.now(),
+              message: {
+                mid: 'mid_fan_hi_1',
+                text: 'hey hi',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const normalRes = await POST(normalDmReq);
+    expect(normalRes.status).toBe(200);
+    expect(mockClassifyAndReplyDM).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: 'mid_fan_hi_1',
+        senderId: 'fan_swiha',
+        text: 'hey hi',
+      }),
+      expect.any(Object),
+      expect.any(Array),
+      expect.any(Number),
+      expect.any(String),
+      true
+    );
+    expect(mockSendPrivateMessage).toHaveBeenCalledWith(
+      expect.any(String),
+      'ig_biz_999',
+      'fan_swiha',
+      expect.any(String)
+    );
   });
 
   it('immediately honors STOP opt-out and suppresses automated DM reply', async () => {
